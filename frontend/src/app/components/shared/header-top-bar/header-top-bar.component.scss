@@ -1,0 +1,527 @@
+@import '../../../../assets/styles/theme';
+
+.header-top-bar {
+  background-color: #1f3444;
+  color: $color-white;
+  padding: 0;
+  position: relative;
+  z-index: $z-index-sticky;
+  height: $header-top-bar-height;
+  
+  .container {
+    @include container;
+    height: 100%;
+  }
+}
+
+.top-bar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  position: relative;
+}
+
+// Right Section (Action Icons only)
+.right-section {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  
+  @media (max-width: $breakpoint-md - 1px) {
+    gap: $spacing-sm;
+  }
+}
+
+// Phone Section (now in center)
+.phone-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  font-size: 1.1rem; // 17.6px - reduced by 20% from 22px
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.phone-text {
+  color: $color-gold;
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 1.1rem; // 17.6px - reduced by 20% from 22px
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    font-size: $font-size-xs;
+  }
+}
+
+.phone-number {
+  color: $color-white;
+  text-decoration: none;
+  font-weight: $font-weight-semibold;
+  font-family: 'Courier New', monospace;
+  transition: color $transition-normal;
+  
+  &:hover, &:focus {
+    color: $color-gold;
+    text-decoration: none;
+  }
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    font-size: $font-size-xs;
+  }
+}
+
+.action-icons {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: $color-white;
+  cursor: pointer;
+  padding: $spacing-sm;
+  border-radius: $border-radius-md;
+  transition: all $transition-normal;
+  position: relative;
+  font-size: 1.375rem; // 22px - adjusted for 70px height
+  
+  &:hover, &:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: $color-gold;
+    transform: translateY(-1px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &.active {
+    background-color: $color-gold;
+    color: $color-navy;
+  }
+
+  // Primary color for logged-in users
+  &.text-primary {
+    color: $color-gold;
+    
+    &:hover, &:focus {
+      color: lighten($color-gold, 10%);
+      background-color: rgba($color-gold, 0.15);
+    }
+  }
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    padding: $spacing-xs;
+    font-size: $font-size-sm;
+  }
+}
+
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: $color-gold;
+  color: $color-navy;
+  font-size: 0.8125rem; // 13px - adjusted for 70px height
+  font-weight: $font-weight-bold;
+  padding: 2px 6px;
+  border-radius: $border-radius-full;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  
+  [dir="rtl"] & {
+    right: auto;
+    left: -4px;
+  }
+}
+
+// User Menu
+.user-menu {
+  position: relative;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: $color-white;
+  border-radius: $border-radius-md;
+  box-shadow: $shadow-lg;
+  padding: $spacing-sm 0;
+  min-width: 200px;
+  z-index: $z-index-dropdown;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  
+  [dir="rtl"] & {
+    right: 0;
+    left: auto;
+  }
+  
+  [dir="ltr"] & {
+    right: auto;
+    left: 0;
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  color: $color-navy;
+  text-decoration: none;
+  font-size: $font-size-sm;
+  transition: background-color $transition-normal;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: right;
+  cursor: pointer;
+  
+  [dir="ltr"] & {
+    text-align: left;
+  }
+  
+  &:hover, &:focus {
+    background-color: $color-gray-light;
+    text-decoration: none;
+  }
+  
+  i {
+    font-size: $font-size-sm;
+    width: 16px;
+    text-align: center;
+  }
+}
+
+.user-info {
+  padding: $spacing-sm $spacing-md;
+  border-bottom: 1px solid $color-gray-light;
+  margin-bottom: $spacing-sm;
+  
+  .user-name {
+    display: block;
+    font-weight: $font-weight-semibold;
+    color: $color-navy;
+    margin-bottom: 2px;
+  }
+  
+  .user-role {
+    font-size: $font-size-xs;
+    color: $color-gold;
+    font-weight: $font-weight-medium;
+  }
+}
+
+.logout-btn {
+  color: $color-danger !important;
+  
+  &:hover, &:focus {
+    background-color: rgba($color-danger, 0.1);
+  }
+}
+
+hr {
+  margin: $spacing-sm 0;
+  border: none;
+  border-top: 1px solid $color-gray-light;
+}
+
+// Left Section (Social + Language only)
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  
+  @media (max-width: $breakpoint-md - 1px) {
+    gap: $spacing-sm;
+  }
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    gap: $spacing-xs;
+  }
+}
+
+// Center Section (Phone Number)
+.center-section {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    order: 2;
+  }
+}
+
+.social-icons {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    gap: 4px;
+  }
+}
+
+.social-icon {
+  color: $color-white;
+  font-size: 1.25rem; // 20px - adjusted for 70px height
+  padding: $spacing-xs;
+  border-radius: $border-radius-md;
+  transition: all $transition-normal;
+  
+  &:hover, &:focus {
+    color: $color-gold;
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+  
+  &.phone-icon:hover {
+    color: $color-success;
+  }
+  
+  &.instagram-icon:hover {
+    background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+    color: $color-white;
+  }
+  
+  &.facebook-icon:hover {
+    color: #1877f2;
+  }
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    font-size: $font-size-xs;
+    padding: 2px;
+  }
+}
+
+.language-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: $color-white;
+  padding: 5px 10px;
+  border-radius: $border-radius-sm;
+  font-size: 0.9375rem; // 15px - adjusted for 70px height
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: all $transition-normal;
+  
+  &:hover, &:focus {
+    background-color: $color-gold;
+    border-color: $color-gold;
+    color: $color-navy;
+    transform: translateY(-1px);
+  }
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+}
+
+// Tablet Responsive  
+@media (max-width: $breakpoint-md - 1px) {
+  .center-section {
+    .phone-text {
+      font-size: 0.9rem; // 14.4px - reduced by 20% from 18px
+    }
+  }
+  
+  .left-section {
+    gap: $spacing-sm;
+  }
+  
+  .right-section {
+    gap: $spacing-xs;
+  }
+}
+
+// Mobile Responsive
+@media (max-width: $breakpoint-sm - 1px) {
+  .header-top-bar {
+    height: 65px;
+    
+    .container {
+      padding: 0 8px; // Minimal padding for edge-to-edge icons
+    }
+  }
+  
+  .top-bar-content {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    width: 100%;
+  }
+  
+  .left-section {
+    justify-content: flex-start;
+    gap: 6px;
+    
+    .language-toggle {
+      padding: 4px 8px;
+      font-size: 0.875rem; // 14px - increased from 10px
+    }
+  }
+  
+  .right-section {
+    justify-content: flex-end;
+  }
+  
+  .center-section {
+    display: none; // Hide phone text on mobile
+  }
+  
+  .action-icons {
+    gap: 4px;
+  }
+  
+  .social-icons {
+    gap: 4px;
+    
+    .social-icon:not(.phone-icon) {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .header-top-bar {
+    .container {
+      padding: 0 4px; // Even tighter spacing for very small screens
+    }
+  }
+  
+  .right-section {
+    gap: 2px;
+  }
+  
+  .left-section {
+    gap: 2px;
+  }
+  
+  .action-icons {
+    gap: 2px;
+  }
+  
+  .social-icons {
+    gap: 2px;
+  }
+  
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .social-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+  
+  .language-toggle {
+    padding: 3px 6px !important;
+    font-size: 0.75rem !important; // 12px - increased from 8px
+    min-width: 28px;
+    height: 28px;
+  }
+}
+
+// Extra small screens - maximum edge-to-edge layout
+@media (max-width: 320px) {
+  .header-top-bar {
+    .container {
+      padding: 0 2px; // Absolute minimal padding
+    }
+  }
+  
+  .top-bar-content {
+    justify-content: space-between;
+  }
+  
+  .left-section {
+    gap: 1px;
+  }
+  
+  .right-section {
+    gap: 1px;
+  }
+  
+  .action-icons {
+    gap: 1px;
+  }
+  
+  .social-icons {
+    gap: 1px;
+  }
+  
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .social-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .language-toggle {
+    padding: 2px 4px !important;
+    font-size: 0.625rem !important; // 10px - increased from 7px
+    min-width: 24px;
+    height: 24px;
+  }
+}
+
+// Desktop Layout: Icons stick to screen edges
+@media (min-width: $breakpoint-xl) {
+  .header-top-bar {
+    .container {
+      padding: 0 12px; // Minimal padding for desktop edge-to-edge
+      max-width: 100%; // Remove container width limit
+    }
+  }
+  
+  .left-section {
+    gap: $spacing-lg;
+  }
+  
+  .right-section {
+    gap: $spacing-md;
+  }
+}
+
+@media (min-width: 1400px) {
+  .header-top-bar {
+    .container {
+      padding: 0 8px; // Even less padding for very large screens
+    }
+  }
+  
+  .left-section {
+    gap: $spacing-xl;
+  }
+  
+  .right-section {
+    gap: $spacing-lg;
+  }
+}

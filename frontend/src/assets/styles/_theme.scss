@@ -1,0 +1,441 @@
+/**
+ * Megadim Catering - Theme Variables
+ * Premium kosher catering styling with navy, white, and gold color scheme
+ */
+
+// Primary Color Palette
+$color-navy: #0E1A24;
+$color-navy-light: #1A2B37;
+$color-navy-dark: #0A141C;
+$color-gold: #cbb69e;
+$color-gold-light: #d4c4a8;
+$color-gold-dark: #b8a48a;
+$color-white: #ffffff;
+$color-cream: #fefefe;
+$color-gray-light: #f8f9fa;
+$color-gray: #6c757d;
+$color-gray-dark: #343a40;
+
+// Status Colors
+$color-success: #28a745;
+$color-warning: #ffc107;
+$color-danger: #dc3545;
+$color-info: #17a2b8;
+
+// Typography
+$font-family-primary: 'Assistant', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+$font-family-secondary: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+// Font Sizes
+$font-size-xs: 0.75rem;   // 12px
+$font-size-sm: 0.875rem;  // 14px
+$font-size-base: 1rem;    // 16px
+$font-size-lg: 1.125rem;  // 18px
+$font-size-xl: 1.25rem;   // 20px
+$font-size-2xl: 1.5rem;   // 24px
+$font-size-3xl: 1.875rem; // 30px
+$font-size-4xl: 2.25rem;  // 36px
+$font-size-5xl: 3rem;     // 48px
+
+// Font Weights
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Line Heights
+$line-height-tight: 1.25;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.75;
+
+// Spacing
+$spacing-xs: 0.25rem;   // 4px
+$spacing-sm: 0.5rem;    // 8px
+$spacing-md: 1rem;      // 16px
+$spacing-lg: 1.5rem;    // 24px
+$spacing-xl: 2rem;      // 32px
+$spacing-2xl: 3rem;     // 48px
+$spacing-3xl: 4rem;     // 64px
+$spacing-4xl: 5rem;     // 80px
+$spacing-5xl: 6rem;     // 96px
+
+// Border Radius
+$border-radius-sm: 0.25rem;  // 4px
+$border-radius-md: 0.5rem;   // 8px
+$border-radius-lg: 0.75rem;  // 12px
+$border-radius-xl: 1rem;     // 16px
+$border-radius-full: 9999px;
+
+// Shadows
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+$shadow-gold: 0 4px 6px -1px rgba(203, 182, 158, 0.3), 0 2px 4px -1px rgba(203, 182, 158, 0.2);
+
+// Breakpoints
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-2xl: 1400px;
+
+// Z-Index Scale
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// Transitions
+$transition-fast: 0.15s ease-in-out;
+$transition-normal: 0.3s ease-in-out;
+$transition-slow: 0.5s ease-in-out;
+
+// Component Specific Variables
+$header-height: 60px;
+$header-top-bar-height: 70px;
+$navbar-height: 60px;
+$footer-height: auto;
+
+// Button Styles
+$button-padding-sm: #{$spacing-sm} #{$spacing-md};
+$button-padding-md: #{$spacing-md} #{$spacing-lg};
+$button-padding-lg: #{$spacing-lg} #{$spacing-xl};
+
+// Form Elements
+$input-padding: #{$spacing-md};
+$input-border-width: 1px;
+$input-border-color: #ddd;
+$input-border-radius: $border-radius-md;
+$input-focus-border-color: $color-gold;
+$input-focus-shadow: 0 0 0 3px rgba(203, 182, 158, 0.1);
+
+// Mixins
+@mixin button-primary {
+  background-color: $color-gold;
+  color: $color-navy;
+  border: 2px solid $color-gold;
+  padding: $button-padding-md;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+  display: inline-block;
+  transition: all $transition-normal;
+  cursor: pointer;
+  text-align: center;
+  
+  &:hover, &:focus {
+    background-color: $color-gold-dark;
+    border-color: $color-gold-dark;
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    
+    &:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+}
+
+@mixin button-secondary {
+  background-color: transparent;
+  color: $color-navy;
+  border: 2px solid $color-navy;
+  padding: $button-padding-md;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+  display: inline-block;
+  transition: all $transition-normal;
+  cursor: pointer;
+  text-align: center;
+  
+  &:hover, &:focus {
+    background-color: $color-navy;
+    color: $color-white;
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+@mixin button-white {
+  background-color: $color-white;
+  color: $color-navy;
+  border: 2px solid $color-white;
+  padding: $button-padding-md;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+  display: inline-block;
+  transition: all $transition-normal;
+  cursor: pointer;
+  text-align: center;
+  
+  &:hover, &:focus {
+    background-color: $color-cream;
+    transform: translateY(-2px);
+    box-shadow: $shadow-lg;
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+@mixin card-shadow {
+  background-color: $color-white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-md;
+  transition: all $transition-normal;
+  
+  &:hover {
+    box-shadow: $shadow-lg;
+    transform: translateY(-4px);
+  }
+}
+
+@mixin container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+  
+  @media (min-width: $breakpoint-sm) {
+    padding: 0 $spacing-lg;
+  }
+  
+  @media (min-width: $breakpoint-lg) {
+    padding: 0 $spacing-xl;
+  }
+}
+
+@mixin section-padding {
+  padding: $spacing-3xl 0;
+  
+  @media (min-width: $breakpoint-md) {
+    padding: $spacing-4xl 0;
+  }
+  
+  @media (min-width: $breakpoint-lg) {
+    padding: $spacing-5xl 0;
+  }
+}
+
+// RTL Support Mixins
+@mixin rtl-margin-left($value) {
+  [dir="rtl"] & {
+    margin-right: $value;
+    margin-left: 0;
+  }
+  
+  [dir="ltr"] & {
+    margin-left: $value;
+    margin-right: 0;
+  }
+}
+
+@mixin rtl-margin-right($value) {
+  [dir="rtl"] & {
+    margin-left: $value;
+    margin-right: 0;
+  }
+  
+  [dir="ltr"] & {
+    margin-right: $value;
+    margin-left: 0;
+  }
+}
+
+@mixin rtl-padding-left($value) {
+  [dir="rtl"] & {
+    padding-right: $value;
+    padding-left: 0;
+  }
+  
+  [dir="ltr"] & {
+    padding-left: $value;
+    padding-right: 0;
+  }
+}
+
+@mixin rtl-padding-right($value) {
+  [dir="rtl"] & {
+    padding-left: $value;
+    padding-right: 0;
+  }
+  
+  [dir="ltr"] & {
+    padding-right: $value;
+    padding-left: 0;
+  }
+}
+
+@mixin rtl-text-align-left {
+  [dir="rtl"] & {
+    text-align: right;
+  }
+  
+  [dir="ltr"] & {
+    text-align: left;
+  }
+}
+
+@mixin rtl-text-align-right {
+  [dir="rtl"] & {
+    text-align: left;
+  }
+  
+  [dir="ltr"] & {
+    text-align: right;
+  }
+}
+
+// ==========================================
+// SMOOTH TRANSITIONS & ANIMATIONS
+// ==========================================
+
+// Global smooth scrolling and base styling
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px; // Account for fixed header
+}
+
+body {
+  transition: background-color $transition-slow ease-in-out;
+}
+
+// Smooth transitions for all elements
+*,
+*::before,
+*::after {
+  transition: all $transition-normal ease-in-out;
+}
+
+// Reduced transitions for performance-sensitive elements
+*:not(.no-transition) {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, background-size, background-position;
+}
+
+// Smooth section transitions
+.page, .section, .container {
+  transition: opacity $transition-slow ease-in-out, transform $transition-normal ease-out;
+}
+
+// Smooth hover effects for interactive elements
+.btn, .nav-link, .card, .menu-card, .dropdown-item, .icon-btn, .social-icon {
+  transition: all $transition-normal ease-in-out;
+  
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+// Page transitions for navigation
+.page {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity $transition-slow ease-out, transform $transition-normal ease-out;
+  
+  &.page-entering {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+// Form elements smooth transitions
+input, textarea, select {
+  transition: all $transition-normal ease-in-out;
+  
+  &:focus {
+    transform: scale(1.01);
+  }
+}
+
+// Smooth image loading
+img {
+  transition: opacity $transition-normal ease-in-out;
+  
+  &:not([src]) {
+    opacity: 0;
+  }
+  
+  &[src] {
+    opacity: 1;
+  }
+}
+
+// Smooth scroll animations for sections
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// Smooth section class for enhanced user experience
+.smooth-section {
+  scroll-margin-top: 80px; // Account for fixed header
+  transition: all $transition-slow ease-in-out;
+  
+  // Fade in animation when section becomes visible
+  &.fade-in {
+    animation: fadeInUp 0.8s ease-out;
+  }
+  
+  // Enhanced smooth transitions for child elements
+  .section-title {
+    transition: all $transition-normal ease-in-out;
+  }
+  
+  .service-block, .why-item, .carousel-item, .testimonial-card, .contact-form-container {
+    transition: all $transition-normal ease-in-out;
+    
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+}
+
+// Reduce motion for users who prefer it
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

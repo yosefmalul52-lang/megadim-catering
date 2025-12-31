@@ -1,0 +1,525 @@
+@import '../../../../assets/styles/theme';
+
+.main-navbar {
+  background-color: $color-white;
+  border-bottom: 1px solid rgba($color-navy, 0.1);
+  position: sticky;
+  top: $header-top-bar-height;
+  z-index: $z-index-sticky;
+  box-shadow: $shadow-sm;
+  
+  .container {
+    @include container;
+  }
+}
+
+.navbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: $navbar-height;
+  position: relative;
+}
+
+// Logo Section
+.logo-section {
+  flex-shrink: 0;
+}
+
+.logo {
+  text-decoration: none;
+  display: block;
+  
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: 2px;
+    border-radius: $border-radius-sm;
+  }
+}
+
+.logo-text {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $color-gold;
+  font-family: $font-family-secondary;
+  text-shadow: 1px 1px 2px rgba($color-navy, 0.1);
+  
+  @media (max-width: $breakpoint-sm - 1px) {
+    font-size: $font-size-xl;
+  }
+}
+
+// Desktop Navigation
+.desktop-menu {
+  @media (max-width: $breakpoint-lg - 1px) {
+    display: none;
+  }
+}
+
+.nav-list {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item {
+  position: relative;
+}
+
+.nav-link {
+  color: $color-navy;
+  text-decoration: none;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-base;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $border-radius-md;
+  transition: all $transition-normal;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  background: none;
+  border: none;
+  cursor: pointer;
+  
+  &:hover, &:focus {
+    color: $color-gold;
+    background-color: rgba($color-gold, 0.1);
+    text-decoration: none;
+  }
+  
+  &.active {
+    color: $color-gold;
+    font-weight: $font-weight-semibold;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 2px;
+      background-color: $color-gold;
+      border-radius: $border-radius-sm;
+    }
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: 2px;
+  }
+}
+
+// Dropdown Styles
+.dropdown {
+  &.open {
+    .dropdown-menu {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .dropdown-icon {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.dropdown-toggle {
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+.dropdown-icon {
+  font-size: $font-size-sm;
+  transition: transform $transition-normal;
+  
+  &.rotated {
+    transform: rotate(180deg);
+  }
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: $color-white;
+  border-radius: $border-radius-md;
+  box-shadow: $shadow-lg;
+  padding: $spacing-sm 0;
+  min-width: 200px;
+  z-index: $z-index-dropdown;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all $transition-normal;
+  border: 1px solid rgba($color-navy, 0.1);
+  list-style: none;
+  margin: 0;
+  
+  [dir="rtl"] & {
+    right: 0;
+    left: auto;
+  }
+  
+  [dir="ltr"] & {
+    right: auto;
+    left: 0;
+  }
+  
+  li {
+    margin: 0;
+  }
+}
+
+.dropdown-link {
+  display: block;
+  padding: $spacing-sm $spacing-md;
+  color: $color-navy;
+  text-decoration: none;
+  font-size: $font-size-sm;
+  transition: all $transition-normal;
+  
+  &:hover, &:focus {
+    background-color: rgba($color-gold, 0.1);
+    color: $color-gold;
+    text-decoration: none;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: -2px;
+  }
+}
+
+// Mobile Menu Toggle
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  
+  @media (max-width: $breakpoint-lg - 1px) {
+    display: flex;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: 2px;
+    border-radius: $border-radius-sm;
+  }
+}
+
+.hamburger-line {
+  width: 25px;
+  height: 3px;
+  background-color: $color-navy;
+  margin: 2px 0;
+  transition: all $transition-normal;
+  border-radius: $border-radius-sm;
+  
+  &.active {
+    &:nth-child(1) {
+      transform: rotate(45deg) translate(6px, 6px);
+    }
+    
+    &:nth-child(2) {
+      opacity: 0;
+    }
+    
+    &:nth-child(3) {
+      transform: rotate(-45deg) translate(6px, -6px);
+    }
+  }
+}
+
+// Mobile Menu
+.mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: $color-white;
+  border-top: 1px solid rgba($color-navy, 0.1);
+  box-shadow: $shadow-lg;
+  transform: translateY(-100%);
+  opacity: 0;
+  visibility: hidden;
+  transition: all $transition-normal;
+  z-index: $z-index-dropdown;
+  
+  &.open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+  }
+  
+  @media (min-width: $breakpoint-lg) {
+    display: none;
+  }
+}
+
+.mobile-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: $spacing-md 0;
+}
+
+.mobile-nav-item {
+  margin: 0;
+  
+  &.mobile-dropdown {
+    &.open {
+      .mobile-dropdown-menu {
+        max-height: 300px;
+        opacity: 1;
+      }
+      
+      .dropdown-icon {
+        transform: rotate(180deg);
+      }
+    }
+  }
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md $spacing-lg;
+  color: $color-navy;
+  text-decoration: none;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-base;
+  transition: all $transition-normal;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: right;
+  cursor: pointer;
+  
+  [dir="ltr"] & {
+    text-align: left;
+  }
+  
+  &:hover, &:focus {
+    background-color: rgba($color-gold, 0.1);
+    color: $color-gold;
+    text-decoration: none;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: -2px;
+  }
+}
+
+.mobile-dropdown-menu {
+  background-color: rgba($color-gray-light, 0.5);
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: all $transition-normal;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  
+  li {
+    margin: 0;
+  }
+}
+
+.mobile-dropdown-link {
+  display: block;
+  padding: $spacing-sm $spacing-xl;
+  color: $color-gray-dark;
+  text-decoration: none;
+  font-size: $font-size-sm;
+  transition: all $transition-normal;
+  position: relative;
+  
+  @include rtl-padding-left($spacing-xl + $spacing-md);
+  
+  &::before {
+    content: '•';
+    position: absolute;
+    color: $color-gold;
+    font-weight: bold;
+    
+    [dir="rtl"] & {
+      right: $spacing-xl;
+    }
+    
+    [dir="ltr"] & {
+      left: $spacing-xl;
+    }
+  }
+  
+  &:hover, &:focus {
+    background-color: rgba($color-gold, 0.1);
+    color: $color-navy;
+    text-decoration: none;
+  }
+  
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: -2px;
+  }
+}
+
+// Accessibility and Focus States
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+// Mobile landscape adjustments
+@media (max-width: $breakpoint-lg - 1px) and (orientation: landscape) {
+  .mobile-menu {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  .nav-link, .mobile-nav-link {
+    border: 1px solid transparent;
+    
+    &:focus {
+      border-color: currentColor;
+      outline: none;
+    }
+  }
+}
+
+// Dark mode support (future enhancement)
+@media (prefers-color-scheme: dark) {
+  .main-navbar {
+    background-color: $color-navy-dark;
+    border-bottom-color: rgba($color-white, 0.1);
+  }
+  
+  .nav-link, .mobile-nav-link {
+    color: $color-white;
+    
+    &:hover, &:focus {
+      color: $color-gold;
+    }
+  }
+  
+  .dropdown-menu, .mobile-menu {
+    background-color: $color-navy-dark;
+    border-color: rgba($color-white, 0.1);
+  }
+  
+  .dropdown-link, .mobile-dropdown-link {
+    color: $color-white;
+    
+    &:hover, &:focus {
+      color: $color-gold;
+    }
+  }
+  
+  .hamburger-line {
+    background-color: $color-white;
+  }
+}
+
+// Mobile Layout: Hamburger right, Logo center
+@media (max-width: $breakpoint-lg - 1px) {
+  .navbar-content {
+    position: relative;
+    justify-content: center;
+  }
+  
+  .logo-section {
+    display: block !important; // Force show logo on mobile even if hidden on desktop
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+  }
+  
+  .mobile-menu-toggle {
+    position: absolute;
+    right: 0; // Move hamburger to the right
+    z-index: 2;
+  }
+}
+
+// RTL Support for mobile layout
+[dir="rtl"] {
+  @media (max-width: $breakpoint-lg - 1px) {
+    .logo-section {
+      display: block !important; // Force show logo on mobile in RTL too
+      right: 50%;
+      left: auto;
+      transform: translateX(50%);
+    }
+    
+    .mobile-menu-toggle {
+      right: auto;
+      left: 0; // Move hamburger to the left in RTL
+    }
+  }
+}
+
+// Desktop Layout: Elements stick to screen edges
+@media (min-width: $breakpoint-xl) {
+  .main-navbar {
+    .container {
+      padding: 0 12px; // Minimal padding for desktop edge-to-edge
+      max-width: 100%; // Remove container width limit
+    }
+  }
+  
+  .logo-section {
+    margin-right: $spacing-2xl; // More space on large screens
+    
+    [dir="rtl"] & {
+      margin-right: 0;
+      margin-left: $spacing-2xl;
+    }
+  }
+}
+
+@media (min-width: 1400px) {
+  .main-navbar {
+    .container {
+      padding: 0 8px; // Even less padding for very large screens
+    }
+  }
+  
+  .nav-list {
+    gap: $spacing-2xl; // More space between nav items on very large screens
+  }
+}
+
+// Desktop Layout: Hide logo and center navigation
+@media (min-width: $breakpoint-lg) {
+  .navbar-content {
+    justify-content: center; // Center the content
+  }
+  
+  .logo-section {
+    display: none; // Hide logo on desktop
+  }
+  
+  .desktop-menu {
+    margin-left: 0; // Remove auto margin when centered
+    margin-right: 0;
+  }
+}

@@ -1,0 +1,61 @@
+<!-- Chat Bubble Button -->
+<div class="chat-bubble" (click)="toggleChat()" *ngIf="!isOpen">
+  <i class="fas fa-comments" aria-hidden="true"></i>
+</div>
+
+<!-- Chat Window -->
+<div class="chat-window" [class.open]="isOpen" *ngIf="isOpen">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="chat-header-content">
+      <i class="fas fa-user-tie" aria-hidden="true"></i>
+      <h3>נציג שירות</h3>
+    </div>
+    <button class="close-btn" (click)="closeChat()" aria-label="סגור">
+      <i class="fas fa-times" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <!-- Chat Messages -->
+  <div class="chat-messages">
+    <div 
+      *ngFor="let msg of messages" 
+      class="message"
+      [class.bot]="msg.isBot"
+      [class.user]="!msg.isBot"
+    >
+      <div class="message-content">
+        {{ msg.text }}
+      </div>
+    </div>
+    
+    <!-- Loading indicator -->
+    <div class="message bot" *ngIf="isLoading">
+      <div class="message-content loading">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Input -->
+  <div class="chat-input">
+    <input
+      type="text"
+      [(ngModel)]="userMessage"
+      (keypress)="onKeyPress($event)"
+      placeholder="כתוב הודעה..."
+      [disabled]="isLoading"
+    />
+    <button 
+      class="send-btn" 
+      (click)="sendMessage()"
+      [disabled]="!userMessage.trim() || isLoading"
+      aria-label="שלח"
+    >
+      <i class="fas fa-paper-plane" aria-hidden="true"></i>
+    </button>
+  </div>
+</div>
+
