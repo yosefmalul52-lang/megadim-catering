@@ -14,11 +14,7 @@ export interface LoginResponse {
   success: boolean;
   message: string;
   token: string;
-  user: {
-    id: string;
-    username: string;
-    role: string;
-  };
+  user: User;
 }
 
 export interface User {

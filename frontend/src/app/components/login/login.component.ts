@@ -13,8 +13,8 @@ import { AuthService, LoginCredentials, RegisterCredentials } from '../../servic
       <div class="login-card">
         <div class="login-header">
           <div class="logo-container">
-            <h1 class="login-title">מגדים קייטרינג</h1>
-            <p class="login-subtitle">התחברות והרשמה</p>
+            <h1 class="login-title">ברוכים הבאים למגדים</h1>
+            <p class="login-subtitle">{{ isLoginMode ? 'התחבר לחשבון שלך' : 'צור חשבון חדש' }}</p>
           </div>
         </div>
 

@@ -53,6 +53,16 @@ export class CartService {
   }
 
   addItem(item: Omit<CartItem, 'quantity'>): void {
+    // Validate item has a valid ID
+    if (!item.id || item.id === null || item.id === undefined || item.id.trim() === '') {
+      console.error('❌ Cannot add item to cart: Invalid or missing ID', {
+        item,
+        id: item.id,
+        name: item.name
+      });
+      throw new Error('Cannot add item to cart: Item must have a valid ID');
+    }
+
     const currentItems = this.currentCart;
     const existingItemIndex = currentItems.findIndex(cartItem => cartItem.id === item.id);
     
@@ -145,7 +155,33 @@ export class CartService {
       const savedCart = localStorage.getItem('megadim-cart');
       if (savedCart) {
         const items: CartItem[] = JSON.parse(savedCart);
-        this.cartItemsSubject.next(items);
+        
+        // Auto-clean: Remove items with invalid IDs (null, undefined, or empty string)
+        const validItems = items.filter(item => {
+          const hasValidId = item.id && 
+                            item.id !== null && 
+                            item.id !== undefined && 
+                            item.id !== '' && 
+                            item.id.trim() !== '';
+          
+          if (!hasValidId) {
+            console.warn('🧹 Removed invalid cart item (missing ID):', {
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity
+            });
+          }
+          
+          return hasValidId;
+        });
+        
+        // If we removed any items, save the cleaned cart back to storage
+        if (validItems.length !== items.length) {
+          console.log(`🧹 Cleaned cart: Removed ${items.length - validItems.length} invalid items`);
+          this.saveCartToStorage(validItems);
+        }
+        
+        this.cartItemsSubject.next(validItems);
       }
     } catch (error) {
       console.warn('Failed to load cart from localStorage:', error);
@@ -189,22 +225,63 @@ export class CartService {
     }
 
     // Transform cart items to match backend CreateOrderRequest format
-    const orderItems = summary.items.map(item => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity
-    }));
+    const orderItems = summary.items.map((item, index) => {
+      // Validate and ensure all required fields are present
+      // Check for empty string as well as undefined/null
+      const itemId = item.id?.trim() || '';
+      const itemName = item.name?.trim() || '';
+      
+      if (!itemId || !itemName || item.quantity === undefined || item.quantity === null || item.price === undefined || item.price === null) {
+        console.error(`❌ Invalid cart item at index ${index}:`, {
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          fullItem: item
+        });
+        throw new Error(`פריט ${index + 1} בעגלה לא תקין: חסרים שדות חובה (שם: ${itemName || 'חסר'}, כמות: ${item.quantity || 'חסר'}, מחיר: ${item.price || 'חסר'}). אנא הסר את הפריט ונסה שוב.`);
+      }
+      
+      // Ensure price and quantity are numbers
+      const price = typeof item.price === 'number' ? item.price : parseFloat(String(item.price));
+      const quantity = typeof item.quantity === 'number' ? item.quantity : parseInt(String(item.quantity), 10);
+      
+      if (isNaN(price) || price <= 0) {
+        console.error(`❌ Invalid price for item at index ${index}:`, item);
+        throw new Error(`מחיר לא תקין עבור פריט "${itemName}": ${item.price}. אנא הסר את הפריט ונסה שוב.`);
+      }
+      
+      if (isNaN(quantity) || quantity <= 0) {
+        console.error(`❌ Invalid quantity for item at index ${index}:`, item);
+        throw new Error(`כמות לא תקינה עבור פריט "${itemName}": ${item.quantity}. אנא הסר את הפריט ונסה שוב.`);
+      }
+      
+      return {
+        id: itemId,
+        name: itemName,
+        price: price,
+        quantity: quantity,
+        category: item.category || undefined // Include category if available
+      };
+    });
+
+    // Validate customer details
+    if (!customerDetails.fullName || !customerDetails.phone) {
+      throw new Error('Customer name and phone are required');
+    }
 
     // Backend expects CreateOrderRequest format (customerName, not customerDetails)
     const orderPayload = {
-      customerName: customerDetails.fullName,
-      phone: customerDetails.phone,
-      email: customerDetails.email || undefined,
-      deliveryAddress: customerDetails.address || undefined,
-      notes: customerDetails.notes || undefined,
+      customerName: String(customerDetails.fullName).trim(),
+      phone: String(customerDetails.phone).trim(),
+      email: customerDetails.email ? String(customerDetails.email).trim() : undefined,
+      deliveryAddress: customerDetails.address ? String(customerDetails.address).trim() : undefined,
+      notes: customerDetails.notes ? String(customerDetails.notes).trim() : undefined,
       items: orderItems
     };
+    
+    // Log the payload for debugging
+    console.log('📦 Sending order payload:', JSON.stringify(orderPayload, null, 2));
 
     return this.http.post<{success: boolean, data: {orderId: string, message: string}}>(
       `${environment.apiUrl}/order/checkout`,
@@ -221,6 +298,14 @@ export class CartService {
       }),
       catchError((error: any) => {
         console.error('Error sending order:', error);
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          error: error.error,
+          url: error.url
+        });
+        console.error('Order payload that was sent:', JSON.stringify(orderPayload, null, 2));
         throw error;
       })
     );

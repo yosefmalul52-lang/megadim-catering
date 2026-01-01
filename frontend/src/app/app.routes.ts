@@ -40,7 +40,8 @@ export const routes: Routes = [
   },
   {
     path: 'my-orders',
-    loadComponent: () => import('./components/pages/my-orders/my-orders.component').then(m => m.MyOrdersComponent)
+    loadComponent: () => import('./components/pages/my-orders/my-orders.component').then(m => m.MyOrdersComponent),
+    canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
   },
   
   // Auth Pages

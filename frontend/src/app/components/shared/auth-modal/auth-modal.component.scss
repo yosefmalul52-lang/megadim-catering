@@ -1,0 +1,550 @@
+@import '../../../../assets/styles/theme';
+
+// ============================================
+// Modal Overlay - Backdrop
+// ============================================
+.auth-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: $z-index-modal;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-lg;
+  direction: rtl;
+  
+  &.open {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+// ============================================
+// Modal Card - Clean White Background
+// ============================================
+.auth-modal {
+  position: relative;
+  background: $color-white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  direction: rtl;
+  
+  .auth-overlay.open & {
+    transform: scale(1) translateY(0);
+  }
+
+  // Custom scrollbar
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $color-gold;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: $color-gold-dark;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+// ============================================
+// Close Button
+// ============================================
+.close-btn {
+  position: absolute;
+  top: $spacing-md;
+  left: $spacing-md;
+  background: transparent;
+  border: none;
+  color: $color-gray;
+  cursor: pointer;
+  padding: $spacing-sm;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10;
+  font-size: $font-size-lg;
+
+  &:hover, &:focus {
+    background-color: rgba($color-gray, 0.1);
+    color: $color-navy;
+    transform: rotate(90deg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-gold;
+    outline-offset: 2px;
+  }
+}
+
+// ============================================
+// Modal Content
+// ============================================
+.modal-content {
+  padding: $spacing-xl;
+  direction: rtl;
+}
+
+.modal-header {
+  text-align: center;
+  margin-bottom: $spacing-xl;
+}
+
+.logo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.modal-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: $color-navy;
+  margin: 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  font-family: $font-family-primary;
+}
+
+.modal-subtitle {
+  font-size: $font-size-base;
+  color: $color-gray;
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+// ============================================
+// Tabs Header - Clean Design
+// ============================================
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: $spacing-xl;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: transparent;
+  position: relative;
+}
+
+.tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  width: 50%;
+  background-color: $color-navy;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  
+  &.login-active {
+    transform: translateX(0);
+  }
+  
+  &.register-active {
+    transform: translateX(100%);
+  }
+}
+
+.tab-btn {
+  flex: 1;
+  padding: $spacing-md $spacing-lg;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #999;
+  font-size: $font-size-base;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  font-family: $font-family-primary;
+  position: relative;
+  z-index: 2;
+
+  &:hover {
+    color: $color-navy;
+  }
+
+  &.active {
+    color: $color-navy;
+    font-weight: 700;
+    border-bottom-color: $color-navy;
+  }
+}
+
+// ============================================
+// Alerts
+// ============================================
+.error-alert {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  background-color: rgba($color-danger, 0.1);
+  border-radius: $border-radius-md;
+  border-right: 3px solid $color-danger;
+  color: $color-danger;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  text-align: right;
+  animation: shake 0.4s ease-in-out;
+  position: relative;
+
+  i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  span {
+    flex: 1;
+  }
+  
+  .error-close {
+    background: transparent;
+    border: none;
+    color: $color-danger;
+    cursor: pointer;
+    padding: $spacing-xs;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0.7;
+    
+    &:hover {
+      opacity: 1;
+      background-color: rgba($color-danger, 0.2);
+      transform: scale(1.1);
+    }
+    
+    i {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+// ============================================
+// Forms with Animation
+// ============================================
+.auth-form {
+  width: 100%;
+  position: relative;
+  min-height: 300px; // Prevent layout shift during animation
+}
+
+.form-group {
+  margin-bottom: $spacing-xl;
+  width: 100%;
+
+  &.error {
+    .form-input {
+      border-color: $color-danger;
+      box-shadow: 0 0 0 3px rgba($color-danger, 0.1);
+    }
+  }
+}
+
+.form-label {
+  display: block;
+  margin-bottom: $spacing-sm;
+  font-weight: 500;
+  color: $color-navy;
+  font-size: $font-size-sm;
+  text-align: right;
+  font-family: $font-family-primary;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  
+  &.password-wrapper {
+    .form-input {
+      padding-left: 3rem;
+    }
+  }
+}
+
+.password-toggle {
+  position: absolute;
+  left: $spacing-md;
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: $spacing-xs;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: $color-navy;
+  }
+  
+  i {
+    font-size: $font-size-base;
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: $spacing-md;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: $font-size-base;
+  font-family: $font-family-primary;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  text-align: right;
+  background-color: $color-white;
+  color: $color-navy;
+  line-height: 1.5;
+
+  &:focus {
+    outline: none;
+    border-color: $color-navy;
+    box-shadow: 0 0 0 2px rgba($color-navy, 0.1);
+  }
+
+  &:hover:not(:disabled) {
+    border-color: #bbb;
+  }
+
+  &:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  &::placeholder {
+    color: #999;
+    opacity: 1;
+    font-weight: 400;
+  }
+}
+
+.error-message {
+  display: block;
+  color: $color-danger;
+  font-size: $font-size-sm;
+  margin-top: $spacing-xs;
+  text-align: right;
+  font-weight: 500;
+  padding-right: $spacing-xs;
+}
+
+// ============================================
+// Form Options (Remember Me & Forgot Password)
+// ============================================
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-lg;
+  margin-top: $spacing-md;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  color: $color-navy;
+  user-select: none;
+  
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: $color-navy;
+  }
+  
+  span {
+    font-weight: 400;
+  }
+}
+
+.forgot-password {
+  color: $color-navy;
+  text-decoration: none;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: $color-gold;
+    text-decoration: underline;
+  }
+}
+
+// ============================================
+// Submit Button - Dark Blue/Black
+// ============================================
+.btn-submit {
+  width: 100%;
+  padding: $spacing-md $spacing-xl;
+  font-size: $font-size-base;
+  font-weight: 600;
+  margin-top: $spacing-lg;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  background-color: $color-navy;
+  color: $color-white;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  
+  font-family: $font-family-primary;
+  text-transform: none;
+
+  &:hover:not(:disabled) {
+    background-color: $color-navy-light;
+  }
+
+  &:active:not(:disabled) {
+    background-color: $color-navy-dark;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #ccc;
+  }
+
+  &.loading {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  i {
+    font-size: 1rem;
+  }
+}
+
+// ============================================
+// Responsive Design
+// ============================================
+@media (max-width: 768px) {
+  .auth-overlay {
+    padding: $spacing-md;
+  }
+
+  .auth-modal {
+    max-width: 100%;
+    max-height: 95vh;
+    border-radius: 16px;
+  }
+
+  .modal-content {
+    padding: $spacing-xl * 1.25 $spacing-lg $spacing-lg;
+  }
+
+  .modal-title {
+    font-size: 1.75rem;
+  }
+
+  .modal-subtitle {
+    font-size: $font-size-sm;
+  }
+
+  .form-group {
+    margin-bottom: $spacing-lg;
+  }
+
+  .btn-submit {
+    padding: $spacing-md + 0.25rem $spacing-lg;
+    font-size: $font-size-base;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-overlay {
+    padding: $spacing-sm;
+  }
+
+  .auth-modal {
+    border-radius: 12px;
+  }
+
+  .modal-content {
+    padding: $spacing-lg;
+  }
+
+  .modal-title {
+    font-size: 1.5rem;
+  }
+
+  .auth-tabs {
+    margin-bottom: $spacing-lg;
+  }
+
+  .tab-btn {
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-sm;
+  }
+
+  .close-btn {
+    top: $spacing-sm;
+    left: $spacing-sm;
+    width: 36px;
+    height: 36px;
+  }
+}
+

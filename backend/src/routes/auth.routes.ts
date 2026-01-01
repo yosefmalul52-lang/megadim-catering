@@ -22,16 +22,27 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Check if user exists (username is used as email in this system)
+    console.log('🔍 Login attempt for username:', username.toLowerCase());
     const user = await User.findOne({ username: username.toLowerCase() });
+    
     if (!user) {
+      console.log('❌ Login failed: User not found for username:', username.toLowerCase());
       return res.status(400).json({ 
         success: false,
         message: 'פרטי התחברות שגויים' 
       });
     }
 
+    console.log('✅ User found for login:', {
+      userId: user._id,
+      userIdString: String(user._id),
+      username: user.username,
+      role: user.role
+    });
+
     // Check if user is active
     if (!user.isActive) {
+      console.log('❌ Login failed: User account is inactive');
       return res.status(403).json({ 
         success: false,
         message: 'חשבון המשתמש מושבת' 
@@ -41,6 +52,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      console.log('❌ Login failed: Password mismatch');
       return res.status(400).json({ 
         success: false,
         message: 'פרטי התחברות שגויים' 
@@ -49,7 +61,13 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Create Token
     const payload = { id: user._id, role: user.role };
+    console.log('🔍 Creating JWT token with payload:', {
+      id: payload.id,
+      idString: String(payload.id),
+      role: payload.role
+    });
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+    console.log('✅ JWT token created successfully');
 
     return res.json({
       success: true,

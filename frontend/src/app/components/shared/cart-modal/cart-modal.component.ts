@@ -379,7 +379,27 @@ export class CartModalComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error placing order:', error);
-        alert('שגיאה בשליחת ההזמנה. אנא נסה שוב או התקשר אלינו ישירות.');
+        console.error('Error details:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          error: error.error,
+          url: error.url
+        });
+        
+        // Show more specific error message
+        let errorMessage = 'שגיאה בשליחת ההזמנה. ';
+        if (error.error?.message) {
+          errorMessage += error.error.message;
+        } else if (error.status === 400) {
+          errorMessage += 'אנא בדוק שכל השדות מולאו נכון (שם, טלפון, ופריטים בעגלה).';
+        } else if (error.status === 0) {
+          errorMessage += 'לא ניתן להתחבר לשרת. אנא בדוק את החיבור לאינטרנט.';
+        } else {
+          errorMessage += 'אנא נסה שוב או התקשר אלינו ישירות.';
+        }
+        
+        alert(errorMessage);
         this.isProcessingOrder = false;
       }
     });

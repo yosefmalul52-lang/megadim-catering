@@ -5,31 +5,40 @@ import { interval, Subscription } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
 import { OrderService, Order } from '../../../services/order.service';
+import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
 
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, KitchenReportModalComponent],
   template: `
     <div class="admin-orders-page">
       <div class="container">
         <div class="page-header">
           <div class="header-content">
-            <div>
-              <h1>ניהול הזמנות</h1>
-              <p>צפה וניהול כל ההזמנות</p>
+            <p class="page-description">צפה וניהול כל ההזמנות</p>
+            <div class="header-actions">
+              <button 
+                class="btn-kitchen-report"
+                (click)="openKitchenReport()"
+                data-tooltip="דוח הכנות למטבח"
+                [attr.aria-label]="'דוח הכנות למטבח'"
+              >
+                <i class="fas fa-utensils"></i>
+                דוח מטבח
+              </button>
+              <button 
+                class="btn-refresh"
+                (click)="manualRefresh()"
+                [disabled]="isRefreshing"
+                data-tooltip="רענן רשימת הזמנות"
+                [attr.aria-label]="'רענן רשימת הזמנות'"
+              >
+                <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing"></i>
+                <span *ngIf="!isRefreshing">רענן</span>
+                <span *ngIf="isRefreshing">מרענן...</span>
+              </button>
             </div>
-            <button 
-              class="btn-refresh"
-              (click)="manualRefresh()"
-              [disabled]="isRefreshing"
-              [attr.aria-label]="'רענן רשימת הזמנות'"
-              [title]="'רענן רשימת הזמנות'"
-            >
-              <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing"></i>
-              <span *ngIf="!isRefreshing">רענן</span>
-              <span *ngIf="isRefreshing">מרענן...</span>
-            </button>
           </div>
           <div class="auto-refresh-indicator" *ngIf="autoRefreshEnabled">
             <i class="fas fa-circle" [class.pulse]="true"></i>
@@ -91,6 +100,7 @@ import { OrderService, Order } from '../../../services/order.service';
                   <button 
                     class="btn-view-details"
                     (click)="viewOrderDetails(order)"
+                    data-tooltip="צפה בפרטי הזמנה"
                     [attr.aria-label]="'צפה בפרטי הזמנה ' + (order._id || order.id)"
                   >
                     <i class="fas fa-eye"></i>
@@ -200,6 +210,9 @@ import { OrderService, Order } from '../../../services/order.service';
           {{ errorMessage }}
         </div>
       </div>
+
+      <!-- Kitchen Report Modal -->
+      <app-kitchen-report-modal *ngIf="showKitchenReport" (closeModal)="closeKitchenReport()"></app-kitchen-report-modal>
     </div>
   `,
   styles: [`
@@ -241,6 +254,38 @@ import { OrderService, Order } from '../../../services/order.service';
     .page-header p {
       color: #6c757d;
       font-size: 1.1rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .btn-kitchen-report {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: transparent;
+      color: #1a2a3a;
+      border: 2px solid #1a2a3a;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-kitchen-report:hover {
+      background: #1a2a3a;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-kitchen-report i {
+      font-size: 1rem;
     }
 
     .btn-refresh {
@@ -698,6 +743,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   isLoading = true;
   isRefreshing = false;
   selectedOrder: Order | null = null;
+  showKitchenReport = false;
   successMessage = '';
   errorMessage = '';
   
@@ -873,6 +919,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     this.selectedOrder = null;
+  }
+
+  openKitchenReport(): void {
+    this.showKitchenReport = true;
+  }
+
+  closeKitchenReport(): void {
+    this.showKitchenReport = false;
   }
 
   formatDate(date: string | Date | undefined): string {

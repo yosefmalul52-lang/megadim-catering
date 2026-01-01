@@ -3,6 +3,7 @@ export interface OrderItem {
   name: string;
   quantity: number;
   price: number;
+  category?: string; // Optional category for kitchen report
 }
 
 export interface Order {

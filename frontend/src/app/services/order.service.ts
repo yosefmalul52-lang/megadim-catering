@@ -14,6 +14,7 @@ export interface OrderRequest {
     name: string;
     quantity: number;
     price: number;
+    category?: string; // Include category for kitchen report
   }>;
   notes?: string;
   deliveryAddress?: string;
@@ -173,5 +174,50 @@ ${orderRequest.eventDate ? `📅 תאריך אירוע: ${orderRequest.eventDate
 ${orderRequest.deliveryAddress ? `📍 כתובת: ${orderRequest.deliveryAddress}` : ''}
 ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
     `.trim();
+  }
+
+  // Get revenue statistics for the last 7 days
+  getRevenueStats(): Observable<{ date: string; total: number }[]> {
+    return this.http.get<{ success: boolean; data: { date: string; total: number }[] }>(
+      `${environment.apiUrl}/order/stats/revenue`
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        console.error('Error fetching revenue stats:', error);
+        return of([]);
+      })
+    );
+  }
+
+  // Get kitchen preparation report
+  getKitchenReport(): Observable<{ 
+    productName: string;
+    category: string;
+    totalPackages: number; 
+    totalWeightRaw: number; 
+    displayWeight: string;
+    unit?: string;
+    isUnitOnly?: boolean;
+  }[]> {
+    return this.http.get<{ 
+      success: boolean; 
+      data: { 
+        productName: string;
+        category: string;
+        totalPackages: number; 
+        totalWeightRaw: number; 
+        displayWeight: string;
+        unit?: string;
+        isUnitOnly?: boolean;
+      }[] 
+    }>(
+      `${environment.apiUrl}/order/kitchen-report`
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        console.error('Error fetching kitchen report:', error);
+        return of([]);
+      })
+    );
   }
 }

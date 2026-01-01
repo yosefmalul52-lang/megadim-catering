@@ -1,8 +1,10 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 
 import { LanguageService } from '../../../services/language.service';
+import { AuthService, User } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-main-navbar',
@@ -102,6 +104,22 @@ import { LanguageService } from '../../../services/language.service';
               <li class="nav-item">
                 <a routerLink="/contact" routerLinkActive="active" class="nav-link">
                   {{ languageService.strings.contact }}
+                </a>
+              </li>
+              
+              <!-- Admin Link (only when logged in as admin) -->
+              <li class="nav-item" *ngIf="isLoggedIn && currentUser?.role === 'admin'">
+                <a routerLink="/admin" routerLinkActive="active" class="nav-link admin-link">
+                  <i class="fas fa-cog" aria-hidden="true"></i>
+                  <span>ניהול</span>
+                </a>
+              </li>
+              
+              <!-- My Orders Link (only when logged in as regular user) -->
+              <li class="nav-item" *ngIf="isLoggedIn && currentUser?.role !== 'admin'">
+                <a routerLink="/my-orders" routerLinkActive="active" class="nav-link">
+                  <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+                  <span>הזמנות שלי</span>
                 </a>
               </li>
             </ul>
@@ -204,6 +222,22 @@ import { LanguageService } from '../../../services/language.service';
                 {{ languageService.strings.contact }}
               </a>
             </li>
+            
+            <!-- Admin Link (Mobile - only when logged in as admin) -->
+            <li class="mobile-nav-item" *ngIf="isLoggedIn && currentUser?.role === 'admin'">
+              <a routerLink="/admin" class="mobile-nav-link admin-link" (click)="closeMobileMenu()">
+                <i class="fas fa-cog" aria-hidden="true"></i>
+                <span>ניהול</span>
+              </a>
+            </li>
+            
+            <!-- My Orders Link (Mobile - only when logged in as regular user) -->
+            <li class="mobile-nav-item" *ngIf="isLoggedIn && currentUser?.role !== 'admin'">
+              <a routerLink="/my-orders" class="mobile-nav-link" (click)="closeMobileMenu()">
+                <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+                <span>הזמנות שלי</span>
+              </a>
+            </li>
           </ul>
         </div>
       </div>
@@ -211,12 +245,18 @@ import { LanguageService } from '../../../services/language.service';
   `,
   styleUrls: ['./main-navbar.component.scss']
 })
-export class MainNavbarComponent implements OnInit {
+export class MainNavbarComponent implements OnInit, OnDestroy {
   languageService = inject(LanguageService);
+  authService = inject(AuthService);
+  private destroy$ = new Subject<void>();
   
   isShabbatDropdownOpen = false;
   isMobileMenuOpen = false;
   isMobileShabbatDropdownOpen = false;
+  
+  isLoggedIn = false;
+  currentUser: User | null = null;
+  userName = '';
 
   toggleShabbatDropdown(): void {
     this.isShabbatDropdownOpen = !this.isShabbatDropdownOpen;
@@ -247,6 +287,34 @@ export class MainNavbarComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Subscribe to auth state
+    this.authService.isLoggedIn$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(isLoggedIn => {
+        this.isLoggedIn = isLoggedIn;
+        this.updateUserName();
+      });
+
+    this.authService.currentUser$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(user => {
+        this.currentUser = user;
+        this.updateUserName();
+        // Debug: Log current user role
+        console.log('🔍 MainNavbar - Current User Role:', user?.role);
+        console.log('🔍 MainNavbar - Is Logged In:', this.isLoggedIn);
+        console.log('🔍 MainNavbar - Full User Object:', user);
+      });
+
+    // Initial check
+    this.isLoggedIn = this.authService.isLoggedIn();
+    this.currentUser = this.authService.currentUser;
+    this.updateUserName();
+    
+    // Debug: Log initial state
+    console.log('🔍 MainNavbar - Initial User Role:', this.currentUser?.role);
+    console.log('🔍 MainNavbar - Initial Is Logged In:', this.isLoggedIn);
+
     // Close dropdowns when clicking outside
     document.addEventListener('click', (event) => {
       const target = event.target as HTMLElement;
@@ -255,4 +323,18 @@ export class MainNavbarComponent implements OnInit {
       }
     });
   }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  updateUserName(): void {
+    if (this.currentUser) {
+      this.userName = this.currentUser.fullName || this.currentUser.username || 'משתמש';
+    } else {
+      this.userName = '';
+    }
+  }
+
 }

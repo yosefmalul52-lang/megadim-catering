@@ -9,6 +9,8 @@ import { SearchBarComponent } from './components/shared/search-bar/search-bar.co
 import { CartModalComponent } from './components/shared/cart-modal/cart-modal.component';
 import { FooterComponent } from './components/shared/footer/footer.component';
 import { ChatWidgetComponent } from './components/chat-widget/chat-widget.component';
+import { AuthModalComponent } from './components/shared/auth-modal/auth-modal.component';
+import { ToastComponent } from './components/shared/toast/toast.component';
 
 import { LanguageService } from './services/language.service';
 
@@ -23,7 +25,9 @@ import { LanguageService } from './services/language.service';
     SearchBarComponent,
     CartModalComponent,
     FooterComponent,
-    ChatWidgetComponent
+    ChatWidgetComponent,
+    AuthModalComponent,
+    ToastComponent
   ],
   template: `
     <div class="app-container" [attr.dir]="currentDirection">
@@ -49,6 +53,12 @@ import { LanguageService } from './services/language.service';
       
       <!-- Floating Chat Widget (hidden on login/admin pages) -->
       <app-chat-widget *ngIf="!isLoginOrAdminPage"></app-chat-widget>
+      
+      <!-- Auth Modal (available on all pages) -->
+      <app-auth-modal></app-auth-modal>
+      
+      <!-- Toast Notifications (available on all pages) -->
+      <app-toast></app-toast>
     </div>
   `,
   styleUrls: ['./app.component.scss']

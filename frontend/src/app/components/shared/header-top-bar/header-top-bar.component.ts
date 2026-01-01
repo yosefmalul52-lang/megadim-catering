@@ -6,6 +6,7 @@ import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
+import { AuthModalService } from '../../../services/auth-modal.service';
 
 @Component({
   selector: 'app-header-top-bar',
@@ -108,14 +109,14 @@ import { AuthService } from '../../../services/auth.service';
                 <!-- User Dropdown -->
                 <div class="user-dropdown" *ngIf="isUserMenuOpen">
                   <div *ngIf="!currentUser; else loggedInMenu">
-                    <a routerLink="/login" class="dropdown-item" (click)="closeUserMenu()">
+                    <button class="dropdown-item" (click)="openAuthModal('login')">
                       <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
                       {{ languageService.strings.login }}
-                    </a>
-                    <a routerLink="/register" class="dropdown-item" (click)="closeUserMenu()">
+                    </button>
+                    <button class="dropdown-item" (click)="openAuthModal('register')">
                       <i class="fas fa-user-plus" aria-hidden="true"></i>
                       {{ languageService.strings.register }}
-                    </a>
+                    </button>
                   </div>
                   
                   <ng-template #loggedInMenu>
@@ -164,6 +165,7 @@ export class HeaderTopBarComponent implements OnInit {
   cartService = inject(CartService);
   searchService = inject(SearchService);
   authService = inject(AuthService);
+  authModalService = inject(AuthModalService);
   private router = inject(Router);
   
   isUserMenuOpen = false;
@@ -211,9 +213,16 @@ export class HeaderTopBarComponent implements OnInit {
         this.router.navigate(['/my-orders']);
       }
     } else {
-      // Guest -> go to unified login/signup page
-      this.router.navigate(['/login']);
+      // Guest -> open auth modal
+      this.openAuthModal('login');
     }
+  }
+
+  openAuthModal(mode: 'login' | 'register' = 'login'): void {
+    this.closeUserMenu();
+    this.authModalService.openModal();
+    // Note: The modal component will handle the mode switching internally
+    // If you want to set initial mode, you can extend AuthModalService
   }
 
   toggleUserMenu(): void {

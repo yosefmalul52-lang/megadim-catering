@@ -1,15 +1,13 @@
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import path from 'path';
 
-// Load environment variables from root directory
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
-
-// Support multiple environment variable names for flexibility
-const MONGO_URI = process.env.MONGODB_URI || process.env.DATABASE_URL || process.env.MONGO_URI;
+// NOTE: dotenv.config() is already called in server.ts, so we don't need it here
+// Read MONGO_URI from process.env (standardized to MONGO_URI in backend/.env)
+const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  throw new Error('MongoDB connection string is not defined. Please set MONGODB_URI, DATABASE_URL, or MONGO_URI in your .env file');
+  console.error('❌ MONGO_URI is missing in .env file');
+  console.error('   Please set MONGO_URI in backend/.env');
+  throw new Error('MongoDB connection string (MONGO_URI) is not defined in .env file');
 }
 
 // Test Connection Schema

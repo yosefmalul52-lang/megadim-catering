@@ -998,16 +998,31 @@ export class SaladDetailComponent implements OnInit, AfterViewInit {
   addToCart(): void {
     if (!this.salad) return;
 
+    // Ensure we have a valid ID
+    const saladId = this.salad.id || this.salad._id || '';
+    if (!saladId) {
+      console.error('❌ Cannot add to cart: salad ID is missing', this.salad);
+      alert('שגיאה: לא ניתן להוסיף את הפריט לעגלה. אנא רענן את הדף ונסה שוב.');
+      return;
+    }
+
     const price = this.getPriceForSize(this.selectedSize);
     const totalPrice = price * this.quantity;
+
+    // Validate price
+    if (!price || price <= 0 || isNaN(price)) {
+      console.error('❌ Cannot add to cart: invalid price', price);
+      alert('שגיאה: מחיר לא תקין. אנא נסה שוב.');
+      return;
+    }
 
     // Add to cart with selected size and quantity
     for (let i = 0; i < this.quantity; i++) {
       this.cartService.addItem({
-        id: `${this.salad.id}-${this.selectedSize}`,
+        id: `${saladId}-${this.selectedSize}`,
         name: `${this.salad.name} (${this.getSizeLabel(this.selectedSize)})`,
         price: price,
-        imageUrl: this.salad.imageUrl,
+        imageUrl: this.salad.imageUrl || '/assets/images/placeholder-dish.jpg',
         description: this.salad.description,
         category: this.salad.category
       });

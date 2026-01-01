@@ -1,170 +1,174 @@
-import { v4 as uuidv4 } from 'uuid';
-import { CreateOrderRequest, OrderResponse, UpdateOrderRequest } from '../models/order.model';
-const Order = require('../models/Order');
-
-interface OrderFilters {
-  status?: string;
-  limit?: number;
-  offset?: number;
-  startDate?: Date;
-  endDate?: Date;
-}
+import Order, { IOrder } from '../models/Order';
+import { CreateOrderRequest, OrderResponse } from '../models/order.model';
 
 export class OrderService {
-  constructor() {
-    // Service now uses MongoDB via Mongoose
-  }
+  // Categories that should only show units, not calculated weight
+  private readonly UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
 
+  // Submit a new order
+  async submitOrder(orderData: CreateOrderRequest, userId: string | null = null): Promise<OrderResponse> {
+    try {
+      console.log('📝 OrderService: Creating order for user:', userId || 'Guest');
+      console.log('📝 OrderService: Order data:', JSON.stringify(orderData, null, 2));
 
-  // Submit new order
-  async submitOrder(orderData: CreateOrderRequest, userId?: string | null): Promise<OrderResponse> {
-    // Calculate total amount
-    const totalAmount = orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      // Map items to include category if missing
+      const orderItems = orderData.items.map(item => {
+        // If category is missing, try to detect it from the item name
+        let category = (item as any).category;
+        if (!category || category.trim() === '') {
+          category = this.detectCategoryFromName(item.name);
+        }
 
-    // Transform items to match OrderItemSchema (snapshot format)
-    const orderItems = orderData.items.map(item => ({
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      selectedOption: (item as any).selectedOption || undefined,
-      imageUrl: (item as any).imageUrl || undefined,
-      description: (item as any).description || undefined
-    }));
+        return {
+          productId: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          category: category // Include category for kitchen report
+        };
+      });
 
-    // Create order document
-    const newOrder = new Order({
-      userId: userId || undefined, // Link to user if authenticated, null for guests
-      customerDetails: {
-        fullName: orderData.customerName,
-        phone: orderData.phone,
-        email: orderData.email || undefined,
-        address: orderData.deliveryAddress || undefined,
-        notes: orderData.notes || undefined
-      },
-      items: orderItems,
-      totalPrice: totalAmount,
-      status: 'new'
-    });
+      // Calculate total price
+      const totalPrice = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    const savedOrder = await newOrder.save();
+      // Create order document
+      const order = new Order({
+        userId: userId || null, // null for guest orders
+        customerDetails: {
+          fullName: orderData.customerName,
+          phone: orderData.phone,
+          email: orderData.email,
+          address: orderData.deliveryAddress,
+          notes: orderData.notes,
+          preferredDeliveryTime: orderData.preferredDeliveryTime,
+          eventDate: orderData.eventDate,
+          eventType: orderData.eventType,
+          guestCount: orderData.guestCount
+        },
+        items: orderItems,
+        totalPrice: totalPrice,
+        status: 'new'
+      });
 
-    console.log(`📦 New order submitted by ${savedOrder.customerDetails.fullName} (${savedOrder.customerDetails.phone})`);
-    console.log(`Order ID: ${savedOrder._id}, Total: ₪${savedOrder.totalPrice}`);
-    console.log(`Items: ${savedOrder.items.map((item: any) => `${item.name} x${item.quantity}`).join(', ')}`);
+      // Save order
+      const savedOrder = await order.save();
+      console.log('✅ OrderService: Order saved successfully:', savedOrder._id);
+      console.log('✅ OrderService: Saved order userId:', savedOrder.userId);
 
-    return {
-      success: true,
-      orderId: savedOrder._id.toString(),
-      message: 'הזמנתך התקבלה בהצלחה! נחזור אליך בהקדם לאישור הפרטים.',
-      estimatedDelivery: 'תיאום טלפוני',
-      totalAmount: savedOrder.totalPrice
-    };
-  }
-
-  // Get all orders with filtering and pagination
-  async getAllOrders(filters: OrderFilters = {}): Promise<{
-    orders: any[];
-    total: number;
-  }> {
-    // Build query
-    const query: any = {};
-
-    // Filter by status
-    if (filters.status) {
-      query.status = filters.status;
-    }
-
-    // Filter by date range
-    if (filters.startDate || filters.endDate) {
-      query.createdAt = {};
-      if (filters.startDate) {
-        query.createdAt.$gte = filters.startDate;
+      return {
+        success: true,
+        orderId: savedOrder._id.toString(),
+        message: 'Order submitted successfully',
+        totalAmount: totalPrice
+      };
+    } catch (error: any) {
+      console.error('❌ OrderService: Error submitting order:', error);
+      if (error.name === 'ValidationError') {
+        console.error('❌ Validation errors:', error.errors);
       }
-      if (filters.endDate) {
-        query.createdAt.$lte = filters.endDate;
-      }
+      throw error;
     }
-
-    // Get total count
-    const total = await Order.countDocuments(query);
-
-    // Apply pagination and sorting
-    const limit = filters.limit || 50;
-    const offset = filters.offset || 0;
-
-    const orders = await Order.find(query)
-      .sort({ createdAt: -1 }) // Newest first
-      .limit(limit)
-      .skip(offset)
-      .lean(); // Return plain JavaScript objects
-
-    return {
-      orders,
-      total
-    };
   }
 
-  // Get order by ID
-  async getOrderById(id: string): Promise<any | null> {
-    const order = await Order.findById(id).lean();
-    return order || null;
+  // Get orders by user ID
+  async getOrdersByUserId(userId: string): Promise<IOrder[]> {
+    try {
+      const orders = await Order.find({ userId: userId })
+        .sort({ createdAt: -1 })
+        .lean();
+      
+      return orders as IOrder[];
+    } catch (error: any) {
+      console.error('Error fetching user orders:', error);
+      throw error;
+    }
+  }
+
+  // Get all orders with filters (Admin)
+  async getAllOrders(filters: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<{ orders: IOrder[]; total: number }> {
+    try {
+      const query: any = {};
+
+      if (filters.status) {
+        query.status = filters.status;
+      }
+
+      if (filters.startDate || filters.endDate) {
+        query.createdAt = {};
+        if (filters.startDate) {
+          query.createdAt.$gte = filters.startDate;
+        }
+        if (filters.endDate) {
+          query.createdAt.$lte = filters.endDate;
+        }
+      }
+
+      const total = await Order.countDocuments(query);
+      const orders = await Order.find(query)
+        .sort({ createdAt: -1 })
+        .limit(filters.limit || 50)
+        .skip(filters.offset || 0)
+        .lean();
+
+      return {
+        orders: orders as IOrder[],
+        total
+      };
+    } catch (error: any) {
+      console.error('Error fetching all orders:', error);
+      throw error;
+    }
+  }
+
+  // Get order by ID (with user verification)
+  async getOrderById(orderId: string, userId: string): Promise<IOrder | null> {
+    try {
+      const order = await Order.findOne({
+        _id: orderId,
+        userId: userId
+      }).lean();
+
+      return order as IOrder | null;
+    } catch (error: any) {
+      console.error('Error fetching order by ID:', error);
+      throw error;
+    }
   }
 
   // Update order status
-  async updateOrderStatus(id: string, updateData: UpdateOrderRequest): Promise<any | null> {
-    // Map status from old format to new format if needed
-    const statusMap: { [key: string]: string } = {
-      'pending': 'new',
-      'confirmed': 'in-progress',
-      'preparing': 'in-progress',
-      'ready': 'ready',
-      'delivered': 'delivered',
-      'cancelled': 'cancelled'
-    };
+  async updateOrderStatus(orderId: string, updates: {
+    status?: string;
+    deliveryDate?: Date;
+    notes?: string;
+  }): Promise<IOrder | null> {
+    try {
+      const updateData: any = {};
+      if (updates.status) updateData.status = updates.status;
+      if (updates.deliveryDate) updateData.deliveryDate = updates.deliveryDate;
+      if (updates.notes !== undefined) updateData['customerDetails.notes'] = updates.notes;
 
-    const updateFields: any = {};
-    if (updateData.status) {
-      updateFields.status = statusMap[updateData.status] || updateData.status;
+      const order = await Order.findByIdAndUpdate(
+        orderId,
+        { $set: updateData },
+        { new: true }
+      ).lean();
+
+      return order as IOrder | null;
+    } catch (error: any) {
+      console.error('Error updating order status:', error);
+      throw error;
     }
-
-    const updatedOrder = await Order.findByIdAndUpdate(
-      id,
-      { $set: updateFields },
-      { new: true, runValidators: true }
-    ).lean();
-
-    if (updatedOrder) {
-      console.log(`📝 Order ${id} status updated to ${updateFields.status || updateData.status}`);
-    }
-
-    return updatedOrder || null;
-  }
-
-  // Delete order
-  async deleteOrder(id: string): Promise<boolean> {
-    const result = await Order.findByIdAndDelete(id);
-    
-    if (result) {
-      console.log(`🗑️ Order ${id} deleted`);
-      return true;
-    }
-    
-    return false;
   }
 
   // Get order statistics
-  async getOrderStatistics(period?: string): Promise<{
-    totalOrders: number;
-    totalRevenue: number;
-    averageOrderValue: number;
-    ordersByStatus: { [status: string]: number };
-    revenueByStatus: { [status: string]: number };
-    popularItems: Array<{ name: string; quantity: number; revenue: number }>;
-    periodData?: Array<{ date: string; orders: number; revenue: number }>;
-  }> {
-    // Build date filter if period specified
-    const dateFilter: any = {};
-    if (period) {
+  async getOrderStatistics(period: string = 'month'): Promise<any> {
+    try {
       const now = new Date();
       let startDate: Date;
 
@@ -173,95 +177,482 @@ export class OrderService {
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           break;
         case 'month':
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
           break;
         case 'year':
-          startDate = new Date(now.getFullYear(), 0, 1);
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
           break;
         default:
-          startDate = new Date(0); // All time
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
-      dateFilter.createdAt = { $gte: startDate };
-    }
 
-    const filteredOrders = await Order.find(dateFilter).lean();
+      const totalOrders = await Order.countDocuments({
+        createdAt: { $gte: startDate }
+      });
 
-    const totalOrders = filteredOrders.length;
-    const totalRevenue = filteredOrders.reduce((sum: number, order: any) => sum + (order.totalPrice || 0), 0);
-    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-    // Count orders by status
-    const ordersByStatus: { [status: string]: number } = {};
-    const revenueByStatus: { [status: string]: number } = {};
-    
-    filteredOrders.forEach((order: any) => {
-      const status = order.status || 'new';
-      ordersByStatus[status] = (ordersByStatus[status] || 0) + 1;
-      revenueByStatus[status] = (revenueByStatus[status] || 0) + (order.totalPrice || 0);
-    });
-
-    // Calculate popular items
-    const itemStats: { [itemName: string]: { quantity: number; revenue: number } } = {};
-    
-    filteredOrders.forEach((order: any) => {
-      if (order.items && Array.isArray(order.items)) {
-        order.items.forEach((item: any) => {
-          const itemName = item.name || 'Unknown';
-          if (!itemStats[itemName]) {
-            itemStats[itemName] = { quantity: 0, revenue: 0 };
+      const totalRevenue = await Order.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate },
+            status: { $ne: 'cancelled' }
           }
-          itemStats[itemName].quantity += item.quantity || 0;
-          itemStats[itemName].revenue += (item.price || 0) * (item.quantity || 0);
-        });
-      }
-    });
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$totalPrice' }
+          }
+        }
+      ]);
 
-    const popularItems = Object.entries(itemStats)
-      .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10);
+      const ordersByStatus = await Order.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
 
-    return {
-      totalOrders,
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      averageOrderValue: Math.round(averageOrderValue * 100) / 100,
-      ordersByStatus,
-      revenueByStatus,
-      popularItems
-    };
+      return {
+        period,
+        totalOrders,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        ordersByStatus: ordersByStatus.reduce((acc: any, item: any) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {})
+      };
+    } catch (error: any) {
+      console.error('Error fetching order statistics:', error);
+      throw error;
+    }
   }
 
   // Get recent orders
-  async getRecentOrders(limit: number = 10): Promise<any[]> {
-    return await Order.find({})
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+  async getRecentOrders(limit: number = 10): Promise<IOrder[]> {
+    try {
+      const orders = await Order.find()
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
+
+      return orders as IOrder[];
+    } catch (error: any) {
+      console.error('Error fetching recent orders:', error);
+      throw error;
+    }
+  }
+
+  // Delete order
+  async deleteOrder(orderId: string): Promise<boolean> {
+    try {
+      const result = await Order.findByIdAndDelete(orderId);
+      return !!result;
+    } catch (error: any) {
+      console.error('Error deleting order:', error);
+      throw error;
+    }
   }
 
   // Search orders
-  async searchOrders(query: string): Promise<any[]> {
-    const searchTerm = query.toLowerCase();
-    const regex = new RegExp(searchTerm, 'i');
-    
-    return await Order.find({
-      $or: [
-        { 'customerDetails.fullName': regex },
-        { 'customerDetails.phone': regex },
-        { 'customerDetails.email': regex },
-        { 'customerDetails.address': regex },
-        { 'customerDetails.notes': regex },
-        { 'items.name': regex }
-      ]
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+  async searchOrders(query: string): Promise<IOrder[]> {
+    try {
+      const orders = await Order.find({
+        $or: [
+          { 'customerDetails.fullName': { $regex: query, $options: 'i' } },
+          { 'customerDetails.phone': { $regex: query, $options: 'i' } },
+          { 'customerDetails.email': { $regex: query, $options: 'i' } }
+        ]
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return orders as IOrder[];
+    } catch (error: any) {
+      console.error('Error searching orders:', error);
+      throw error;
+    }
   }
 
-  // Get orders by user ID (for customer order history)
-  async getOrdersByUserId(userId: string): Promise<any[]> {
-    return await Order.find({ userId: userId })
-      .sort({ createdAt: -1 }) // Newest first
-      .lean();
+  // Get revenue statistics for chart
+  async getRevenueStats(): Promise<{ date: string; total: number }[]> {
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const revenueStats = await Order.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: sevenDaysAgo },
+            status: { $ne: 'cancelled' }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+            },
+            total: { $sum: '$totalPrice' }
+          }
+        },
+        {
+          $sort: { _id: 1 }
+        },
+        {
+          $project: {
+            _id: 0,
+            date: '$_id',
+            total: 1
+          }
+        }
+      ]);
+
+      return revenueStats;
+    } catch (error: any) {
+      console.error('Error fetching revenue stats:', error);
+      throw error;
+    }
+  }
+
+  // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
+  // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
+  async getKitchenReport(): Promise<{ 
+    productName: string;
+    category: string;
+    totalPackages: number; 
+    totalWeightRaw: number; 
+    displayWeight: string;
+    unit?: string;
+    isUnitOnly?: boolean; // Flag to indicate if this category should show units only
+  }[]> {
+    try {
+      // Active order statuses - include all variations
+      const activeStatuses = ['new', 'in-progress', 'ready', 'accepted', 'processing', 'בטיפול', 'חדש', 'New'];
+      
+      console.log('🔍 OrderService: Starting kitchen report with aggregation pipeline');
+      console.log('🔍 OrderService: Filtering by statuses:', activeStatuses);
+
+      // Use aggregation pipeline with $lookup to populate product details
+      const aggregationResult: any[] = await Order.aggregate([
+        // Step 1: Match active orders
+        {
+          $match: {
+            status: { $in: activeStatuses }
+          }
+        },
+        
+        // Step 2: Unwind items array
+        {
+          $unwind: '$items'
+        },
+        
+        // Step 3: Lookup product details from menuitems collection
+        // Handle both ObjectId and string productId formats safely
+        // Use string comparison only to avoid ObjectId conversion errors
+        {
+          $lookup: {
+            from: 'menuitems',
+            let: { productIdString: { $toString: { $ifNull: ['$items.productId', ''] } } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    // Match if productId matches _id as string (works for both ObjectId and non-ObjectId)
+                    $eq: [
+                      { $toString: '$_id' },
+                      '$$productIdString'
+                    ]
+                  }
+                }
+              }
+            ],
+            as: 'productDetails'
+          }
+        },
+        
+        // Step 4: Unwind productDetails (returns array, we want object)
+        {
+          $unwind: {
+            path: '$productDetails',
+            preserveNullAndEmptyArrays: true // Keep items even if product not found
+          }
+        },
+        
+        // Step 5: Project fields we need
+        {
+          $project: {
+            productName: {
+              $ifNull: ['$items.name', 'Unknown Product']
+            },
+            productId: '$items.productId',
+            quantity: { $ifNull: ['$items.quantity', 0] },
+            // CRITICAL: Use category from populated productDetails, NOT from order item
+            category: {
+              $ifNull: [
+                '$productDetails.category', // First priority: from DB lookup
+                { $ifNull: ['$items.category', 'תוספות'] } // Fallback: from order item or default
+              ]
+            },
+            productNameForWeight: {
+              $ifNull: ['$items.name', 'Unknown Product']
+            },
+            hasProductDetails: {
+              $cond: {
+                if: { $ne: ['$productDetails', null] },
+                then: true,
+                else: false
+              }
+            }
+          }
+        },
+        
+        // Step 6: Filter out items with zero or negative quantity
+        {
+          $match: {
+            quantity: { $gt: 0 }
+          }
+        },
+        
+        // Step 7: Group by category and product name
+        {
+          $group: {
+            _id: {
+              category: '$category',
+              productName: '$productName'
+            },
+            totalPackages: { $sum: '$quantity' },
+            productName: { $first: '$productName' },
+            category: { $first: '$category' },
+            weightString: { $first: '$productNameForWeight' },
+            hasProductDetails: { $first: '$hasProductDetails' }
+          }
+        },
+        
+        // Step 8: Project final output
+        {
+          $project: {
+            _id: 0,
+            productName: 1,
+            category: 1,
+            totalPackages: 1,
+            weightString: 1,
+            hasProductDetails: 1
+          }
+        },
+        
+        // Step 9: Sort by category and product name
+        {
+          $sort: {
+            category: 1,
+            productName: 1
+          }
+        }
+      ]);
+
+      console.log('🔍 OrderService: Aggregation result count:', aggregationResult.length);
+      console.log('🔍 OrderService: Sample aggregation result:', JSON.stringify(aggregationResult.slice(0, 3), null, 2));
+      
+      // Debug: Log items that failed lookup
+      const itemsWithoutProduct = aggregationResult.filter((item: any) => !item.hasProductDetails);
+      if (itemsWithoutProduct.length > 0) {
+        console.warn('⚠️ OrderService: Items without product details:', itemsWithoutProduct.length);
+        console.warn('⚠️ OrderService: Sample items without product:', JSON.stringify(itemsWithoutProduct.slice(0, 2), null, 2));
+      }
+
+      if (aggregationResult.length === 0) {
+        console.warn('⚠️ OrderService: No items found in active orders');
+        return [];
+      }
+
+      // Process results: Calculate weights and format output
+      // Add safety checks to prevent crashes
+      const kitchenReportItems: Array<{
+        productName: string;
+        category: string;
+        totalPackages: number;
+        totalWeightRaw: number;
+        displayWeight: string;
+        unit?: string;
+        isUnitOnly: boolean;
+      }> = [];
+
+      for (const item of aggregationResult) {
+        try {
+          // SAFETY CHECK: Ensure item has required fields
+          if (!item || !item.productName) {
+            console.warn('⚠️ Skipping invalid item:', JSON.stringify(item, null, 2));
+            continue;
+          }
+
+          const productName = item.productName || 'Unknown Product';
+          const category = item.category || 'תוספות';
+          const totalPackages = item.totalPackages || 0;
+          
+          // Validate totalPackages is a valid number
+          if (isNaN(totalPackages) || totalPackages <= 0) {
+            console.warn('⚠️ Skipping item with invalid quantity:', productName, 'quantity:', totalPackages);
+            continue;
+          }
+          
+          // Check if this category should be calculated by units only
+          const isUnitOnlyCategory = this.UNIT_ONLY_CATEGORIES.some(cat => 
+            category.toLowerCase().includes(cat.toLowerCase()) || 
+            cat.toLowerCase().includes(category.toLowerCase())
+          );
+
+          // Extract weight/volume from product name (only if not unit-only category)
+          const weightInfo = isUnitOnlyCategory 
+            ? { value: 0, unit: null as 'g' | 'ml' | 'kg' | 'l' | null }
+            : this.extractWeightFromName(productName);
+          
+          // Calculate total weight: weight per unit × total packages
+          const totalWeightRaw = isUnitOnlyCategory ? 0 : (weightInfo.value * totalPackages);
+          
+          // Format weight for display
+          const displayWeight = isUnitOnlyCategory 
+            ? '-' 
+            : this.formatWeight(totalWeightRaw, weightInfo.unit);
+          
+          console.log(`📊 Processing: "${productName}" (${category}) -> ${totalPackages} packages, ${displayWeight} total weight`);
+          
+          kitchenReportItems.push({
+            productName: productName,
+            category: category,
+            totalPackages: totalPackages,
+            totalWeightRaw: totalWeightRaw,
+            displayWeight: displayWeight,
+            unit: weightInfo.unit || undefined,
+            isUnitOnly: isUnitOnlyCategory
+          });
+        } catch (itemError: any) {
+          console.error('❌ Error processing item:', itemError);
+          console.error('❌ Item data:', JSON.stringify(item, null, 2));
+          // Continue to next item
+        }
+      }
+
+      // Final sort by category order
+      const categoryOrder = ['מנות עיקריות', 'סלטים', 'דגים', 'קינוחים'];
+      kitchenReportItems.sort((a, b) => {
+        const categoryAIndex = categoryOrder.indexOf(a.category);
+        const categoryBIndex = categoryOrder.indexOf(b.category);
+
+        if (categoryAIndex !== categoryBIndex) {
+          if (categoryAIndex === -1 && categoryBIndex === -1) {
+            return a.category.localeCompare(b.category);
+          }
+          if (categoryAIndex === -1) return 1;
+          if (categoryBIndex === -1) return -1;
+          return categoryAIndex - categoryBIndex;
+        }
+        return a.productName.localeCompare(b.productName);
+      });
+
+      const kitchenReport = kitchenReportItems;
+
+      console.log('🍳 OrderService: Kitchen report generated:', JSON.stringify(kitchenReport, null, 2));
+      console.log('🍳 OrderService: Report items count:', kitchenReport.length);
+
+      return kitchenReport;
+    } catch (error: any) {
+      console.error('❌ Error generating kitchen report:', error);
+      console.error('❌ Error stack:', error.stack);
+      throw new Error(`Failed to generate kitchen report: ${error.message}`);
+    }
+  }
+
+  // Helper: Detect category from product name
+  private detectCategoryFromName(productName: string): string {
+    const name = productName.toLowerCase();
+    
+    // Check for salad keywords
+    if (name.includes('סלט') || name.includes('salad')) {
+      return 'סלטים';
+    }
+    
+    // Check for fish keywords
+    if (name.includes('דג') || name.includes('fish') || name.includes('salmon') || name.includes('tuna')) {
+      return 'דגים';
+    }
+    
+    // Check for main course keywords
+    if (name.includes('עיקרי') || name.includes('main') || name.includes('בשר') || name.includes('meat')) {
+      return 'מנות עיקריות';
+    }
+    
+    // Check for dessert keywords
+    if (name.includes('קינוח') || name.includes('dessert') || name.includes('עוגה') || name.includes('cake')) {
+      return 'קינוחים';
+    }
+    
+    // If weight/volume units are detected, likely a salad
+    if (/\d+\s*(g|ml|גרם|מ"ל|ק"ג|ליטר)/i.test(name)) {
+      return 'סלטים';
+    }
+    
+    // Default fallback
+    return 'תוספות';
+  }
+
+  // Helper: Extract weight/volume from product name
+  private extractWeightFromName(productName: string): { value: number; unit: 'g' | 'ml' | 'kg' | 'l' | null } {
+    // Regex to match: number + unit (English & Hebrew)
+    // Examples: "250g", "250 גרם", "1kg", "1 ק"ג", "500ml", "500 מ"ל"
+    const weightRegex = /(\d+(?:\.\d+)?)\s*(g|ml|גרם|מ"ל|ק"ג|ליטר|kg|l|קילו|ליטר)/i;
+    const match = productName.match(weightRegex);
+    
+    if (!match) {
+      return { value: 0, unit: null };
+    }
+    
+    const value = parseFloat(match[1]);
+    const unitStr = match[2].toLowerCase();
+    
+    // Normalize units to grams/ml
+    let normalizedValue = value;
+    let unit: 'g' | 'ml' | 'kg' | 'l' | null = null;
+    
+    if (unitStr.includes('g') || unitStr.includes('גרם')) {
+      unit = 'g';
+      normalizedValue = value;
+    } else if (unitStr.includes('kg') || unitStr.includes('ק"ג') || unitStr.includes('קילו')) {
+      unit = 'kg';
+      normalizedValue = value * 1000; // Convert to grams
+    } else if (unitStr.includes('ml') || unitStr.includes('מ"ל')) {
+      unit = 'ml';
+      normalizedValue = value;
+    } else if (unitStr.includes('l') || unitStr.includes('ליטר')) {
+      unit = 'l';
+      normalizedValue = value * 1000; // Convert to ml
+    }
+    
+    return { value: normalizedValue, unit };
+  }
+
+  // Helper: Format weight for display
+  private formatWeight(totalWeightRaw: number, unit: 'g' | 'ml' | 'kg' | 'l' | null): string {
+    if (totalWeightRaw === 0 || !unit) {
+      return '-';
+    }
+    
+    if (unit === 'g' || unit === 'ml') {
+      if (totalWeightRaw >= 1000) {
+        const kg = (totalWeightRaw / 1000).toFixed(2);
+        return `${kg} ${unit === 'g' ? 'kg' : 'l'}`;
+      }
+      return `${totalWeightRaw.toFixed(0)} ${unit}`;
+    }
+    
+    if (unit === 'kg' || unit === 'l') {
+      return `${totalWeightRaw.toFixed(2)} ${unit}`;
+    }
+    
+    return '-';
   }
 }

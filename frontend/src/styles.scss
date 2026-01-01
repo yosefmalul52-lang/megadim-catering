@@ -5,6 +5,197 @@
  * Premium kosher catering website styling
  */
 
+// ============================================
+// ADMIN PANEL - Productivity-First Clean SaaS Theme
+// ============================================
+// Refined Color Palette (Semantic Colors - Less Blue Overload)
+$admin-bg: #f3f4f6; // Cool Light Gray - reduces glare
+$admin-sidebar: #1f2937; // Neutral Dark Charcoal (removes blue overload)
+$admin-primary: #3b82f6; // Calming Azure - for links/info
+$admin-success: #10b981; // Emerald Green - for money/positive actions
+$admin-danger: #ef4444; // Soft Red - for delete/alerts
+$admin-text: #0f172a; // Dark Slate - high contrast but softer than pure black
+$admin-white: #ffffff;
+$admin-text-light: #cbd5e1; // Light Gray for sidebar text
+$admin-active-bg: #374151; // Slightly lighter charcoal for active links
+$admin-hover-bg: #f1f5f9; // Hover effect for rows
+$admin-header-bg: #f8fafc; // Light gray for table headers
+$admin-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Very subtle shadow
+
+// Contextual Icon Colors
+$icon-success-bg: #d1fae5; // Light Green background
+$icon-success: #059669; // Dark Green icon
+$icon-info-bg: #dbeafe; // Light Blue background
+$icon-info: #2563eb; // Dark Blue icon
+$icon-warning-bg: #fed7aa; // Light Orange background
+$icon-warning: #ea580c; // Orange icon
+
+// Admin Panel Background
+body.admin-panel,
+.admin-panel {
+  background-color: $admin-bg; // Cool Light Gray (#f3f4f6)
+  min-height: 100vh;
+}
+
+// Admin Panel Container
+.admin-container {
+  background-color: $admin-bg; // Cool Light Gray (#f3f4f6)
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+// ============================================
+// ADMIN ORDERS TABLE - Luxury Boutique Theme
+// ============================================
+.admin-orders-table {
+  background: $admin-white;
+  border-radius: 16px;
+  box-shadow: $admin-card-shadow;
+  overflow: hidden;
+}
+
+.admin-orders-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-orders-table thead {
+  background: $admin-header-bg; // Light gray (#f8fafc)
+}
+
+.admin-orders-table th {
+  padding: 1rem 1.5rem;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: $admin-text; // Dark Slate for high contrast
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-orders-table tbody tr {
+  background: $admin-white;
+  border-bottom: 1px solid #e2e8f0;
+  transition: background 0.2s ease;
+}
+
+.admin-orders-table tbody tr:hover {
+  background: $admin-hover-bg; // #f1f5f9 - clear hover indication
+}
+
+.admin-orders-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.admin-orders-table td {
+  padding: 1rem 1.5rem;
+  color: $admin-text; // Dark Slate for high contrast
+}
+
+// Status Pills
+.status-pill {
+  display: inline-block;
+  padding: 0.375rem 0.875rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  text-transform: capitalize;
+}
+
+// Success Statuses (Green)
+.status-pill.completed,
+.status-pill.delivered {
+  background: #d1fae5; // Light Green background
+  color: #059669; // Dark Green text
+}
+
+// Danger Statuses (Red)
+.status-pill.cancelled,
+.status-pill.rejected {
+  background: #fee2e2; // Light Red background
+  color: #dc2626; // Dark Red text
+}
+
+// Pending/Processing (Blue or Yellow)
+.status-pill.pending {
+  background: #fef3c7; // Light Yellow background
+  color: #d97706; // Orange text
+}
+
+.status-pill.processing {
+  background: #dbeafe; // Light Blue background
+  color: #2563eb; // Dark Blue text
+}
+
+// Admin Primary Buttons - Semantic Colors
+.btn-admin-primary {
+  background: $admin-success; // Emerald Green (Growth/Positive action)
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: $admin-card-shadow; // Very subtle shadow
+}
+
+.btn-admin-primary:hover {
+  background: #059669; // Slightly darker green
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+// Delete/Destructive Buttons
+.btn-admin-danger {
+  background: $admin-danger; // Soft Red (Destructive action)
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: $admin-card-shadow;
+}
+
+.btn-admin-danger:hover {
+  background: #dc2626; // Slightly darker red
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+// Edit/View Buttons (Neutral)
+.btn-admin-secondary {
+  background: $admin-primary; // Calming Azure (Info/Neutral action)
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: $admin-card-shadow;
+}
+
+.btn-admin-secondary:hover {
+  background: #2563eb; // Slightly darker blue
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.btn-admin-primary:active {
+  transform: translateY(0);
+}
+
 // CSS Reset and Base Styles
 *,
 *::before,
@@ -21,12 +212,12 @@ html {
 }
 
 body {
-  font-family: $font-family-primary;
+  font-family: 'Inter', 'Roboto', 'Assistant', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: $font-size-base;
   font-weight: $font-weight-normal;
   line-height: $line-height-normal;
-  color: $color-navy;
-  background-color: $color-white;
+  color: $admin-text; // Dark Slate
+  background-color: $admin-bg; // Cool Light Gray (#f3f4f6)
   height: 100%;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -38,13 +229,20 @@ html[dir="rtl"] body {
   direction: rtl;
 }
 
-// Typography
+// Typography - Clean SaaS (Productivity-First)
+// Clean Sans-Serif for readability
 h1, h2, h3, h4, h5, h6 {
-  font-family: $font-family-secondary;
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-weight: $font-weight-bold;
   line-height: $line-height-tight;
   margin-bottom: $spacing-md;
-  color: $color-navy;
+  color: $admin-text; // Dark Slate for high contrast
+}
+
+// Stat Numbers - Clean Sans-Serif
+.stat-number {
+  font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 700;
 }
 
 h1 {
@@ -548,6 +746,202 @@ label {
 @keyframes loading {
   0% { left: -100%; }
   100% { left: 100%; }
+}
+
+// ============================================
+// LUXURY TOAST NOTIFICATIONS - ngx-toastr
+// ============================================
+// Note: toastr.css is imported in angular.json
+// Custom styles override default toastr styles below
+
+// Luxury Theme Overrides
+.toast-container {
+  direction: rtl;
+  font-family: $font-family-primary;
+}
+
+.toast {
+  background-color: $admin-sidebar !important; // Slate Dark Blue (#1e293b)
+  color: $admin-white !important;
+  border-radius: 8px !important;
+  box-shadow: $admin-card-shadow !important; // Very subtle shadow
+  padding: 1rem 1.25rem !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  border: none !important;
+  min-width: 300px !important;
+  max-width: 400px !important;
+}
+
+// Success Toast - Blue accent border (Productivity-First Theme)
+.toast-success {
+  border-right: 3px solid $admin-primary !important; // Royal Blue
+}
+
+.toast-success .toast-title {
+  color: $admin-primary !important; // Royal Blue
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+// Error Toast
+.toast-error {
+  border-right: 3px solid #dc3545 !important;
+}
+
+.toast-error .toast-title {
+  color: #ff6b6b !important;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+// Warning Toast
+.toast-warning {
+  border-right: 3px solid #ffc107 !important;
+}
+
+.toast-warning .toast-title {
+  color: #ffc107 !important;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+// Info Toast
+.toast-info {
+  border-right: 3px solid #17a2b8 !important;
+}
+
+.toast-info .toast-title {
+  color: #17a2b8 !important;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.toast-message {
+  color: rgba(255, 255, 255, 0.95) !important;
+  line-height: 1.5 !important;
+}
+
+.toast-close-button {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 700 !important;
+  font-size: 1.25rem !important;
+  opacity: 0.8 !important;
+  text-shadow: none !important;
+}
+
+.toast-close-button:hover {
+  color: $admin-white !important;
+  opacity: 1 !important;
+}
+
+.toast-progress {
+  background: rgba(212, 175, 55, 0.3) !important;
+}
+
+// Toast Animation (fade in from right for RTL)
+@keyframes toast-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-top-left {
+  top: 12px;
+  left: 12px;
+  right: auto;
+}
+
+// ============================================
+// ELEGANT TOOLTIP - Luxury Theme
+// ============================================
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 10000;
+}
+
+[data-tooltip]::before {
+  content: '';
+  border: 6px solid transparent;
+  border-top-color: rgba(26, 42, 58, 0.95);
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  margin-bottom: 4px;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  background: rgba(15, 23, 42, 0.95); // Dark Slate
+  color: $admin-primary; // Royal Blue
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: $admin-card-shadow; // Very subtle shadow
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  margin-bottom: -2px;
+  min-width: 80px;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+// RTL Support for Tooltips
+[dir="rtl"] [data-tooltip]::before,
+[dir="rtl"] [data-tooltip]::after {
+  left: auto;
+  right: 50%;
+  transform: translateX(50%) translateY(-5px);
+}
+
+[dir="rtl"] [data-tooltip]:hover::before,
+[dir="rtl"] [data-tooltip]:hover::after {
+  transform: translateX(50%) translateY(0);
+}
+
+// Tooltip positioning variants
+[data-tooltip-position="bottom"]::before {
+  border-top-color: transparent;
+  border-bottom-color: rgba(26, 42, 58, 0.95);
+  top: 100%;
+  bottom: auto;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+[data-tooltip-position="bottom"]::after {
+  top: 100%;
+  bottom: auto;
+  margin-top: -2px;
+  margin-bottom: 0;
+}
+
+[data-tooltip-position="bottom"]:hover::before,
+[data-tooltip-position="bottom"]:hover::after {
+  transform: translateX(-50%) translateY(0);
 }
 
 // Print Styles

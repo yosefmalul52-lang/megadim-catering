@@ -131,15 +131,16 @@ ProductSchema.index({ isPopular: 1, isAvailable: 1 });
 ProductSchema.index({ name: 'text', description: 'text' }); // Text search index
 
 // Validation: Ensure either price or pricingVariants is provided
-ProductSchema.pre('validate', function(next) {
+// Using async function - no next parameter needed
+ProductSchema.pre('validate', async function() {
   const hasPrice = this.price !== undefined && this.price !== null;
   const hasVariants = this.pricingVariants && this.pricingVariants.length > 0;
   
   if (!hasPrice && !hasVariants) {
-    return next(new Error('Either price or pricingVariants must be provided'));
+    throw new Error('Either price or pricingVariants must be provided');
   }
   
-  next();
+  // No next() call needed for async functions
 });
 
 // Method to get the effective price (for backward compatibility)

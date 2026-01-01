@@ -18,13 +18,16 @@ export class AppError extends Error implements ApiError {
   }
 }
 
-export const errorHandler = (
-  error: ApiError,
+// Explicit error handler function with proper Express signature
+export const errorHandler: (error: any, req: Request, res: Response, next: NextFunction) => void = (
+  error: any,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  let { statusCode = 500, message } = error;
+  // Type guard to check if error has statusCode
+  const apiError = error as ApiError;
+  let { statusCode = 500, message } = apiError;
 
   // Log error details
   console.error(`❌ Error ${statusCode}: ${message}`);
@@ -54,8 +57,15 @@ export const errorHandler = (
     message = 'Token expired';
   }
 
+  // Extract message if error is a string or has a message property
+  if (!message && typeof error === 'string') {
+    message = error;
+  } else if (!message && error.message) {
+    message = error.message;
+  }
+
   // Don't expose internal errors in production
-  if (process.env.NODE_ENV === 'production' && !error.isOperational) {
+  if (process.env.NODE_ENV === 'production' && !apiError.isOperational) {
     message = 'Something went wrong!';
   }
 
@@ -65,7 +75,7 @@ export const errorHandler = (
     error: {
       message,
       ...(process.env.NODE_ENV === 'development' && {
-        stack: error.stack,
+        stack: apiError.stack || error.stack,
         details: error
       })
     },

@@ -51,6 +51,10 @@
 
 // Desktop Navigation
 .desktop-menu {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0; // Allow flex item to shrink
+  
   @media (max-width: $breakpoint-lg - 1px) {
     display: none;
   }
@@ -63,10 +67,23 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  
+  // Hide scrollbar but keep functionality
+  scrollbar-width: none; // Firefox
+  -ms-overflow-style: none; // IE and Edge
+  
+  &::-webkit-scrollbar {
+    display: none; // Chrome, Safari, Opera
+  }
 }
 
 .nav-item {
   position: relative;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .nav-link {
@@ -111,6 +128,26 @@
   &:focus-visible {
     outline: 2px solid $color-gold;
     outline-offset: 2px;
+  }
+  
+  &.admin-link {
+    color: $color-navy;
+    font-weight: $font-weight-semibold;
+    background: rgba($color-navy, 0.1);
+    
+    &:hover, &:focus {
+      background: rgba($color-navy, 0.2);
+      color: $color-navy;
+    }
+    
+    &.active {
+      background: rgba($color-navy, 0.25);
+      color: $color-navy;
+      
+      &::after {
+        background-color: $color-navy;
+      }
+    }
   }
 }
 
@@ -279,6 +316,16 @@
 .mobile-nav-item {
   margin: 0;
   
+  &.auth-section {
+    border-top: 1px solid rgba($color-navy, 0.1);
+    padding-top: $spacing-sm;
+    margin-top: $spacing-sm;
+    
+    &.logged-in {
+      border-top: 1px solid rgba($color-gold, 0.2);
+    }
+  }
+  
   &.mobile-dropdown {
     &.open {
       .mobile-dropdown-menu {
@@ -289,6 +336,50 @@
       .dropdown-icon {
         transform: rotate(180deg);
       }
+    }
+  }
+}
+
+
+// Auth Section Styles - User Icon Only
+.auth-section {
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+}
+
+.user-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  
+  i {
+    font-size: $font-size-lg;
+    color: $color-navy;
+  }
+  
+  &:hover, &:focus {
+    background-color: rgba($color-gold, 0.1);
+    
+    i {
+      color: $color-gold;
+    }
+  }
+  
+  // Mobile version - show text
+  @media (max-width: $breakpoint-lg - 1px) {
+    width: 100%;
+    height: auto;
+    padding: $spacing-md $spacing-lg;
+    border-radius: 0;
+    justify-content: flex-start;
+    gap: $spacing-sm;
+    
+    span {
+      display: inline;
     }
   }
 }

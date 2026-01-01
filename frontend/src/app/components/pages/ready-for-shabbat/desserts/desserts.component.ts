@@ -271,19 +271,23 @@ import { LanguageService } from '../../../../services/language.service';
 
     .item-image {
       position: relative;
-      height: 280px;
+      height: 220px;
       overflow: hidden;
       background: #f5f5f5;
       display: flex;
       align-items: center;
       justify-content: center;
+      border-radius: 12px 12px 0 0;
     }
 
     .item-image img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: center;
       transition: transform 0.4s ease, filter 0.3s ease;
+      border-radius: 12px 12px 0 0;
+      display: block;
     }
 
     .dessert-card:hover .item-image img {

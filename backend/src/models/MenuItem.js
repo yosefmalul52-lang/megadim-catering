@@ -105,16 +105,17 @@ const MenuItemSchema = new mongoose.Schema({
 });
 
 // Pre-save validation: Ensure either price, pricingVariants, or pricingOptions is provided
-MenuItemSchema.pre('save', function(next) {
+// Using async function - no next parameter needed
+MenuItemSchema.pre('save', async function() {
   const hasPrice = this.price !== undefined && this.price !== null;
   const hasVariants = this.pricingVariants && this.pricingVariants.length > 0;
   const hasOptions = this.pricingOptions && this.pricingOptions.length > 0;
   
   if (!hasPrice && !hasVariants && !hasOptions) {
-    return next(new Error('Either price, pricingVariants, or pricingOptions must be provided'));
+    throw new Error('Either price, pricingVariants, or pricingOptions must be provided');
   }
   
-  next();
+  // No next() call needed for async functions
 });
 
 // Create indexes for better query performance

@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.service';
+import { UploadService } from '../../../services/upload.service';
 
 @Component({
   selector: 'app-menu-management',
@@ -11,7 +12,6 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
     <div class="menu-management">
       <div class="container">
         <div class="header">
-          <h1>ניהול תפריט</h1>
           <button class="btn-add" (click)="openAddModal()">
             <i class="fas fa-plus"></i>
             הוסף כרטיסייה חדשה
@@ -48,97 +48,99 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
                 </h2>
               </div>
               
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th>תמונה</th>
-                    <th>שם</th>
-                    <th>תיאור</th>
-                    <th>מחיר</th>
-                    <th>מלאי</th>
-                    <th>מומלץ</th>
-                    <th>פעולות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let item of categoryGroup.items; trackBy: trackByItemId">
-                    <td class="image-cell">
-                      <div class="image-wrapper">
-                        <img [src]="item.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                             [alt]="item.name" 
-                             class="item-thumbnail" 
-                             (error)="onImageError($event)"
-                             loading="lazy"
-                             [attr.data-item-id]="item.id">
+              <!-- Modern List Layout -->
+              <div class="items-list">
+                <div *ngFor="let item of categoryGroup.items; trackBy: trackByItemId" class="item-row">
+                  <!-- Image Thumbnail -->
+                  <div class="item-image">
+                    <img [src]="item.imageUrl || '/assets/images/placeholder-dish.jpg'" 
+                         [alt]="item.name" 
+                         class="item-thumbnail" 
+                         (error)="onImageError($event)"
+                         loading="lazy"
+                         [attr.data-item-id]="item.id">
+                  </div>
+                  
+                  <!-- Item Details -->
+                  <div class="item-info">
+                    <div class="item-header">
+                      <h3 class="item-name">{{ item.name }}</h3>
+                      <div class="item-badges">
+                        <span *ngIf="item.isPopular" class="badge badge-popular">⭐ מומלץ</span>
+                        <span *ngIf="item.isAvailable === false" class="badge badge-unavailable">לא זמין</span>
                       </div>
-                    </td>
-                    <td class="name-cell">{{ item.name }}</td>
-                    <td class="description-cell">
-                      <span *ngIf="item.description && item.description.trim()">{{ item.description }}</span>
-                      <span *ngIf="!item.description || !item.description.trim()" class="no-description">
-                        <i class="fas fa-info-circle"></i>
-                        אין תיאור
-                      </span>
-                    </td>
-                    <td class="price-cell">
-                      <!-- Display pricing variants if available -->
-                      <div *ngIf="hasPricingVariants(item)" class="price-variants">
-                        <div *ngFor="let variant of getPricingVariants(item)" class="price-variant-badge">
-                          <span class="variant-size">{{ variant.label }}</span>
-                          <span class="variant-price">₪{{ variant.price | number:'1.2-2' }}</span>
+                    </div>
+                    
+                    <p class="item-description" *ngIf="item.description && item.description.trim()">
+                      {{ item.description }}
+                    </p>
+                    <p class="item-description no-description" *ngIf="!item.description || !item.description.trim()">
+                      <i class="fas fa-info-circle"></i>
+                      אין תיאור
+                    </p>
+                    
+                    <div class="item-meta">
+                      <div class="item-price">
+                        <!-- Display pricing variants if available -->
+                        <div *ngIf="hasPricingVariants(item)" class="price-variants">
+                          <div *ngFor="let variant of getPricingVariants(item)" class="price-variant-badge">
+                            <span class="variant-size">{{ variant.label }}</span>
+                            <span class="variant-price">₪{{ variant.price | number:'1.2-2' }}</span>
+                          </div>
                         </div>
+                        <!-- Fallback to single price if no variants -->
+                        <span *ngIf="!hasPricingVariants(item) && item.price !== undefined && item.price !== null" class="single-price">
+                          ₪{{ item.price | number:'1.2-2' }}
+                        </span>
+                        <span *ngIf="!hasPricingVariants(item) && (item.price === undefined || item.price === null)" class="no-price">
+                          <i class="fas fa-exclamation-circle"></i>
+                          אין מחיר
+                        </span>
                       </div>
-                      <!-- Fallback to single price if no variants -->
-                      <span *ngIf="!hasPricingVariants(item) && item.price !== undefined && item.price !== null" class="single-price">
-                        ₪{{ item.price | number:'1.2-2' }}
-                      </span>
-                      <span *ngIf="!hasPricingVariants(item) && (item.price === undefined || item.price === null)" class="no-price">
-                        <i class="fas fa-exclamation-circle"></i>
-                        אין מחיר
-                      </span>
-                    </td>
-                    <td class="toggle-cell">
-                      <label class="toggle-switch">
-                        <input 
-                          type="checkbox" 
-                          [checked]="item.isAvailable !== false"
-                          (change)="toggleStatus(item, 'isAvailable', $event)"
-                          [attr.aria-label]="'מלאי עבור ' + item.name"
-                        >
-                        <span class="toggle-slider"></span>
-                      </label>
-                    </td>
-                    <td class="toggle-cell">
-                      <label class="toggle-switch" [title]="item.isPopular ? 'מומלץ - לחץ לביטול' : 'לא מומלץ - לחץ להפוך למומלץ'">
-                        <input 
-                          type="checkbox" 
-                          [checked]="item.isPopular === true"
-                          (change)="toggleStatus(item, 'isPopular', $event)"
-                          [attr.aria-label]="'מומלץ עבור ' + item.name"
-                        >
-                        <span class="toggle-slider"></span>
-                      </label>
-                      <span class="toggle-label" *ngIf="item.isPopular">⭐</span>
-                    </td>
-                    <td class="actions-cell">
-                      <button class="btn-edit" (click)="openEditModal(item)" 
-                              [title]="'ערוך כרטיסייה: ' + item.name" 
-                              type="button"
-                              [attr.aria-label]="'ערוך ' + item.name">
-                        <i class="fas fa-edit"></i>
-                        <span>ערוך</span>
-                      </button>
-                      <button class="btn-delete" (click)="deleteItem(item.id || item._id || '')" 
-                              [title]="'מחק כרטיסייה: ' + item.name" 
-                              type="button"
-                              [attr.aria-label]="'מחק ' + item.name">
-                        <i class="fas fa-trash"></i>
-                        <span>מחק</span>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      
+                      <div class="item-toggles">
+                        <label class="toggle-switch" [title]="item.isAvailable !== false ? 'זמין - לחץ לביטול' : 'לא זמין - לחץ להפעלה'">
+                          <input 
+                            type="checkbox" 
+                            [checked]="item.isAvailable !== false"
+                            (change)="toggleStatus(item, 'isAvailable', $event)"
+                            [attr.aria-label]="'מלאי עבור ' + item.name"
+                          >
+                          <span class="toggle-slider"></span>
+                          <span class="toggle-label" [class.active]="item.isAvailable !== false">{{ item.isAvailable !== false ? 'מוצג' : 'מוסתר' }}</span>
+                        </label>
+                        
+                        <label class="toggle-switch" [title]="item.isPopular ? 'מומלץ - לחץ לביטול' : 'לא מומלץ - לחץ להפוך למומלץ'">
+                          <input 
+                            type="checkbox" 
+                            [checked]="item.isPopular === true"
+                            (change)="toggleStatus(item, 'isPopular', $event)"
+                            [attr.aria-label]="'מומלץ עבור ' + item.name"
+                          >
+                          <span class="toggle-slider"></span>
+                          <span class="toggle-label" [class.active]="item.isPopular === true">{{ item.isPopular ? 'מוצג' : 'מוסתר' }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Actions -->
+                  <div class="item-actions">
+                    <button class="btn-action btn-edit" (click)="openEditModal(item)" 
+                            data-tooltip="ערוך פרטים"
+                            type="button"
+                            [attr.aria-label]="'ערוך ' + item.name">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action btn-delete" (click)="deleteItem(item.id || item._id || '')" 
+                            data-tooltip="מחק מנה"
+                            type="button"
+                            [attr.aria-label]="'מחק ' + item.name">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -158,117 +160,161 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
           <div class="modal-content" (click)="$event.stopPropagation()">
             <div class="modal-header">
               <h2>{{ editingItem ? 'ערוך כרטיסייה' : 'הוסף כרטיסייה חדשה' }}</h2>
-              <button class="btn-close" (click)="closeModal()">
+              <button class="btn-close" (click)="closeModal()" data-tooltip="סגור">
                 <i class="fas fa-times"></i>
               </button>
             </div>
 
             <form [formGroup]="itemForm" (ngSubmit)="saveItem()" class="modal-body">
-              <div class="form-group">
-                <label>שם הכרטיסייה *</label>
-                <input type="text" formControlName="name" required>
-              </div>
-
-              <div class="form-group">
-                <label>קטגוריה *</label>
-                <select formControlName="category" required>
-                  <option value="">בחר קטגוריה</option>
-                  <option *ngFor="let cat of categories" [value]="cat.name">{{ cat.name }}</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label>תיאור</label>
-                <textarea formControlName="description" rows="3"></textarea>
-              </div>
-
-              <div class="form-group">
-                <label>מחיר</label>
-                <div class="pricing-options">
-                  <div class="pricing-option">
-                    <label>
-                      <input type="radio" [value]="'single'" formControlName="pricingType" (change)="onPricingTypeChange()">
-                      מחיר יחיד
-                    </label>
-                    <input *ngIf="itemForm.get('pricingType')?.value === 'single'" 
-                           type="number" 
-                           formControlName="price" 
-                           step="0.01" 
-                           min="0" 
-                           placeholder="₪0.00"
-                           class="price-input">
-                  </div>
-                  <div class="pricing-option">
-                    <label>
-                      <input type="radio" [value]="'variants'" formControlName="pricingType" (change)="onPricingTypeChange()">
-                      מחירים לפי גודל (Legacy)
-                    </label>
-                    <div *ngIf="itemForm.get('pricingType')?.value === 'variants'" class="variants-container">
-                      <div *ngFor="let variant of pricingVariantsFormArray.controls; let i = index" 
-                           class="variant-row" 
-                           [formGroup]="$any(variant)">
-                        <input type="text" formControlName="label" placeholder="גודל (למשל: 250 גרם)" class="variant-label">
-                        <input type="number" formControlName="price" step="0.01" min="0" placeholder="מחיר" class="variant-price-input">
-                        <button type="button" class="btn-remove-variant" (click)="removePricingVariant(i)" *ngIf="pricingVariantsFormArray.length > 1">
+              <!-- 2-Column Grid Layout -->
+              <div class="form-grid">
+                <!-- Left Column: Image Upload -->
+                <div class="form-column form-column-image">
+                  <div class="form-group">
+                    <label>תמונה</label>
+                    <!-- Styled Upload Box -->
+                    <div class="image-upload-box" 
+                         [class.has-image]="imagePreviewUrl"
+                         [class.uploading]="isUploading">
+                      <!-- Hidden File Input -->
+                      <input 
+                        type="file" 
+                        id="imageUpload"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        (change)="onFileSelected($event)"
+                        [disabled]="isUploading"
+                      >
+                      
+                      <!-- Upload Box Content -->
+                      <div class="upload-box-content" *ngIf="!imagePreviewUrl">
+                        <div class="upload-icon">
+                          <i class="fas" [ngClass]="isUploading ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
+                        </div>
+                        <p class="upload-text">{{ isUploading ? 'מעלה תמונה...' : 'לחץ להעלאת תמונה' }}</p>
+                        <p class="upload-hint">או גרור קובץ לכאן</p>
+                      </div>
+                      
+                      <!-- Image Preview -->
+                      <div class="upload-preview" *ngIf="imagePreviewUrl">
+                        <img [src]="imagePreviewUrl" alt="תצוגה מקדימה">
+                        <button type="button" class="btn-remove-preview" (click)="removeImagePreview()" title="הסר תמונה">
                           <i class="fas fa-times"></i>
                         </button>
                       </div>
-                      <button type="button" class="btn-add-variant" (click)="addPricingVariant()">
-                        <i class="fas fa-plus"></i>
-                        הוסף גודל
-                      </button>
+                    </div>
+                    
+                    <!-- Manual URL Input (Fallback) -->
+                    <div class="manual-url-input">
+                      <label>או הזן כתובת תמונה (URL)</label>
+                      <input type="text" formControlName="imageUrl" placeholder="https://... או /assets/images/...">
+                      <small>הזן נתיב לתמונה או URL</small>
                     </div>
                   </div>
-                  <div class="pricing-option">
-                    <label>
-                      <input type="radio" [value]="'options'" formControlName="pricingType" (change)="onPricingTypeChange()">
-                      אפשרויות מחיר (Label, Amount, Price)
-                    </label>
-                    <div *ngIf="itemForm.get('pricingType')?.value === 'options'" class="options-container">
-                      <div *ngFor="let option of pricingOptionsFormArray.controls; let i = index" 
-                           class="option-row" 
-                           [formGroup]="$any(option)">
-                        <input type="text" formControlName="label" placeholder="תווית (למשל: Small Tray)" class="option-label">
-                        <input type="text" formControlName="amount" placeholder="כמות (למשל: 10 people)" class="option-amount">
-                        <input type="number" formControlName="price" step="0.01" min="0" placeholder="מחיר" class="option-price-input">
-                        <button type="button" class="btn-remove-option" (click)="removePricingOption(i)" *ngIf="pricingOptionsFormArray.length > 1">
-                          <i class="fas fa-times"></i>
-                        </button>
+                </div>
+                
+                <!-- Right Column: Form Fields -->
+                <div class="form-column form-column-fields">
+                  <div class="form-group">
+                    <label>שם הכרטיסייה *</label>
+                    <input type="text" formControlName="name" required class="form-input">
+                  </div>
+
+                  <div class="form-group">
+                    <label>קטגוריה *</label>
+                    <select formControlName="category" required class="form-input">
+                      <option value="">בחר קטגוריה</option>
+                      <option *ngFor="let cat of categories" [value]="cat.name">{{ cat.name }}</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>תיאור</label>
+                    <textarea formControlName="description" rows="3" class="form-input"></textarea>
+                  </div>
+
+                  <div class="form-group">
+                    <label>מחיר</label>
+                    <div class="pricing-options">
+                      <div class="pricing-option">
+                        <label>
+                          <input type="radio" [value]="'single'" formControlName="pricingType" (change)="onPricingTypeChange()">
+                          מחיר יחיד
+                        </label>
+                        <input *ngIf="itemForm.get('pricingType')?.value === 'single'" 
+                               type="number" 
+                               formControlName="price" 
+                               step="0.01" 
+                               min="0" 
+                               placeholder="₪0.00"
+                               class="price-input form-input">
                       </div>
-                      <button type="button" class="btn-add-option" (click)="addPricingOption()">
-                        <i class="fas fa-plus"></i>
-                        הוסף אפשרות
-                      </button>
+                      <div class="pricing-option">
+                        <label>
+                          <input type="radio" [value]="'variants'" formControlName="pricingType" (change)="onPricingTypeChange()">
+                          מחירים לפי גודל (Legacy)
+                        </label>
+                        <div *ngIf="itemForm.get('pricingType')?.value === 'variants'" class="variants-container">
+                          <div *ngFor="let variant of pricingVariantsFormArray.controls; let i = index" 
+                               class="variant-row" 
+                               [formGroup]="$any(variant)">
+                            <input type="text" formControlName="label" placeholder="גודל (למשל: 250 גרם)" class="variant-label form-input">
+                            <input type="number" formControlName="price" step="0.01" min="0" placeholder="מחיר" class="variant-price-input form-input">
+                            <button type="button" class="btn-remove-variant" (click)="removePricingVariant(i)" *ngIf="pricingVariantsFormArray.length > 1">
+                              <i class="fas fa-times"></i>
+                            </button>
+                          </div>
+                          <button type="button" class="btn-add-variant" (click)="addPricingVariant()">
+                            <i class="fas fa-plus"></i>
+                            הוסף גודל
+                          </button>
+                        </div>
+                      </div>
+                      <div class="pricing-option">
+                        <label>
+                          <input type="radio" [value]="'options'" formControlName="pricingType" (change)="onPricingTypeChange()">
+                          אפשרויות מחיר (Label, Amount, Price)
+                        </label>
+                        <div *ngIf="itemForm.get('pricingType')?.value === 'options'" class="options-container">
+                          <div *ngFor="let option of pricingOptionsFormArray.controls; let i = index" 
+                               class="option-row" 
+                               [formGroup]="$any(option)">
+                            <input type="text" formControlName="label" placeholder="תווית (למשל: Small Tray)" class="option-label form-input">
+                            <input type="text" formControlName="amount" placeholder="כמות (למשל: 10 people)" class="option-amount form-input">
+                            <input type="number" formControlName="price" step="0.01" min="0" placeholder="מחיר" class="option-price-input form-input">
+                            <button type="button" class="btn-remove-option" (click)="removePricingOption(i)" *ngIf="pricingOptionsFormArray.length > 1">
+                              <i class="fas fa-times"></i>
+                            </button>
+                          </div>
+                          <button type="button" class="btn-add-option" (click)="addPricingOption()">
+                            <i class="fas fa-plus"></i>
+                            הוסף אפשרות
+                          </button>
+                        </div>
+                      </div>
                     </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>תגיות (מופרדות בפסיק)</label>
+                    <input type="text" formControlName="tags" placeholder="תגית1, תגית2" class="form-input">
+                  </div>
+
+                  <div class="form-group checkbox-group">
+                    <label>
+                      <input type="checkbox" formControlName="isAvailable">
+                      זמין להזמנה
+                    </label>
+                    <label>
+                      <input type="checkbox" formControlName="isPopular">
+                      מומלץ
+                    </label>
                   </div>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>כתובת תמונה (URL)</label>
-                <input type="text" formControlName="imageUrl" placeholder="/assets/images/...">
-                <small>הזן נתיב לתמונה או URL</small>
-              </div>
-
-              <div class="form-group">
-                <label>תגיות (מופרדות בפסיק)</label>
-                <input type="text" formControlName="tags" placeholder="תגית1, תגית2">
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label>
-                  <input type="checkbox" formControlName="isAvailable">
-                  זמין להזמנה
-                </label>
-                <label>
-                  <input type="checkbox" formControlName="isPopular">
-                  מומלץ
-                </label>
-              </div>
-
               <div class="form-actions">
-                <button type="button" class="btn-cancel" (click)="closeModal()">ביטול</button>
-                <button type="submit" class="btn-save" [disabled]="!itemForm.valid">
+                <button type="button" class="btn-cancel" (click)="closeModal()" data-tooltip="ביטול שינויים">ביטול</button>
+                <button type="submit" class="btn-save" [disabled]="!itemForm.valid" [attr.data-tooltip]="editingItem ? 'עדכן פרטים' : 'שמור מנה חדשה'">
                   {{ editingItem ? 'עדכן' : 'שמור' }}
                 </button>
               </div>
@@ -306,10 +352,20 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
     </div>
   `,
   styles: [`
+    // Productivity-First Clean SaaS Theme Variables (Semantic Colors)
+    $primary-blue: #3b82f6; // Calming Azure
+    $success-green: #10b981; // Emerald Green
+    $danger-red: #ef4444; // Soft Red
+    $text-dark: #0f172a; // Dark Slate
+    $white: #ffffff;
+    $bg-light: #f3f4f6; // Cool Light Gray
+    $gray-light: #f8fafc; // Light gray for headers
+    $gray-border: #e2e8f0;
+    $hover-bg: #f1f5f9; // Hover effect
+
     .menu-management {
-      padding: 2rem 0;
+      padding: 0;
       min-height: 60vh;
-      background-color: #f5f5f5;
     }
 
     .container {
@@ -320,32 +376,30 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
 
     .header {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       margin-bottom: 2rem;
     }
 
-    .header h1 {
-      color: #0E1A24;
-      margin: 0;
-    }
-
     .btn-add {
-      background: #1f3444;
+      background: #10b981; // Emerald Green (#10b981)
       color: white;
       border: none;
       padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
+      border-radius: 8px; // Rounded corners (8px)
       cursor: pointer;
       font-weight: 600;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      transition: background 0.3s ease;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .btn-add:hover {
-      background: #2a4a5f;
+      background: #059669; // Slightly darker green
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     }
 
     .category-filter {
@@ -357,43 +411,54 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
 
     .category-filter label {
       font-weight: 600;
-      color: #0E1A24;
+      color: $text-dark; // Dark Slate
+      font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .category-filter select {
       padding: 0.5rem 1rem;
-      border: 1px solid #ddd;
+      border: 1px solid #e5e7eb; // Subtle border
       border-radius: 0.5rem;
       font-size: 1rem;
       min-width: 200px;
+      background: white;
+      font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      transition: all 0.2s ease;
+    }
+
+    .category-filter select:focus {
+      outline: none;
+      border-color: $primary-blue; // Blue on focus
+      background: #f9fafb; // Light gray background on focus
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
     .menu-items-table {
       background: white;
-      border-radius: 0.75rem;
+      border-radius: 0.5rem; // Cleaner, less rounded
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Very subtle shadow
     }
     
     .table-header-info {
       padding: 1rem 1.5rem;
-      background: #f8f9fa;
-      border-bottom: 1px solid #dee2e6;
+      background: $gray-light; // Light gray (#f8fafc) for headers
+      border-bottom: 1px solid $gray-border;
       font-weight: 600;
-      color: #1f3444;
+      color: $text-dark; // Dark Slate
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
     
     .table-header-info i {
-      color: #1f3444;
+      color: $text-dark;
     }
     
     .info-note {
       font-size: 0.875rem;
       font-weight: normal;
-      color: #6c757d;
+      color: #64748b; // Medium gray
       margin-right: 1rem;
     }
 
@@ -437,86 +502,46 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
       color: #cbb69e;
     }
 
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .items-table thead {
-      background: #f8f9fa;
-      color: #1f3444;
-      border-bottom: 2px solid #dee2e6;
-    }
-
-    .items-table th {
+    // Modern List Layout (replaces table)
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
       padding: 1rem;
-      text-align: right;
-      font-weight: 600;
-      color: #1f3444;
-      font-size: 0.95rem;
     }
 
-    .items-table td {
-      padding: 1rem;
-      border-top: 1px solid #eee;
-      vertical-align: top;
-    }
-    
-    .description-cell {
-      max-width: 300px;
-      line-height: 1.5;
-      color: #6c757d;
-      font-size: 0.9rem;
-    }
-    
-    .description-cell .no-description {
-      color: #999;
-      font-style: italic;
+    .item-row {
+      background: $white;
+      border: 1px solid transparent;
+      border-left: 4px solid transparent;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 15px;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .description-cell .no-description i {
-      color: #cbb69e;
-    }
-    
-    .price-cell .no-price {
-      color: #dc3545;
-      font-size: 0.875rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .price-cell .no-price i {
-      color: #dc3545;
+      gap: 1.5rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
     }
 
-    .image-cell {
-      width: 100px;
-      min-width: 100px;
-      text-align: center;
+    .item-row:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      border-left-color: #cbb69e;
     }
-    
-    .image-wrapper {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
+
+    .item-image {
+      flex-shrink: 0;
     }
 
     .item-thumbnail {
-      width: 80px;
-      height: 80px;
+      width: 60px;
+      height: 60px;
       object-fit: cover;
-      border-radius: 0.5rem;
-      background-color: #f5f5f5;
+      border-radius: 12px; // Rounded square (12px) - perfect circle or rounded square
+      background-color: $gray-light;
+      border: 1px solid #e5e7eb; // Very thin light-gray border
       display: block;
-      min-width: 80px;
-      min-height: 80px;
-      border: 1px solid #e0e0e0;
     }
     
     .item-thumbnail[data-error-handled="true"] {
@@ -524,44 +549,173 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
       background-color: #e0e0e0;
     }
 
-    .actions-cell {
+    .item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .item-name {
+      margin: 0;
+      color: #1e293b; // Dark Slate (#1e293b)
+      font-size: 1.1rem; // Slightly smaller
+      font-weight: 700; // Bold
+      flex: 1;
+      font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .item-badges {
       display: flex;
       gap: 0.5rem;
     }
 
-    .btn-edit, .btn-delete {
-      padding: 0.5rem 1rem;
-      border: none;
+    .badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-popular {
+      background: rgba(59, 130, 246, 0.1); // Soft blue background
+      color: $primary-blue; // Royal Blue
+    }
+
+    .badge-unavailable {
+      background: #f8f9fa;
+      color: #6c757d;
+    }
+
+    .item-description {
+      color: #64748b; // Muted gray (#64748b)
+      font-size: 0.875rem; // Smaller font
+      line-height: 1.5;
+      margin: 0.5rem 0;
+      max-width: 500px;
+      font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .item-description.no-description {
+      color: #999;
+      font-style: italic;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .item-description.no-description i {
+      color: $primary-blue; // Royal Blue
+    }
+
+    .item-meta {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .item-price {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .price-variants {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .price-variant-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: rgba(59, 130, 246, 0.05); // Very soft blue background
+      border: 1px solid rgba(59, 130, 246, 0.2); // Subtle blue border
       border-radius: 0.5rem;
-      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    
+    .variant-size {
+      font-weight: 600;
+      color: $text-dark; // Dark Slate
+    }
+    
+    .variant-price {
+      font-weight: 700;
+      color: #1a2a3a;
+    }
+    
+    .single-price {
+      font-weight: 700;
+      color: #1a2a3a;
+      font-size: 1.1rem;
+    }
+
+    .no-price {
+      color: #dc3545;
       font-size: 0.875rem;
       display: flex;
       align-items: center;
-      gap: 0.25rem;
+      gap: 0.5rem;
+    }
+    
+    .no-price i {
+      color: #dc3545;
+    }
+
+    .item-toggles {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .btn-action {
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       transition: all 0.3s ease;
-      font-weight: 500;
+      background: transparent;
+      color: #6c757d;
+      font-size: 1rem;
     }
 
-    .btn-edit {
-      background: #cbb69e;
-      color: #0E1A24;
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .btn-edit:hover {
-      background: #b8a48a;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    .btn-action.btn-edit:hover {
+      background: rgba(59, 130, 246, 0.1); // Soft blue background
+      color: $primary-blue; // Calming Azure
     }
 
-    .btn-delete {
-      background: #dc3545;
-      color: white;
+    .btn-action.btn-delete {
+      color: #64748b; // Gray icon by default (ghost-button style)
     }
 
-    .btn-delete:hover {
-      background: #c82333;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    .btn-action.btn-delete:hover {
+      background: rgba(239, 68, 68, 0.1); // Light Red background
+      color: #ef4444; // Soft Red (#ef4444) - delete should never be green
     }
 
     .empty-state {
@@ -607,8 +761,8 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
     }
     
     .price-cell {
-      color: #1f3444;
-      font-weight: 600;
+      color: #1a2a3a;
+      font-weight: 700;
       min-width: 150px;
     }
     
@@ -636,12 +790,12 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
     
     .variant-price {
       font-weight: 700;
-      color: #cbb69e;
+      color: #1a2a3a;
     }
     
     .single-price {
-      font-weight: 600;
-      color: #1f3444;
+      font-weight: 700;
+      color: #1a2a3a;
     }
 
     /* Toggle Switch Styles */
@@ -655,10 +809,9 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
 
     .toggle-switch {
       position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 26px;
-      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
       cursor: pointer;
     }
 
@@ -669,44 +822,43 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
     }
 
     .toggle-slider {
-      position: absolute;
+      position: relative;
+      display: inline-block;
+      width: 40px; // Smaller and more modern
+      height: 22px; // Smaller and more modern
+      background-color: #cbd5e1; // Light gray when inactive
+      transition: 0.2s;
+      border-radius: 22px;
       cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: 0.3s;
-      border-radius: 26px;
     }
 
     .toggle-slider:before {
       position: absolute;
       content: "";
-      height: 20px;
-      width: 20px;
-      left: 3px;
-      bottom: 3px;
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
       background-color: white;
-      transition: 0.3s;
+      transition: 0.2s;
       border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
     .toggle-switch input:checked + .toggle-slider {
-      background-color: #28a745;
+      background-color: #10b981; // Emerald Green (#10b981) when active
     }
 
     .toggle-switch input:checked + .toggle-slider:before {
-      transform: translateX(24px);
+      transform: translateX(18px);
     }
 
     .toggle-switch input:focus + .toggle-slider {
-      box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.25);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
     }
 
     .toggle-switch:hover .toggle-slider {
-      box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.15);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
     }
 
     .toggle-switch input:disabled + .toggle-slider {
@@ -716,9 +868,16 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
 
     .toggle-label {
       display: inline-block;
-      margin-right: 0.5rem;
-      font-size: 1rem;
+      font-size: 0.875rem; // Small font
+      font-weight: 500;
       vertical-align: middle;
+      color: #64748b; // Muted gray by default
+      font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .toggle-label.active,
+    .toggle-switch input:checked + .toggle-slider + .toggle-label {
+      color: #10b981; // Emerald Green when active
     }
 
     /* Modal Styles */
@@ -737,12 +896,12 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
 
     .modal-content {
       background: white;
-      border-radius: 0.75rem;
+      border-radius: 12px;
       width: 90%;
-      max-width: 600px;
+      max-width: 1000px;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
 
     .modal-header {
@@ -775,6 +934,43 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
       padding: 1.5rem;
     }
 
+    // 2-Column Grid Layout
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .form-column {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-column-image {
+      min-width: 0;
+    }
+
+    .form-column-fields {
+      min-width: 0;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: $primary-blue; // Royal Blue
+      box-shadow: 0 0 0 3px rgba(203, 182, 158, 0.1);
+    }
+
     .form-group {
       margin-bottom: 1.5rem;
     }
@@ -789,12 +985,7 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
     .form-group input,
     .form-group select,
     .form-group textarea {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #ddd;
-      border-radius: 0.5rem;
-      font-size: 1rem;
-      font-family: inherit;
+      @extend .form-input;
     }
 
     .form-group small {
@@ -802,6 +993,190 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
       margin-top: 0.25rem;
       color: #6c757d;
       font-size: 0.875rem;
+    }
+    
+    /* Image Upload Styles */
+    .image-upload-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+    }
+    
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .file-input-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #1f3444;
+      color: white;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: 2px dashed transparent;
+    }
+    
+    .file-input-label:hover:not(.uploading) {
+      background: #2a4a5f;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .file-input-label.uploading {
+      background: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+    
+    .file-input-label i {
+      font-size: 1.1rem;
+    }
+    
+    /* Styled Image Upload Box */
+    .image-upload-box {
+      position: relative;
+      width: 100%;
+      min-height: 300px;
+      border: 2px dashed #ccc;
+      border-radius: 12px;
+      background: $gray-light;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .image-upload-box:hover:not(.has-image):not(.uploading) {
+      border-color: $primary-blue; // Royal Blue
+      background: rgba(59, 130, 246, 0.1); // Soft blue background
+    }
+
+    .image-upload-box.has-image {
+      border: 1px solid $primary-blue; // Royal Blue
+      padding: 0;
+    }
+
+    .image-upload-box.uploading {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .image-upload-box input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .upload-box-content {
+      text-align: center;
+      padding: 2rem;
+      z-index: 1;
+    }
+
+    .upload-icon {
+      font-size: 3rem;
+      color: $primary-blue; // Royal Blue
+      margin-bottom: 1rem;
+    }
+
+    .upload-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: $text-dark; // Dark Slate
+      margin: 0.5rem 0;
+    }
+
+    .upload-hint {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin: 0;
+    }
+
+    .upload-preview {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+    }
+
+    .upload-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+      border-radius: 8px;
+    }
+    
+    .image-preview {
+      position: relative;
+      display: inline-block;
+      max-width: 300px;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      border: 2px solid #dee2e6;
+      background: #f8f9fa;
+    }
+    
+    .image-preview img {
+      width: 100%;
+      height: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+      border-radius: 8px;
+    }
+    
+    .btn-remove-preview {
+      position: absolute;
+      top: 0.5rem;
+      left: 0.5rem;
+      background: rgba(220, 53, 69, 0.9);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      font-size: 0.875rem;
+    }
+    
+    .btn-remove-preview:hover {
+      background: rgba(220, 53, 69, 1);
+      transform: scale(1.1);
+    }
+    
+    .manual-url-input {
+      margin-top: 0.5rem;
+    }
+    
+    .manual-url-input label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #0E1A24;
+      font-size: 0.9rem;
     }
 
     .checkbox-group {
@@ -1076,27 +1451,41 @@ import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.serv
         align-items: stretch;
       }
 
-      .menu-items-table {
-        overflow-x: auto;
+      .item-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
       }
 
-      .items-table {
-        min-width: 800px;
+      .item-image {
+        align-self: center;
       }
-      
-      .description-cell {
-        max-width: 200px;
+
+      .item-meta {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
       }
 
       .modal-content {
         width: 95%;
         margin: 1rem;
       }
+
+      .image-upload-box {
+        min-height: 250px;
+      }
     }
   `]
 })
 export class MenuManagementComponent implements OnInit {
   menuService = inject(MenuService);
+  uploadService = inject(UploadService);
   fb = inject(FormBuilder);
 
   menuItems: MenuItem[] = [];
@@ -1110,6 +1499,10 @@ export class MenuManagementComponent implements OnInit {
   isLoading = false;
   errorMessage = '';
   successMessage = '';
+  
+  // Image upload state
+  isUploading = false;
+  imagePreviewUrl: string | null = null;
 
   itemForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
@@ -1270,6 +1663,8 @@ export class MenuManagementComponent implements OnInit {
     while (this.pricingOptionsFormArray.length !== 0) {
       this.pricingOptionsFormArray.removeAt(0);
     }
+    // Clear image preview
+    this.imagePreviewUrl = null;
     this.showModal = true;
     this.errorMessage = '';
     this.successMessage = '';
@@ -1290,6 +1685,9 @@ export class MenuManagementComponent implements OnInit {
     while (this.pricingOptionsFormArray.length !== 0) {
       this.pricingOptionsFormArray.removeAt(0);
     }
+    
+    // Set image preview if imageUrl exists
+    this.imagePreviewUrl = item.imageUrl || null;
     
     // Set form values
     this.itemForm.patchValue({
@@ -1336,6 +1734,8 @@ export class MenuManagementComponent implements OnInit {
     while (this.pricingOptionsFormArray.length !== 0) {
       this.pricingOptionsFormArray.removeAt(0);
     }
+    // Clear image preview
+    this.imagePreviewUrl = null;
     this.itemForm.reset({
       name: '',
       category: '',
@@ -1348,6 +1748,78 @@ export class MenuManagementComponent implements OnInit {
       isAvailable: true,
       isPopular: false
     });
+  }
+  
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+    
+    const file = input.files[0];
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      this.errorMessage = 'סוג קובץ לא נתמך. אנא בחר תמונה (JPEG, PNG, או WebP)';
+      return;
+    }
+    
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      this.errorMessage = 'הקובץ גדול מדי. גודל מקסימלי: 5MB';
+      return;
+    }
+    
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      this.imagePreviewUrl = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload to Cloudinary
+    this.isUploading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    
+    this.uploadService.uploadImage(file).subscribe({
+      next: (response) => {
+        if (response.success && response.imageUrl) {
+          // Update form with the Cloudinary URL
+          this.itemForm.patchValue({ imageUrl: response.imageUrl });
+          this.imagePreviewUrl = response.imageUrl; // Update preview with Cloudinary URL
+          this.successMessage = 'התמונה הועלתה בהצלחה!';
+          this.isUploading = false;
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => {
+            this.successMessage = '';
+          }, 3000);
+        } else {
+          this.errorMessage = response.message || 'שגיאה בהעלאת התמונה';
+          this.isUploading = false;
+        }
+      },
+      error: (error) => {
+        console.error('Error uploading image:', error);
+        this.errorMessage = error.message || 'שגיאה בהעלאת התמונה. אנא נסה שוב.';
+        this.isUploading = false;
+        // Clear preview on error
+        this.imagePreviewUrl = null;
+      }
+    });
+  }
+  
+  removeImagePreview(): void {
+    this.imagePreviewUrl = null;
+    this.itemForm.patchValue({ imageUrl: '' });
+    // Reset file input
+    const fileInput = document.getElementById('imageUpload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   }
 
   saveItem(): void {

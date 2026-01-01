@@ -7,34 +7,25 @@ const UserSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    lowercase: true,
-    minlength: 3,
-    maxlength: 50
+    lowercase: true
   },
   password: {
     type: String,
+    required: true
+  },
+  fullName: {
+    type: String,
     required: true,
-    minlength: 6
+    trim: true
   },
   role: {
     type: String,
     enum: ['admin', 'user'],
     default: 'user'
   },
-  fullName: {
-    type: String,
-    trim: true,
-    maxlength: 100
-  },
   phone: {
     type: String,
-    trim: true,
-    maxlength: 20
-  },
-  address: {
-    type: String,
-    trim: true,
-    maxlength: 200
+    trim: true
   },
   isActive: {
     type: Boolean,
@@ -46,28 +37,20 @@ const UserSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-UserSchema.pre('save', async function(next) {
+// Using async function - no next parameter needed
+UserSchema.pre('save', async function() {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) {
-    if (typeof next === 'function') {
-      return next();
-    }
-    return;
+    return; // Early return if password not modified
   }
 
   try {
     // Hash password with cost of 10
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    if (typeof next === 'function') {
-      next();
-    }
+    // No next() call needed for async functions
   } catch (error) {
-    if (typeof next === 'function') {
-      next(error);
-    } else {
-      throw error;
-    }
+    throw error; // Throw error instead of calling next(error)
   }
 });
 
