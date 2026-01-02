@@ -98,6 +98,7 @@ router.get('/', authenticate, orderController.getAllOrders);
 router.get('/stats', authenticate, orderController.getOrderStatistics);
 router.get('/stats/revenue', authenticate, orderController.getRevenueStats);
 router.get('/kitchen-report', authenticate, orderController.getKitchenReport);
+router.get('/delivery-report', authenticate, orderController.getDeliveryReport);
 router.get('/recent', authenticate, orderController.getRecentOrders);
 router.get('/search', authenticate, orderController.searchOrders);
 router.get('/:id', authenticate, orderController.getOrderById);

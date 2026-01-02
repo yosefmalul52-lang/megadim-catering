@@ -43,6 +43,30 @@ const PricingOptionSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// Recipe Ingredient Schema (for procurement calculation)
+const RecipeIngredientSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  unit: {
+    type: String,
+    required: true,
+    trim: true // e.g., 'kg', 'g', 'bunch', 'piece', 'liter', 'ml'
+  },
+  category: {
+    type: String,
+    required: true,
+    trim: true // e.g., 'Fish', 'Meat', 'Vegetables', 'Dry Goods', 'Spices'
+  }
+}, { _id: false });
+
 // MenuItem Schema for catering menu items
 const MenuItemSchema = new mongoose.Schema({
   name: {
@@ -98,6 +122,12 @@ const MenuItemSchema = new mongoose.Schema({
   servingSize: {
     type: String,
     trim: true
+  },
+  // Recipe: Array of ingredients needed to make this dish
+  recipe: {
+    type: [RecipeIngredientSchema],
+    required: false,
+    default: []
   }
 }, {
   timestamps: true, // Adds createdAt and updatedAt fields

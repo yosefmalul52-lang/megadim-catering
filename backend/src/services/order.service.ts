@@ -655,4 +655,119 @@ export class OrderService {
     
     return '-';
   }
+
+  // Get delivery/dispatch report - group active orders by city
+  async getDeliveryReport(): Promise<{ city: string; orders: any[] }[]> {
+    try {
+      console.log('🚚 Fetching Delivery Report...');
+      
+      // Relax the Status Filter: Include ALL statuses except 'Cancelled'
+      // Query: { status: { $ne: 'cancelled' } } (Show everything active/completed)
+      const query = {
+        status: { $ne: 'cancelled' }
+      };
+      
+      console.log('🚚 OrderService: Starting delivery report generation');
+      console.log('🚚 OrderService: Query filter:', JSON.stringify(query));
+
+      // Find all orders except cancelled
+      const activeOrders = await Order.find(query).lean();
+
+      console.log('Found orders:', activeOrders.length);
+      
+      if (activeOrders.length === 0) {
+        console.log('⚠️ No orders found (excluding cancelled)');
+        return [];
+      }
+      
+      // Log sample order structure for debugging
+      if (activeOrders.length > 0) {
+        console.log('🚚 Sample order structure:', JSON.stringify(activeOrders[0], null, 2));
+      }
+
+      // Group orders by city
+      const cityMap: { [key: string]: any[] } = {};
+
+      for (const order of activeOrders) {
+        // Extract city from customerDetails or deliveryDetails
+        // Try multiple possible locations for city
+        // Ensure the code doesn't crash if deliveryDetails is undefined
+        const customerDetails = (order as any).customerDetails || {};
+        const deliveryDetails = customerDetails.deliveryDetails || {};
+        
+        console.log('🚚 Processing order:', (order as any)._id);
+        console.log('🚚 Order customerDetails:', JSON.stringify(customerDetails, null, 2));
+        console.log('🚚 Order deliveryDetails:', JSON.stringify(deliveryDetails, null, 2));
+        
+        // Get city from various possible locations
+        let city = deliveryDetails?.city || 
+                   customerDetails.city || 
+                   customerDetails.deliveryCity ||
+                   null;
+
+        // If city is not found, try to extract from address
+        if (!city && customerDetails.address) {
+          // Simple extraction: try to get city from address string
+          // This is a fallback - ideally city should be stored separately
+          const addressParts = customerDetails.address.split(',').map((p: string) => p.trim());
+          // Assume last part might be city, or look for common city patterns
+          city = addressParts[addressParts.length - 1] || null;
+          console.log('🚚 Extracted city from address:', city);
+        }
+
+        // Normalize city name (trim whitespace, handle case variations)
+        if (city) {
+          city = city.trim();
+          // Optional: normalize common variations (e.g., "Haifa" vs "חיפה")
+          // For now, just use as-is
+        } else {
+          // Handle missing cities: If order.deliveryDetails.city is missing/null, 
+          // group it under 'כללי / איסוף עצמי' (General/Pickup)
+          city = 'כללי / איסוף עצמי';
+          console.log('🚚 No city found, using default:', city);
+        }
+
+        // Create order summary with only necessary info
+        const orderSummary = {
+          _id: (order as any)._id.toString(),
+          customerDetails: {
+            name: customerDetails.fullName || 'לא צוין',
+            phone: customerDetails.phone || 'לא צוין'
+          },
+          deliveryDetails: {
+            address: customerDetails.address || deliveryDetails.address || 'לא צוין',
+            city: city,
+            floor: deliveryDetails.floor || customerDetails.floor || null,
+            comments: customerDetails.notes || deliveryDetails.comments || null
+          },
+          totalPrice: order.totalPrice || 0,
+          isPaid: customerDetails.isPaid || deliveryDetails.isPaid || false
+        };
+
+        // Add to city group
+        if (!cityMap[city]) {
+          cityMap[city] = [];
+        }
+        cityMap[city].push(orderSummary);
+      }
+
+      // Convert map to array format
+      const report = Object.keys(cityMap).map(city => ({
+        city: city,
+        orders: cityMap[city]
+      }));
+
+      // Sort by city name
+      report.sort((a, b) => a.city.localeCompare(b.city));
+
+      console.log('🚚 OrderService: Delivery report generated:', report.length, 'cities');
+      console.log('🚚 OrderService: Sample report:', JSON.stringify(report.slice(0, 2), null, 2));
+
+      return report;
+    } catch (error: any) {
+      console.error('❌ Error generating delivery report:', error);
+      console.error('❌ Error stack:', error.stack);
+      throw new Error(`Failed to generate delivery report: ${error.message}`);
+    }
+  }
 }

@@ -368,4 +368,26 @@ export class OrderController {
       });
     }
   });
+
+  // Get delivery/dispatch report - group active orders by city
+  getDeliveryReport = asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const report = await this.orderService.getDeliveryReport();
+
+      res.status(200).json({
+        success: true,
+        data: report
+      });
+    } catch (error: any) {
+      console.error('❌ Controller Error in getDeliveryReport:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to generate delivery report',
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
+  });
 }
