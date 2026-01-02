@@ -27,6 +27,14 @@ export const adminRoutes: Routes = [
       {
         path: 'orders',
         loadComponent: () => import('./admin-orders/admin-orders.component').then(m => m.AdminOrdersComponent)
+      },
+      {
+        path: 'delivery',
+        loadComponent: () => import('./delivery-management/delivery-management.component').then(m => m.DeliveryManagementComponent)
+      },
+      {
+        path: 'shopping',
+        loadComponent: () => import('./shopping-list/shopping-list.component').then(m => m.ShoppingListComponent)
       }
     ]
   }

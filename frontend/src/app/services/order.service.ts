@@ -220,4 +220,20 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
       })
     );
   }
+
+  // Get delivery/dispatch report
+  getDeliveryReport(): Observable<{ city: string; orders: any[] }[]> {
+    return this.http.get<{
+      success: boolean;
+      data: { city: string; orders: any[] }[]
+    }>(
+      `${environment.apiUrl}/order/delivery-report`
+    ).pipe(
+      map(response => response.data),
+      catchError(error => {
+        console.error('Error fetching delivery report:', error);
+        return of([]);
+      })
+    );
+  }
 }

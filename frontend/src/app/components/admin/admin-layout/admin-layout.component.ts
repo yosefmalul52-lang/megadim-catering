@@ -52,6 +52,26 @@ import { AuthService } from '../../../services/auth.service';
           </a>
           
           <a 
+            routerLink="/admin/delivery" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-truck"></i>
+            <span>ניהול משלוחים</span>
+          </a>
+          
+          <a 
+            routerLink="/admin/shopping" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-shopping-basket"></i>
+            <span>רשימת קניות</span>
+          </a>
+          
+          <a 
             routerLink="/admin/summaries" 
             routerLinkActive="active"
             class="nav-link"

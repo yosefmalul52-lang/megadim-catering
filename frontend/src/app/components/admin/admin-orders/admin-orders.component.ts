@@ -104,7 +104,6 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
                     [attr.aria-label]="'צפה בפרטי הזמנה ' + (order._id || order.id)"
                   >
                     <i class="fas fa-eye"></i>
-                    פרטים
                   </button>
                 </td>
               </tr>
@@ -219,7 +218,7 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
     .admin-orders-page {
       padding: 2rem 0;
       min-height: 70vh;
-      background: #f8f9fa;
+      background: #f3f4f6; // Cool Light Gray (matching Dashboard)
     }
 
     .container {
@@ -268,20 +267,20 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
       gap: 0.5rem;
       padding: 0.75rem 1.5rem;
       background: transparent;
-      color: #1a2a3a;
-      border: 2px solid #1a2a3a;
-      border-radius: 0.5rem;
+      color: #475569;
+      border: 1px solid #e5e7eb; // Thin border (matching Menu Management)
+      border-radius: 0.5rem; // Rounded corners
       font-weight: 600;
       font-size: 0.95rem;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .btn-kitchen-report:hover {
-      background: #1a2a3a;
-      color: white;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+      background: #f9fafb; // Light gray background on hover
+      border-color: #3b82f6; // Blue border on hover
+      color: #3b82f6; // Blue text on hover
     }
 
     .btn-kitchen-report i {
@@ -293,21 +292,21 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem 1.5rem;
-      background: #1f3444;
+      background: #10b981; // Emerald Green (matching Dashboard)
       color: white;
       border: none;
       border-radius: 0.5rem;
       font-weight: 600;
       font-size: 0.95rem;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .btn-refresh:hover:not(:disabled) {
-      background: #2a4a5f;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+      background: #059669; // Slightly darker green
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
     }
 
     .btn-refresh:disabled {
@@ -366,11 +365,11 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
       color: #cbb69e;
     }
 
-    /* Premium Table Container */
+    /* Clean SaaS Table Container */
     .table-container {
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      border-radius: 16px; // Rounded corners (16px)
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Standard subtle shadow
       overflow: hidden;
     }
 
@@ -380,36 +379,38 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
     }
 
     .orders-table thead {
-      background: #1f3444;
-      border-bottom: 2px solid #0E1A24;
+      background: #f8fafc; // Light gray background (#f8fafc)
+      border-bottom: 1px solid #e2e8f0;
     }
 
     .orders-table th {
-      padding: 16px;
+      padding: 16px; // Increased cell padding (16px)
       text-align: right;
-      font-weight: 700;
-      font-size: 0.85rem;
+      font-weight: 600; // Font-weight 600
+      font-size: 0.875rem;
       text-transform: uppercase;
-      color: white;
-      letter-spacing: 0.5px;
+      color: #475569; // Dark Slate text (#475569)
+      letter-spacing: 0.05em;
       border: none;
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .orders-table tbody tr {
-      background: white;
-      border-bottom: 1px solid #eee;
+      background: white; // Pure white background
+      border-bottom: 1px solid #e2e8f0;
       transition: background-color 0.2s ease;
     }
 
     .orders-table tbody tr:hover {
-      background-color: #f9fafb;
+      background-color: #eff6ff; // Very light blue (#eff6ff) on hover
     }
 
     .orders-table td {
-      padding: 16px;
+      padding: 16px; // Increased cell padding (16px) for spacious look
       vertical-align: middle;
       font-size: 0.95rem;
       border: none;
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .date-cell {
@@ -435,96 +436,109 @@ import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/k
     }
 
     .status-cell {
-      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
     }
 
     .status-select {
       padding: 0.5rem 1rem;
-      border: 2px solid #ddd;
-      border-radius: 0.5rem;
+      border: 1px solid #e5e7eb; // Thin border (matching Menu Management)
+      border-radius: 0.5rem; // Rounded corners
       background: white;
-      font-size: 0.9rem;
-      color: #0E1A24;
+      font-size: 0.875rem;
+      color: #1f2937;
       cursor: pointer;
-      transition: border-color 0.3s ease;
+      transition: all 0.2s ease;
       width: 100%;
       max-width: 150px;
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .status-select:hover {
-      border-color: #cbb69e;
+      border-color: #3b82f6; // Blue on hover
     }
 
     .status-select:focus {
       outline: none;
-      border-color: #cbb69e;
-      box-shadow: 0 0 0 3px rgba(203, 182, 158, 0.1);
+      border-color: #3b82f6; // Blue on focus
+      background: #f9fafb; // Light gray background on focus
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
-    /* Premium Status Badges */
+    /* Clean SaaS Status Badges (Pills) */
     .status-badge {
       display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-right: 0.5rem;
+      padding: 0.375rem 0.875rem;
+      border-radius: 9999px; // Fully rounded (border-radius: 9999px)
+      font-size: 0.75rem; // Small text
+      font-weight: 700; // Bold
       white-space: nowrap;
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .status-new {
-      background: #e3f2fd;
-      color: #1565c0;
+    .status-new,
+    .status-badge.status-new {
+      background: #dbeafe; // Blue background (#dbeafe)
+      color: #1e40af; // Blue text (#1e40af)
     }
 
-    .status-in-progress {
-      background: #fff3e0;
-      color: #ef6c00;
+    .status-in-progress,
+    .status-badge.status-in-progress {
+      background: #ffedd5; // Yellow/Orange background (#ffedd5)
+      color: #9a3412; // Orange text (#9a3412)
     }
 
-    .status-ready {
-      background: #f3e5f5;
-      color: #7b1fa2;
+    .status-ready,
+    .status-badge.status-ready {
+      background: #ffedd5; // Yellow/Orange background (same as processing)
+      color: #9a3412; // Orange text
     }
 
-    .status-delivered {
-      background: #e8f5e9;
-      color: #2e7d32;
+    .status-delivered,
+    .status-badge.status-delivered {
+      background: #d1fae5; // Emerald Green background (#d1fae5)
+      color: #065f46; // Green text (#065f46)
     }
 
-    .status-cancelled {
-      background: #ffebee;
-      color: #c62828;
+    .status-cancelled,
+    .status-badge.status-cancelled {
+      background: #fee2e2; // Red background (#fee2e2)
+      color: #991b1b; // Red text (#991b1b)
     }
 
     .actions-cell {
       text-align: center;
     }
 
-    /* Premium Action Button */
+    /* Clean SaaS Action Buttons (Icon-only) */
     .btn-view-details {
-      padding: 0.5rem 0.75rem;
+      width: 36px;
+      height: 36px;
+      padding: 0;
       background: transparent;
-      color: #1f3444;
+      color: #64748b; // Dark gray (ghost-button style)
       border: none;
-      border-radius: 0.375rem;
+      border-radius: 8px;
       cursor: pointer;
-      font-weight: 700;
-      font-size: 0.9rem;
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
       transition: all 0.2s ease;
       text-decoration: none;
     }
 
     .btn-view-details:hover {
-      text-decoration: underline;
-      color: #0E1A24;
+      background: rgba(59, 130, 246, 0.1); // Light blue background
+      color: #3b82f6; // Blue on hover
     }
 
     .btn-view-details i {
-      font-size: 0.85rem;
+      font-size: 1rem;
+    }
+
+    .btn-view-details span {
+      display: none; // Hide text, icon-only
     }
 
     .empty-state {

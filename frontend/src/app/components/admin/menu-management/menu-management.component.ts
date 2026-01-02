@@ -299,6 +299,40 @@ import { UploadService } from '../../../services/upload.service';
                     <input type="text" formControlName="tags" placeholder="תגית1, תגית2" class="form-input">
                   </div>
 
+                  <!-- Recipe Section -->
+                  <div class="form-group recipe-section">
+                    <label class="recipe-label">
+                      <i class="fas fa-utensils"></i>
+                      מתכון (רשימת חומרי גלם)
+                    </label>
+                    <div class="recipe-list" formArrayName="recipe">
+                      <div *ngFor="let ingredient of recipeFormArray.controls; let i = index" 
+                           [formGroupName]="i" 
+                           class="recipe-item">
+                        <input type="text" formControlName="name" placeholder="שם חומר גלם" class="recipe-input">
+                        <input type="number" formControlName="quantity" step="0.01" min="0" placeholder="כמות" class="recipe-input recipe-quantity">
+                        <input type="text" formControlName="unit" placeholder="יחידה (ק״ג, גרם, חבילה)" class="recipe-input recipe-unit">
+                        <select formControlName="category" class="recipe-input recipe-category">
+                          <option value="">בחר קטגוריה</option>
+                          <option value="Fish">דגים</option>
+                          <option value="Meat">בשר</option>
+                          <option value="Vegetables">ירקות</option>
+                          <option value="Dry Goods">מוצרים יבשים</option>
+                          <option value="Spices">תבלינים</option>
+                          <option value="Dairy">מוצרי חלב</option>
+                          <option value="Other">אחר</option>
+                        </select>
+                        <button type="button" class="btn-remove-ingredient" (click)="removeIngredient(i)" *ngIf="recipeFormArray.length > 0">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <button type="button" class="btn-add-ingredient" (click)="addIngredient()">
+                      <i class="fas fa-plus"></i>
+                      הוסף חומר גלם
+                    </button>
+                  </div>
+
                   <div class="form-group checkbox-group">
                     <label>
                       <input type="checkbox" formControlName="isAvailable">
@@ -417,20 +451,20 @@ import { UploadService } from '../../../services/upload.service';
 
     .category-filter select {
       padding: 0.5rem 1rem;
-      border: 1px solid #e5e7eb; // Subtle border
+      border: 1px solid #e2e8f0; // Light gray border (#e2e8f0)
       border-radius: 0.5rem;
       font-size: 1rem;
       min-width: 200px;
-      background: white;
+      background: white; // White background
       font-family: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       transition: all 0.2s ease;
     }
 
     .category-filter select:focus {
       outline: none;
-      border-color: $primary-blue; // Blue on focus
-      background: #f9fafb; // Light gray background on focus
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      border-color: #3b82f6; // Soft blue border on focus
+      background: white;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); // Focus ring in soft blue
     }
 
     .menu-items-table {
@@ -469,65 +503,62 @@ import { UploadService } from '../../../services/upload.service';
     }
     
     .category-section {
-      background: white;
-      border-radius: 0.75rem;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      background: transparent; // Remove heavy container
+      margin-bottom: 2rem;
     }
     
     .category-header {
-      background: linear-gradient(135deg, #1f3444 0%, #2a4a5f 100%);
-      padding: 1.25rem 1.5rem;
-      border-bottom: 2px solid #cbb69e;
+      background: #f8fafc; // Very light gray background (#f8fafc)
+      padding: 1rem 1.5rem;
+      border-bottom: 2px solid #e2e8f0; // Bottom border to separate section cleanly
+      margin-bottom: 1rem;
     }
     
     .category-title {
       margin: 0;
-      color: white;
-      font-size: 1.25rem;
-      font-weight: 600;
+      color: #334155; // Dark Slate (#334155)
+      font-size: 1.2rem; // Font-size 1.2rem
+      font-weight: 600; // Bold (600)
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     
     .category-title i {
-      color: #cbb69e;
+      color: #64748b; // Medium gray for icon
     }
     
     .category-count {
       font-size: 0.9rem;
       font-weight: normal;
-      opacity: 0.9;
-      color: #cbb69e;
+      color: #64748b; // Medium gray
     }
 
     // Modern List Layout (replaces table)
     .items-list {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      padding: 1rem;
+      gap: 1rem; // Spacious gap between cards
+      padding: 0; // Remove padding - cards handle their own spacing
     }
 
     .item-row {
-      background: $white;
-      border: 1px solid transparent;
-      border-left: 4px solid transparent;
-      border-radius: 12px;
+      background: #ffffff; // Pure White (#ffffff)
+      border: 1px solid #e2e8f0; // Light border
+      border-radius: 12px; // Border Radius 12px
       padding: 1.5rem;
-      margin-bottom: 15px;
+      margin-bottom: 1rem;
       display: flex;
       align-items: center;
       gap: 1.5rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); // Very subtle shadow
     }
 
     .item-row:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-      border-left-color: #cbb69e;
+      transform: translateY(-2px); // Lift slightly on hover
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); // Increase shadow on hover
     }
 
     .item-image {
@@ -687,35 +718,38 @@ import { UploadService } from '../../../services/upload.service';
     .btn-action {
       width: 40px;
       height: 40px;
-      border: none;
+      border: none; // Remove any heavy borders
       border-radius: 8px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
       background: transparent;
-      color: #6c757d;
+      color: #94a3b8; // Light Gray (#94a3b8) - default
       font-size: 1rem;
     }
 
     .btn-action:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .btn-action.btn-edit {
+      color: #94a3b8; // Light Gray default
     }
 
     .btn-action.btn-edit:hover {
       background: rgba(59, 130, 246, 0.1); // Soft blue background
-      color: $primary-blue; // Calming Azure
+      color: #3b82f6; // Blue on hover
     }
 
     .btn-action.btn-delete {
-      color: #64748b; // Gray icon by default (ghost-button style)
+      color: #94a3b8; // Light Gray default
     }
 
     .btn-action.btn-delete:hover {
       background: rgba(239, 68, 68, 0.1); // Light Red background
-      color: #ef4444; // Soft Red (#ef4444) - delete should never be green
+      color: #ef4444; // Red on hover
     }
 
     .empty-state {
@@ -993,6 +1027,107 @@ import { UploadService } from '../../../services/upload.service';
       margin-top: 0.25rem;
       color: #6c757d;
       font-size: 0.875rem;
+    }
+
+    /* Recipe Section Styles */
+    .recipe-section {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      background: #f8fafc;
+    }
+
+    .recipe-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      color: #0E1A24;
+      margin-bottom: 1rem;
+    }
+
+    .recipe-label i {
+      color: #10b981; // Emerald Green
+    }
+
+    .recipe-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .recipe-item {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1.5fr auto;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.75rem;
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .recipe-input {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .recipe-input:focus {
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+    }
+
+    .btn-remove-ingredient {
+      padding: 0.5rem;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+    }
+
+    .btn-remove-ingredient:hover {
+      background: #dc2626;
+      transform: scale(1.05);
+    }
+
+    .btn-add-ingredient {
+      padding: 0.75rem 1rem;
+      background: #10b981; // Emerald Green
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-add-ingredient:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    @media (max-width: 768px) {
+      .recipe-item {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
     }
     
     /* Image Upload Styles */
@@ -1514,6 +1649,7 @@ export class MenuManagementComponent implements OnInit {
     pricingOptions: this.fb.array([]),
     imageUrl: [''],
     tags: [''],
+    recipe: this.fb.array([]), // Recipe ingredients array
     isAvailable: [true],
     isPopular: [false]
   });
@@ -1524,6 +1660,10 @@ export class MenuManagementComponent implements OnInit {
 
   get pricingOptionsFormArray(): FormArray {
     return this.itemForm.get('pricingOptions') as FormArray;
+  }
+
+  get recipeFormArray(): FormArray {
+    return this.itemForm.get('recipe') as FormArray;
   }
 
   ngOnInit(): void {
@@ -1663,6 +1803,10 @@ export class MenuManagementComponent implements OnInit {
     while (this.pricingOptionsFormArray.length !== 0) {
       this.pricingOptionsFormArray.removeAt(0);
     }
+    // Clear recipe array
+    while (this.recipeFormArray.length !== 0) {
+      this.recipeFormArray.removeAt(0);
+    }
     // Clear image preview
     this.imagePreviewUrl = null;
     this.showModal = true;
@@ -1685,6 +1829,10 @@ export class MenuManagementComponent implements OnInit {
     while (this.pricingOptionsFormArray.length !== 0) {
       this.pricingOptionsFormArray.removeAt(0);
     }
+    // Clear recipe array
+    while (this.recipeFormArray.length !== 0) {
+      this.recipeFormArray.removeAt(0);
+    }
     
     // Set image preview if imageUrl exists
     this.imagePreviewUrl = item.imageUrl || null;
@@ -1701,6 +1849,19 @@ export class MenuManagementComponent implements OnInit {
       isAvailable: item.isAvailable !== false,
       isPopular: item.isPopular || false
     });
+    
+    // Load recipe ingredients if they exist
+    if ((item as any).recipe && Array.isArray((item as any).recipe)) {
+      (item as any).recipe.forEach((ingredient: any) => {
+        const ingredientGroup = this.fb.group({
+          name: [ingredient.name || '', Validators.required],
+          quantity: [ingredient.quantity || 0, [Validators.required, Validators.min(0.01)]],
+          unit: [ingredient.unit || '', Validators.required],
+          category: [ingredient.category || '', Validators.required]
+        });
+        this.recipeFormArray.push(ingredientGroup);
+      });
+    }
     
     // Add options if they exist
     if (hasOptions && item.pricingOptions) {
@@ -2214,6 +2375,23 @@ export class MenuManagementComponent implements OnInit {
   removePricingOption(index: number): void {
     if (this.pricingOptionsFormArray.length > 1) {
       this.pricingOptionsFormArray.removeAt(index);
+    }
+  }
+
+  // Recipe management methods
+  addIngredient(): void {
+    const ingredientGroup = this.fb.group({
+      name: ['', Validators.required],
+      quantity: [0, [Validators.required, Validators.min(0.01)]],
+      unit: ['', Validators.required],
+      category: ['', Validators.required]
+    });
+    this.recipeFormArray.push(ingredientGroup);
+  }
+
+  removeIngredient(index: number): void {
+    if (this.recipeFormArray.length > 0) {
+      this.recipeFormArray.removeAt(index);
     }
   }
 
