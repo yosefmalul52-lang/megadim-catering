@@ -836,3 +836,71 @@
     display: none;
   }
 }
+
+// Material Card Styles
+.order-card {
+  width: 100%;
+  box-sizing: border-box;
+  
+  ::ng-deep mat-card-header {
+    text-align: center;
+    padding-bottom: $spacing-md;
+    
+    mat-card-title {
+      font-size: $font-size-xl;
+      font-weight: $font-weight-bold;
+      color: $color-navy;
+      margin: 0;
+    }
+  }
+  
+  ::ng-deep mat-card-content {
+    padding: $spacing-lg;
+    
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+  }
+}
+
+// Material Form Field Styles
+.full-width {
+  width: 100%;
+}
+
+::ng-deep {
+  .checkout-form-section {
+    .mat-mdc-form-field {
+      width: 100%;
+      direction: rtl;
+      
+      .mat-mdc-text-field-wrapper {
+        direction: rtl;
+      }
+      
+      .mat-mdc-form-field-input-control {
+        direction: rtl;
+        text-align: right;
+      }
+      
+      .mat-mdc-form-field-label {
+        text-align: right;
+      }
+      
+      .mat-mdc-form-field-hint-wrapper {
+        direction: rtl;
+      }
+    }
+    
+    .mat-datepicker-toggle {
+      direction: ltr; // Keep datepicker toggle in LTR
+    }
+  }
+  
+  .mat-mdc-snack-bar-container {
+    direction: rtl;
+    text-align: right;
+  }
+}

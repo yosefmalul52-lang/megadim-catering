@@ -8,7 +8,7 @@ export const routes: Routes = [
   },
   {
     path: 'about',
-    loadComponent: () => import('./components/pages/about/about.component').then(m => m.AboutComponent)
+    loadComponent: () => import('./components/pages/about-page/about-page.component').then(m => m.AboutPageComponent)
   },
   {
     path: 'events-catering',
@@ -27,7 +27,15 @@ export const routes: Routes = [
     loadComponent: () => import('./components/pages/cholent-bar/cholent-bar.component').then(m => m.CholentBarComponent)
   },
   {
+    path: 'cholent',
+    loadComponent: () => import('./components/pages/cholent-bar/cholent-bar.component').then(m => m.CholentBarComponent)
+  },
+  {
     path: 'holiday-food',
+    loadComponent: () => import('./components/pages/holiday-food/holiday-food.component').then(m => m.HolidayFoodComponent)
+  },
+  {
+    path: 'holiday',
     loadComponent: () => import('./components/pages/holiday-food/holiday-food.component').then(m => m.HolidayFoodComponent)
   },
   {
@@ -52,6 +60,23 @@ export const routes: Routes = [
   {
     path: 'register',
     loadComponent: () => import('./components/pages/auth/register/register.component').then(m => m.RegisterComponent)
+  },
+  
+  // Time Clock Kiosk (Public - no auth required)
+  {
+    path: 'time-clock',
+    loadComponent: () => import('./components/kiosk/time-clock/time-clock.component').then(m => m.TimeClockComponent)
+  },
+  
+  // Employee Self-Service Portal
+  {
+    path: 'employee-login',
+    loadComponent: () => import('./components/employee/employee-login/employee-login.component').then(m => m.EmployeeLoginComponent)
+  },
+  {
+    path: 'my-zone',
+    loadComponent: () => import('./components/employee/my-zone/my-zone.component').then(m => m.MyZoneComponent),
+    canActivate: [() => import('./guards/employee.guard').then(m => m.employeeGuard)]
   },
   
   // Admin Dashboard (Protected with AuthGuard)

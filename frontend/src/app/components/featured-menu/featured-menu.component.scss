@@ -1,0 +1,344 @@
+$navy: #0D2F46;
+$gold: #C3985D;
+$white: #FFFFFF;
+$gray-bg: #f8f8f8;
+
+.featured-menu-section {
+  padding: 60px 20px;
+  background-color: $white;
+  text-align: center;
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .section-title {
+    font-size: 2.5rem;
+    color: $navy;
+    font-weight: 800;
+    margin-bottom: 90px; // Keeping the large spacing we set earlier
+    
+    // NEW STYLES FOR FLANKING LINES
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px; // Space between text and lines
+    
+    // The lines themselves
+    &::before,
+    &::after {
+      content: "";
+      display: block;
+      height: 3px; // Line thickness
+      width: 70px; // Line length
+      background-color: $gold; // Use brand gold color
+      border-radius: 2px; // Soft edges
+      opacity: 0.7; // Slightly subtle
+    }
+    
+    // Make lines shorter on mobile to prevent crowding
+    @media (max-width: 600px) {
+      font-size: 2rem;
+      gap: 15px;
+      
+      &::before, &::after {
+        width: 40px;
+      }
+    }
+  }
+  
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 40px;
+  }
+  
+  // --- Categories ---
+  .categories-wrapper {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin-bottom: 60px;
+    
+    .category-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-decoration: none;
+      cursor: pointer;
+      
+      .cat-circle {
+        width: 150px; // Increased from 100px
+        height: 150px; // Increased from 100px
+        border-radius: 50%;
+        background-color: $gray-bg;
+        border: 2px solid transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        // Icon shows if image fails/missing
+        .fallback-icon {
+          position: absolute;
+          font-size: 40px;
+          width: 40px;
+          height: 40px;
+          color: #ccc;
+          z-index: 0;
+        }
+      }
+      
+      .cat-name {
+        font-size: 1rem;
+        color: $navy;
+        font-weight: 600;
+        transition: color 0.3s;
+      }
+      
+      &:hover {
+        .cat-circle {
+          border-color: $gold;
+          transform: translateY(-5px);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .cat-name {
+          color: $gold;
+        }
+      }
+    }
+  }
+  
+  // --- Products Grid ---
+  .grid-title {
+    text-align: right; // RTL alignment
+    font-size: 1.8rem;
+    color: $navy;
+    margin-bottom: 25px;
+    border-right: 4px solid $gold;
+    padding-right: 15px;
+  }
+  
+  .products-grid {
+    display: grid;
+    // Force 4 columns on Desktop
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding-bottom: 40px;
+    width: 100%;
+    
+    .product-card {
+      background: $white;
+      // SHARP CORNERS (Square look)
+      border-radius: 0;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
+      border: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      
+      &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        border-color: $gold;
+        
+        .card-image-wrapper .card-image {
+          transform: scale(1.05);
+        }
+        .quick-add-btn {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+      
+      .badge-container {
+        position: absolute;
+        top: 0;
+        right: 0; // Stick to corner
+        z-index: 10;
+        
+        .badge {
+          background: $gold;
+          color: $navy;
+          font-size: 0.75rem;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 0; // Square badge too
+        }
+      }
+      
+      .card-image-wrapper {
+        height: 200px; // Slightly shorter to balance the 4-col width
+        position: relative;
+        overflow: hidden;
+        
+        .card-image {
+          width: 100%;
+          height: 100%;
+          background-size: cover;
+          background-position: center;
+          transition: transform 0.6s ease;
+        }
+        
+        .quick-add-btn {
+          position: absolute;
+          bottom: 10px;
+          left: 50%;
+          transform: translate(-50%, 20px);
+          background: $white;
+          color: $navy;
+          border: 1px solid $navy;
+          padding: 6px 16px;
+          border-radius: 0; // Square button
+          font-weight: 600;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          cursor: pointer;
+          opacity: 0;
+          transition: all 0.3s;
+          z-index: 5;
+          
+          mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+          }
+          
+          &:hover {
+            background: $navy;
+            color: $white;
+          }
+        }
+      }
+      
+      .card-content {
+        padding: 15px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        text-align: right;
+        
+        .header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 8px;
+          
+          .prod-title {
+            font-size: 1.1rem; // Slightly smaller font for 4-col layout
+            font-weight: 700;
+            color: $navy;
+            margin: 0;
+            line-height: 1.2;
+          }
+          
+          .prod-price {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: $gold;
+            white-space: nowrap;
+          }
+        }
+        
+        .prod-desc {
+          font-size: 0.9rem;
+          color: #666;
+          line-height: 1.4;
+          margin-bottom: 15px;
+          flex: 1;
+        }
+        
+        .full-add-btn {
+          width: 100%;
+          background-color: $navy;
+          color: $white;
+          padding: 12px 0;
+          font-size: 0.95rem;
+          border-radius: 0; // Square button
+          transition: background 0.3s;
+          border: none;
+          cursor: pointer;
+          
+          &:hover {
+            background-color: lighten($navy, 10%);
+          }
+        }
+      }
+    }
+    
+    // Responsive Breakpoints
+    @media (max-width: 1100px) {
+      grid-template-columns: repeat(3, 1fr); // Drop to 3
+    }
+    
+    @media (max-width: 800px) {
+      grid-template-columns: repeat(2, 1fr); // Drop to 2
+    }
+    
+    @media (max-width: 500px) {
+      grid-template-columns: 1fr; // Drop to 1
+    }
+  }
+}
+
+// Mobile
+@media (max-width: 768px) {
+  .featured-menu-section {
+    padding: 40px 15px;
+    
+    .section-title {
+      font-size: 2rem;
+    }
+    
+    .section-subtitle {
+      font-size: 1rem;
+      margin-bottom: 30px;
+    }
+    
+    .categories-wrapper {
+      gap: 15px;
+      
+      .category-item {
+        .cat-circle {
+          width: 105px; // Increased from 70px
+          height: 105px; // Increased from 70px
+          
+          .fallback-icon {
+            font-size: 50px; // Adjust icon size too
+            width: 50px;
+            height: 50px;
+          }
+        }
+        
+        .cat-name {
+          font-size: 0.9rem;
+        }
+      }
+    }
+    
+    .grid-title {
+      text-align: center;
+      border: none;
+      padding: 0;
+      font-size: 1.5rem;
+    }
+    
+    // Products grid responsive is handled in main .products-grid media queries
+  }
+}

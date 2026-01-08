@@ -1,0 +1,173 @@
+$navy: #0D2F46;
+$gold: #C3985D;
+$white: #FFFFFF;
+$gray-bg: #eeeff0;
+
+.kosher-page {
+  direction: rtl;
+  font-family: 'Segoe UI', sans-serif;
+  color: $navy;
+  background-color: $gray-bg;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+// Header
+.header-section {
+  padding: 80px 0 40px 0;
+  text-align: center;
+  
+  .sub-title {
+    font-size: 1.2rem;
+    color: $gold;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  
+  .main-title {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 30px;
+    color: $navy;
+    
+    // Use Flexbox to align text and stretch lines
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%; // Take full available width
+    
+    // The pseudo-elements for the lines
+    &::before,
+    &::after {
+      content: "";
+      display: block;
+      height: 3px; // Elegant thickness
+      flex-grow: 1; // Make them stretch to fill space!
+      opacity: 0.7; // Slightly subtle
+      border-radius: 100%; // Tapered ends for sophistication
+    }
+    
+    // Left Line: Transparent on left -> Gold on right
+    &::before {
+      background: linear-gradient(to right, transparent, $gold 80%);
+      margin-left: 10px; // Spacing from screen edge if needed
+      margin-right: 25px; // Spacing from text
+    }
+    
+    // Right Line: Gold on left -> Transparent on right
+    &::after {
+      background: linear-gradient(to left, transparent, $gold 80%);
+      margin-left: 25px; // Spacing from text
+      margin-right: 10px; // Spacing from screen edge if needed
+    }
+  }
+  
+  .description {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    color: #555;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+}
+
+// Certificate Section
+.certificate-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 100px;
+}
+
+.certificate-frame {
+  position: relative;
+  padding: 15px;
+  background: $white;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  border-radius: 4px;
+  margin-bottom: 40px;
+  
+  // NEW: Add smooth transition for the transform property
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s ease;
+  // Ensure it doesn't overlap other elements when zoomed
+  z-index: 1;
+  // Optional: cursor indicating it's interactive
+  cursor: pointer;
+  
+  // NEW: Hover state for zoom effect
+  &:hover {
+    // Scale up by 5%
+    transform: scale(1.05);
+    // Make shadow deeper for a "lifting" effect
+    box-shadow: 0 30px 70px rgba(0,0,0,0.2);
+  }
+  
+  .cert-img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid #eee;
+    max-height: 700px;
+  }
+  
+  // Gold Corners styling
+  .corner {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border: 4px solid $gold;
+    pointer-events: none;
+    
+    &.top-right {
+      top: -10px;
+      right: -10px;
+      border-left: none;
+      border-bottom: none;
+    }
+    
+    &.bottom-left {
+      bottom: -10px;
+      left: -10px;
+      border-top: none;
+      border-right: none;
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .header-section {
+    padding: 60px 0 30px 0;
+    
+    .main-title {
+      font-size: 2rem;
+      
+      // On mobile, reduce spacing so lines don't disappear
+      &::before {
+        margin-right: 15px;
+      }
+      
+      &::after {
+        margin-left: 15px;
+      }
+    }
+    
+    .description {
+      font-size: 1.1rem;
+    }
+  }
+  
+  .certificate-frame {
+    width: 100%;
+    padding: 10px;
+    
+    .cert-img {
+      width: 100%;
+    }
+  }
+}

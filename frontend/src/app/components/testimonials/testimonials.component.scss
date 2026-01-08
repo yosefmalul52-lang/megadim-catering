@@ -1,0 +1,154 @@
+$navy: #0D2F46;
+$gold: #C3985D;
+$white: #FFFFFF;
+$bg-light: #f9f9f9;
+
+.testimonials-section {
+  background-color: $bg-light;
+  padding: 100px 20px;
+  text-align: center;
+  direction: rtl;
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .section-header {
+    margin-bottom: 70px;
+    
+    .sub-title {
+      color: $gold;
+      font-size: 1.2rem;
+      margin-bottom: 5px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    
+    .main-title {
+      color: $navy;
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+    
+    .header-line {
+      width: 60px;
+      height: 3px;
+      background: $gold;
+      margin: 0 auto;
+      border-radius: 2px;
+    }
+  }
+  
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+    
+    .testimonial-card {
+      background: $white;
+      padding: 40px 30px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease;
+      
+      // PREMIUM ACCENT: Gold Top Border
+      border-top: 4px solid $gold;
+      
+      &:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+      }
+      
+      // DECORATIVE QUOTE ICON
+      .quote-icon {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 120px;
+        width: 120px;
+        height: 120px;
+        line-height: 1;
+        color: $gold;
+        opacity: 0.1; // Very subtle watermark
+        pointer-events: none;
+        z-index: 0;
+      }
+      
+      .stars {
+        color: $gold;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 1;
+        
+        mat-icon {
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+        }
+      }
+      
+      .review-text {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #555;
+        margin-bottom: 30px;
+        position: relative;
+        z-index: 1;
+        font-style: italic;
+      }
+      
+      .reviewer-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        position: relative;
+        z-index: 1;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+        
+        .avatar-circle {
+          width: 50px;
+          height: 50px;
+          background-color: $navy;
+          color: $white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 1.1rem;
+        }
+        
+        .details {
+          text-align: right;
+          display: flex;
+          flex-direction: column;
+          
+          .name {
+            font-weight: 700;
+            color: $navy;
+            font-size: 1.1rem;
+          }
+          
+          .role {
+            font-size: 0.9rem;
+            color: #888;
+          }
+        }
+      }
+    }
+    
+    // Responsive
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+      padding: 0 20px;
+    }
+  }
+}

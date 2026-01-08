@@ -1,0 +1,123 @@
+$navy: #0D2F46;
+$gold: #C3985D;
+$white: #FFFFFF;
+
+.story-section {
+  background-color: $navy;
+  padding: 100px 20px;
+  color: $white;
+  text-align: center;
+  direction: rtl;
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .story-content-full {
+    max-width: 900px; // Prevent text from being too wide/hard to read
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .story-title {
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: $gold;
+    margin-bottom: 10px;
+  }
+  
+  // Elegant separator line with icon
+  .title-separator {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 30px;
+    opacity: 0.8;
+    
+    .line {
+      width: 80px;
+      height: 1px;
+      background-color: $gold;
+    }
+    
+    mat-icon {
+      color: $gold;
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+    }
+  }
+  
+  .story-subtitle {
+    font-size: 1.8rem;
+    font-weight: 300; // Light/Thin font looks premium
+    margin-bottom: 40px;
+    letter-spacing: 1px;
+  }
+  
+  .text-block {
+    margin-bottom: 50px;
+    
+    p {
+      font-size: 1.2rem;
+      line-height: 2; // Very relaxed line height for readability
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 20px;
+    }
+  }
+  
+  .kosher-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 40px;
+    border: 1px solid rgba($gold, 0.3);
+    border-radius: 50px; // Pill shape
+    background: rgba(0,0,0,0.2);
+    margin-bottom: 40px;
+    
+    mat-icon {
+      color: $gold;
+    }
+    
+    span {
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: $white;
+    }
+  }
+  
+  .story-btn {
+    color: $gold;
+    border: 1px solid $gold;
+    padding: 10px 40px;
+    font-size: 1.1rem;
+    transition: all 0.3s;
+    
+    &:hover {
+      background: $gold;
+      color: $navy;
+    }
+  }
+  
+  // Responsive
+  @media (max-width: 600px) {
+    .story-title {
+      font-size: 2.5rem;
+    }
+    
+    .story-subtitle {
+      font-size: 1.4rem;
+    }
+    
+    .kosher-banner {
+      flex-direction: column;
+      padding: 20px;
+      text-align: center;
+      border-radius: 10px;
+    }
+  }
+}

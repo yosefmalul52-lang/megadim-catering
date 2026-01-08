@@ -72,6 +72,16 @@ import { AuthService } from '../../../services/auth.service';
           </a>
           
           <a 
+            routerLink="/admin/employees" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-users"></i>
+            <span>ניהול צוות</span>
+          </a>
+          
+          <a 
             routerLink="/admin/summaries" 
             routerLinkActive="active"
             class="nav-link"

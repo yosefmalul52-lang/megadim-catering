@@ -1,10 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
+import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { MatSidenavModule, MatSidenavContainer, MatSidenav } from '@angular/material/sidenav';
+import { MatButtonModule } from '@angular/material/button';
 
-import { HeaderTopBarComponent } from './components/shared/header-top-bar/header-top-bar.component';
-import { MainNavbarComponent } from './components/shared/main-navbar/main-navbar.component';
+import { HeaderComponent } from './components/shared/header/header.component';
 import { SearchBarComponent } from './components/shared/search-bar/search-bar.component';
 import { CartModalComponent } from './components/shared/cart-modal/cart-modal.component';
 import { FooterComponent } from './components/shared/footer/footer.component';
@@ -20,8 +21,10 @@ import { LanguageService } from './services/language.service';
   imports: [
     CommonModule,
     RouterOutlet,
-    HeaderTopBarComponent,
-    MainNavbarComponent,
+    RouterModule,
+    MatSidenavModule,
+    MatButtonModule,
+    HeaderComponent,
     SearchBarComponent,
     CartModalComponent,
     FooterComponent,
@@ -30,12 +33,22 @@ import { LanguageService } from './services/language.service';
     ToastComponent
   ],
   template: `
-    <div class="app-container" [attr.dir]="currentDirection">
-      <!-- Header Top Bar (hidden on login/admin pages) -->
-      <app-header-top-bar *ngIf="!isLoginOrAdminPage"></app-header-top-bar>
+    <mat-sidenav-container class="app-container" autosize [attr.dir]="currentDirection">
+      <mat-sidenav #sidenav mode="over" position="start" class="mobile-sidenav">
+        <div class="sidenav-content">
+          <button mat-button routerLink="/" (click)="sidenav.close()">דף הבית</button>
+          <button mat-button routerLink="/about" (click)="sidenav.close()">אודות</button>
+          <button mat-button routerLink="/events-catering" (click)="sidenav.close()">קייטרינג לאירועים</button>
+          <button mat-button routerLink="/ready-for-shabbat" (click)="sidenav.close()">אוכל מוכן לשבת</button>
+          <button mat-button routerLink="/cholent-bar" (click)="sidenav.close()">צ'ולנט בר</button>
+          <button mat-button routerLink="/holiday-food" (click)="sidenav.close()">אוכל לחג</button>
+          <button mat-button routerLink="/kosher" (click)="sidenav.close()">תעודת כשרות</button>
+          <button mat-button routerLink="/contact" (click)="sidenav.close()">צור קשר</button>
+        </div>
+      </mat-sidenav>
       
-      <!-- Main Navigation (hidden on login/admin pages) -->
-      <app-main-navbar *ngIf="!isLoginOrAdminPage"></app-main-navbar>
+      <!-- Header (3-Row Layout) (hidden on login/admin pages) -->
+      <app-header *ngIf="!isLoginOrAdminPage" [sidenav]="sidenav"></app-header>
       
       <!-- Search Bar (shown conditionally, hidden on login/admin pages) -->
       <app-search-bar *ngIf="!isLoginOrAdminPage"></app-search-bar>
@@ -59,7 +72,7 @@ import { LanguageService } from './services/language.service';
       
       <!-- Toast Notifications (available on all pages) -->
       <app-toast></app-toast>
-    </div>
+    </mat-sidenav-container>
   `,
   styleUrls: ['./app.component.scss']
 })
@@ -91,6 +104,6 @@ export class AppComponent implements OnInit {
 
   private updatePageVisibility(): void {
     const url = this.router.url;
-    this.isLoginOrAdminPage = url.startsWith('/login') || url.startsWith('/admin');
+    this.isLoginOrAdminPage = url.startsWith('/login') || url.startsWith('/admin') || url.startsWith('/time-clock') || url.startsWith('/employee-login') || url.startsWith('/my-zone');
   }
 }

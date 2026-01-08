@@ -1,0 +1,41 @@
+<section class="featured-menu-section">
+  <div class="container">
+    <h2 class="section-title">מה מתבשל אצלנו</h2>
+    
+    <div class="categories-wrapper">
+      <div *ngFor="let cat of categories" (click)="navigateToCategory(cat)" class="category-item">
+        <div class="cat-circle">
+          <img [src]="cat.image" [alt]="cat.name" onerror="this.style.display='none'">
+        </div>
+        <span class="cat-name">{{ cat.name }}</span>
+      </div>
+    </div>
+    
+    <h3 class="grid-title">הנבחרים של מגדים</h3>
+    <div class="products-grid">
+      <div class="product-card" *ngFor="let product of featuredProducts">
+        <div class="badge-container" *ngIf="product.isPopular">
+          <div class="badge">מומלץ</div>
+        </div>
+        
+        <div class="card-image-wrapper">
+          <div class="card-image" [style.background-image]="'url(' + product.image + ')'"></div>
+          <button class="quick-add-btn" (click)="addToCart(product)">
+            <mat-icon>shopping_cart</mat-icon> הוספה מהירה
+          </button>
+        </div>
+        <div class="card-content">
+          <div class="header-row">
+            <h4 class="prod-title">{{ product.name }}</h4>
+            <span class="prod-price">₪{{ product.price }}</span>
+          </div>
+          <p class="prod-desc">{{ product.description }}</p>
+          
+          <button mat-flat-button class="full-add-btn" (click)="addToCart(product)">
+            הוסף להזמנה
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -63,7 +63,7 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
               </div>
               <div class="order-items-count">
                 <i class="fas fa-box" aria-hidden="true"></i>
-                <span>{{ order.items?.length || 0 }} פריטים</span>
+                <span>{{ order.items.length }} פריטים</span>
               </div>
             </div>
 

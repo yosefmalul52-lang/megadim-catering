@@ -78,6 +78,11 @@ export class OrderService {
     );
   }
 
+  // Alias for createOrder (for consistency)
+  createOrder(orderRequest: OrderRequest): Observable<OrderResponse> {
+    return this.submitOrder(orderRequest);
+  }
+
   // Admin methods for order management
   getAllOrders(): Observable<Order[]> {
     return this.http.get<{success: boolean, data: Order[]}>(`${environment.apiUrl}/order`).pipe(

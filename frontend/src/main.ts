@@ -2,7 +2,7 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { importProvidersFrom } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideToastr } from 'ngx-toastr';
 
 import { AppComponent } from './app/app.component';
@@ -23,7 +23,7 @@ bootstrapApplication(AppComponent, {
       withInterceptors([authInterceptor]), // Register auth interceptor - MUST be an array
       withFetch() // Use fetch API instead of XMLHttpRequest
     ),
-    importProvidersFrom(BrowserAnimationsModule),
+    provideAnimations(), // Angular Material animations
     // Configure Toastr with Luxury Theme
     provideToastr({
       timeOut: 4000,

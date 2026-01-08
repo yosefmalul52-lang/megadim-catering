@@ -2,10 +2,34 @@
 
 .app-container {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
   background-color: $color-white;
   font-family: $font-family-primary;
+}
+
+.mobile-sidenav {
+  width: 280px !important;
+  background-color: #0D2F46 !important;
+  
+  .sidenav-content {
+    padding: 2rem 1rem;
+    direction: rtl;
+    
+    button {
+      width: 100%;
+      text-align: right;
+      justify-content: flex-start;
+      color: #ffffff !important;
+      margin-bottom: 0.5rem;
+      
+      &:hover {
+        background-color: rgba(195, 152, 93, 0.2) !important;
+        color: #C3985D !important;
+      }
+    }
+  }
 }
 
 .main-content {

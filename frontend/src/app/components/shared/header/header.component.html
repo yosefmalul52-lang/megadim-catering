@@ -1,0 +1,66 @@
+<header class="main-header">
+  <!-- Row 1: Top Bar (Navy) -->
+  <div class="top-bar">
+    <div class="container">
+      <div class="top-section right-sec">
+        <a href="tel:0528240230" class="icon-link" aria-label="Call us">
+          <mat-icon>phone</mat-icon>
+        </a>
+      </div>
+      <div class="top-section center-sec">
+        <span class="label">להזמנות חייגו:</span>
+        <a href="tel:0528240230" class="number-link">052-8240230</a>
+      </div>
+      <div class="top-section left-sec">
+        <button class="lang-btn" (click)="onLanguageToggle()">
+          <mat-icon class="lang-icon">language</mat-icon>
+          <span class="lang-text">{{ currentLanguage === 'he' ? 'EN' : 'HE' }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Row 2: Brand Bar (White) - Kosher Logo Right, Main Logo Center, Icons Left -->
+  <div class="brand-bar">
+    <div class="container">
+      <div class="side-section right-side">
+        <img src="assets/images/logo1.png" alt="כשרות מהודרת" class="kosher-logo">
+      </div>
+      <a routerLink="/" class="logo-container">
+        <img src="assets/images/logo-megadim.png" alt="קייטרינג מגדים" class="logo-image">
+      </a>
+      <div class="side-section left-side utils-container">
+        <button mat-icon-button aria-label="חיפוש" (click)="onSearchClick()">
+          <mat-icon>search</mat-icon>
+        </button>
+        
+        <button mat-icon-button aria-label="עגלת קניות" (click)="onCartClick()" class="cart-btn">
+          <mat-icon>shopping_cart</mat-icon>
+          <span class="cart-badge" *ngIf="cartSummary.totalItems > 0">{{ cartSummary.totalItems }}</span>
+        </button>
+        
+        <button mat-icon-button aria-label="אזור אישי" (click)="onUserClick()">
+          <mat-icon>person</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Row 3: Navigation Bar (Navy) -->
+  <div class="nav-bar">
+    <nav class="desktop-nav">
+      <a routerLink="/" routerLinkActive="active-link" [routerLinkActiveOptions]="{exact: true}">דף הבית</a>
+      <a routerLink="/about" routerLinkActive="active-link">אודות</a>
+      <a routerLink="/events-catering" routerLinkActive="active-link">קייטרינג לאירועים</a>
+      <a routerLink="/ready-for-shabbat" routerLinkActive="active-link">אוכל מוכן לשבת</a>
+      <a routerLink="/cholent-bar" routerLinkActive="active-link">צ'ולנט בר</a>
+      <a routerLink="/holiday-food" routerLinkActive="active-link">אוכל לחג</a>
+      <a routerLink="/kosher" routerLinkActive="active-link">תעודת כשרות</a>
+      <a routerLink="/contact" routerLinkActive="active-link">צור קשר</a>
+    </nav>
+    
+    <button mat-icon-button class="mobile-menu-btn" (click)="sidenav?.toggle()">
+      <mat-icon>menu</mat-icon>
+    </button>
+  </div>
+</header>
