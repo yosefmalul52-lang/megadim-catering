@@ -7,6 +7,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'mysecretkey123';
 
 // Import User model
 const User = require('../models/User');
+// Import Employee model
+const Employee = require('../models/Employee');
 
 // Login Route
 router.post('/login', async (req: Request, res: Response) => {
@@ -137,6 +139,70 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error(err);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+});
+
+// Employee Login Route
+router.post('/employee-login', async (req: Request, res: Response) => {
+  try {
+    const { phone, pinCode } = req.body;
+
+    // Validate input
+    if (!phone || !pinCode) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'מספר טלפון וקוד PIN נדרשים' 
+      });
+    }
+
+    // Find employee by phone and PIN
+    console.log('🔍 Employee login attempt for phone:', phone);
+    const employee = await Employee.findOne({ 
+      phone: phone.trim(),
+      pinCode: pinCode.trim(),
+      isActive: true
+    });
+    
+    if (!employee) {
+      console.log('❌ Employee login failed: Employee not found or invalid PIN');
+      return res.status(400).json({ 
+        success: false,
+        message: 'פרטי התחברות שגויים' 
+      });
+    }
+
+    console.log('✅ Employee found for login:', {
+      employeeId: employee._id,
+      name: `${employee.firstName} ${employee.lastName}`
+    });
+
+    // Create Token (with role: 'employee')
+    const payload = { 
+      id: employee._id, 
+      role: 'employee',
+      type: 'employee' // To distinguish from regular users
+    };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' }); // Longer expiry for employees
+    console.log('✅ Employee JWT token created successfully');
+
+    return res.json({
+      success: true,
+      token,
+      employee: {
+        id: employee._id,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        phone: employee.phone,
+        role: employee.role
+      }
+    });
+  } catch (err: any) {
+    console.error('❌ Employee login error:', err);
     return res.status(500).json({ 
       success: false,
       message: 'Server error' 

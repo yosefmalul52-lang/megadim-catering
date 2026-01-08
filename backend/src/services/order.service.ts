@@ -1,9 +1,15 @@
 import Order, { IOrder } from '../models/Order';
 import { CreateOrderRequest, OrderResponse } from '../models/order.model';
+import { EmailService } from './email.service';
 
 export class OrderService {
   // Categories that should only show units, not calculated weight
   private readonly UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
+  private emailService: EmailService;
+
+  constructor() {
+    this.emailService = new EmailService();
+  }
 
   // Submit a new order
   async submitOrder(orderData: CreateOrderRequest, userId: string | null = null): Promise<OrderResponse> {
@@ -54,6 +60,15 @@ export class OrderService {
       const savedOrder = await order.save();
       console.log('✅ OrderService: Order saved successfully:', savedOrder._id);
       console.log('✅ OrderService: Saved order userId:', savedOrder.userId);
+
+      // Send order email to owner immediately after save
+      try {
+        await this.emailService.sendOrderEmail(savedOrder);
+        console.log('✅ OrderService: Order email sent successfully');
+      } catch (emailError: any) {
+        // Log email error but don't fail the order creation
+        console.error('⚠️ OrderService: Failed to send order email (order still saved):', emailError);
+      }
 
       return {
         success: true,

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Employee = require('../models/Employee');
 
 // JWT Secret - should match the one in auth routes
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -34,6 +35,43 @@ const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     
+    // Check if this is an employee token
+    if (decoded.type === 'employee' || decoded.role === 'employee') {
+      // Employee authentication
+      const employeeId = decoded.id || decoded.userId || decoded._id;
+      
+      if (!employeeId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token לא מכיל מזהה עובד'
+        });
+      }
+
+      const employee = await Employee.findById(employeeId);
+      
+      if (!employee || !employee.isActive) {
+        return res.status(404).json({
+          success: false,
+          message: 'עובד לא נמצא או לא פעיל'
+        });
+      }
+
+      // Attach employee info to request object
+      req.user = {
+        _id: employee._id,
+        id: employee._id.toString(),
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        role: 'employee',
+        type: 'employee',
+        phone: employee.phone
+      };
+
+      return next();
+    }
+    
+    // Regular user authentication
     // Extract user ID from payload
     // The payload uses 'id' field (as set in auth.routes.ts: payload = { id: user._id, role: user.role })
     const userId = decoded.id || decoded.userId || decoded._id;
