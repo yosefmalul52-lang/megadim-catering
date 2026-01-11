@@ -13,6 +13,8 @@ import authRoutes from './routes/auth.routes';
 import searchRoutes from './routes/search.routes';
 import testimonialsRoutes from './routes/testimonials.routes';
 import agentRoutes from './routes/agent.routes';
+import galleryRoutes from './routes/gallery.routes';
+import videoRoutes from './routes/video.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -113,6 +115,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/agent', agentRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/videos', videoRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -131,7 +135,9 @@ app.get('/', (req: Request, res: Response) => {
       auth: '/api/auth',
       search: '/api/search',
       testimonials: '/api/testimonials',
-      agent: '/api/agent'
+      agent: '/api/agent',
+      gallery: '/api/gallery',
+      videos: '/api/videos'
     },
     documentation: 'Visit /api for more information'
   });
@@ -151,7 +157,9 @@ app.get('/api', (req: Request, res: Response) => {
       auth: '/api/auth',
       search: '/api/search',
       testimonials: '/api/testimonials',
-      agent: '/api/agent'
+      agent: '/api/agent',
+      gallery: '/api/gallery',
+      videos: '/api/videos'
     },
     documentation: 'Contact info@megadim-catering.com for API documentation'
   });

@@ -11,11 +11,13 @@ export interface MenuItem {
   category: string;
   description: string;
   price?: number; // Optional: for backward compatibility or fixed-price items
+  pricePer100g?: number; // Optional: price per 100 grams (for admin-controlled display)
   pricingVariants?: PriceVariant[]; // Array of size/price variants
   imageUrl: string;
   tags: string[];
   isAvailable?: boolean;
   isPopular?: boolean;
+  isFeatured?: boolean; // Optional: Show in Featured section on homepage
   servingSize?: string;
   ingredients?: string[];
   allergens?: string[];
@@ -45,11 +47,13 @@ export interface CreateMenuItemRequest {
   category: string;
   description: string;
   price?: number; // Optional: for backward compatibility or fixed-price items
+  pricePer100g?: number; // Optional: price per 100 grams (for admin-controlled display)
   pricingVariants?: PriceVariant[]; // Array of size/price variants
   imageUrl: string;
   tags: string[];
   isAvailable?: boolean;
   isPopular?: boolean;
+  isFeatured?: boolean; // Optional: Show in Featured section on homepage
   servingSize?: string;
   ingredients?: string[];
   allergens?: string[];
@@ -66,11 +70,13 @@ export interface UpdateMenuItemRequest {
   category?: string;
   description?: string;
   price?: number; // Optional: for backward compatibility or fixed-price items
+  pricePer100g?: number; // Optional: price per 100 grams (for admin-controlled display)
   pricingVariants?: PriceVariant[]; // Array of size/price variants
   imageUrl?: string;
   tags?: string[];
   isAvailable?: boolean;
   isPopular?: boolean;
+  isFeatured?: boolean; // Optional: Show in Featured section on homepage
   servingSize?: string;
   ingredients?: string[];
   allergens?: string[];

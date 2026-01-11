@@ -21,6 +21,8 @@ import uploadRoutes from './routes/upload.routes';
 import shoppingRoutes from './routes/shopping.routes';
 import employeeRoutes from './routes/employee.routes';
 import attendanceRoutes from './routes/attendance.routes';
+import galleryRoutes from './routes/gallery.routes';
+import videoRoutes from './routes/video.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -83,6 +85,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/shopping', shoppingRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/videos', videoRoutes);
 
 // 404 handler for undefined routes (must be after all routes)
 app.use('*', notFoundHandler);

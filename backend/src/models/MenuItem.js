@@ -91,6 +91,12 @@ const MenuItemSchema = new mongoose.Schema({
     required: false,
     min: 0
   },
+  // Price per 100g (for admin-controlled display)
+  pricePer100g: {
+    type: Number,
+    required: false,
+    min: 0
+  },
   // Array of pricing variants (e.g., 250g: ₪17, 500g: ₪29) - Legacy support
   pricingVariants: {
     type: [PriceVariantSchema],
@@ -116,6 +122,10 @@ const MenuItemSchema = new mongoose.Schema({
     default: true
   },
   isPopular: {
+    type: Boolean,
+    default: false
+  },
+  isFeatured: {
     type: Boolean,
     default: false
   },
