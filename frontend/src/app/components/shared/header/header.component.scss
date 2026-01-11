@@ -1,5 +1,5 @@
-$navy: #0D2F46;
-$gold: #C3985D;
+$navy: #1f3540;
+$gold: #E0C075;
 $white: #FFFFFF;
 
 .main-header {
@@ -9,39 +9,44 @@ $white: #FFFFFF;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-// Row 1: Top Bar (Navy) - 3-Section Layout
+// Row 1: Top Bar (Navy) - Responsive Design with Perfect Centering
 .top-bar {
-  background-color: $navy;
+  background-color: #1f3540; // Navy
+  color: #E0C075; // Gold
   height: 40px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  font-size: 0.9rem;
+  font-weight: 700;
   
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-    height: 100%;
-    display: flex;
+  .top-bar-content {
+    display: grid;
+    // 3 columns: Left (empty/spacer), Center (Phone), Right (Button)
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
-  }
-  
-  // Common for all 3 sections
-  .top-section {
-    display: flex;
-    align-items: center;
-  }
-  
-  // 1. Right Section (Icon) - Takes available space to push center
-  .right-sec {
-    flex: 1;
-    justify-content: flex-start; // RTL: Start is Right
+    width: 100%;
+    position: relative;
     
-    .icon-link {
-      color: $gold;
-      display: flex;
-      align-items: center;
+    // 1. Phone in the Middle
+    .desktop-phone-text {
+      grid-column: 2; // Center column
+      text-align: center;
+      white-space: nowrap;
+      color: #E0C075;
+      
+      @media (max-width: 600px) {
+        display: none; // Hide on mobile
+      }
+    }
+    
+    // Ensure mobile icon behaves similarly if visible
+    .mobile-phone-icon {
+      grid-column: 2; // Center column
+      display: none; // Hidden by default
+      color: #E0C075;
       text-decoration: none;
-      transition: transform 0.3s;
+      justify-self: center;
       
       mat-icon {
         font-size: 20px;
@@ -49,54 +54,33 @@ $white: #FFFFFF;
         height: 20px;
       }
       
-      &:hover {
-        transform: scale(1.1);
-        color: $white;
+      @media (max-width: 600px) {
+        display: flex; // Show only on mobile
+        align-items: center;
       }
     }
-  }
-  
-  // 2. Center Section (Text)
-  .center-sec {
-    justify-content: center;
-    white-space: nowrap;
-    gap: 6px;
     
-    .label {
-      color: $white;
-      font-size: 0.95rem;
-      font-weight: 400;
-    }
-    
-    .number-link {
-      color: $gold;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 1rem;
-      letter-spacing: 0.5px;
-      
-      &:hover {
-        text-decoration: underline;
-      }
-    }
-  }
-  
-  // 3. Left Section (Lang) - Takes available space to balance
-  .left-sec {
-    flex: 1;
-    justify-content: flex-end; // RTL: End is Left
-    
-    .lang-btn {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 20px;
-      color: $white;
-      padding: 3px 10px;
+    // 2. Button on the Right
+    .lang-switcher {
+      grid-column: 3; // Right column
+      justify-self: end; // Align to the far edge
       display: flex;
       align-items: center;
       gap: 5px;
       cursor: pointer;
+      font-weight: bold;
+      color: $white;
       transition: all 0.3s;
+      
+      // Optional: Separator line if needed
+      border-right: 1px solid rgba(224, 192, 117, 0.3);
+      padding-right: 15px;
+      margin-right: 5px;
+      
+      .lang-text {
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
       
       .lang-icon {
         font-size: 16px;
@@ -105,204 +89,183 @@ $white: #FFFFFF;
         color: $gold;
       }
       
-      .lang-text {
-        font-size: 0.8rem;
-        font-weight: 500;
+      &:hover {
+        color: $gold;
+        
+        .lang-icon {
+          color: $gold;
+        }
       }
       
-      &:hover {
-        border-color: $gold;
-        background: rgba($gold, 0.1);
-      }
-    }
-  }
-  
-  // Mobile: Simplify
-  @media (max-width: 600px) {
-    .center-sec {
-      .label {
-        display: none; // Show only number
+      // On mobile, remove border/padding if space is tight
+      @media (max-width: 600px) {
+        border: none;
+        padding: 0;
+        margin-right: 0;
       }
     }
   }
 }
 
-// Row 2: Brand Bar - Logo Centered, Icons Left
+// Row 2: Brand Bar - Main Logo Right, Kosher + Icons Left
 .brand-bar {
   background-color: $white;
-  height: 140px; // Increased height
-  border-bottom: 1px solid #f0f0f0;
+  height: 140px; // Significantly taller
+  border-bottom: 1px solid #eaeaea;
   
   .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: 0 40px;
     height: 100%;
     display: flex;
+    justify-content: space-between; // Push Right and Left apart
     align-items: center;
-    justify-content: space-between;
   }
   
-  // Side Sections (Right & Left) - Equal width to keep logo centered
-  .side-section {
-    flex: 1;
+  // Right Side: Main Logo
+  .logo-container {
     display: flex;
     align-items: center;
-  }
-  
-  // 1. Right Side (Kosher Logo)
-  .right-side {
-    justify-content: flex-start; // Start of RTL row
-    background-color: transparent; // Ensure no background interference
     
-    .kosher-logo {
-      height: 90px;
+    .main-logo {
+      height: auto;
+      max-height: 120px; // Allows logo to be much bigger
       width: auto;
       object-fit: contain;
       
-      // THE "NUCLEAR" FIX for very dark/stubborn gray backgrounds
-      background-color: #fff; // Force white base
+      // Background removal fix
+      background-color: $white;
+      filter: contrast(200%) brightness(105%);
+      mix-blend-mode: multiply;
+    }
+  }
+  
+  // Left Side: Kosher Stamp + Separator + User Actions (Grouped)
+  .left-section {
+    display: flex;
+    align-items: center;
+    gap: 25px; // Space between Kosher stamp and Icons
+    
+    .kosher-stamp {
+      height: 70px; // Slightly smaller than main logo
+      width: auto;
+      object-fit: contain;
       
-      // 1. Grayscale: Remove color noise
-      // 2. Brightness 350%: Extreme brightening to burn gray into white
-      // 3. Contrast 300%: Extreme contrast to try and save the black text
+      // Background removal fix
+      background-color: #fff;
       filter: grayscale(100%) brightness(350%) contrast(300%);
-      
-      mix-blend-mode: multiply; // The final step to make white transparent
-    }
-  }
-  
-  // 2. Center (Main Logo)
-  .logo-container {
-    flex: 0 0 auto; // Don't shrink
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    .logo-image {
-      height: 110px; // Big and clear
-      width: auto;
-      object-fit: contain;
-      
-      // THE FIX: Crush grays to white, then blend.
-      background-color: $white; // Ensure base is white
-      filter: contrast(200%) brightness(105%); // Turn light gray into pure white
-      mix-blend-mode: multiply; // Make pure white transparent
-    }
-  }
-  
-  // 3. Left Side (Icons)
-  .utils-container {
-    justify-content: flex-end; // End of RTL row
-    gap: 10px;
-    
-    button {
-      color: $navy;
-      transition: color 0.3s, transform 0.3s;
-      
-      // --- REMOVE DEFAULT MATERIAL BACKGROUNDS ---
-      background: transparent !important;
-      background-color: transparent !important;
-      border: none;
-      outline: none;
-      
-      // Hide the internal Material ripple/background elements
-      &::after {
-        display: none !important;
-      }
-      
-      ::ng-deep .mat-mdc-button-persistent-ripple {
-        display: none !important;
-      }
-      
-      ::ng-deep .mat-mdc-focus-indicator {
-        display: none !important;
-      }
-      
-      ::ng-deep .mat-ripple {
-        display: none !important;
-      }
-      
-      // Target the icon directly for crisp resizing
-      mat-icon {
-        font-size: 36px !important; // Force 1.5x larger size
-        width: 36px !important;
-        height: 36px !important;
-        line-height: 36px !important;
-      }
-      
-      &:hover {
-        background: transparent !important; // Ensure no circle on hover
-        background-color: transparent !important;
-        color: $gold; // Just change the icon color
-        transform: scale(1.05);
-      }
+      mix-blend-mode: multiply;
     }
     
-    // Cart Badge Style
-    .cart-btn {
-      position: relative;
+    .separator {
+      height: 40px;
+      width: 1px;
+      background-color: #ddd;
     }
     
-    .cart-badge {
-      position: absolute;
-      top: -4px;
-      right: -4px; // Moved further out
-      background: $gold;
-      color: $white;
-      font-size: 0.8rem;
-      width: 22px; // Slightly larger badge
-      height: 22px;
-      border-radius: 50%;
+    .user-actions {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      border: 2px solid $white; // Adding border to separate from icon
-    }
-  }
-  
-  // 2. Center Logo
-  .logo-container {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    .logo-image {
-      height: 110px; // Big and clear
-      width: auto;
-      object-fit: contain;
+      gap: 10px;
       
-      // THE FIX: Crush grays to white, then blend.
-      background-color: $white; // Ensure base is white
-      filter: contrast(200%) brightness(105%); // Turn light gray into pure white
-      mix-blend-mode: multiply; // Make pure white transparent
+      button {
+        color: $navy; // The new Navy color
+        transition: color 0.3s, transform 0.3s;
+        
+        // Remove default Material backgrounds
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none;
+        outline: none;
+        
+        &::after {
+          display: none !important;
+        }
+        
+        ::ng-deep .mat-mdc-button-persistent-ripple {
+          display: none !important;
+        }
+        
+        ::ng-deep .mat-mdc-focus-indicator {
+          display: none !important;
+        }
+        
+        ::ng-deep .mat-ripple {
+          display: none !important;
+        }
+        
+        mat-icon {
+          color: $navy; // The new Navy color
+          font-size: 26px;
+          width: 26px;
+          height: 26px;
+          line-height: 26px;
+        }
+        
+        &:hover {
+          background: transparent !important;
+          background-color: transparent !important;
+          color: $gold;
+          transform: scale(1.05);
+          
+          mat-icon {
+            color: $gold;
+          }
+        }
+      }
+      
+      // Cart Badge Style
+      .cart-btn {
+        position: relative;
+      }
+      
+      .cart-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        background: $gold;
+        color: $white;
+        font-size: 0.8rem;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid $white;
+      }
     }
   }
   
   // Mobile Adjustment
   @media (max-width: 800px) {
-    .kosher-logo {
-      height: 50px; // Smaller on mobile
-    }
-  }
-  
-  @media (max-width: 600px) {
-    height: 100px;
+    height: 90px;
     
-    .right-side {
-      display: none; // Hide kosher logo on very small screens
+    .container {
+      padding: 0 20px;
     }
     
-    .logo-container {
-      flex: 1;
-      justify-content: flex-start; // Move logo to right
-    }
-    
-    .logo-image {
+    .logo-container .main-logo {
       height: 70px;
+    }
+    
+    .left-section {
+      gap: 15px;
+      
+      .kosher-stamp {
+        height: 50px;
+      }
+      
+      .separator {
+        height: 30px;
+      }
+      
+      .user-actions mat-icon {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+      }
     }
   }
 }
@@ -318,20 +281,36 @@ $white: #FFFFFF;
 
   .desktop-nav {
     display: flex;
-    gap: 30px;
+    align-items: center;
+    height: 100%;
     
     a {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 25px;
       color: $white;
       text-decoration: none;
       font-weight: 500;
-      padding: 13px 0;
-      border-bottom: 3px solid transparent;
-      transition: all 0.3s;
+      transition: color 0.3s ease; // Only animate color
       
+      // Separator Line (Right side for RTL flow) - KEEP THIS
+      &:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 18px;
+        width: 1px;
+        background-color: rgba(224, 192, 117, 0.3); // Subtle gold
+      }
+      
+      // Hover & Active State - ONLY COLOR CHANGE
       &:hover,
       &.active-link {
         color: $gold;
-        border-bottom-color: $gold;
       }
     }
   }
@@ -348,34 +327,9 @@ $white: #FFFFFF;
 }
 
 // Mobile Responsive
-@media (max-width: 600px) {
-  .top-bar {
-    padding: 0 1rem;
-    font-size: 0.85rem;
-    
-    .top-spacer {
-      display: none; // Hide spacer
-    }
-    
-    .top-contact {
-      flex: 1;
-      justify-content: flex-start; // Move phone to right
-      
-      .phone-label {
-        display: none; // Save space
-      }
-    }
-  }
-}
-
 @media (max-width: 960px) {
   .top-bar {
-    padding: 0 2rem;
-    font-size: 0.85rem;
-    
-    .phone-label {
-      display: none;
-    }
+    padding: 0 15px;
   }
   
   .brand-bar {

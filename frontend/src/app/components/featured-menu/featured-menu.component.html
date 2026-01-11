@@ -1,9 +1,15 @@
 <section class="featured-menu-section">
   <div class="container">
-    <h2 class="section-title">מה מתבשל אצלנו</h2>
+    <div class="elegant-title-wrapper">
+      <span class="decorative-line right-line"></span>
+      <h2 class="section-title">מה מתבשל אצלנו</h2>
+      <span class="decorative-line left-line"></span>
+    </div>
     
     <div class="categories-wrapper">
-      <div *ngFor="let cat of categories" (click)="navigateToCategory(cat)" class="category-item">
+      <div *ngFor="let cat of categories" 
+           [routerLink]="['/ready-for-shabbat', cat.id]"
+           class="category-item">
         <div class="cat-circle">
           <img [src]="cat.image" [alt]="cat.name" onerror="this.style.display='none'">
         </div>
@@ -12,30 +18,44 @@
     </div>
     
     <h3 class="grid-title">הנבחרים של מגדים</h3>
-    <div class="products-grid">
-      <div class="product-card" *ngFor="let product of featuredProducts">
-        <div class="badge-container" *ngIf="product.isPopular">
-          <div class="badge">מומלץ</div>
+    
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-state">
+      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+      <span>טוען מנות...</span>
+    </div>
+    
+    <!-- Products Grid -->
+    <div class="products-grid" *ngIf="!isLoading">
+      <div class="product-card" *ngFor="let item of featuredMainCourses">
+        <div class="card-image-wrapper">
+          <img 
+            [src]="item.imageUrl || 'assets/images/placeholder.jpg'" 
+            [alt]="item.name" 
+            onerror="this.src='assets/images/placeholder.jpg'"
+          >
+          <div class="badge" *ngIf="item.isPopular">מומלץ</div>
         </div>
         
-        <div class="card-image-wrapper">
-          <div class="card-image" [style.background-image]="'url(' + product.image + ')'"></div>
-          <button class="quick-add-btn" (click)="addToCart(product)">
-            <mat-icon>shopping_cart</mat-icon> הוספה מהירה
-          </button>
-        </div>
         <div class="card-content">
-          <div class="header-row">
-            <h4 class="prod-title">{{ product.name }}</h4>
-            <span class="prod-price">₪{{ product.price }}</span>
-          </div>
-          <p class="prod-desc">{{ product.description }}</p>
+          <h4 class="card-title">{{ item.name }}</h4>
+          <p class="card-desc">{{ item.description }}</p>
+          <div class="card-price">₪{{ getPrice(item) }}</div>
           
-          <button mat-flat-button class="full-add-btn" (click)="addToCart(product)">
-            הוסף להזמנה
-          </button>
+          <div class="card-actions">
+            <button class="btn-details">פרטים</button>
+            <button class="btn-add" (click)="addToCart(item)">
+              <mat-icon>shopping_cart</mat-icon>
+              הוספה לסל
+            </button>
+          </div>
         </div>
       </div>
+    </div>
+    
+    <!-- Empty State -->
+    <div *ngIf="!isLoading && featuredMainCourses.length === 0" class="empty-state">
+      <p>אין מנות זמינות כרגע</p>
     </div>
   </div>
 </section>

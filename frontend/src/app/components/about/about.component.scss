@@ -1,102 +1,175 @@
-$navy: #0D2F46;
-$gold: #C3985D;
+$navy: #1f3540;
+$gold: #E0C075;
 $white: #FFFFFF;
 
-.story-section {
-  background-color: $navy;
-  padding: 100px 20px;
+.our-story-section {
+  position: relative;
+  background-color: $navy; // Fallback color
+  // Add a subtle background texture if available, or a gradient
+  // Using Shabbat-table.jpg as background - update with actual kitchen image if available
+  background: linear-gradient(rgba(31, 53, 64, 0.95), rgba(31, 53, 64, 0.98)), url('../../../assets/images/Shabbat-table.jpg'); 
+  background-size: cover;
+  background-attachment: fixed; // Parallax effect
+  background-position: center;
   color: $white;
+  padding-top: 100px; 
+  padding-bottom: 100px;
+  padding-left: 20px;
+  padding-right: 20px;
   text-align: center;
+  overflow: hidden;
   direction: rtl;
   
   .container {
     max-width: 1200px;
     margin: 0 auto;
+    position: relative;
+    z-index: 2;
   }
   
-  .story-content-full {
-    max-width: 900px; // Prevent text from being too wide/hard to read
-    margin: 0 auto;
+  // --- General SVG Settings ---
+  .custom-shape-divider-top,
+  .custom-shape-divider-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    line-height: 0;
+    z-index: 1;
+  }
+
+  .custom-shape-divider-top svg,
+  .custom-shape-divider-bottom svg {
+    position: relative;
+    display: block;
+    width: calc(100% + 1.3px);
+    height: 60px; // Adjust wave height as needed
+  }
+
+  .shape-fill {
+    fill: #ffffff; // Matches the section ABOVE and BELOW
+  }
+
+  // --- TOP SPECIFIC (Inverted to create 'ceiling' effect) ---
+  .custom-shape-divider-top {
+    top: 0;
+    transform: rotate(180deg);
+  }
+
+  // --- BOTTOM SPECIFIC (Normal to create 'floor' effect) ---
+  .custom-shape-divider-bottom {
+    bottom: 0;
+    // No rotation needed for the standard flow out
+  }
+
+  // --- New Title Styles for Dark Background ---
+  .elegant-title-dark {
     display: flex;
-    flex-direction: column;
     align-items: center;
-  }
-  
-  .story-title {
-    font-size: 3.5rem;
-    font-weight: 800;
-    color: $gold;
-    margin-bottom: 10px;
-  }
-  
-  // Elegant separator line with icon
-  .title-separator {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 30px;
-    opacity: 0.8;
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 20px;
+    overflow: hidden; // Prevent horizontal scrollbar if lines are too wide
     
-    .line {
-      width: 80px;
-      height: 1px;
-      background-color: $gold;
+    .section-title {
+      margin: 0 30px;
+      color: #e0c075; // Gold
+      font-size: 3.5rem;
+      font-weight: 700;
+      white-space: nowrap;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     
+    .line {
+      flex-grow: 1;
+      height: 2px;
+      border-radius: 2px;
+    }
+    
+    // Fade logic for Dark Background - Both lines start thin (transparent) and get thicker (gold) as they approach the text
+    .right-line {
+      background: linear-gradient(to left, transparent, #e0c075);
+    }
+    
+    .left-line {
+      background: linear-gradient(to right, transparent, #e0c075);
+    }
+  }
+  
+  .divider-icon {
+    margin-bottom: 20px;
+    
     mat-icon {
+      color: $gold;
+      font-size: 30px;
+      width: 30px;
+      height: 30px;
+    }
+  }
+
+  .story-subtitle {
+    font-size: 1.5rem;
+    font-weight: 300;
+    letter-spacing: 1px;
+    margin-bottom: 30px;
+    color: #f0f0f0;
+  }
+
+  .text-block {
+    margin-bottom: 40px;
+  }
+
+  .story-text {
+    max-width: 800px;
+    margin: 0 auto 40px auto;
+    line-height: 1.8;
+    font-size: 1.1rem;
+    color: #cccccc;
+  }
+
+  // --- Stacking Logic ---
+  .action-stack {
+    display: flex;
+    flex-direction: column; // Forces vertical stacking
+    align-items: center;
+    gap: 30px; // Space between badge and button
+    margin-top: 20px;
+  }
+
+  .kosher-badge-wrapper {
+    border: 1px solid rgba(224, 192, 117, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 50px;
+    background: rgba(0,0,0,0.2);
+
+    .kosher-text {
+      font-size: 1rem;
+      color: $white;
+    }
+
+    .check-icon {
       color: $gold;
       font-size: 24px;
       width: 24px;
       height: 24px;
     }
   }
-  
-  .story-subtitle {
-    font-size: 1.8rem;
-    font-weight: 300; // Light/Thin font looks premium
-    margin-bottom: 40px;
-    letter-spacing: 1px;
-  }
-  
-  .text-block {
-    margin-bottom: 50px;
-    
-    p {
-      font-size: 1.2rem;
-      line-height: 2; // Very relaxed line height for readability
-      color: rgba(255,255,255,0.9);
-      margin-bottom: 20px;
-    }
-  }
-  
-  .kosher-banner {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 15px 40px;
-    border: 1px solid rgba($gold, 0.3);
-    border-radius: 50px; // Pill shape
-    background: rgba(0,0,0,0.2);
-    margin-bottom: 40px;
-    
-    mat-icon {
-      color: $gold;
-    }
-    
-    span {
-      font-weight: bold;
-      font-size: 1.1rem;
-      color: $white;
-    }
-  }
-  
-  .story-btn {
+
+  .gold-outline-btn {
+    background: transparent;
+    border: 2px solid $gold;
     color: $gold;
-    border: 1px solid $gold;
-    padding: 10px 40px;
+    padding: 10px 30px;
     font-size: 1.1rem;
-    transition: all 0.3s;
-    
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    font-weight: 600;
+    margin-top: 10px;
+
     &:hover {
       background: $gold;
       color: $navy;
@@ -104,20 +177,41 @@ $white: #FFFFFF;
   }
   
   // Responsive
-  @media (max-width: 600px) {
-    .story-title {
-      font-size: 2.5rem;
+  @media (max-width: 768px) {
+    padding-top: 80px;
+    padding-bottom: 80px;
+    background-attachment: scroll; // Disable parallax on mobile for performance
+    
+    .elegant-title-dark {
+      .section-title {
+        font-size: 2.5rem;
+        margin: 0 15px;
+      }
+      
+      .line {
+        height: 1.5px;
+      }
     }
     
     .story-subtitle {
-      font-size: 1.4rem;
+      font-size: 1.3rem;
     }
     
-    .kosher-banner {
+    .story-text {
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+    
+    .kosher-badge-wrapper {
       flex-direction: column;
-      padding: 20px;
-      text-align: center;
+      padding: 15px;
       border-radius: 10px;
+      text-align: center;
+    }
+    
+    .custom-shape-divider-top svg,
+    .custom-shape-divider-bottom svg {
+      height: 40px; // Smaller wave on mobile
     }
   }
 }

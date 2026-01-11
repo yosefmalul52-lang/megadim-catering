@@ -6,6 +6,16 @@ export const readyForShabbatRoutes: Routes = [
     loadComponent: () => import('./ready-for-shabbat.component').then(m => m.ReadyForShabbatComponent)
   },
   {
+    path: ':categoryId',
+    loadComponent: () => import('./ready-for-shabbat.component').then(m => m.ReadyForShabbatComponent)
+  },
+  // Detail routes for individual items (must come after category routes)
+  {
+    path: 'salads/:id',
+    loadComponent: () => import('./salads/salad-detail/salad-detail.component').then(m => m.SaladDetailComponent)
+  },
+  // Legacy routes - kept for backward compatibility
+  {
     path: 'main-dishes',
     loadComponent: () => import('./main-dishes/main-dishes.component').then(m => m.MainDishesComponent)
   },
@@ -20,10 +30,6 @@ export const readyForShabbatRoutes: Routes = [
   {
     path: 'salads',
     loadComponent: () => import('./salads/salads.component').then(m => m.SaladsComponent)
-  },
-  {
-    path: 'salads/:id',
-    loadComponent: () => import('./salads/salad-detail/salad-detail.component').then(m => m.SaladDetailComponent)
   },
   {
     path: 'desserts',

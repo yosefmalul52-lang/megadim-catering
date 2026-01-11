@@ -1,57 +1,103 @@
 <div class="shabbat-page">
-  
-  <section class="hero-section">
-    <div class="hero-overlay"></div>
-    <div class="container hero-content">
-      <h4 class="sub-title">הטעמים של הבית, אצלכם בשולחן</h4>
-      <h1 class="main-title">אוכל מוכן לשבת</h1>
-      <div class="gold-line"></div>
-      <p class="hero-desc">
-        מנות ביתיות מוכנות לשבת קודש – נקי, טעים, טרי ומוכן להגשה.
-      </p>
+  <!-- MASTER VIEW: Show all categories -->
+  @if (!currentCategoryId) {
+    <!-- Main Title -->
+    <div class="hero-header">
+      <div class="hero-overlay"></div>
+      <div class="container">
+        <h1 class="main-title">{{ 'HEADER.TITLE' | translate }}</h1>
+        <p class="page-description">{{ 'HEADER.SUBTITLE' | translate }}</p>
+      </div>
     </div>
-  </section>
-  
-  <div class="container categories-grid">
-    
-    <a routerLink="/ready-for-shabbat/salads" class="cover-card" style="--bg-image: url('assets/images/Fish-category.jpg');">
-      <div class="overlay"></div>
-      <div class="card-content">
-        <h2>סלטים</h2>
-        <span class="action-text">לצפייה בתפריט</span>
+
+    <!-- Navigation Cards (Squares) -->
+    <section class="categories-nav">
+      <div class="container">
+        <div class="nav-cards-grid">
+          <div 
+            *ngFor="let category of categories" 
+            class="nav-card"
+            [routerLink]="['/ready-for-shabbat', category.id]"
+            [style.background-image]="'url(' + category.image + ')'"
+          >
+            <div class="nav-card-overlay"></div>
+            <div class="nav-card-content">
+              <h3>{{ category.nameKey | translate }}</h3>
+            </div>
+          </div>
+        </div>
       </div>
-    </a>
-    
-    <a routerLink="/ready-for-shabbat/fish" class="cover-card" style="--bg-image: url('assets/images/Fish-category.jpg');">
-      <div class="overlay"></div>
-      <div class="card-content">
-        <h2>דגים</h2>
-        <span class="action-text">לצפייה בתפריט</span>
+    </section>
+
+    <!-- All Categories Sections -->
+    <section class="content-sections">
+      <div id="salads" class="section-container">
+        <app-salads></app-salads>
       </div>
-    </a>
-    
-    <a routerLink="/ready-for-shabbat/main-dishes" class="cover-card" style="--bg-image: url('assets/images/Fish-category.jpg');">
-      <div class="overlay"></div>
-      <div class="card-content">
-        <h2>מנות עיקריות</h2>
-        <span class="action-text">לצפייה בתפריט</span>
+
+      <div id="fish" class="section-container">
+        <app-fish></app-fish>
       </div>
-    </a>
-    
-    <a routerLink="/ready-for-shabbat/side-dishes" class="cover-card" style="--bg-image: url('assets/images/Fish-category.jpg');">
-      <div class="overlay"></div>
-      <div class="card-content">
-        <h2>תוספות</h2>
-        <span class="action-text">לצפייה בתפריט</span>
+
+      <div id="main" class="section-container">
+        <app-main-dishes></app-main-dishes>
       </div>
-    </a>
-    
-    <a routerLink="/ready-for-shabbat/desserts" class="cover-card" style="--bg-image: url('assets/images/Fish-category.jpg');">
-      <div class="overlay"></div>
-      <div class="card-content">
-        <h2>קינוחים</h2>
-        <span class="action-text">לצפייה בתפריט</span>
+
+      <div id="sides" class="section-container">
+        <app-side-dishes></app-side-dishes>
       </div>
-    </a>
-  </div>
+
+      <div id="desserts" class="section-container">
+        <app-desserts></app-desserts>
+      </div>
+    </section>
+  }
+
+  <!-- DETAIL VIEW: Show single category -->
+  @if (currentCategoryId && currentCategoryData) {
+    <!-- Hero Header with Category Image -->
+    <div class="category-hero-header" [style.background-image]="'url(' + currentCategoryData.image + ')'">
+      <div class="hero-overlay"></div>
+      <div class="container">
+        <h1 class="category-title">{{ currentCategoryData.title }}</h1>
+        <p class="category-subtitle">{{ currentCategoryData.nameKey | translate }}</p>
+      </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="back-button-container">
+      <button mat-stroked-button class="back-button" (click)="router.navigate(['/ready-for-shabbat'])">
+        <mat-icon>arrow_back</mat-icon>
+        חזרה לכל הקטגוריות
+      </button>
+    </div>
+
+    <!-- Single Category Content -->
+    <section class="category-detail-section">
+      <!-- Salads Component -->
+      @if (currentCategoryData.component === 'salads') {
+        <app-salads></app-salads>
+      }
+      
+      <!-- Fish Component -->
+      @if (currentCategoryData.component === 'fish') {
+        <app-fish></app-fish>
+      }
+      
+      <!-- Main Dishes Component -->
+      @if (currentCategoryData.component === 'main-dishes') {
+        <app-main-dishes></app-main-dishes>
+      }
+      
+      <!-- Side Dishes Component -->
+      @if (currentCategoryData.component === 'side-dishes') {
+        <app-side-dishes></app-side-dishes>
+      }
+      
+      <!-- Desserts Component -->
+      @if (currentCategoryData.component === 'desserts') {
+        <app-desserts></app-desserts>
+      }
+    </section>
+  }
 </div>

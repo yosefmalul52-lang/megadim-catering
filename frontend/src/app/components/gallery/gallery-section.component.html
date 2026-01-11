@@ -1,0 +1,32 @@
+<section class="gallery-section" *ngIf="!isLoading && galleryItems.length > 0">
+  <div class="container">
+    <h2 class="section-title">גלריה</h2>
+    
+    <div class="gallery-grid">
+      <div 
+        *ngFor="let item of galleryItems; trackBy: trackByItemId" 
+        class="gallery-item"
+        [class.video-item]="item.type === 'video'"
+        (click)="item.type === 'video' ? openVideoModal(item) : null"
+      >
+        <div class="item-wrapper">
+          <div class="item-image" *ngIf="item.type === 'image'">
+            <img [src]="item.url" [alt]="item.title || 'Gallery image'" (error)="$event.target.src='/assets/images/placeholder-dish.jpg'">
+          </div>
+          
+          <div class="item-video" *ngIf="item.type === 'video'">
+            <img [src]="item.thumbnail || '/assets/images/placeholder-dish.jpg'" [alt]="item.title || 'Video thumbnail'">
+            <div class="play-overlay">
+              <mat-icon>play_circle_filled</mat-icon>
+            </div>
+          </div>
+          
+          <div class="item-overlay" *ngIf="item.title">
+            <h3>{{ item.title }}</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+

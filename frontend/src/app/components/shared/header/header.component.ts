@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
@@ -25,7 +26,8 @@ import { AuthModalService } from '../../../services/auth-modal.service';
     MatIconModule,
     MatBadgeModule,
     MatSidenavModule,
-    MatListModule
+    MatListModule,
+    TranslateModule
   ],
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss']
@@ -34,6 +36,7 @@ export class HeaderComponent implements OnInit {
   @Input() sidenav?: MatSidenav;
   
   languageService = inject(LanguageService);
+  translateService = inject(TranslateService);
   cartService = inject(CartService);
   searchService = inject(SearchService);
   authService = inject(AuthService);
@@ -51,13 +54,19 @@ export class HeaderComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Set default language for TranslateService
+    this.translateService.setDefaultLang('he');
+    this.translateService.use('he');
+    
     // Subscribe to language changes
     this.languageService.currentLanguage$.subscribe(lang => {
       this.currentLanguage = lang;
+      this.translateService.use(lang);
     });
     
     // Initial language check
     this.currentLanguage = this.languageService.currentLanguage;
+    this.translateService.use(this.currentLanguage);
     
     // Subscribe to search state
     this.searchService.isSearchOpen$.subscribe(isOpen => {
@@ -98,6 +107,26 @@ export class HeaderComponent implements OnInit {
 
   onLanguageToggle(): void {
     this.languageService.toggleLanguage();
+  }
+
+  toggleLanguage(): void {
+    const current = this.translateService.currentLang || 'he';
+    const target = current === 'he' ? 'en' : 'he';
+    
+    // Update TranslateService
+    this.translateService.use(target);
+    
+    // Update LanguageService (for direction and other logic)
+    this.languageService.setLanguage(target as 'he' | 'en');
+    
+    // Update currentLanguage immediately for UI
+    this.currentLanguage = target;
+    
+    // Update lang attribute only, NOT dir (html stays ltr for scrollbar)
+    document.documentElement.lang = target;
+    
+    // Save preference to localStorage
+    localStorage.setItem('preferredLanguage', target);
   }
 }
 

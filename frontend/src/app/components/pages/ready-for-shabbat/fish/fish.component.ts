@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
@@ -9,13 +10,14 @@ import { LanguageService } from '../../../../services/language.service';
 @Component({
   selector: 'app-fish',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslateModule],
   template: `
     <div class="fish-page">
       <div class="container">
         <div class="page-header">
-          <h1>דגים</h1>
-          <p class="page-description">מבחר דגים טריים ומעולים לשבת וחג</p>
+          <div class="section-title">
+            <h2>דגים</h2>
+          </div>
         </div>
 
         <!-- Loading State -->
@@ -51,12 +53,12 @@ import { LanguageService } from '../../../../services/language.service';
                 <!-- Price per unit -->
                 <div class="price-section">
                   <div class="price-row">
-                    <span class="price-label">מחיר ליחידה:</span>
-                    <span class="price-value">₪{{ getPrice(fish) }}</span>
+                    <span class="price-label">{{ 'PRODUCT.PRICE_UNIT' | translate }}</span>
+                    <span class="price-value">{{ 'PRODUCT.SHEKEL' | translate }}{{ getPrice(fish) }}</span>
                   </div>
                   <div class="weight-note">
                     <span class="asterisk">*</span>
-                    <span class="weight-text">משקל משוער ליחידה: 170 גרם</span>
+                    <span class="weight-text">{{ 'PRODUCT.WEIGHT' | translate }} 170 {{ 'PRODUCT.GRAMS' | translate }}</span>
                   </div>
                 </div>
                 
@@ -68,7 +70,7 @@ import { LanguageService } from '../../../../services/language.service';
                     [disabled]="!isAvailable(fish)"
                   >
                     <i class="fas fa-shopping-cart"></i>
-                    הוסף לסל
+                    {{ 'PRODUCT.ADD_TO_CART' | translate }}
                   </button>
                   
                   <button 
@@ -77,7 +79,7 @@ import { LanguageService } from '../../../../services/language.service';
                     [attr.aria-label]="'פרטים על ' + fish.name"
                   >
                     <i class="fas fa-info-circle"></i>
-                    פרטים
+                    {{ 'PRODUCT.DETAILS' | translate }}
                   </button>
                 </div>
               </div>
@@ -95,145 +97,338 @@ import { LanguageService } from '../../../../services/language.service';
     </div>
   `,
   styles: [`
+    // === Variables ===
+    $navy: #1f3540;
+    $gold: #E0C075;
+    $white: #ffffff;
+    $gray-bg: #f8f9fa;
+    $border-color: #e0e0e0;
+    $text-gray: #666;
+
+    // === Main Page Container ===
+    :host {
+      display: block;
+      background-color: $gray-bg;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
     .fish-page {
-      padding: 2rem 0;
-      min-height: 70vh;
-      background-color: #fdf5f0;
+      padding: 50px 0;
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 0 2rem;
+      padding: 0 20px;
     }
 
+    // === Page Header ===
     .page-header {
-      text-align: center;
-      margin-bottom: 3rem;
+      margin-bottom: 40px;
     }
 
-    .page-header h1 {
-      color: #0E1A24;
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      font-weight: bold;
+    // Professional 'Fading Gold' Divider Lines
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin: 60px 0 40px 0; // Generous spacing
+      
+      // The Title Text
+      h2 {
+        color: $navy; // Navy
+        font-size: 2.5rem;
+        font-weight: 800;
+        padding: 0 30px;
+        margin: 0;
+        white-space: nowrap;
+        position: relative;
+        
+        // Optional: Small Diamond dots next to text
+        &::before,
+        &::after {
+          content: '◆';
+          font-size: 1rem;
+          color: $gold;
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        &::before {
+          left: 0;
+        }
+        &::after {
+          right: 0;
+        }
+      }
+      
+      // The Fading Lines
+      &::before,
+      &::after {
+        content: '';
+        flex: 1;
+        height: 2px;
+        border-radius: 2px;
+      }
+      
+      // Left Line: Transparent -> Gold
+      &::before {
+        background: linear-gradient(to left, $gold, transparent);
+        margin-left: 20px;
+      }
+      
+      // Right Line: Gold -> Transparent
+      &::after {
+        background: linear-gradient(to right, $gold, transparent);
+        margin-right: 20px;
+      }
     }
 
-    .page-description {
-      font-size: 1.2rem;
-      color: #6c757d;
-      max-width: 600px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-
+    // === Loading State ===
     .loading {
       text-align: center;
       padding: 3rem 0;
-      color: #6c757d;
+      color: $text-gray;
     }
 
     .loading i {
       font-size: 2rem;
       margin-bottom: 1rem;
-      color: #cbb69e;
+      color: $gold;
     }
 
+    // === The Grid (3 Columns) ===
     .menu-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 2rem;
-      margin-bottom: 4rem;
-      width: 100%;
+      gap: 30px;
+      padding: 0 20px;
+      justify-content: center;
     }
 
+    // === Premium Card Design ===
     .menu-item-card {
-      background: white;
+      background: $white;
+      border: 1px solid $border-color;
       border-radius: 0;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-      transition: all 0.3s ease;
-      border: 1px solid rgba(203, 182, 158, 0.2);
-      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      overflow: hidden;
+
+      // Hover Effects
+      &:hover {
+        transform: translateY(-7px);
+        border-color: $gold;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+      }
+
+      // 1. Image Area - MAXIMIZED SIZE (Thin Border)
+      .item-image {
+        position: relative;
+        width: 100%;
+        height: 250px; // Fixed height
+        background-color: #ffffff;
+        border-bottom: 1px solid #f5f5f5;
+        overflow: hidden;
+        padding: 0; // Remove container padding
+        display: block;
+
+        img {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          
+          // === THE KEY CHANGE ===
+          // Force image to be 100% minus 8px total (4px border on each side)
+          max-width: calc(100% - 8px);
+          max-height: calc(100% - 8px);
+          
+          width: auto;
+          height: auto;
+          
+          object-fit: contain; // Keeps the food aspect ratio correct
+          transition: transform 0.6s ease;
+        }
+
+        .badge {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background-color: $gold;
+          color: $navy;
+          padding: 4px 10px;
+          font-size: 0.75rem;
+          font-weight: 800;
+          border-radius: 0;
+          z-index: 2;
+          text-transform: uppercase;
+        }
+
+        .badge-popular {
+          background-color: $gold;
+          color: $navy;
+        }
+
+        .badge-out-of-stock {
+          background: #7a7a7a;
+          color: white;
+        }
+
+        /* When popular badge exists, move out-of-stock badge to left */
+        &:has(.badge-popular) .badge-out-of-stock {
+          right: auto;
+          left: 10px;
+        }
+      }
+
+      // Hover Zoom
+      &:hover .item-image img {
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+
+      // 2. Content Area
+      .item-content {
+        padding: 25px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        text-align: right;
+
+        h3.item-name {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: $navy;
+          margin-bottom: 10px;
+          line-height: 1.3;
+        }
+
+        p.item-description {
+          font-size: 0.95rem;
+          color: $text-gray;
+          margin-bottom: 20px;
+          line-height: 1.6;
+          flex-grow: 1;
+        }
+
+        .item-footer {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+          margin-top: auto;
+          padding-top: 1.25rem;
+          width: 100%;
+        }
+
+        /* Price Section */
+        .price-section {
+          margin-bottom: 1rem;
+          padding: 0.75rem;
+          background: #f9f9f9;
+          border-radius: 0;
+          border-right: 3px solid $navy;
+        }
+
+        .price-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .price-label {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: #6c757d;
+        }
+
+        .price-value {
+          font-size: 1.25rem;
+          font-weight: bold;
+          color: $navy;
+        }
+
+        .weight-note {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-size: 0.85rem;
+          color: #6c757d;
+        }
+
+        .asterisk {
+          color: $gold;
+          font-weight: bold;
+        }
+
+        .weight-text {
+          color: #6c757d;
+        }
+
+        // 3. Actions Footer
+        .buttons-group {
+          display: grid;
+          grid-template-columns: 1fr 1.5fr;
+          gap: 15px;
+          margin-top: auto;
+          width: 100%;
+
+          .btn {
+            height: 45px;
+            border-radius: 0;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            border: none;
+            gap: 0.5rem;
+            white-space: nowrap;
+            box-sizing: border-box;
+
+            i {
+              font-size: 1rem;
+              flex-shrink: 0;
+            }
+          }
+
+          .btn-details {
+            background: transparent;
+            border: 1px solid $navy;
+            color: $navy;
+            &:hover {
+              background: rgba($navy, 0.05);
+            }
+          }
+
+          .btn-add-to-cart {
+            background: $gold;
+            border: 1px solid $gold;
+            color: $navy;
+            &:hover:not(:disabled) {
+              background: darken($gold, 6%);
+              box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            }
+            &:disabled {
+              background: #ccc;
+              color: #666;
+              cursor: not-allowed;
+              box-shadow: none;
+            }
+          }
+        }
+      }
     }
 
     .menu-item-card.featured-style {
       display: flex;
       flex-direction: column;
-    }
-
-    .menu-item-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15);
-    }
-
-    .item-image {
-      position: relative;
-      height: 280px;
-      width: 100%;
-      overflow: hidden;
-      background: #f5f5f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 0;
-      flex-shrink: 0;
-    }
-
-    .item-image img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      transition: transform 0.3s ease, filter 0.3s ease;
-      border-radius: 0;
-      display: block;
-    }
-
-    .menu-item-card:hover .item-image img {
-      transform: scale(1.05);
-    }
-
-    .menu-item-card.is-unavailable:hover .item-image img {
-      transform: scale(1);
-    }
-
-    /* Badge Styles - Elegant and Professional */
-    .badge {
-      position: absolute;
-      z-index: 10;
-      padding: 4px 12px;
-      border-radius: 4px;
-      font-weight: 500;
-      font-size: 0.8rem;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      text-align: center;
-      letter-spacing: 0.3px;
-      line-height: 1.4;
-    }
-
-    .badge-popular {
-      top: 10px;
-      right: 10px;
-      background: #dc3545;
-      color: white;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    }
-
-    .badge-out-of-stock {
-      top: 10px;
-      right: 10px;
-      background: #7a7a7a;
-      color: white;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    }
-
-    /* When popular badge exists, move out-of-stock badge to left */
-    .item-image:has(.badge-popular) .badge-out-of-stock {
-      right: auto;
-      left: 10px;
     }
 
     /* Unavailable State */
@@ -245,189 +440,39 @@ import { LanguageService } from '../../../../services/language.service';
       filter: grayscale(80%);
     }
 
-    .menu-item-card.is-unavailable .btn-select-delivery {
+    .menu-item-card.is-unavailable .btn-add-to-cart {
       pointer-events: none;
     }
 
-    .item-content {
-      padding: 1.5rem 1.25rem;
-      display: flex;
-      flex-direction: column;
-      flex-grow: 1;
-      justify-content: space-between;
-    }
-
-    .item-name {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: #0E1A24;
-      margin-bottom: 0.75rem;
-    }
-
-    .item-description {
-      color: #6c757d;
-      line-height: 1.6;
-      margin-bottom: 1rem;
-      font-size: 0.95rem;
-    }
-
-    .item-footer {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-      margin-top: auto;
-      padding-top: 1.25rem;
-      width: 100%;
-    }
-
-    /* Price Section */
-    .price-section {
-      margin-bottom: 1rem;
-      padding: 0.75rem;
-      background: #f8f9fa;
-      border-radius: 0.5rem;
-    }
-
-    .price-row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .price-label {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #6c757d;
-    }
-
-    .price-value {
-      font-size: 1.25rem;
-      font-weight: bold;
-      color: #0E1A24;
-    }
-
-    .weight-note {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.85rem;
-      color: #6c757d;
-    }
-
-    .asterisk {
-      color: #cbb69e;
-      font-weight: bold;
-    }
-
-    .weight-text {
-      color: #6c757d;
-    }
-
-    .buttons-group {
-      display: flex;
-      gap: 0.875rem;
-      width: 100%;
-      justify-content: stretch;
-      align-items: stretch;
-    }
-
-    .btn {
-      flex: 1 1 0;
-      min-width: 0;
-      padding: 1rem 0.875rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-weight: 700;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      width: 100%;
-      height: 48px;
-      box-sizing: border-box;
-    }
-
-    .btn i {
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
-
-    .btn-add-to-cart {
-      background: #cbb69e;
-      color: #0E1A24;
-      box-shadow: 0 2px 4px rgba(203, 182, 158, 0.2);
-    }
-
-    .btn-add-to-cart:hover:not(:disabled) {
-      background: #b8a48a;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(203, 182, 158, 0.3);
-    }
-
-    .btn-add-to-cart:disabled {
-      background: #ccc;
-      color: #666;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .btn-details {
-      background: #f5f5f5;
-      color: #0E1A24;
-      border: 2px solid #cbb69e;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .btn-details:hover {
-      background: #e8e8e8;
-      border-color: #b8a48a;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(203, 182, 158, 0.2);
-    }
-
+    // === Empty State ===
     .empty-state {
       text-align: center;
       padding: 4rem 0;
-      color: #6c757d;
+      color: $text-gray;
     }
 
     .empty-state i {
       font-size: 4rem;
-      color: #cbb69e;
+      color: $gold;
       margin-bottom: 1rem;
     }
 
-    /* Responsive Design */
-    @media (max-width: 1200px) {
+    // === Responsive Breakpoints ===
+    @media (max-width: 992px) {
       .menu-grid {
         grid-template-columns: repeat(2, 1fr);
       }
     }
 
-    @media (max-width: 900px) {
-      .menu-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 768px) {
+    @media (max-width: 600px) {
       .menu-grid {
         grid-template-columns: 1fr;
       }
-
-      .page-header h1 {
-        font-size: 2rem;
+      .menu-item-card .item-image {
+        height: 200px;
       }
-
-      .item-footer {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: stretch;
+      .section-title h2 {
+        font-size: 2rem;
       }
     }
   `]

@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
@@ -8,13 +9,14 @@ import { LanguageService } from '../../../../services/language.service';
 @Component({
   selector: 'app-main-dishes',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslateModule],
   template: `
     <div class="main-dishes-page">
       <div class="container">
         <div class="page-header">
-          <h1>מנות עיקריות</h1>
-          <p class="page-description">מבחר מנות עיקריות מסורתיות וביתיות לשבת וחג</p>
+          <div class="section-title">
+            <h2>מנות עיקריות</h2>
+          </div>
         </div>
 
         <!-- Loading State -->
@@ -117,23 +119,65 @@ import { LanguageService } from '../../../../services/language.service';
     }
 
     .page-header {
-      text-align: center;
       margin-bottom: 3rem;
     }
 
-    .page-header h1 {
-      color: #0E1A24;
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      font-weight: bold;
-    }
-
-    .page-description {
-      font-size: 1.2rem;
-      color: #6c757d;
-      max-width: 600px;
-      margin: 0 auto;
-      line-height: 1.6;
+    // Professional 'Fading Gold' Divider Lines
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin: 60px 0 40px 0; // Generous spacing
+      
+      // The Title Text
+      h2 {
+        color: #1f3540; // Navy
+        font-size: 2.5rem;
+        font-weight: 800;
+        padding: 0 30px;
+        margin: 0;
+        white-space: nowrap;
+        position: relative;
+        
+        // Optional: Small Diamond dots next to text
+        &::before,
+        &::after {
+          content: '◆';
+          font-size: 1rem;
+          color: #E0C075;
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        &::before {
+          left: 0;
+        }
+        &::after {
+          right: 0;
+        }
+      }
+      
+      // The Fading Lines
+      &::before,
+      &::after {
+        content: '';
+        flex: 1;
+        height: 2px;
+        border-radius: 2px;
+      }
+      
+      // Left Line: Transparent -> Gold
+      &::before {
+        background: linear-gradient(to left, #E0C075, transparent);
+        margin-left: 20px;
+      }
+      
+      // Right Line: Gold -> Transparent
+      &::after {
+        background: linear-gradient(to right, #E0C075, transparent);
+        margin-right: 20px;
+      }
     }
 
     .loading {
@@ -148,21 +192,38 @@ import { LanguageService } from '../../../../services/language.service';
       color: #cbb69e;
     }
 
+    // Variables
+    $navy: #1f3540;
+    $gold: #E0C075;
+    $white: #ffffff;
+    $gray-border: #eaeaea;
+
     .menu-grid {
       display: grid;
+      // KEY CHANGE: 3 Columns for wider cards
       grid-template-columns: repeat(3, 1fr);
-      gap: 2rem;
+      gap: 30px; // Slightly larger gap for spacious feel
+      padding: 20px 0;
+      justify-content: center;
       margin-bottom: 4rem;
     }
 
     .menu-item-card {
-      background: white;
-      border-radius: 1rem;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
+      background: $white;
+      border: 1px solid $gray-border;
+      border-radius: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
       transition: all 0.3s ease;
-      border: 1px solid rgba(203, 182, 158, 0.2);
       position: relative;
+      overflow: hidden;
+
+      &:hover {
+        transform: translateY(-5px);
+        border-color: $gold;
+        box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+      }
     }
 
     .menu-item-card.featured-style {
@@ -177,71 +238,64 @@ import { LanguageService } from '../../../../services/language.service';
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(90deg, #cbb69e, #d4c4a8);
+      background: linear-gradient(90deg, $gold, darken($gold, 10%));
     }
 
-    .menu-item-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15);
-    }
-
+    // Image Area - TALLER for wider cards
     .item-image {
       position: relative;
-      height: 220px;
-      overflow: hidden;
-      background: #f5f5f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 12px 12px 0 0;
-    }
-
-    .item-image img {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
-      transition: transform 0.3s ease, filter 0.3s ease;
-      border-radius: 12px 12px 0 0;
-      display: block;
+      height: 250px; // INCREASED HEIGHT (was 220px, now 250px for premium look)
+      background-color: #ffffff;
+      padding: 25px;
+
+      // Force Center
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+
+      img {
+        max-width: 90%; // Allow slightly wider image
+        max-height: 90%;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        transition: transform 0.5s ease;
+        display: block;
+      }
     }
 
     .menu-item-card:hover .item-image img {
-      transform: scale(1.05);
+      transform: scale(1.08);
     }
 
     .menu-item-card.is-unavailable:hover .item-image img {
       transform: scale(1);
     }
 
-    /* Badge Styles - Elegant and Professional */
+    /* Badge Styles - Premium Square Design */
     .badge {
       position: absolute;
-      z-index: 10;
+      top: 10px;
+      right: 10px;
+      background-color: $gold;
+      color: $navy;
       padding: 4px 12px;
-      border-radius: 4px;
-      font-weight: 500;
-      font-size: 0.8rem;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      text-align: center;
-      letter-spacing: 0.3px;
-      line-height: 1.4;
+      font-size: 0.75rem;
+      font-weight: 800;
+      border-radius: 0;
+      z-index: 2;
+      text-transform: uppercase;
     }
 
     .badge-popular {
-      top: 10px;
-      right: 10px;
-      background: #dc3545;
-      color: white;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      background-color: $gold;
+      color: $navy;
     }
 
     .badge-out-of-stock {
-      top: 10px;
-      right: 10px;
       background: #7a7a7a;
       color: white;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     }
 
     /* When popular badge exists, move out-of-stock badge to left */
@@ -302,22 +356,37 @@ import { LanguageService } from '../../../../services/language.service';
       color: #0E1A24;
     }
 
+    // Content Area (Identical to Salads but adjusted for width)
     .item-content {
-      padding: 1.5rem;
-    }
+      padding: 0 25px 25px 25px; // More side padding
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      text-align: right;
 
-    .item-name {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: #0E1A24;
-      margin-bottom: 0.75rem;
-    }
+      h3.item-name {
+        font-size: 1.4rem; // Slightly larger font for wider card
+        font-weight: 800;
+        color: $navy;
+        margin-bottom: 8px;
+      }
 
-    .item-description {
-      color: #6c757d;
-      line-height: 1.6;
-      margin-bottom: 1rem;
-      font-size: 0.95rem;
+      p.item-description {
+        font-size: 0.95rem;
+        color: #666;
+        margin-bottom: 15px;
+      }
+
+      // Price per 100g
+      .price-unit {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: $navy;
+        margin-bottom: 15px;
+        text-align: right;
+        padding-top: 10px;
+        border-top: 1px solid #f0f0f0;
+      }
     }
 
     .item-details {
@@ -376,6 +445,14 @@ import { LanguageService } from '../../../../services/language.service';
       align-items: center;
     }
 
+    .item-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 1.25rem;
+    }
+
     .price-section {
       display: flex;
       flex-direction: column;
@@ -385,7 +462,7 @@ import { LanguageService } from '../../../../services/language.service';
     .price {
       font-size: 1.5rem;
       font-weight: bold;
-      color: #0E1A24;
+      color: $navy;
     }
 
     .price-per {
@@ -396,20 +473,20 @@ import { LanguageService } from '../../../../services/language.service';
     .btn-select-delivery {
       padding: 0.875rem 1.25rem;
       border: none;
-      border-radius: 0.5rem;
-      background: #cbb69e;
-      color: #0E1A24;
+      border-radius: 0;
+      background: $gold;
+      border: 1px solid $gold;
+      color: $navy;
       font-weight: 700;
       font-size: 0.95rem;
       cursor: pointer;
       transition: all 0.3s ease;
       white-space: nowrap;
+      height: 48px; // Taller buttons for wider card
     }
 
     .btn-select-delivery:hover:not(:disabled) {
-      background: #b8a48a;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(203, 182, 158, 0.3);
+      background: darken($gold, 5%);
     }
 
     .btn-select-delivery:disabled {
@@ -474,19 +551,19 @@ import { LanguageService } from '../../../../services/language.service';
       font-size: 1.2rem;
     }
 
-    /* Responsive Design */
-    @media (max-width: 1024px) {
+    // Responsive adjustments
+    @media (max-width: 1100px) {
       .menu-grid {
         grid-template-columns: repeat(2, 1fr);
       }
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 650px) {
       .menu-grid {
         grid-template-columns: 1fr;
       }
 
-      .page-header h1 {
+      .section-title h2 {
         font-size: 2rem;
       }
 

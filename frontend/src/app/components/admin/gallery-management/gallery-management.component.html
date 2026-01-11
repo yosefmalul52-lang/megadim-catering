@@ -1,0 +1,137 @@
+<div class="gallery-management">
+  <div class="container">
+    <div class="header">
+      <h2>ניהול גלריה</h2>
+      <button mat-raised-button color="primary" (click)="openAddForm()" *ngIf="!showAddForm">
+        <mat-icon>add</mat-icon>
+        הוסף פריט חדש
+      </button>
+    </div>
+
+    <!-- Add/Edit Form -->
+    <mat-card class="form-card" *ngIf="showAddForm">
+      <mat-card-header>
+        <mat-card-title>הוסף פריט גלריה חדש</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="itemForm" (ngSubmit)="saveItem()">
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>סוג</mat-label>
+              <mat-select formControlName="type" (selectionChange)="onTypeChange()">
+                <mat-option value="image">תמונה</mat-option>
+                <mat-option value="video">סרטון YouTube</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>כותרת (אופציונלי)</mat-label>
+              <input matInput formControlName="title" placeholder="כותרת הפריט">
+            </mat-form-field>
+          </div>
+
+          <!-- Image Upload Section -->
+          <div *ngIf="itemForm.get('type')?.value === 'image'" class="upload-section">
+            <label class="upload-label">
+              <input #fileInput type="file" accept="image/*" (change)="onFileSelected($event)" style="display: none;">
+              <button mat-stroked-button type="button" (click)="fileInput.click()">
+                <mat-icon>cloud_upload</mat-icon>
+                בחר תמונה
+              </button>
+            </label>
+            <div *ngIf="imagePreview" class="image-preview">
+              <img [src]="imagePreview" alt="Preview">
+            </div>
+            <mat-form-field appearance="outline" class="url-field">
+              <mat-label>או הזן URL של תמונה</mat-label>
+              <input matInput formControlName="url" placeholder="https://...">
+            </mat-form-field>
+          </div>
+
+          <!-- Video URL Section -->
+          <div *ngIf="itemForm.get('type')?.value === 'video'">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>קישור YouTube</mat-label>
+              <input matInput formControlName="url" placeholder="https://www.youtube.com/watch?v=..." required>
+              <mat-hint>הזן קישור YouTube - התמונה הממוזערת תיווצר אוטומטית</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>תמונה ממוזערת (אופציונלי)</mat-label>
+              <input matInput formControlName="thumbnail" placeholder="https://...">
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>סדר תצוגה</mat-label>
+              <input matInput type="number" formControlName="order" min="0">
+            </mat-form-field>
+
+            <div class="checkbox-field">
+              <mat-checkbox formControlName="isActive">פעיל</mat-checkbox>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="closeAddForm()">ביטול</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="isLoading">
+              <mat-icon *ngIf="!isLoading">save</mat-icon>
+              <mat-icon *ngIf="isLoading" class="spinner">hourglass_empty</mat-icon>
+              שמור
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Gallery Items List -->
+    <div class="gallery-items" *ngIf="!isLoading && galleryItems.length > 0">
+      <div class="items-grid">
+        <mat-card *ngFor="let item of galleryItems" class="gallery-item-card">
+          <div class="item-thumbnail" [class.video-thumbnail]="item.type === 'video'">
+            <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.title || 'Gallery image'" (error)="onImageError($event)">
+            <div *ngIf="item.type === 'video'" class="video-preview">
+              <img *ngIf="item.thumbnail" [src]="item.thumbnail" [alt]="item.title || 'Video thumbnail'">
+              <mat-icon class="play-icon">play_circle</mat-icon>
+            </div>
+            <div class="item-badge" [class.video-badge]="item.type === 'video'">
+              {{ item.type === 'image' ? 'תמונה' : 'סרטון' }}
+            </div>
+            <div class="item-status" [class.inactive]="!item.isActive">
+              {{ item.isActive ? 'פעיל' : 'לא פעיל' }}
+            </div>
+          </div>
+          <mat-card-content>
+            <h3>{{ item.title || 'ללא כותרת' }}</h3>
+            <p class="item-url">{{ item.url }}</p>
+            <div class="item-meta">
+              <span>סדר: {{ item.order || 0 }}</span>
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <button mat-icon-button (click)="toggleActive(item)" [color]="item.isActive ? 'warn' : 'primary'">
+              <mat-icon>{{ item.isActive ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="deleteItem(item)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoading && galleryItems.length === 0">
+      <mat-icon>photo_library</mat-icon>
+      <h3>אין פריטים בגלריה</h3>
+      <p>הוסף פריטים חדשים כדי להתחיל</p>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="isLoading">
+      <mat-icon class="spinner">hourglass_empty</mat-icon>
+      <span>טוען...</span>
+    </div>
+  </div>
+</div>
+

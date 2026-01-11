@@ -15,12 +15,24 @@ export const routes: Routes = [
     loadComponent: () => import('./components/pages/events-catering/events-catering.component').then(m => m.EventsCateringComponent)
   },
   {
+    path: 'catering',
+    loadComponent: () => import('./components/pages/events-catering/events-catering.component').then(m => m.EventsCateringComponent)
+  },
+  {
     path: 'ready-for-shabbat',
+    loadChildren: () => import('./components/pages/ready-for-shabbat/ready-for-shabbat.routes').then(m => m.readyForShabbatRoutes)
+  },
+  {
+    path: 'ready-food',
     loadChildren: () => import('./components/pages/ready-for-shabbat/ready-for-shabbat.routes').then(m => m.readyForShabbatRoutes)
   },
   {
     path: 'shabbat',
     loadChildren: () => import('./components/pages/ready-for-shabbat/ready-for-shabbat.routes').then(m => m.readyForShabbatRoutes)
+  },
+  {
+    path: 'shabbat-events',
+    loadComponent: () => import('./components/pages/holiday-food/holiday-food.component').then(m => m.HolidayFoodComponent)
   },
   {
     path: 'cholent-bar',

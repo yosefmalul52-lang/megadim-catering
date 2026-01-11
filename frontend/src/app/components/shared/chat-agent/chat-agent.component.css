@@ -229,7 +229,7 @@
 
 .send-btn:hover:not(:disabled) {
   transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(203, 182, 158, 0.4);
+  box-shadow: 0 4px 8px rgba(224, 192, 117, 0.4);
 }
 
 .send-btn:disabled {

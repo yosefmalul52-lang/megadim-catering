@@ -233,6 +233,12 @@ import { UploadService } from '../../../services/upload.service';
                   </div>
 
                   <div class="form-group">
+                    <label>מחיר ל-100 גרם</label>
+                    <input type="number" formControlName="pricePer100g" step="0.01" min="0" placeholder="לדוגמה: 6.2" class="form-input">
+                    <small>מחיר ל-100 גרם (אופציונלי - יוצג בכרטיס המוצר)</small>
+                  </div>
+
+                  <div class="form-group">
                     <label>מחיר</label>
                     <div class="pricing-options">
                       <div class="pricing-option">
@@ -341,6 +347,10 @@ import { UploadService } from '../../../services/upload.service';
                     <label>
                       <input type="checkbox" formControlName="isPopular">
                       מומלץ
+                    </label>
+                    <label>
+                      <input type="checkbox" formControlName="isFeatured">
+                      הצג במומלצים בדף הבית
                     </label>
                   </div>
                 </div>
@@ -1002,7 +1012,7 @@ import { UploadService } from '../../../services/upload.service';
     .form-input:focus {
       outline: none;
       border-color: $primary-blue; // Royal Blue
-      box-shadow: 0 0 0 3px rgba(203, 182, 158, 0.1);
+      box-shadow: 0 0 0 3px rgba(224, 192, 117, 0.1);
     }
 
     .form-group {
@@ -1645,13 +1655,15 @@ export class MenuManagementComponent implements OnInit {
     description: [''],
     pricingType: ['single'], // 'single', 'variants', or 'options'
     price: [0, [Validators.min(0.01)]],
+    pricePer100g: [null, [Validators.min(0)]], // Optional: price per 100g
     pricingVariants: this.fb.array([]),
     pricingOptions: this.fb.array([]),
     imageUrl: [''],
     tags: [''],
     recipe: this.fb.array([]), // Recipe ingredients array
     isAvailable: [true],
-    isPopular: [false]
+    isPopular: [false],
+    isFeatured: [false]
   });
 
   get pricingVariantsFormArray(): FormArray {
@@ -1790,11 +1802,13 @@ export class MenuManagementComponent implements OnInit {
       description: '',
       pricingType: 'single',
       price: 0,
+      pricePer100g: null,
       pricingVariants: [],
       imageUrl: '',
       tags: '',
       isAvailable: true,
-      isPopular: false
+      isPopular: false,
+      isFeatured: false
     });
     // Clear variants and options arrays
     while (this.pricingVariantsFormArray.length !== 0) {
@@ -1844,10 +1858,12 @@ export class MenuManagementComponent implements OnInit {
       description: item.description || '',
       pricingType: pricingType,
       price: item.price || 0,
+      pricePer100g: item.pricePer100g || null,
       imageUrl: item.imageUrl || '',
       tags: item.tags?.join(', ') || '',
       isAvailable: item.isAvailable !== false,
-      isPopular: item.isPopular || false
+      isPopular: item.isPopular === true,
+      isFeatured: Boolean(item.isFeatured) // Explicitly convert to boolean
     });
     
     // Load recipe ingredients if they exist
@@ -1903,11 +1919,13 @@ export class MenuManagementComponent implements OnInit {
       description: '',
       pricingType: 'single',
       price: 0,
+      pricePer100g: null,
       pricingVariants: [],
       imageUrl: '',
       tags: '',
       isAvailable: true,
-      isPopular: false
+      isPopular: false,
+      isFeatured: false
     });
   }
   
@@ -2031,8 +2049,14 @@ export class MenuManagementComponent implements OnInit {
       imageUrl: formValue.imageUrl || '/assets/images/placeholder-dish.jpg',
       tags: formValue.tags ? formValue.tags.split(',').map((tag: string) => tag.trim()).filter((tag: string) => tag) : [],
       isAvailable: formValue.isAvailable !== false,
-      isPopular: formValue.isPopular || false
+      isPopular: formValue.isPopular === true,
+      isFeatured: Boolean(formValue.isFeatured) // Explicitly convert to boolean to ensure it's always sent
     };
+    
+    // Add pricePer100g if provided
+    if (formValue.pricePer100g !== null && formValue.pricePer100g !== undefined && formValue.pricePer100g > 0) {
+      itemData.pricePer100g = parseFloat(formValue.pricePer100g);
+    }
     
     // Handle pricing based on type
     if (pricingType === 'options' && this.pricingOptionsFormArray.length > 0) {
@@ -2074,6 +2098,8 @@ export class MenuManagementComponent implements OnInit {
     if (this.editingItem) {
       // Update existing item
       console.log('💾 Updating existing item:', this.editingItem.id, itemData);
+      console.log('📋 Form isFeatured value:', this.itemForm.get('isFeatured')?.value);
+      console.log('📋 itemData.isFeatured:', itemData.isFeatured, 'Type:', typeof itemData.isFeatured);
       this.menuService.updateMenuItem(this.editingItem.id || this.editingItem._id || '', itemData).subscribe({
         next: (updatedItem) => {
           console.log('✅ Item updated successfully:', updatedItem);

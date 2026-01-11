@@ -6,14 +6,14 @@
 
 // 3. Define Custom Palettes (Blue & Gold)
 
-// Primary: Dark Navy Blue #1f3444
+// Primary: Charcoal Navy Blue #1f3540
 $magadim-primary: (
   50: #e4e7e9,
   100: #bac3c8,
   200: #8d9ca4,
   300: #5f747f,
   400: #3d5663,
-  500: #1f3444, // Main
+  500: #1f3540, // Main
   600: #1b2f3e,
   700: #172836,
   800: #12222e,
@@ -67,24 +67,18 @@ $my-theme: mat.m2-define-light-theme((
 @include mat.all-component-themes($my-theme);
 
 // 8. Global Styles & Reset
-html, body {
+html {
   margin: 0;
   padding: 0;
   height: 100%;
   width: 100%;
-  overflow-x: hidden; // Prevent horizontal scroll
-  direction: rtl; // Right-to-Left for Hebrew
-  text-align: right; // Right alignment for Hebrew text
 }
 
 body {
+  margin: 0;
+  padding: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
   background-color: #f5f5f5;
-}
-
-.app-container {
-  height: 100vh;
-  width: 100%;
 }
 
 // Custom overrides
@@ -103,4 +97,32 @@ body {
 ::ng-deep .success-snackbar {
   background-color: #4caf50 !important;
   color: white !important;
+}
+
+/* === FORCE SCROLLBAR TO RIGHT === */
+/* Force Scrollbar Right */
+html {
+  direction: ltr !important; 
+  overflow-y: scroll; /* Force scrollbar to belong to HTML */
+}
+
+body { 
+  margin: 0; 
+  padding: 0; 
+  overflow-x: hidden; 
+}
+
+/* The App Container handles the actual layout direction */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* Default to RTL if not set by Angular yet */
+  direction: rtl;
+}
+
+/* Ensure LTR mode works when selected */
+.app-container[dir="ltr"] {
+  direction: ltr;
 }

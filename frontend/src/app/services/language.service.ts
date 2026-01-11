@@ -281,8 +281,8 @@ export class LanguageService {
   }
 
   private updateDocumentLanguage(language: Language): void {
-    const direction = language === 'he' ? 'rtl' : 'ltr';
-    document.documentElement.setAttribute('dir', direction);
+    // Update lang attribute only, NOT dir (html stays ltr for scrollbar position)
+    // The content direction is handled by app.component.ts via textDir property
     document.documentElement.setAttribute('lang', language);
   }
 

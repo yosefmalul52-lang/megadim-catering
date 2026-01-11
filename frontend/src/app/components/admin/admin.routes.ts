@@ -43,6 +43,10 @@ export const adminRoutes: Routes = [
       {
         path: 'employees/:id',
         loadComponent: () => import('./employee-details/employee-details.component').then(m => m.EmployeeDetailsComponent)
+      },
+      {
+        path: 'gallery',
+        loadComponent: () => import('./unified-gallery/unified-gallery.component').then(m => m.UnifiedGalleryComponent)
       }
     ]
   }

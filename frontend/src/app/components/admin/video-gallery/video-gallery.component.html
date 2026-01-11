@@ -1,0 +1,97 @@
+<div class="video-gallery">
+  <div class="container">
+    <div class="header">
+      <h2>ניהול גלריית וידאו</h2>
+      <button mat-raised-button color="primary" (click)="openAddForm()" *ngIf="!showAddForm">
+        <mat-icon>add</mat-icon>
+        הוסף סרטון חדש
+      </button>
+    </div>
+
+    <!-- Add Form -->
+    <mat-card class="form-card" *ngIf="showAddForm">
+      <mat-card-header>
+        <mat-card-title>הוסף סרטון YouTube חדש</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="videoForm" (ngSubmit)="saveVideo()">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>כותרת הסרטון</mat-label>
+            <input matInput formControlName="title" placeholder="לדוגמה: אירוע חתונה - משפחת כהן" required>
+            <mat-error *ngIf="videoForm.get('title')?.hasError('required')">
+              כותרת הסרטון חובה
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>קישור YouTube</mat-label>
+            <input matInput formControlName="youtubeUrl" placeholder="https://www.youtube.com/watch?v=... או https://youtube.com/shorts/..." required>
+            <mat-hint>תומך בקישורי YouTube רגילים וגם ב-YouTube Shorts</mat-hint>
+            <mat-error *ngIf="videoForm.get('youtubeUrl')?.hasError('required')">
+              קישור YouTube חובה
+            </mat-error>
+            <mat-error *ngIf="videoForm.get('youtubeUrl')?.hasError('pattern')">
+              אנא הזן קישור YouTube תקין
+            </mat-error>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="closeAddForm()">ביטול</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="isLoading">
+              <mat-icon *ngIf="!isLoading">save</mat-icon>
+              <mat-icon *ngIf="isLoading" class="spinner">hourglass_empty</mat-icon>
+              שמור
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Videos List -->
+    <div class="videos-list" *ngIf="!isLoading && videos.length > 0">
+      <div class="videos-grid">
+        <mat-card *ngFor="let video of videos" class="video-card">
+          <div class="video-thumbnail">
+            <img [src]="video.thumbnailUrl" [alt]="video.title" (error)="onImageError($event)">
+            <div class="play-overlay">
+              <mat-icon>play_circle</mat-icon>
+            </div>
+            <div class="video-badge">סרטון</div>
+            <div class="video-status" [class.inactive]="!video.isActive">
+              {{ video.isActive ? 'פעיל' : 'לא פעיל' }}
+            </div>
+          </div>
+          <mat-card-content>
+            <h3>{{ video.title }}</h3>
+            <p class="video-url">{{ video.youtubeUrl }}</p>
+            <div class="video-meta">
+              <span>Video ID: {{ video.videoId }}</span>
+            </div>
+          </mat-card-content>
+          <mat-card-actions>
+            <button mat-icon-button (click)="toggleActive(video)" [color]="video.isActive ? 'warn' : 'primary'">
+              <mat-icon>{{ video.isActive ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="deleteVideo(video)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoading && videos.length === 0">
+      <mat-icon>video_library</mat-icon>
+      <h3>אין סרטונים בגלריה</h3>
+      <p>הוסף סרטונים חדשים כדי להתחיל</p>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-state" *ngIf="isLoading">
+      <mat-icon class="spinner">hourglass_empty</mat-icon>
+      <span>טוען...</span>
+    </div>
+  </div>
+</div>
+

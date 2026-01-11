@@ -1,0 +1,33 @@
+{
+  "NAV": {
+    "HOME": "Home",
+    "ABOUT": "About",
+    "CATERING": "Catering for Events",
+    "READY_FOOD": "Ready for Shabbat",
+    "CHOLENT": "Cholent Bar",
+    "KOSHER": "Kosher Certificate",
+    "CONTACT": "Contact Us",
+    "ORDER_TEL": "For orders call: 052-8240230"
+  },
+  "HEADER": {
+    "TITLE": "Ready Food for Shabbat & Holidays",
+    "SUBTITLE": "Homemade dishes, fresh and ready to serve"
+  },
+  "CATEGORIES": {
+    "SALADS": "Salads",
+    "FISH": "Fish",
+    "MAIN": "Main Courses",
+    "SIDES": "Side Dishes",
+    "DESSERTS": "Desserts"
+  },
+  "PRODUCT": {
+    "PRICE_UNIT": "Price per unit:",
+    "WEIGHT": "Approx. weight per unit:",
+    "PRICE_100G": "Price per 100g:",
+    "ADD_TO_CART": "Add to Cart",
+    "DETAILS": "Details",
+    "GRAMS": "g",
+    "SHEKEL": "NIS"
+  }
+}
+

@@ -190,7 +190,7 @@ import { LanguageService } from '../../../../services/language.service';
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
       overflow: hidden;
       transition: all 0.3s ease;
-      border: 1px solid rgba(203, 182, 158, 0.2);
+      border: 1px solid rgba(224, 192, 117, 0.2);
     }
 
     .menu-item-card.featured-style {
@@ -427,7 +427,7 @@ import { LanguageService } from '../../../../services/language.service';
     .btn-select-delivery:hover:not(:disabled) {
       background: #b8a48a;
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(203, 182, 158, 0.3);
+      box-shadow: 0 4px 12px rgba(224, 192, 117, 0.3);
     }
 
     .btn-select-delivery:disabled {
@@ -509,7 +509,7 @@ import { LanguageService } from '../../../../services/language.service';
     .tips-section {
       margin-top: 3rem;
       padding: 2rem;
-      background: rgba(203, 182, 158, 0.1);
+      background: rgba(224, 192, 117, 0.1);
       border-radius: 1rem;
     }
 

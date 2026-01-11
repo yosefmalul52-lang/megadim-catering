@@ -24,6 +24,7 @@ export interface MenuItem {
   category: string;
   description: string;
   price?: number; // Optional: for backward compatibility or fixed-price items
+  pricePer100g?: number; // Optional: price per 100 grams (for admin-controlled display)
   pricingVariants?: PriceVariant[]; // Array of size/price variants (legacy)
   pricingOptions?: PricingOption[]; // Array of pricing options (new structure)
   imageUrl: string;
@@ -31,6 +32,7 @@ export interface MenuItem {
   isAvailable?: boolean;
   isPopular?: boolean;
   popular?: boolean;
+  isFeatured?: boolean; // Optional: Show in Featured section on homepage
   servingSize?: string;
   ingredients?: string[];
   allergens?: string[];

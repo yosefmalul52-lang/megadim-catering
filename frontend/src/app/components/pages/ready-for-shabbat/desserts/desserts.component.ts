@@ -454,7 +454,7 @@ import { LanguageService } from '../../../../services/language.service';
     .btn-select-delivery:hover:not(:disabled) {
       background: #b8a48a;
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(203, 182, 158, 0.3);
+      box-shadow: 0 4px 12px rgba(224, 192, 117, 0.3);
     }
 
     .btn-select-delivery:disabled {

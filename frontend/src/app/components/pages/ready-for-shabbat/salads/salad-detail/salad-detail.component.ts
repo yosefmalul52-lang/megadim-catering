@@ -345,7 +345,7 @@ import { CartService } from '../../../../../services/cart.service';
       border-color: #cbb69e;
       background: #cbb69e;
       color: #0E1A24;
-      box-shadow: 0 2px 8px rgba(203, 182, 158, 0.3);
+      box-shadow: 0 2px 8px rgba(224, 192, 117, 0.3);
     }
 
     .size-weight {
@@ -759,7 +759,7 @@ import { CartService } from '../../../../../services/cart.service';
     .card-details-btn:hover {
       background: #b8a48a;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(203, 182, 158, 0.3);
+      box-shadow: 0 4px 8px rgba(224, 192, 117, 0.3);
     }
 
     .card-details-btn i {
