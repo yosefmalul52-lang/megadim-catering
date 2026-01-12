@@ -20,9 +20,9 @@ server/node_modules/
 # Build Outputs
 # ============================================
 # TypeScript compiled output
-dist/
+#dist/
 **/dist/
-backend/dist/
+# backend/dist/  # Commented out for Render deployment - dist needs to be committed
 frontend/dist/
 out-tsc/
 **/out-tsc/
@@ -236,7 +236,7 @@ server/data/*.json
 !server/data/catering-inquiries.json.example
 
 # Compiled JavaScript (if source is TypeScript)
-backend/dist/
+# backend/dist/  # Commented out for Render deployment - dist needs to be committed
 frontend/dist/
 
 # Seed scripts output
