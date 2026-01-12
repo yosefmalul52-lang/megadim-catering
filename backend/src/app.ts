@@ -1,5 +1,4 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
@@ -22,6 +21,21 @@ import { notFoundHandler } from './middleware/notFoundHandler';
 
 const app: Application = express();
 
+// Force CORS Headers - MUST be first, before any other middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  
+  // Handle preflight requests immediately
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+    return; // Stop execution here
+  }
+  
+  next();
+});
+
 // Trust proxy for rate limiting (if behind reverse proxy)
 app.set('trust proxy', 1);
 
@@ -40,18 +54,6 @@ app.use(helmet({
   }
 }));
 
-// CORS configuration - MUST be before routes
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://megadim-catering.com', 'https://www.megadim-catering.com']
-    : 'http://localhost:4200', // Frontend runs on port 4200
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
 
 // Compression middleware
 app.use(compression());

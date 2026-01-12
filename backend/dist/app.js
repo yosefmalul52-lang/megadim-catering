@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const compression_1 = __importDefault(require("compression"));
 const morgan_1 = __importDefault(require("morgan"));
@@ -23,6 +22,18 @@ const video_routes_1 = __importDefault(require("./routes/video.routes"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
 const app = (0, express_1.default)();
+// Force CORS Headers - MUST be first, before any other middleware
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    // Handle preflight requests immediately
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+        return; // Stop execution here
+    }
+    next();
+});
 // Trust proxy for rate limiting (if behind reverse proxy)
 app.set('trust proxy', 1);
 // Security middleware
@@ -39,17 +50,6 @@ app.use((0, helmet_1.default)({
         }
     }
 }));
-// CORS configuration - MUST be before routes
-const corsOptions = {
-    origin: process.env.NODE_ENV === 'production'
-        ? ['https://megadim-catering.com', 'https://www.megadim-catering.com']
-        : 'http://localhost:4200', // Frontend runs on port 4200
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true,
-    optionsSuccessStatus: 200
-};
-app.use((0, cors_1.default)(corsOptions));
 // Compression middleware
 app.use((0, compression_1.default)());
 // Request parsing middleware
