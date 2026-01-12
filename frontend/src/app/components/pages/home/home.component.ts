@@ -21,7 +21,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
     <div class="home-page">
       <!-- Hero Section -->
       <section class="hero-section">
-        <div class="hero-bg-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768222488/hero1_ime6hz.png');"></div>
+        <div class="hero-bg-image"></div>
         
         <div class="content-container">
           <h1 class="main-title">קייטרינג ברמה אחרת</h1>
@@ -197,7 +197,8 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
       position: relative;
       height: 80vh;
       min-height: 600px; // Fallback for older browsers
-      padding-top: 100px;
+      padding-top: 0 !important;
+      margin-top: 0 !important;
       text-align: center;
       color: $white;
       direction: rtl;
@@ -211,8 +212,9 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
         left: 0;
         width: 100%;
         height: 80vh;
-        background-size: cover;
-        background-position: center;
+        background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768222488/hero1_ime6hz.png') !important;
+        background-size: cover !important;
+        background-position: center !important;
         z-index: 0;
         
         // The Overlay - Dark overlay for text readability
@@ -233,7 +235,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
         z-index: 2;
         max-width: 1200px;
         margin: 0 auto;
-        padding: 0 20px;
+        padding: 100px 20px 0 20px; // Keep top padding for content positioning, but ensure no gap above hero
       }
       
       .main-title {

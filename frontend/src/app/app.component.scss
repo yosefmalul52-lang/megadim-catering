@@ -34,7 +34,8 @@
 
 .main-content {
   flex: 1;
-  padding-top: 0;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
   min-height: calc(100vh - 200px);
   
   &:focus-visible {
