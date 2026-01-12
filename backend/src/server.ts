@@ -45,8 +45,15 @@ console.log('☁️ Cloudinary Config:', {
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// CORS middleware - MUST be first, before any other middleware or routes
+app.use(cors({
+  origin: '*',  // Allow ALL origins for now to fix the blocking issue
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 // Middleware
-app.use(cors({ origin: 'http://localhost:4200', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For handling form data, including multipart
 
