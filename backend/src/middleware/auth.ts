@@ -1,5 +1,8 @@
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
+import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
+import { Request, Response, NextFunction } from 'express';
+
+// Import models - using require for CommonJS compatibility
 const User = require('../models/User');
 const Employee = require('../models/Employee');
 
@@ -10,30 +13,32 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
  * Authentication middleware to verify JWT token
  * Expects token in Authorization header as: Bearer <token>
  */
-const authenticate = async (req, res, next) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'אין הרשאה - נדרש token'
       });
+      return;
     }
 
     // Extract token
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'אין הרשאה - token חסר'
       });
+      return;
     }
 
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded: any = jwt.verify(token, JWT_SECRET);
     
     // Check if this is an employee token
     if (decoded.type === 'employee' || decoded.role === 'employee') {
@@ -41,23 +46,25 @@ const authenticate = async (req, res, next) => {
       const employeeId = decoded.id || decoded.userId || decoded._id;
       
       if (!employeeId) {
-        return res.status(401).json({
+        res.status(401).json({
           success: false,
           message: 'Token לא מכיל מזהה עובד'
         });
+        return;
       }
 
       const employee = await Employee.findById(employeeId);
       
       if (!employee || !employee.isActive) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           message: 'עובד לא נמצא או לא פעיל'
         });
+        return;
       }
 
       // Attach employee info to request object
-      req.user = {
+      (req as any).user = {
         _id: employee._id,
         id: employee._id.toString(),
         firstName: employee.firstName,
@@ -68,7 +75,8 @@ const authenticate = async (req, res, next) => {
         phone: employee.phone
       };
 
-      return next();
+      next();
+      return;
     }
     
     // Regular user authentication
@@ -78,10 +86,11 @@ const authenticate = async (req, res, next) => {
 
     if (!userId) {
       console.error('❌ No user ID found in token payload');
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token לא מכיל מזהה משתמש'
       });
+      return;
     }
 
     // ================ EXTREME DEBUGGING ================
@@ -133,7 +142,7 @@ const authenticate = async (req, res, next) => {
     console.log('============================================');
     
     if (!user) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'משתמש לא נמצא',
         debugDb: mongoose.connection.name,
@@ -141,6 +150,7 @@ const authenticate = async (req, res, next) => {
         debugTotalUsers: count,
         debugSearchedId: String(userId)
       });
+      return;
     }
 
     console.log('✅ User found:', {
@@ -152,14 +162,15 @@ const authenticate = async (req, res, next) => {
     });
 
     if (!user.isActive) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'חשבון המשתמש מושבת'
       });
+      return;
     }
 
     // Attach user info to request object
-    req.user = {
+    (req as any).user = {
       _id: user._id, // Keep ObjectId for MongoDB queries
       id: user._id.toString(),
       username: user.username,
@@ -170,23 +181,25 @@ const authenticate = async (req, res, next) => {
 
     // Continue to next middleware
     next();
-  } catch (error) {
+  } catch (error: any) {
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token לא תקין'
       });
+      return;
     }
 
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'Token פג תוקף'
       });
+      return;
     }
 
     console.error('Auth middleware error:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: 'שגיאה באימות'
     });
@@ -197,26 +210,31 @@ const authenticate = async (req, res, next) => {
  * Optional: Role-based authorization middleware
  * Use after authenticate middleware
  */
-const authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
+export const authorize = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = (req as any).user;
+    
+    if (!user) {
+      res.status(401).json({
         success: false,
         message: 'אין הרשאה'
       });
+      return;
     }
 
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({
+    if (!roles.includes(user.role)) {
+      res.status(403).json({
         success: false,
         message: 'אין הרשאה גישה לפעולה זו'
       });
+      return;
     }
 
     next();
   };
 };
 
+// Also export as CommonJS for backward compatibility
 module.exports = {
   authenticate,
   authorize
