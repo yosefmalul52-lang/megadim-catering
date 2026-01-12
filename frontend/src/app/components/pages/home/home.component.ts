@@ -198,7 +198,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
       height: 80vh;
       min-height: 600px; // Fallback for older browsers
       padding-top: 0 !important;
-      margin-top: 0 !important;
+      margin-top: -1px !important; // Negative margin to pull up and cover any gap
       text-align: center;
       color: $white;
       direction: rtl;
@@ -217,7 +217,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
         background-position: center !important;
         z-index: 0;
         
-        // The Overlay - Dark overlay for text readability
+        // The Overlay - Exact color with alpha channel
         &::after {
           content: '';
           position: absolute;
@@ -225,7 +225,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
           left: 0;
           width: 100%;
           height: 100%;
-          background: rgba(0, 0, 0, 0.5); // Dark overlay for better text readability
+          background-color: #443a3a75 !important; // Exact overlay color with alpha
           z-index: 1;
         }
       }

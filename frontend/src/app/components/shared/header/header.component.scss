@@ -6,7 +6,7 @@ $white: #FFFFFF;
   display: flex;
   flex-direction: column;
   width: 100%;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: none !important; // Remove shadow to prevent visible line
   margin-bottom: 0 !important;
   border-bottom: none !important;
 }
@@ -282,6 +282,7 @@ $white: #FFFFFF;
   padding: 0 1rem;
   margin-bottom: 0 !important;
   border-bottom: none !important;
+  box-shadow: none !important; // Remove any shadow that might create a visible line
 
   .desktop-nav {
     display: flex;
