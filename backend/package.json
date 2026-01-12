@@ -4,8 +4,8 @@
   "description": "Backend API for Megadim Catering website - Premium kosher catering services",
   "main": "dist/server.js",
   "scripts": {
-  "build": "tsc",
-    "start": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "watch": "tsc --watch",
     "clean": "rimraf dist",
