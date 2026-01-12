@@ -1,7 +1,7 @@
-const mongoose = require('mongoose');
+import mongoose, { Schema, Model, Document } from 'mongoose';
 
 // Price Variant Schema (for size-based pricing) - Legacy support
-const PriceVariantSchema = new mongoose.Schema({
+const PriceVariantSchema = new Schema({
   size: {
     type: String,
     required: true,
@@ -25,7 +25,7 @@ const PriceVariantSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Pricing Options Schema (new structure: label, price, amount)
-const PricingOptionSchema = new mongoose.Schema({
+const PricingOptionSchema = new Schema({
   label: {
     type: String,
     required: true,
@@ -44,7 +44,7 @@ const PricingOptionSchema = new mongoose.Schema({
 }, { _id: false });
 
 // Recipe Ingredient Schema (for procurement calculation)
-const RecipeIngredientSchema = new mongoose.Schema({
+const RecipeIngredientSchema = new Schema({
   name: {
     type: String,
     required: true,
@@ -67,8 +67,42 @@ const RecipeIngredientSchema = new mongoose.Schema({
   }
 }, { _id: false });
 
+// MenuItem Interface
+export interface IMenuItem extends Document {
+  name: string;
+  category: string;
+  description?: string;
+  price?: number;
+  pricePer100g?: number;
+  pricingVariants?: Array<{
+    size: string;
+    label: string;
+    price: number;
+    weight?: number;
+  }>;
+  pricingOptions?: Array<{
+    label: string;
+    price: number;
+    amount: string;
+  }>;
+  imageUrl?: string;
+  tags: string[];
+  isAvailable: boolean;
+  isPopular: boolean;
+  isFeatured: boolean;
+  servingSize?: string;
+  recipe?: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    category: string;
+  }>;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 // MenuItem Schema for catering menu items
-const MenuItemSchema = new mongoose.Schema({
+const MenuItemSchema = new Schema<IMenuItem>({
   name: {
     type: String,
     required: true,
@@ -163,8 +197,8 @@ MenuItemSchema.index({ category: 1 });
 MenuItemSchema.index({ isPopular: 1 });
 MenuItemSchema.index({ name: 'text' }); // Text search index
 
-// Export the model
-const MenuItem = mongoose.model('MenuItem', MenuItemSchema);
-
-module.exports = MenuItem;
+// Export the model with OverwriteModelError prevention
+// Check if model already exists before creating a new one
+export default (mongoose.models.MenuItem as Model<IMenuItem>) || 
+  mongoose.model<IMenuItem>('MenuItem', MenuItemSchema);
 

@@ -1,5 +1,5 @@
 import Order from '../models/Order';
-import MenuItem from '../models/MenuItem';
+import MenuItem from '../models/menuItem';
 
 export interface ShoppingListItem {
   name: string;

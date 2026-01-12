@@ -1,5 +1,8 @@
 const express = require('express');
-const MenuItem = require('../models/MenuItem');
+// Import MenuItem from TypeScript module
+// After compilation, this will work with the compiled JS output
+const menuItemModule = require('../models/menuItem');
+const MenuItem = menuItemModule.default || menuItemModule;
 
 const router = express.Router();
 

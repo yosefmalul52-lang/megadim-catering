@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { asyncHandler, createNotFoundError, createValidationError } from '../middleware/errorHandler';
-const MenuItem = require('../models/MenuItem');
-
+import MenuItem from '../models/menuItem';
 export class MenuController {
 
   // Get all menu items
