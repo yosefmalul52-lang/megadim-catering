@@ -21,7 +21,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
     <div class="home-page">
       <!-- Hero Section -->
       <section class="hero-section">
-        <div class="hero-bg-image" style="background-image: url('/assets/images/Fish-category.jpg');"></div>
+        <div class="hero-bg-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768222488/hero1_ime6hz.png');"></div>
         
         <div class="content-container">
           <h1 class="main-title">קייטרינג ברמה אחרת</h1>
@@ -195,7 +195,8 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
     
     .hero-section {
       position: relative;
-      min-height: 600px; // Increased slightly
+      height: 80vh;
+      min-height: 600px; // Fallback for older browsers
       padding-top: 100px;
       text-align: center;
       color: $white;
@@ -209,12 +210,12 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
         top: 0;
         left: 0;
         width: 100%;
-        height: 100%;
+        height: 80vh;
         background-size: cover;
         background-position: center;
         z-index: 0;
         
-        // The Overlay
+        // The Overlay - Dark overlay for text readability
         &::after {
           content: '';
           position: absolute;
@@ -222,7 +223,7 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
           left: 0;
           width: 100%;
           height: 100%;
-          background: rgba(0, 0, 0, 0.45); // Darken image by 45%
+          background: rgba(0, 0, 0, 0.5); // Dark overlay for better text readability
           z-index: 1;
         }
       }
