@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.megadim-catering.com/api',
+  apiUrl: 'https://magadim-backend.onrender.com/api',
   appName: 'Megadim Catering',
   version: '1.0.0',
   apiBase: 'https://YOUR_SERVER_DOMAIN',
