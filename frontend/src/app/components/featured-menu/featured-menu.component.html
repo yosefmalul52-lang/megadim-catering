@@ -6,17 +6,6 @@
       <span class="decorative-line left-line"></span>
     </div>
     
-    <div class="categories-wrapper">
-      <div *ngFor="let cat of categories" 
-           [routerLink]="['/ready-for-shabbat', cat.id]"
-           class="category-item">
-        <div class="cat-circle">
-          <img [src]="cat.image" [alt]="cat.name" onerror="this.style.display='none'">
-        </div>
-        <span class="cat-name">{{ cat.name }}</span>
-      </div>
-    </div>
-    
     <h3 class="grid-title">הנבחרים של מגדים</h3>
     
     <!-- Loading State -->

@@ -45,35 +45,42 @@ export class ReadyForShabbatComponent implements OnInit, AfterViewInit {
       id: 'salads', 
       nameKey: 'CATEGORIES.SALADS', 
       title: 'סלטים',
-      image: 'assets/images/Fish-category.jpg',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
       component: 'salads'
     },
     { 
       id: 'fish', 
       nameKey: 'CATEGORIES.FISH', 
       title: 'דגים',
-      image: 'assets/images/Fish-category.jpg',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906619/IMG_9719_mmhoct.jpg',
       component: 'fish'
     },
     { 
       id: 'main', 
       nameKey: 'CATEGORIES.MAIN', 
       title: 'מנות עיקריות',
-      image: 'assets/images/Fish-category.jpg',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
       component: 'main-dishes'
     },
     { 
       id: 'sides', 
       nameKey: 'CATEGORIES.SIDES', 
       title: 'תוספות',
-      image: 'assets/images/Fish-category.jpg',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906623/IMG_9705_voigt1.jpg',
       component: 'side-dishes'
     },
     { 
       id: 'desserts', 
       nameKey: 'CATEGORIES.DESSERTS', 
+      title: 'ממולאים',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768169598/magadim-catering/zvaljwkf37merstx1wmx.jpg',
+      component: 'desserts'
+    },
+    { 
+      id: 'desserts-new', 
+      nameKey: 'CATEGORIES.DESSERTS_NEW', 
       title: 'קינוחים',
-      image: 'assets/images/Fish-category.jpg',
+      image: 'assets/images/desserts.jpg',
       component: 'desserts'
     }
   ];

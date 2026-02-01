@@ -2,12 +2,24 @@ $navy: #1f3540;
 $gold: #E0C075;
 $white: #FFFFFF;
 
+// Force host element to have zero spacing
+:host {
+  display: block;
+  margin: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 .main-header {
   display: flex;
   flex-direction: column;
   width: 100%;
   box-shadow: none !important; // Remove shadow to prevent visible line
+  margin: 0 !important;
   margin-bottom: 0 !important;
+  padding: 0 !important;
   border-bottom: none !important;
 }
 
@@ -112,7 +124,7 @@ $white: #FFFFFF;
 // Row 2: Brand Bar - Main Logo Right, Kosher + Icons Left
 .brand-bar {
   background-color: $white;
-  height: 140px; // Significantly taller
+  height: 160px; // הגדלנו את גובה הבאר כדי לאפשר לוגו גדול יותר
   border-bottom: none !important;
   
   .container {
@@ -122,19 +134,20 @@ $white: #FFFFFF;
     height: 100%;
     display: flex;
     justify-content: space-between; // Push Right and Left apart
-    align-items: center;
+    align-items: center; // מוודא שהכל מיושר אנכית לאמצע
   }
   
   // Right Side: Main Logo
   .logo-container {
     display: flex;
-    align-items: center;
+    align-items: center; // מיישר את הלוגו לאמצע אנכית
     
     .main-logo {
       height: auto;
-      max-height: 120px; // Allows logo to be much bigger
+      max-height: 140px; // הגדלנו משמעותית את הגובה המקסימלי
       width: auto;
-      object-fit: contain;
+      margin: 0 15px; // הוספת מרווח בין הלוגו לאלמנטים אחרים
+      object-fit: contain; // מוודא שהתמונה לא תיחתך או תתעוות
       
       // Background removal fix
       background-color: $white;
@@ -242,25 +255,26 @@ $white: #FFFFFF;
   
   // Mobile Adjustment
   @media (max-width: 800px) {
-    height: 90px;
+    height: 110px; // הגדלנו גם במובייל
     
     .container {
       padding: 0 20px;
     }
     
     .logo-container .main-logo {
-      height: 70px;
+      max-height: 90px; // הגדלנו את הלוגו במובייל
+      margin: 0 10px;
     }
     
     .left-section {
       gap: 15px;
       
       .kosher-stamp {
-        height: 50px;
+        height: 60px; // הגדלנו גם את חותמת הכשרות
       }
       
       .separator {
-        height: 30px;
+        height: 35px;
       }
       
       .user-actions mat-icon {
@@ -338,11 +352,12 @@ $white: #FFFFFF;
   }
   
   .brand-bar {
-    height: 90px; // Smaller on mobile
+    height: 110px; // הגדלנו גם כאן
     padding: 0 2rem;
     
-    .logo-image {
-      height: 70px;
+    .logo-container .main-logo {
+      max-height: 90px; // הגדלנו את הלוגו
+      margin: 0 10px;
     }
     
     .utils-container {
@@ -380,11 +395,12 @@ $white: #FFFFFF;
   }
   
   .brand-bar {
-    height: 80px;
+    height: 95px; // הגדלנו מעט גם במסכים קטנים
     padding: 0 1rem;
     
-    .logo-image {
-      height: 60px;
+    .logo-container .main-logo {
+      max-height: 75px; // הגדלנו את הלוגו
+      margin: 0 8px;
     }
     
     .utils-container {

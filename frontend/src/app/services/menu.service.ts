@@ -91,8 +91,8 @@ export class MenuService {
     },
     {
       id: 'desserts',
-      name: 'קינוחים',
-      description: 'קינוחים מתוקים וטעימים'
+      name: 'ממולאים',
+      description: 'ממולאים טעימים ומושקעים'
     },
     {
       id: 'cholent',
@@ -268,8 +268,8 @@ export class MenuService {
         },
         {
           id: 'desserts',
-          name: 'קינוחים',
-          description: 'קינוחים מתוקים וטעימים',
+          name: 'ממולאים',
+          description: 'ממולאים טעימים ומושקעים',
           imageUrl: '/assets/images/placeholder-dish.jpg'
         },
         {
@@ -289,7 +289,7 @@ export class MenuService {
       'מנות עיקריות': 'main-dishes',
       'תוספות': 'side-dishes',
       'סלטים': 'salads',
-      'קינוחים': 'desserts',
+      'ממולאים': 'desserts',
       'דגים': 'fish',
       'צ\'ולנט': 'cholent',
       'אוכל לחג': 'holiday'
@@ -303,7 +303,7 @@ export class MenuService {
       'מנות עיקריות': '/assets/images/fish/Fish-stretched.jpg',
       'תוספות': '/assets/images/salads/root-vegetables.jpg',
       'סלטים': '/assets/images/salads/hummus.jpg',
-      'קינוחים': '/assets/images/placeholder-dish.jpg',
+      'ממולאים': '/assets/images/placeholder-dish.jpg',
       'דגים': '/assets/images/Fish-category.jpg',
       'צ\'ולנט': '/assets/images/placeholder-dish.jpg',
       'אוכל לחג': '/assets/images/placeholder-dish.jpg'

@@ -123,8 +123,8 @@ export class SearchService {
     {
       type: 'category',
       id: 'desserts',
-      name: 'קינוחים',
-      description: 'קינוחים מתוקים וטעימים',
+      name: 'ממולאים',
+      description: 'ממולאים טעימים ומושקעים',
       route: '/ready-for-shabbat/desserts'
     },
     {
@@ -244,7 +244,7 @@ export class SearchService {
       'צ\'ולנט',
       'סלטים',
       'מנות עיקריות',
-      'קינוחים',
+      'ממולאים',
       'שבת',
       'אירועים'
     ];

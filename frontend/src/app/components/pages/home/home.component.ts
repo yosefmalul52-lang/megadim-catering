@@ -26,28 +26,40 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
         <div class="content-container">
           <h1 class="main-title">קייטרינג ברמה אחרת</h1>
           
+          <div class="hero-subtitle">
+            <p class="subtitle-line">שירותי קייטרינג איכותיים וכשרים למהדרין לכל סוגי האירועים – שבתות חתן, בריתות, ואירועים עסקיים.</p>
+            <p class="subtitle-line">מטבח עשיר עם טעמים ביתיים וטריות בלתי מתפשרת, שמגיע עד אליכם.</p>
+          </div>
+          
+          <div class="kosher-badge">
+            כשר למהדרין
+          </div>
+          
           <div class="action-btn-wrapper">
-            <button mat-stroked-button class="gold-btn" routerLink="/ready-for-shabbat">לתפריט המלא לחצו >></button>
+            <button class="gold-btn" routerLink="/ready-for-shabbat">לתפריט המלא לחצו >></button>
           </div>
         </div>
-        
+      </section>
+      
+      <!-- Category Cards Section -->
+      <section class="category-cards-section">
         <div class="category-cards-container">
           <div class="category-card" routerLink="/catering">
-            <div class="card-image" style="background-image: url('assets/images/Fish-category.jpg');">
+            <div class="card-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png');">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועים</h3>
               </div>
             </div>
           </div>
           <div class="category-card" routerLink="/shabbat-events">
-            <div class="card-image" style="background-image: url('assets/images/Fish-category.jpg');">
+            <div class="card-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png');">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועי שבת וחג</h3>
               </div>
             </div>
           </div>
           <div class="category-card" routerLink="/ready-for-shabbat">
-            <div class="card-image" style="background-image: url('assets/images/Fish-category.jpg');">
+            <div class="card-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png');">
               <div class="card-overlay">
                 <h3 class="gold-text">אוכל מוכן לשבת וחג</h3>
               </div>
@@ -184,8 +196,23 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
     </div>
   `,
   styles: [`
+    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;700&display=swap');
+    
+    // Force host element to have zero spacing
+    :host {
+      display: block;
+      margin: 0 !important;
+      margin-top: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+    
     .home-page {
       min-height: 100vh;
+      margin: 0 !important;
+      margin-top: 0 !important;
+      padding: 0 !important;
+      background-color: transparent !important; // No white background
     }
     
     /* Hero Section */
@@ -195,97 +222,283 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
     
     .hero-section {
       position: relative;
-      height: 80vh;
-      min-height: 600px; // Fallback for older browsers
-      padding-top: 0 !important;
-      margin-top: -1px !important; // Negative margin to pull up and cover any gap
+      height: 65vh;
+      min-height: 600px; // הגדלנו ב-50 פיקסלים (550px + 50px)
+      padding: 120px 20px; // More padding for breathing room
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
       text-align: center;
       color: $white;
       direction: rtl;
+      overflow: hidden; // HIDDEN - keeps zoom within bounds, no overflow
+      border-bottom: none !important;
+      box-shadow: none !important;
+      background-color: transparent !important; // No unwanted background
+      display: flex; // Flexbox for perfect centering
+      align-items: center; // Vertically center content
+      justify-content: center; // Horizontally center content
       
-      overflow: visible;
-      margin-bottom: 250px; // Increased margin for taller cards
+      // Overlay with specified opacity
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #443a3a75; // Exact opacity as specified
+        z-index: 1;
+      }
       
       .hero-bg-image {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: 80vh;
+        height: 100%;
         background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768222488/hero1_ime6hz.png') !important;
-        background-size: cover !important;
-        background-position: center !important;
+        background-size: cover; // Ensure full coverage
+        background-position: center; // Center the image
         z-index: 0;
+        border-bottom: none !important;
+        box-shadow: none !important;
         
-        // The Overlay - Exact color with alpha channel
-        &::after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: #443a3a75 !important; // Exact overlay color with alpha
-          z-index: 1;
+        // Slow zoom in/out animation
+        animation: heroZoom 20s ease-in-out infinite;
+      }
+      
+      // Zoom animation keyframes
+      @keyframes heroZoom {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1); // Zoom in to 110%
+        }
+        100% {
+          transform: scale(1); // Back to original
         }
       }
       
       .content-container {
         position: relative;
-        z-index: 2;
+        z-index: 2; // Ensures content sits above the dark overlay
         max-width: 1200px;
+        width: 100%;
         margin: 0 auto;
-        padding: 100px 20px 0 20px; // Keep top padding for content positioning, but ensure no gap above hero
-      }
-      
-      .main-title {
-        font-size: 3.5rem;
-        font-weight: 800;
-        text-shadow: 0 4px 15px rgba(0,0,0,0.6);
-        margin-bottom: 30px;
-        line-height: 1.1;
-      }
-      
-      .gold-btn {
-        color: $gold;
-        border: 2px solid $gold;
-        background: rgba(0,0,0,0.5);
-        font-size: 1.2rem;
-        padding: 8px 30px;
-        transition: all 0.3s;
+        padding: 40px 20px;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        background-color: transparent !important; // No unwanted background
+        font-family: 'Heebo', sans-serif;
         
-        &:hover {
-          background: $gold;
-          color: $navy;
+        // Flexbox layout for perfect centering and vertical rhythm
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0; // We'll use custom gaps for each section
+      }
+      
+      // Premium Main Title
+      .main-title {
+        font-size: 4rem; // Significantly larger for impact
+        font-weight: 800;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5); // Subtle elegant shadow
+        line-height: 1.1;
+        margin: 0 0 15px 0; // 15px gap to subtitle
+        letter-spacing: -0.5px; // Tighter spacing for modern look
+      }
+      
+      // Premium Subtitle Section
+      .hero-subtitle {
+        font-family: 'Heebo', sans-serif;
+        color: $white;
+        opacity: 0.9; // Slightly transparent for elegance
+        max-width: 900px;
+        text-align: center;
+        margin: 0 0 25px 0; // 25px gap to kosher badge
+        
+        .subtitle-line {
+          font-size: 1.3rem;
+          font-weight: 300; // Lighter font weight for premium feel
+          line-height: 1.6; // More line-height for readability
+          margin: 12px 0;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.7);
         }
       }
+      
+      // Elegant Kosher Badge
+      .kosher-badge {
+        font-family: 'Heebo', sans-serif;
+        color: #e0c075; // Gold text
+        background-color: transparent;
+        font-size: 0.9rem; // Slightly smaller for elegance
+        font-weight: 700;
+        letter-spacing: 2px; // Increased letter spacing for elegance
+        text-transform: uppercase; // All caps for premium badge look
+        text-shadow: 0 2px 4px rgba(0,0,0,0.9);
+        border-top: 1px solid #e0c075;
+        border-bottom: 1px solid #e0c075;
+        border-left: none;
+        border-right: none;
+        display: inline-block;
+        padding: 5px 0;
+        width: fit-content;
+        margin: 0 0 35px 0; // 35px gap to button
+      }
+      
+      .action-btn-wrapper {
+        margin: 0; // No extra margin, using spacing from kosher badge
+      }
+      
+      // Polished Button Styling
+      .gold-btn {
+        background-color: #e0c075; // Gold background
+        color: #000000; // Black text
+        border: none;
+        font-size: 1.2rem;
+        font-weight: 700; // Bold font
+        letter-spacing: 0.5px; // Slight letter spacing
+        padding: 12px 40px; // Substantial horizontal padding
+        border-radius: 8px; // Rounded corners (8px)
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-family: 'Heebo', sans-serif;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); // Subtle shadow
+        
+        &:hover {
+          transform: scale(1.05) translateY(-2px); // Scale + lift effect
+          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); // Enhanced shadow on hover
+          background-color: darken(#e0c075, 5%); // Slightly darker on hover
+        }
+        
+        &:active {
+          transform: scale(1.02) translateY(0); // Subtle press effect
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+        }
+      }
+      
+      // Mobile Responsive - Tablet
+      @media (max-width: 900px) {
+        height: 60vh;
+        min-height: 550px; // הגדלנו ב-50 פיקסלים (500px + 50px)
+        padding: 100px 20px; // Maintain premium spacing
+        
+        .content-container {
+          padding: 30px 20px;
+        }
+        
+        .main-title {
+          font-size: 3rem; // Keep it large on tablet
+          margin: 0 0 13px 0;
+          letter-spacing: -0.3px;
+        }
+        
+        .hero-subtitle {
+          max-width: 100%;
+          opacity: 0.9;
+          margin: 0 0 22px 0;
+          
+          .subtitle-line {
+            font-size: 1.1rem;
+            font-weight: 300;
+            line-height: 1.6;
+            margin: 10px 0;
+          }
+        }
+        
+        .kosher-badge {
+          font-size: 0.85rem;
+          padding: 5px 0;
+          letter-spacing: 2px;
+          margin: 0 0 30px 0;
+        }
+        
+        .gold-btn {
+          font-size: 1.1rem;
+          padding: 11px 35px;
+          border-radius: 8px;
+        }
+      }
+      
+      // Mobile Responsive - Small screens
+      @media (max-width: 600px) {
+        height: 55vh;
+        min-height: 500px; // הגדלנו ב-50 פיקסלים (450px + 50px)
+        padding: 80px 15px; // More padding on mobile too
+        
+        .content-container {
+          padding: 20px 15px;
+        }
+        
+        .main-title {
+          font-size: 2.5rem; // Still substantial on mobile
+          margin: 0 0 12px 0;
+          letter-spacing: -0.2px;
+        }
+        
+        .hero-subtitle {
+          opacity: 0.9;
+          margin: 0 0 20px 0;
+          
+          .subtitle-line {
+            font-size: 1rem;
+            font-weight: 300;
+            line-height: 1.6;
+            margin: 8px 0;
+          }
+        }
+        
+        .kosher-badge {
+          font-size: 0.8rem;
+          padding: 4px 0;
+          letter-spacing: 2px;
+          margin: 0 0 28px 0;
+        }
+        
+        .gold-btn {
+          font-size: 1rem;
+          padding: 11px 32px;
+          border-radius: 8px;
+          letter-spacing: 0.3px;
+        }
+      }
+    }
+    
+    // --- Category Cards Section ---
+    .category-cards-section {
+      background-color: #ffffff;
+      padding: 60px 20px;
+      position: relative;
+      width: 100%;
+      min-height: 500px;
       
       // --- Category Cards Container ---
       .category-cards-container {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 30px;
-        position: absolute;
-        bottom: -225px;
-        left: 0;
-        right: 0;
+        position: relative;
         margin: 0 auto;
         max-width: 1200px;
-        padding: 0 20px;
-        z-index: 20;
+        width: 100%;
         
         .category-card {
           position: relative;
           height: 480px;
           border-radius: 0;
           overflow: hidden;
-          cursor: pointer; // Make entire card clickable
+          cursor: pointer;
           
-          // Gold border
-          border: 2px solid #e0c075;
-          box-sizing: border-box; // Ensure border doesn't affect layout
+          // Clean look - no borders or shadows
+          border: none !important;
+          box-shadow: none !important;
+          background-color: transparent;
+          box-sizing: border-box;
           
-          box-shadow: 0 20px 40px rgba(0,0,0,0.3);
           transition: transform 0.4s ease;
           
           &:hover {
@@ -300,58 +513,74 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
             height: 100%;
             background-size: cover;
             background-position: center;
+            background-repeat: no-repeat;
+            filter: brightness(1); // Full brightness
+            transition: all 0.4s ease-in-out;
+            transform: scale(1);
+            transform-origin: center;
             
-            // Dark overlay for text readability
-            &::after {
+            // Blue gradient overlay - matches navbar theme
+            &::before {
               content: '';
               position: absolute;
-              bottom: 0;
+              top: 0;
               left: 0;
               width: 100%;
-              height: 60%;
-              background: linear-gradient(to top, 
-                rgba($navy, 1) 0%,
-                rgba($navy, 0.7) 40%, 
-                transparent 100%
+              height: 100%;
+              background: linear-gradient(to bottom, 
+                rgba(26, 43, 60, 0) 0%,        // Transparent at top (food is clear)
+                rgba(26, 43, 60, 0.3) 50%,     // Light blue in middle
+                rgba(26, 43, 60, 0.85) 100%    // Dark site blue at bottom
               );
               z-index: 1;
             }
           }
           
+          &:hover {
+            .card-image {
+              filter: brightness(1.1); // Slight brighten on hover
+              transform: scale(1.03);
+            }
+            
+            .card-overlay .gold-text {
+              color: lighten(#e0c075, 10%); // Brighten gold on hover
+              text-shadow: 0 0 15px rgba(224, 192, 117, 0.6), 0 2px 4px rgba(0,0,0,0.8); // Add glow
+              transform: scale(1.05); // Slight scale up
+            }
+          }
+
           .card-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            z-index: 2;
+            z-index: 2; // Positioned above blue gradient overlay
             padding: 40px 20px;
             text-align: center;
             
             .gold-text {
-              color: $white;
+              color: #e0c075; // Gold theme color - stands out sharply against blue
               font-size: 1.8rem;
               font-weight: bold;
               margin: 0;
-              text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+              text-shadow: 0 2px 8px rgba(0,0,0,0.9); // Stronger shadow for contrast against blue
+              transition: all 0.3s ease; // Smooth transition for hover
             }
           }
         }
       }
       
-      // Mobile Responsive
+      // Mobile Responsive for Category Cards
       @media (max-width: 900px) {
-        margin-bottom: 50px;
-        padding-bottom: 50px;
+        padding: 40px 20px;
         
         .category-cards-container {
-          position: relative;
-          bottom: auto;
           grid-template-columns: 1fr;
-          margin-top: 60px;
-        }
-        
-        .category-card {
-          height: 400px; // Slightly shorter on mobile but still tall
+          gap: 20px;
+          
+          .category-card {
+            height: 400px;
+          }
         }
       }
     }

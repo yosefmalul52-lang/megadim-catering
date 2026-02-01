@@ -13,8 +13,8 @@ import { LanguageService } from '../../../../services/language.service';
     <div class="desserts-page">
       <div class="container">
         <div class="page-header">
-          <h1>קינוחים ביתיים</h1>
-          <p class="page-description">קינוחים מתוקים וקרמיים לסיום מושלם של הסעודה השבתית</p>
+          <h1>ממולאים ביתיים</h1>
+          <p class="page-description">ממולאים טעימים ומושקעים להשלמת הסעודה השבתית</p>
           <div class="header-icons">
             <div class="icon-item">
               <i class="fas fa-birthday-cake" aria-hidden="true"></i>
@@ -34,7 +34,7 @@ import { LanguageService } from '../../../../services/language.service';
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
           <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-          <span>טוען קינוחים מתוקים...</span>
+          <span>טוען ממולאים...</span>
         </div>
 
         <!-- Desserts Grid -->
@@ -95,8 +95,8 @@ import { LanguageService } from '../../../../services/language.service';
         <!-- Empty State -->
         <div *ngIf="!isLoading && desserts.length === 0" class="empty-state">
           <i class="fas fa-birthday-cake" aria-hidden="true"></i>
-          <h3>אין קינוחים זמינים כרגע</h3>
-          <p>אנחנו מכינים קינוחים טריים מדי יום. חזור בקרוב!</p>
+          <h3>אין ממולאים זמינים כרגע</h3>
+          <p>אנחנו מכינים ממולאים טריים מדי יום. חזור בקרוב!</p>
         </div>
 
         <!-- Special Offers Section -->
@@ -106,10 +106,10 @@ import { LanguageService } from '../../../../services/language.service';
             <div class="offer-card family">
               <div class="offer-header">
                 <i class="fas fa-users" aria-hidden="true"></i>
-                <h4>חבילת קינוחים משפחתית</h4>
+                <h4>חבילת ממולאים משפחתית</h4>
               </div>
               <div class="offer-content">
-                <p>3 קינוחים לבחירה + עוגת דבש גדולה</p>
+                <p>3 ממולאים לבחירה במארז משפחתי</p>
                 <div class="offer-price">
                   <span class="old-price">₪140</span>
                   <span class="new-price">₪110</span>
@@ -121,7 +121,7 @@ import { LanguageService } from '../../../../services/language.service';
             <div class="offer-card weekend">
               <div class="offer-header">
                 <i class="fas fa-calendar-week" aria-hidden="true"></i>
-                <h4>מגש קינוחים לסוף השבוע</h4>
+                <h4>מגש ממולאים לסוף השבוע</h4>
               </div>
               <div class="offer-content">
                 <p>מגש מעורב: טירמיסו, מוס שוקולד, מלבי</p>
@@ -714,14 +714,14 @@ export class DessertsComponent implements OnInit {
     this.isLoading = true;
     this.menuService.getMenuItems().subscribe({
       next: (items) => {
-        const apiDesserts = items.filter(item => item.category === 'קינוחים');
+        const apiDesserts = items.filter(item => item.category === 'ממולאים');
         this.desserts = apiDesserts.length > 0 ? apiDesserts : this.featuredDesserts.map(d => ({
           id: d.id,
           name: d.name,
           description: d.description,
           price: d.pricePer100g * 1.5,
           imageUrl: d.imageUrl,
-          category: 'קינוחים',
+          category: 'ממולאים',
           tags: d.tags,
           isAvailable: true,
           servingSize: d.recommendedServing,
@@ -737,7 +737,7 @@ export class DessertsComponent implements OnInit {
           description: d.description,
           price: d.pricePer100g * 1.5,
           imageUrl: d.imageUrl,
-          category: 'קינוחים',
+          category: 'ממולאים',
           tags: d.tags,
           isAvailable: true,
           servingSize: d.recommendedServing,

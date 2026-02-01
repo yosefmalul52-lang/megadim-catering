@@ -50,6 +50,7 @@
 .about-image img {
   width: 100%;
   border-radius: 20px;
+  box-shadow: -20px 20px 0px rgba(197, 160, 101, 0.2); /* Gold shadow offset */
 }
 
 /* Services Section */
@@ -91,8 +92,8 @@
 
 /* Vision Section */
 .about-vision {
-  background-color: #ffffff; /* White background */
-  color: #1a252f; /* Dark Brand Blue text */
+  background-color: #1a252f; /* Dark Blue Brand Color */
+  color: white;
   padding: 100px 20%;
   text-align: center;
   position: relative;
@@ -109,14 +110,12 @@
 .vision-content h2 {
   font-size: 3rem;
   margin-bottom: 20px;
-  color: #1a252f;
 }
 
 .vision-content p {
   font-size: 1.3rem;
   margin-bottom: 40px;
   font-weight: 300;
-  color: #555;
 }
 
 .gold-btn {
@@ -135,60 +134,3 @@
   color: #fff;
 }
 
-/* Responsive */
-@media (max-width: 968px) {
-  .about-hero {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-
-  .about-content {
-    text-align: center;
-  }
-
-  .gold-line {
-    margin: 0 auto 30px auto;
-  }
-
-  .services-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .about-hero {
-    padding: 60px 5%;
-  }
-
-  .about-content h1 {
-    font-size: 2.5rem;
-  }
-
-  .about-content p {
-    font-size: 1rem;
-  }
-
-  .about-services {
-    padding: 60px 5%;
-  }
-
-  .about-services h2 {
-    font-size: 2rem;
-  }
-
-  .about-vision {
-    padding: 60px 10%;
-  }
-
-  .quote-mark {
-    font-size: 4rem;
-  }
-
-  .vision-content h2 {
-    font-size: 2rem;
-  }
-
-  .vision-content p {
-    font-size: 1.1rem;
-  }
-}

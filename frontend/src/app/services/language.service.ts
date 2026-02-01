@@ -103,7 +103,7 @@ export class LanguageService {
     mainDishes: 'מנות עיקריות',
     sides: 'תוספות',
     salads: 'סלטים',
-    desserts: 'קינוחים',
+    desserts: 'ממולאים',
     cholentBar: 'צ\'ולנט בר',
     holidayFood: 'אוכל לחג',
     kosherCertificate: 'תעודת כשרות',

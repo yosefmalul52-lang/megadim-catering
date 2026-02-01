@@ -1,27 +1,18 @@
 <div class="shabbat-page">
   <!-- MASTER VIEW: Show all categories -->
   @if (!currentCategoryId) {
-    <!-- Main Title -->
-    <div class="hero-header">
-      <div class="hero-overlay"></div>
-      <div class="container">
-        <h1 class="main-title">{{ 'HEADER.TITLE' | translate }}</h1>
-        <p class="page-description">{{ 'HEADER.SUBTITLE' | translate }}</p>
-      </div>
-    </div>
-
-    <!-- Navigation Cards (Squares) -->
+    <!-- Navigation Cards (Bento Grid) -->
     <section class="categories-nav">
       <div class="container">
         <div class="nav-cards-grid">
           <div 
-            *ngFor="let category of categories" 
-            class="nav-card"
+            *ngFor="let category of categories; let i = index" 
+            class="category-item"
+            [class.item-main-dishes]="category.id === 'main'"
             [routerLink]="['/ready-for-shabbat', category.id]"
-            [style.background-image]="'url(' + category.image + ')'"
           >
-            <div class="nav-card-overlay"></div>
-            <div class="nav-card-content">
+            <img [src]="category.image" [alt]="category.title" class="category-image">
+            <div class="category-info">
               <h3>{{ category.nameKey | translate }}</h3>
             </div>
           </div>

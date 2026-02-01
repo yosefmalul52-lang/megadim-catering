@@ -1,136 +1,175 @@
 <div class="events-page">
   
+  <!-- Hero Section -->
   <section class="hero-section">
-    <div class="hero-overlay"></div>
     <div class="container hero-content">
-      <h1 class="main-title">קייטרינג לאירועים</h1>
-      <div class="gold-line"></div>
+      <div class="title-wrapper">
+        <span class="side-line"></span>
+        <h1 class="main-title">קייטרינג לאירועים</h1>
+        <span class="side-line"></span>
+      </div>
+      <p class="hero-subtitle">מחפשים קייטרינג שמשלב טעם מעולה, נראות מרשימה ושירות שאפשר לסמוך עליו?</p>
       <p class="hero-desc">
-        מחפשים קייטרינג שמשלב טעם מעולה, נראות מרשימה ושירות שאפשר לסמוך עליו?
         בקייטרינג מגדים אתם מקבלים תפריט איכותי, גמיש ומדויק. אנחנו מלווים אתכם משלב התכנון ועד האספקה, עם דגש על אוכל טרי והתאמה מלאה לאופי האירוע.
       </p>
     </div>
   </section>
   
-  <div class="container">
-    
-    <h2 class="section-title">בר קבלת פנים <span class="smaller">פתיחה שמרימה את האירוע</span></h2>
-    <div class="pricing-grid">
-      <div class="pricing-card">
-        <div class="card-header">
+  <!-- Packages Section (Overlapping Hero) -->
+  <section class="packages-section">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="side-line"></span>
+        <h2 class="section-title">בר קבלת פנים</h2>
+        <span class="side-line"></span>
+      </div>
+      
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="price">30 ₪</div>
+          <div class="price-label">למנה</div>
           <h3>בר קבלת פנים</h3>
-          <div class="price">30 ₪ <span>למנה</span></div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 4 סוגים</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">2 מנות בשריות</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">2 מנות צמחוניות</span></li>
+          </ul>
         </div>
-        <ul class="features-list">
-          <li><mat-icon>check</mat-icon> בחירה של 4 סוגים</li>
-          <li><mat-icon>restaurant</mat-icon> 2 מנות בשריות</li>
-          <li><mat-icon>spa</mat-icon> 2 מנות צמחוניות</li>
-        </ul>
-      </div>
-      <div class="pricing-card highlighted">
-        <div class="badge">מומלץ</div>
-        <div class="card-header">
+        
+        <div class="pricing-card featured">
+          <div class="price">45 ₪</div>
+          <div class="price-label">למנה</div>
           <h3>בר קבלת פנים משודרג</h3>
-          <div class="price">45 ₪ <span>למנה</span></div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 6 סוגים עשירים ומגוונים</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">אידיאלי לאירועים שרוצים "וואו" כבר בכניסה</span></li>
+          </ul>
         </div>
-        <ul class="features-list">
-          <li><mat-icon>check</mat-icon> בחירה של 6 סוגים עשירים ומגוונים</li>
-          <li><mat-icon>star</mat-icon> אידיאלי לאירועים שרוצים "וואו" כבר בכניסה</li>
-        </ul>
       </div>
     </div>
-    
-    <div class="divider"></div>
-    
-    <div class="courses-grid">
-      <div class="course-card">
-        <div class="icon-header"><mat-icon>soup_kitchen</mat-icon></div>
-        <h3>מנות ראשונות</h3>
-        <p class="sub-text">איזון מושלם לפני העיקרית</p>
-        <div class="price-tag">20 ₪ למנה</div>
-        <ul>
-          <li>בחירה של 2 סוגים</li>
-          <li>מוגשות בצורה מוקפדת ומזמינה</li>
-        </ul>
-      </div>
-      <div class="course-card main-course">
-        <div class="icon-header"><mat-icon>dinner_dining</mat-icon></div>
-        <h3>מנות עיקריות – הלב של האירוע</h3>
-        <p class="sub-text">כאן האורחים באמת זוכרים אתכם</p>
-        <div class="price-tag gold">70 ₪ למנה</div>
-        <ul>
-          <li>בחירה של 2 מנות עיקריות</li>
-          <li>3 סוגי תוספות לבחירה</li>
-          <li>שילוב בין טעמים אהובים לקלאסיקות מנצחות</li>
-          <li class="extra-offer">
-            <strong>➕ תוספת מנה שלישית:</strong> 5 ₪ בלבד (פתרון לקהל מגוון)
-          </li>
-        </ul>
-      </div>
-      <div class="course-card">
-        <div class="icon-header"><mat-icon>icecream</mat-icon></div>
-        <h3>קינוחי ביסקוטי</h3>
-        <p class="sub-text">סיום מתוק שעושה חשק לעוד</p>
-        <div class="price-tag">8 ₪ לאדם</div>
-        <ul>
-          <li>קינוחי ביס איכותיים</li>
-          <li>סוגרים את האירוע עם חיוך</li>
-        </ul>
-      </div>
-    </div>
-    
-    <div class="kosher-banner">
-      <mat-icon>verified</mat-icon>
-      <div class="kosher-text">
-        <h3>כשרות מהודרת – שקט נפשי מלא</h3>
-        <p>אפשרות לכשרות מהדרין מחפוד (בשר ועוף) | <strong>תוספת של 7 ₪ למנה</strong></p>
-      </div>
-    </div>
-  </div>
+  </section>
   
-  <div class="container info-grid">
-    
-    <div class="info-col why-us">
-      <h3>למה לבחור בקייטרינג מגדים?</h3>
-      <ul>
-        <li><mat-icon>done_all</mat-icon> ניסיון באירועים פרטיים ועסקיים</li>
-        <li><mat-icon>done_all</mat-icon> תפריט גמיש בהתאמה אישית</li>
-        <li><mat-icon>done_all</mat-icon> מחירים הוגנים ושקופים</li>
-        <li><mat-icon>done_all</mat-icon> עמידה בזמנים ללא פשרות</li>
-        <li><mat-icon>done_all</mat-icon> שירות אישי וליווי לאורך כל הדרך</li>
-      </ul>
-      <p class="summary-line">אצלנו לא "סוגרים אוכל" – סוגרים אירוע בראש שקט.</p>
+  <!-- Courses Section -->
+  <section class="courses-section">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="side-line"></span>
+        <h2 class="section-title">מנות ראשונות ועיקריות</h2>
+        <span class="side-line"></span>
+      </div>
+      
+      <div class="courses-grid">
+        <div class="course-card">
+          <h3>מנות ראשונות</h3>
+          <div class="price-display">
+            <span class="price-amount">20</span>
+            <span class="price-currency">₪</span>
+            <span class="price-label">למנה</span>
+          </div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 2 סוגים</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">מוגשות בצורה מוקפדת ומזמינה</span></li>
+          </ul>
+        </div>
+        
+        <div class="course-card main-course">
+          <h3>מנות עיקריות</h3>
+          <div class="price-display">
+            <span class="price-amount">70</span>
+            <span class="price-currency">₪</span>
+            <span class="price-label">למנה</span>
+          </div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 2 מנות עיקריות</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">3 סוגי תוספות לבחירה</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">שילוב בין טעמים אהובים לקלאסיקות מנצחות</span></li>
+            <li class="extra-offer">
+              <span class="list-text"><strong>➕ תוספת מנה שלישית:</strong> 5 ₪ בלבד (פתרון לקהל מגוון)</span>
+            </li>
+          </ul>
+        </div>
+        
+        <div class="course-card">
+          <h3>קינוחי ביסקוטי</h3>
+          <div class="price-display">
+            <span class="price-amount">8</span>
+            <span class="price-currency">₪</span>
+            <span class="price-label">לאדם</span>
+          </div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">קינוחי ביס איכותיים</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">סוגרים את האירוע עם חיוך</span></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="kosher-banner">
+        <mat-icon>verified</mat-icon>
+        <div class="kosher-text">
+          <h3>כשרות מהודרת – שקט נפשי מלא</h3>
+          <p>אפשרות לכשרות מהדרין מחפוד (בשר ועוף) | <strong>תוספת של 7 ₪ למנה</strong></p>
+        </div>
+      </div>
     </div>
-    
-    <div class="info-col conditions">
-      <h3>תנאים ומשלוחים</h3>
-      <div class="condition-item">
-        <mat-icon>shopping_cart</mat-icon>
-        <div><strong>מינימום הזמנה:</strong> 600 ₪</div>
-      </div>
-      <div class="condition-item">
-        <mat-icon>event_busy</mat-icon>
-        <div><strong>דד-ליין:</strong> עד יומיים לפני, שעה 13:00</div>
-      </div>
-      <div class="condition-item">
-        <mat-icon>edit_note</mat-icon>
-        <div><strong>תפריט:</strong> מותאם אישית לפי רצון הלקוח</div>
-      </div>
-      <div class="condition-item">
-        <mat-icon>local_shipping</mat-icon>
-        <div><strong>משלוח:</strong> 200–600 ₪ (לפי מרחק) או איסוף עצמי</div>
-      </div>
-      <div class="condition-item note">
-        <mat-icon>info</mat-icon>
-        <div><strong>תוספות (בתשלום):</strong> יין, שתייה, חד"פ, תפעול</div>
-      </div>
-    </div>
-  </div>
+  </section>
   
-  <section class="cta-footer">
-    <h2>זה הזמן לסגור אירוע בלי להתלבט</h2>
-    <p>צרו איתנו קשר עכשיו לקבלת הצעת מחיר מותאמת אישית</p>
-    <button mat-flat-button class="cta-btn" routerLink="/contact">שריינו תאריך עכשיו</button>
+  <!-- Conditions Section -->
+  <section class="conditions-section">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="side-line"></span>
+        <h2 class="section-title">תנאים ומשלוחים</h2>
+        <span class="side-line"></span>
+      </div>
+      
+      <div class="conditions-grid">
+        <div class="condition-item">
+          <mat-icon>shopping_cart</mat-icon>
+          <div>
+            <strong>מינימום הזמנה:</strong> 600 ₪
+          </div>
+        </div>
+        <div class="condition-item">
+          <mat-icon>event_busy</mat-icon>
+          <div>
+            <strong>דד-ליין:</strong> עד יומיים לפני, שעה 13:00
+          </div>
+        </div>
+        <div class="condition-item">
+          <mat-icon>edit_note</mat-icon>
+          <div>
+            <strong>תפריט:</strong> מותאם אישית לפי רצון הלקוח
+          </div>
+        </div>
+        <div class="condition-item">
+          <mat-icon>local_shipping</mat-icon>
+          <div>
+            <strong>משלוח:</strong> 200–600 ₪ (לפי מרחק) או איסוף עצמי
+          </div>
+        </div>
+        <div class="condition-item note">
+          <mat-icon>info</mat-icon>
+          <div>
+            <strong>תוספות (בתשלום):</strong> יין, שתייה, חד"פ, תפעול
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-buttons">
+        <button class="cta-btn cta-btn-secondary">
+          <mat-icon>download</mat-icon>
+          <span>להורדת התפריט</span>
+        </button>
+        <button class="cta-btn cta-btn-primary">
+          <mat-icon>event</mat-icon>
+          <span>טופס הזמנה</span>
+        </button>
+      </div>
+    </div>
   </section>
 </div>
-

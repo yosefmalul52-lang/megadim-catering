@@ -33,13 +33,15 @@ $darker-navy: #082030;
       margin-bottom: 25px;
       position: relative;
       padding-bottom: 10px;
+      display: inline-block; // Width matches text exactly
+      width: fit-content; // Ensures title width fits content
       
-      &::after { // Little gold underline
+      &::after { // Gold underline - full width of text
         content: '';
         position: absolute;
         bottom: 0;
         right: 0;
-        width: 30px;
+        width: 100%; // Full width of the title text
         height: 2px;
         background-color: $gold;
       }
@@ -233,9 +235,13 @@ $darker-navy: #082030;
     }
     
     .footer-col {
-      .col-title::after {
-        right: 50%;
-        transform: translateX(50%); // Center underline
+      .col-title {
+        margin: 0 auto 25px auto; // Center the title itself
+        
+        &::after {
+          right: 0; // Keep at right edge of title
+          width: 100%; // Full width of centered title
+        }
       }
     }
     

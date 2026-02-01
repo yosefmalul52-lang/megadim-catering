@@ -26,56 +26,50 @@ import { LanguageService } from '../../../../services/language.service';
         </div>
 
         <!-- Dishes Grid -->
+        <!-- Product Cards Grid - EXACT REFERENCE DESIGN -->
         <div class="menu-grid" *ngIf="!isLoading">
           <div 
             *ngFor="let dish of mainDishes; trackBy: trackByItemId" 
-            class="menu-item-card featured-style"
+            class="product-card"
             [class.is-unavailable]="!isAvailable(dish)"
           >
-            <div class="item-image">
+            <!-- Image Container -->
+            <div class="card-image-container">
               <img 
                 [src]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" 
                 [alt]="dish.name"
+                class="card-img"
                 loading="lazy"
               >
-              <!-- Popular Badge -->
-              <span class="badge badge-popular" *ngIf="dish.isPopular === true">מומלץ</span>
-              <!-- Out of Stock Badge -->
-              <span class="badge badge-out-of-stock" *ngIf="!isAvailable(dish)">לא קיים זמנית</span>
             </div>
             
-            <div class="item-content">
-              <h3 class="item-name">{{ dish.name }}</h3>
-              <p class="item-description">{{ dish.description }}</p>
-              
-              <div class="item-details">
-                <div class="serving-size" *ngIf="getServingSize(dish)">
-                  <span class="serving-label">כמות מומלצת למנה:</span>
-                  <span class="serving-value">{{ getServingSize(dish) }}</span>
-                </div>
-                
-                <div class="container-icons">
-                  <div class="container-icon"></div>
-                  <div class="container-icon round"></div>
-                  <div class="container-icon small"></div>
-                </div>
+            <!-- Card Body -->
+            <div class="card-body">
+              <h3 class="card-title">{{ dish.name }}</h3>
+              <p class="card-description">{{ dish.description }}</p>
+              <div class="card-price">
+                <span class="currency">₪</span>{{ getPrice(dish) }}
               </div>
-              
-              <div class="item-footer">
-                <div class="price-section">
-                  <span class="price">₪{{ getPrice(dish) }}</span>
-                  <span class="price-per">ל-100 גרם</span>
-                </div>
-                
-                <button 
-                  (click)="addToCart(dish)" 
-                  class="btn-select-delivery"
-                  [attr.aria-label]="getAriaLabel(dish)"
-                  [disabled]="!isAvailable(dish)"
-                >
-                  בחרו פרטי אספקה
-                </button>
-              </div>
+            </div>
+            
+            <!-- Card Actions -->
+            <div class="card-actions">
+              <button 
+                (click)="viewDetails(dish)" 
+                class="btn btn-details"
+                [attr.aria-label]="'פרטים על ' + dish.name"
+              >
+                פרטים
+              </button>
+              <button 
+                (click)="addToCart(dish)" 
+                class="btn btn-cart"
+                [attr.aria-label]="'הוסף לסל ' + dish.name"
+                [disabled]="!isAvailable(dish)"
+              >
+                <i class="fas fa-shopping-cart"></i>
+                הוספה לסל
+              </button>
             </div>
           </div>
         </div>
@@ -198,301 +192,145 @@ import { LanguageService } from '../../../../services/language.service';
     $white: #ffffff;
     $gray-border: #eaeaea;
 
+    // === PIXEL-PERFECT PRODUCT CARD - EXACT ASADO REFERENCE ===
     .menu-grid {
       display: grid;
-      // KEY CHANGE: 3 Columns for wider cards
       grid-template-columns: repeat(3, 1fr);
-      gap: 30px; // Slightly larger gap for spacious feel
+      gap: 30px;
       padding: 20px 0;
-      justify-content: center;
       margin-bottom: 4rem;
     }
 
-    .menu-item-card {
-      background: $white;
-      border: 1px solid $gray-border;
-      border-radius: 0;
-      height: 100%;
+    // Product Card Container
+    .product-card {
       display: flex;
       flex-direction: column;
-      transition: all 0.3s ease;
-      position: relative;
+      height: 100%; // Ensures all cards in grid are same height
+      background-color: #fff;
+      border: 1px solid #d4af37; // The Gold Border Frame
+      border-radius: 0; // SQUARE corners as requested
       overflow: hidden;
+      transition: transform 0.2s ease;
 
       &:hover {
-        transform: translateY(-5px);
-        border-color: $gold;
-        box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
       }
     }
 
-    .menu-item-card.featured-style {
-      display: flex;
-      flex-direction: column;
+    // Unavailable State
+    .product-card.is-unavailable {
+      opacity: 0.6;
+      .card-img {
+        filter: grayscale(80%);
+      }
     }
 
-    .menu-item-card.popular::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, $gold, darken($gold, 10%));
-    }
-
-    // Image Area - TALLER for wider cards
-    .item-image {
-      position: relative;
+    // Image Container
+    .card-image-container {
       width: 100%;
-      height: 250px; // INCREASED HEIGHT (was 220px, now 250px for premium look)
-      background-color: #ffffff;
-      padding: 25px;
-
-      // Force Center
-      display: grid;
-      place-items: center;
+      height: 250px; // Fixed height for uniformity
       overflow: hidden;
 
-      img {
-        max-width: 90%; // Allow slightly wider image
-        max-height: 90%;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        transition: transform 0.5s ease;
+      .card-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
         display: block;
       }
     }
 
-    .menu-item-card:hover .item-image img {
-      transform: scale(1.08);
+    // Card Body (Content Area)
+    .card-body {
+      padding: 20px 15px;
+      text-align: center;
+      flex-grow: 1; // Pushes the buttons down
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    .menu-item-card.is-unavailable:hover .item-image img {
-      transform: scale(1);
-    }
-
-    /* Badge Styles - Premium Square Design */
-    .badge {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background-color: $gold;
-      color: $navy;
-      padding: 4px 12px;
-      font-size: 0.75rem;
+    // Title
+    .card-title {
+      font-family: 'Heebo', sans-serif; // Or project font
+      font-size: 1.8rem; // Large and bold like reference
       font-weight: 800;
-      border-radius: 0;
-      z-index: 2;
-      text-transform: uppercase;
+      color: #1a2b3c; // Dark Blue
+      margin: 0 0 10px 0;
+      letter-spacing: -0.5px;
     }
 
-    .badge-popular {
-      background-color: $gold;
-      color: $navy;
-    }
-
-    .badge-out-of-stock {
-      background: #7a7a7a;
-      color: white;
-    }
-
-    /* When popular badge exists, move out-of-stock badge to left */
-    .item-image:has(.badge-popular) .badge-out-of-stock {
-      right: auto;
-      left: 10px;
-    }
-
-    /* Unavailable State */
-    .menu-item-card.is-unavailable {
-      opacity: 0.6;
-    }
-
-    .menu-item-card.is-unavailable .item-image {
-      filter: grayscale(80%);
-    }
-
-    .menu-item-card.is-unavailable .btn-select-delivery {
-      pointer-events: none;
-    }
-
-    .item-tags {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .tag {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 0.25rem 0.75rem;
-      border-radius: 1rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #0E1A24;
-      backdrop-filter: blur(10px);
-    }
-
-    .tag.popular {
-      background: linear-gradient(135deg, #cbb69e, #d4c4a8);
-      color: white;
-    }
-
-    .tag.traditional {
-      background: rgba(139, 69, 19, 0.9);
-      color: white;
-    }
-
-    .tag.protein {
-      background: rgba(220, 20, 60, 0.9);
-      color: white;
-    }
-
-    .tag.special {
-      background: rgba(255, 215, 0, 0.9);
-      color: #0E1A24;
-    }
-
-    // Content Area (Identical to Salads but adjusted for width)
-    .item-content {
-      padding: 0 25px 25px 25px; // More side padding
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      text-align: right;
-
-      h3.item-name {
-        font-size: 1.4rem; // Slightly larger font for wider card
-        font-weight: 800;
-        color: $navy;
-        margin-bottom: 8px;
-      }
-
-      p.item-description {
-        font-size: 0.95rem;
-        color: #666;
-        margin-bottom: 15px;
-      }
-
-      // Price per 100g
-      .price-unit {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: $navy;
-        margin-bottom: 15px;
-        text-align: right;
-        padding-top: 10px;
-        border-top: 1px solid #f0f0f0;
-      }
-    }
-
-    .item-details {
-      margin-bottom: 1.5rem;
-      font-size: 0.9rem;
-    }
-
-    .serving-size {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      margin-bottom: 0.75rem;
-      color: #6c757d;
-    }
-
-    .serving-label {
-      font-size: 0.85rem;
-      color: #999;
-    }
-
-    .serving-value {
-      font-weight: 600;
-      color: #0E1A24;
-    }
-
-    .container-icons {
-      display: flex;
-      gap: 0.75rem;
-      margin-top: 0.5rem;
-      padding: 0.5rem 0;
-    }
-
-    .container-icon {
-      width: 24px;
-      height: 24px;
-      border: 2px solid #ddd;
-      border-radius: 4px;
-      background: transparent;
-    }
-
-    .container-icon.round {
-      border-radius: 50%;
-      width: 28px;
-      height: 28px;
-    }
-
-    .container-icon.small {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-    }
-
-    .item-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .item-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: auto;
-      padding-top: 1.25rem;
-    }
-
-    .price-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .price {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: $navy;
-    }
-
-    .price-per {
-      font-size: 0.9rem;
-      color: #6c757d;
-    }
-
-    .btn-select-delivery {
-      padding: 0.875rem 1.25rem;
-      border: none;
-      border-radius: 0;
-      background: $gold;
-      border: 1px solid $gold;
-      color: $navy;
-      font-weight: 700;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      white-space: nowrap;
-      height: 48px; // Taller buttons for wider card
-    }
-
-    .btn-select-delivery:hover:not(:disabled) {
-      background: darken($gold, 5%);
-    }
-
-    .btn-select-delivery:disabled {
-      background: #ccc;
+    // Description
+    .card-description {
+      font-size: 1rem;
       color: #666;
-      cursor: not-allowed;
+      line-height: 1.4;
+      margin-bottom: 15px;
+      max-width: 90%;
+    }
+
+    // Price (Large Gold)
+    .card-price {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #d4af37; // Gold Price
+      margin-top: auto; // Pushes price slightly down if needed
+      margin-bottom: 5px;
+
+      .currency {
+        font-size: 1.4rem;
+        margin-left: 2px;
+      }
+    }
+
+    // Card Actions (Buttons Section)
+    .card-actions {
+      padding: 15px;
+      display: flex;
+      gap: 15px; // Space between buttons
+      margin-top: auto;
+    }
+
+    // Button Base Styles
+    .btn {
+      flex: 1; // Both buttons take equal width
+      padding: 12px 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 0; // SQUARE buttons
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    // Details Button (Gold Border)
+    .btn-details {
+      background: #fff;
+      border: 1px solid #d4af37;
+      color: #d4af37;
+
+      &:hover {
+        background: #fcf8eb;
+      }
+    }
+
+    // Cart Button (Dark Blue)
+    .btn-cart {
+      background: #1a2b3c;
+      border: 1px solid #1a2b3c;
+      color: #fff;
+
+      &:hover:not(:disabled) {
+        background: lighten(#1a2b3c, 5%);
+      }
+
+      &:disabled {
+        background: #ccc;
+        color: #666;
+        cursor: not-allowed;
+      }
     }
 
     .empty-state {
@@ -836,5 +674,12 @@ export class MainDishesComponent implements OnInit {
 
   isAvailable(dish: MenuItem): boolean {
     return dish.isAvailable !== false;
+  }
+
+  viewDetails(dish: MenuItem): void {
+    // Navigate to dish details or show modal
+    // For now, log to console - can be expanded later
+    console.log('View details for:', dish.name);
+    // TODO: Implement navigation or modal
   }
 }

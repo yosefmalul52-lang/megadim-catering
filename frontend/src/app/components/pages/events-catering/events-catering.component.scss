@@ -1,12 +1,15 @@
 $navy: #1f3540;
-$gold: #E0C075;
+$gold: #e0c075; // STRICT: Use this exact gold color
+$dark-blue: #1f2937;
 $white: #FFFFFF;
-$gray-bg: #eeeff0;
+$warm-bg: #fdfbf7; // Light warm gray/beige
+$text-dark: #333;
+$text-gray: #4b5563;
 
 .events-page {
   direction: rtl;
-  font-family: 'Segoe UI', sans-serif;
-  color: $navy;
+  font-family: 'Heebo', sans-serif;
+  color: $text-dark;
 }
 
 .container {
@@ -15,442 +18,839 @@ $gray-bg: #eeeff0;
   padding: 0 20px;
 }
 
-// Hero
+// === HERO SECTION (Clean & Minimal) ===
 .hero-section {
-  position: relative;
-  height: 380px; // REDUCED HEIGHT
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  background-color: #fdfdfd;
+  padding: 4rem 0;
   text-align: center;
-  background-image: url('/assets/images/Fish-category.jpg');
-  background-size: cover;
-  background-position: center;
-  color: $white;
-  
-  .hero-overlay {
-    position: absolute;
-    inset: 0;
-    // CHANGED: Reduced opacity to 0.5 to make image much clearer
-    background: rgba($navy, 0.5);
-    z-index: 1;
-  }
   
   .hero-content {
-    position: relative;
-    z-index: 2;
-    max-width: 800px;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
   }
   
-  .sub-title {
-    font-size: 1.2rem;
-    color: $gold;
-    margin-bottom: 10px;
-    font-weight: 600;
-    letter-spacing: 1px;
+  .title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 2rem;
+    margin-bottom: 30px;
+    
+    .side-line {
+      flex-grow: 1;
+      height: 2px;
+      background-color: $gold;
+      max-width: 300px;
+    }
+    
+    .main-title {
+      font-size: 4rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: $dark-blue;
+      font-family: 'Heebo', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
   }
   
-  .main-title {
-    font-size: 3.5rem;
-    font-weight: 800;
+  .hero-subtitle {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: #4b5563;
     margin-bottom: 20px;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  }
-  
-  .gold-line {
-    width: 80px;
-    height: 4px;
-    background: $gold;
-    margin: 0 auto 30px auto;
-    border-radius: 2px;
+    line-height: 1.6;
   }
   
   .hero-desc {
     font-size: 1.2rem;
-    line-height: 1.6;
-    opacity: 0.9;
+    line-height: 1.8;
+    color: #6b7280;
+    max-width: 800px;
+    margin: 0 auto;
   }
 }
 
-// Menu Section
-.menu-section {
-  background-color: $gray-bg;
-  padding: 80px 0;
+// === PACKAGES SECTION (Overlapping Hero) ===
+.packages-section {
+  padding: 4rem 0;
+  background-color: $white;
+  position: relative;
+  z-index: 3;
   
-  .section-title {
-    text-align: center;
-    font-size: 2.2rem;
-    margin-bottom: 50px;
-    font-weight: 800;
+  .section-title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 2rem;
+    margin-bottom: 3rem;
     
-    .smaller {
-      display: block;
-      font-size: 1.2rem;
-      font-weight: 400;
-      color: #666;
-      margin-top: 5px;
+    .side-line {
+      flex-grow: 1;
+      height: 1px;
+      background-color: $gold;
+      max-width: 300px;
+    }
+    
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: $dark-blue;
+      font-family: 'Heebo', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
   }
-}
-
-// Pricing Cards
-.pricing-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-  max-width: 900px;
-  margin: 0 auto 60px auto;
   
-  .pricing-card {
-    background: $white;
-    padding: 40px;
-    border-radius: 12px;
-    position: relative;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-    transition: transform 0.3s;
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
     
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    
-    &.highlighted {
-      border: 2px solid $gold;
+    .pricing-card {
+      background: $white;
+      padding: 3rem 35px 50px 35px; // Increased top padding (icons removed)
+      border-radius: 0 !important; // Square corners
+      position: relative;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+      border-top: 4px solid $gold;
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
       
-      .badge {
-        position: absolute;
-        top: -15px;
-        right: 20px;
-        background: $gold;
-        color: $white;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 0.9rem;
+      &:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
       }
-    }
-    
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 20px;
       
-      h3 {
-        margin: 0;
-        font-size: 1.4rem;
-        font-weight: 700;
+      &.featured {
+        border-top-width: 5px;
       }
       
       .price {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: $gold;
-        
-        span {
-          font-size: 0.9rem;
-          color: #999;
-          font-weight: 400;
-        }
+        font-size: 1.5rem; // Reduced by half (was 3rem)
+        font-weight: 700;
+        color: $dark-blue;
+        margin-bottom: 5px;
+        line-height: 1;
+        text-align: center;
+        margin-top: 0; // Ensure price sits at top after icon removal
       }
-    }
-    
-    .features-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
       
-      li {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 15px;
-        font-size: 1.1rem;
-        color: #555;
-        
-        mat-icon {
-          color: $gold;
-        }
-      }
-    }
-  }
-}
-
-.section-title {
-  text-align: center;
-  font-size: 2.2rem;
-  margin-bottom: 50px;
-  font-weight: 800;
-  color: $navy;
-  
-  .smaller {
-    display: block;
-    font-size: 1.2rem;
-    font-weight: 400;
-    color: #666;
-    margin-top: 5px;
-  }
-}
-
-.divider {
-  height: 1px;
-  background: #ddd;
-  max-width: 1000px;
-  margin: 0 auto 60px auto;
-}
-
-// Courses Grid
-.courses-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 25px;
-  margin-bottom: 60px;
-  
-  .course-card {
-    background: $white;
-    padding: 30px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
-    
-    &.main-course {
-      transform: scale(1.05);
-      border-top: 5px solid $gold;
-      z-index: 1;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-    }
-    
-    .icon-header mat-icon {
-      font-size: 40px;
-      width: 40px;
-      height: 40px;
-      color: $navy;
-      margin-bottom: 15px;
-      opacity: 0.8;
-    }
-    
-    h3 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 5px;
-      color: $navy;
-    }
-    
-    .sub-text {
-      color: #888;
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-    }
-    
-    .price-tag {
-      display: inline-block;
-      background: #f0f0f0;
-      padding: 8px 20px;
-      border-radius: 50px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      color: $navy;
-      
-      &.gold {
-        background: $gold;
-        color: $white;
-      }
-    }
-    
-    ul {
-      list-style: none;
-      padding: 0;
-      text-align: right;
-      
-      li {
-        position: relative;
-        padding-right: 15px;
-        margin-bottom: 10px;
+      .price-label {
         font-size: 1rem;
-        color: #555;
+        color: $text-gray;
+        margin-bottom: 25px;
+        font-weight: 400;
+        text-align: center;
+      }
+      
+      h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $dark-blue;
+        margin-bottom: 25px;
+        text-align: center;
+      }
+      
+      .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 auto; // Center the list container
+        max-width: 90%; // Allow some breathing room
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end; // Align items to the right (RTL)
         
-        &:before {
-          content: "•";
-          color: $gold;
-          position: absolute;
-          right: 0;
-        }
-        
-        &.extra-offer {
-          color: $navy;
-          margin-top: 15px;
-          border-top: 1px dashed #ccc;
-          padding-top: 10px;
-          font-size: 0.95rem;
+        li {
+          display: flex;
+          align-items: flex-start; // Aligns icon to top of multi-line text
+          justify-content: flex-end; // Aligns content to the right (in RTL)
+          text-align: right; // Ensures text block is right-aligned
+          gap: 10px; // Space between icon and text
+          margin-bottom: 15px;
+          font-size: 1.05rem;
+          color: $text-gray;
+          line-height: 1.6;
+          width: 100%;
+          
+          .check-icon {
+            color: $gold;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-top: 2px; // Slight adjustment for visual alignment
+          }
+          
+          .list-text {
+            flex: 1;
+            text-align: right;
+          }
         }
       }
     }
   }
 }
 
-// Kosher Banner
-.kosher-banner {
-  background: $white;
-  border: 2px solid $gold;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  max-width: 800px;
-  margin: 0 auto 60px auto;
+// === COURSES SECTION ===
+.courses-section {
+  padding: 4rem 0;
+  background-color: $white;
   
-  mat-icon {
-    color: $gold;
-    font-size: 40px;
-    width: 40px;
-    height: 40px;
-  }
-  
-  .kosher-text {
-    h3 {
-      margin: 0 0 5px 0;
-      font-size: 1.3rem;
-      color: $navy;
+  .section-title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    
+    .side-line {
+      flex-grow: 1;
+      height: 1px;
+      background-color: $gold;
+      max-width: 300px;
     }
     
-    p {
-      margin: 0;
-      font-size: 1.1rem;
-      color: #555;
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: $dark-blue;
+      font-family: 'Heebo', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+  }
+  
+  .courses-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-bottom: 4rem;
+    
+    .course-card {
+      background: $white;
+      padding: 3rem 35px 40px 35px; // Increased top padding to 3rem (icons removed)
+      border-radius: 0 !important; // Square corners
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+      border-top: 4px solid $gold;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
+      }
+      
+      &.main-course {
+        border-top-width: 5px;
+      }
+      
+      h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: $dark-blue;
+        text-align: center;
+        margin-top: 0; // Ensure title sits at top
+      }
+      
+      .sub-text {
+        color: $text-gray;
+        font-size: 1rem;
+        margin-bottom: 25px;
+        text-align: center;
+      }
+      
+      .price-display {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 5px;
+        margin-bottom: 30px;
+        
+        .price-amount {
+          font-size: 1.5rem; // Reduced by half (was 3rem)
+          font-weight: 700;
+          color: $dark-blue;
+          line-height: 1;
+        }
+        
+        .price-currency {
+          font-size: 1rem; // Reduced by half (was 2rem)
+          font-weight: 700;
+          color: $dark-blue; // Changed from gold to dark blue/black
+          line-height: 1;
+        }
+        
+        .price-label {
+          font-size: 1rem;
+          color: $text-gray;
+          font-weight: 400;
+          margin-right: 5px;
+        }
+      }
+      
+      .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 auto;
+        max-width: 90%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end; // Align items to the right (RTL)
+        
+        li {
+          display: flex;
+          align-items: flex-start; // Aligns icon to top of multi-line text
+          justify-content: flex-end; // Aligns content to the right (in RTL)
+          text-align: right;
+          gap: 10px;
+          margin-bottom: 18px; // Increased gap for better readability
+          font-size: 1.05rem;
+          color: $text-gray;
+          line-height: 1.6;
+          width: 100%;
+          
+          .check-icon {
+            color: $gold;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+          }
+          
+          .list-text {
+            flex: 1;
+            text-align: right;
+          }
+          
+          &.extra-offer {
+            color: $dark-blue;
+            margin-top: 20px;
+            border-top: 1px dashed #ccc;
+            padding-top: 18px;
+            font-size: 0.95rem;
+            
+            .list-text {
+              strong {
+                color: $dark-blue;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  .kosher-banner {
+    background: $white;
+    border: 2px solid $gold;
+    border-radius: 16px;
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    
+    mat-icon {
+      color: $gold;
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+    }
+    
+    .kosher-text {
+      h3 {
+        margin: 0 0 8px 0;
+        font-size: 1.4rem;
+        color: $dark-blue;
+        font-weight: 700;
+      }
+      
+      p {
+        margin: 0;
+        font-size: 1.1rem;
+        color: $text-dark;
+      }
     }
   }
 }
 
-// Info Section
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 60px;
-  padding: 80px 0;
-  background: $white;
-}
-
-.info-col {
-  h3 {
-    font-size: 1.8rem;
-    color: $navy;
-    margin-bottom: 30px;
-    border-right: 4px solid $gold;
-    padding-right: 15px;
+// === WHY CHOOSE US SECTION (Clean Features) ===
+.why-choose-section {
+  padding: 6rem 0;
+  background-color: $warm-bg; // Light warm gray/beige
+  
+  .section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: $dark-blue;
+    margin-bottom: 3rem;
+    position: relative;
+    font-family: 'Heebo', sans-serif;
+    
+    .title-underline {
+      display: block;
+      width: 80px;
+      height: 4px;
+      background: $gold;
+      margin: 15px auto;
+    }
   }
   
-  &.why-us {
-    ul {
-      list-style: none;
-      padding: 0;
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+    
+    .feature-box {
+      background: $white;
+      padding: 35px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      transition: transform 0.3s ease;
       
-      li {
+      &:hover {
+        transform: translateY(-5px);
+      }
+      
+      .feature-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(224, 192, 117, 0.1);
         display: flex;
         align-items: center;
-        gap: 15px;
-        margin-bottom: 15px;
-        font-size: 1.1rem;
+        justify-content: center;
+        margin: 0 auto 20px auto;
         
         mat-icon {
+          font-size: 40px;
+          width: 40px;
+          height: 40px;
           color: $gold;
         }
       }
+      
+      h3 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: $dark-blue;
+        margin-bottom: 10px;
+      }
+      
+      p {
+        font-size: 1rem;
+        color: $text-gray;
+        line-height: 1.6;
+        margin: 0;
+      }
+    }
+  }
+}
+
+// === CONDITIONS SECTION ===
+.conditions-section {
+  padding: 4rem 0;
+  background-color: $white;
+  
+  .section-title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    
+    .side-line {
+      flex-grow: 1;
+      height: 1px;
+      background-color: $gold;
+      max-width: 300px;
     }
     
-    .summary-line {
-      margin-top: 20px;
+    .section-title {
+      font-size: 2.5rem;
       font-weight: 700;
-      color: $navy;
-      font-size: 1.2rem;
+      color: $dark-blue;
+      font-family: 'Heebo', sans-serif;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
   }
   
-  &.conditions {
+  .conditions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+    max-width: 900px;
+    margin: 0 auto;
+    
     .condition-item {
       display: flex;
+      align-items: flex-start;
       gap: 15px;
-      margin-bottom: 20px;
+      padding: 25px;
+      background: $white;
+      border: 1px solid #f0f0f0;
+      border-radius: 0 !important; // Square corners
+      box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+      transition: box-shadow 0.3s ease;
+      
+      &:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+      }
       
       mat-icon {
-        color: #888;
+        color: $gold;
+        font-size: 36px;
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
       }
       
       div {
-        font-size: 1.05rem;
-        line-height: 1.4;
-        color: #555;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: $text-dark;
+        
+        strong {
+          color: $dark-blue;
+          font-weight: 700;
+        }
       }
       
       &.note {
-        background: #fffbe6;
-        padding: 10px;
-        border-radius: 8px;
+        background: #fcfbf8; // Light elegant gold/cream
+        border-left: 4px solid $gold;
+        border-right: 1px solid #f0f0f0;
+        border-top: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f0f0f0;
+        border-radius: 0 !important; // Square corners
         
         mat-icon {
-          color: orange;
+          color: $gold;
+        }
+        
+        div {
+          color: $text-dark;
+          
+          strong {
+            color: $dark-blue;
+          }
         }
       }
     }
   }
 }
 
-// CTA
+// === CTA SECTION (Premium) ===
+.cta-section {
+  padding: 60px 20px; // Increased padding
+  background-color: $white;
+  
+  .container {
+    max-width: 1200px;
+  }
+  
+  .cta-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    
+    .cta-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%; // Equal sizing
+      max-width: 320px; // Equal sizing - both buttons same size
+      padding: 18px 30px; // Generous padding
+      font-size: 1.2rem;
+      font-weight: 800; // Extra bold
+      letter-spacing: 1px; // Elegant feel
+      border-radius: 0; // Square corners
+      border: none;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); // Smooth premium transition
+      font-family: 'Heebo', sans-serif;
+      white-space: nowrap;
+      
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+      
+      &.cta-btn-secondary {
+        background: $gold; // Brand Gold - same as primary
+        color: $dark-blue; // Dark Blue text on Gold
+        box-shadow: 0 10px 25px -10px rgba(224, 192, 117, 0.6); // Subtle colored shadow - same as primary
+        border: none; // Remove border to match primary
+        
+        mat-icon {
+          color: $dark-blue;
+        }
+        
+        &:hover {
+          transform: translateY(-5px); // Lift up - same as primary
+          box-shadow: 0 20px 35px -15px rgba(224, 192, 117, 0.8); // Intensify shadow - same as primary
+        }
+      }
+      
+      &.cta-btn-primary {
+        background: $gold; // Brand Gold
+        color: $dark-blue; // Dark Blue text on Gold
+        box-shadow: 0 10px 25px -10px rgba(224, 192, 117, 0.6); // Subtle colored shadow
+        
+        mat-icon {
+          color: $dark-blue;
+        }
+        
+        &:hover {
+          transform: translateY(-5px); // Lift up
+          box-shadow: 0 20px 35px -15px rgba(224, 192, 117, 0.8); // Intensify shadow
+        }
+      }
+    }
+  }
+}
+
+// === CTA SECTION (Old - Keep for reference) ===
 .cta-footer {
-  background: $navy;
+  background: $dark-blue;
   color: $white;
   text-align: center;
-  padding: 80px 20px;
+  padding: 4rem 20px;
+  
+  .container {
+    max-width: 800px;
+  }
   
   h2 {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    font-family: 'Heebo', sans-serif;
   }
   
   p {
     font-size: 1.3rem;
     margin-bottom: 40px;
     opacity: 0.9;
+    line-height: 1.6;
   }
   
   .cta-btn {
-    background: $gold;
+    background: linear-gradient(135deg, $gold 0%, #d4a574 100%);
     color: $white;
-    padding: 15px 50px;
+    padding: 18px 50px;
     font-size: 1.3rem;
+    font-weight: 700;
     border-radius: 50px;
+    box-shadow: 0 10px 30px rgba(224, 192, 117, 0.3);
+    transition: all 0.3s ease;
+    border: none;
     
     &:hover {
-      background: lighten($gold, 10%);
+      background: linear-gradient(135deg, #d4a574 0%, $gold 100%);
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(224, 192, 117, 0.4);
     }
   }
 }
 
-// Responsive
-@media (max-width: 900px) {
+// === RESPONSIVE ===
+@media (max-width: 968px) {
   .hero-section {
-    height: 400px;
+    padding: 4rem 0;
     
-    .main-title {
-      font-size: 2.5rem;
+    .title-wrapper {
+      gap: 1.5rem;
+      
+      .main-title {
+        font-size: 2.8rem;
+      }
+      
+      .side-line {
+        max-width: 200px;
+      }
+    }
+    
+    .hero-subtitle {
+      font-size: 1.3rem;
     }
   }
   
-  .pricing-grid,
+  .packages-section {
+    .section-title-wrapper {
+      gap: 1rem;
+      
+      .section-title {
+        font-size: 2rem;
+        white-space: normal;
+      }
+      
+      .side-line {
+        max-width: 100px;
+        flex-grow: 0;
+        flex-basis: 100px;
+      }
+    }
+    
+    .pricing-grid {
+      grid-template-columns: 1fr;
+      margin: 0 auto;
+      gap: 2rem;
+    }
+  }
+  
   .courses-grid,
-  .info-grid {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .conditions-grid {
     grid-template-columns: 1fr;
   }
   
   .course-card.main-course {
     transform: none;
+    
+    &:hover {
+      transform: translateY(-5px);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 3rem 0;
+    
+    .title-wrapper {
+      gap: 1rem;
+      flex-wrap: wrap;
+      
+      .main-title {
+        font-size: 2.2rem;
+        white-space: normal;
+      }
+      
+      .side-line {
+        max-width: 100px;
+        flex-grow: 0;
+        flex-basis: 100px;
+      }
+    }
+    
+    .hero-subtitle {
+      font-size: 1.1rem;
+    }
+    
+    .hero-desc {
+      font-size: 1rem;
+    }
   }
   
-  .kosher-banner {
-    flex-direction: column;
-    text-align: center;
+  .packages-section {
+    .section-title-wrapper {
+      gap: 1rem;
+      
+      .section-title {
+        font-size: 2rem;
+        white-space: normal;
+      }
+      
+      .side-line {
+        max-width: 100px;
+        flex-grow: 0;
+        flex-basis: 100px;
+      }
+    }
+  }
+  
+  .courses-section {
+    .section-title-wrapper {
+      gap: 1rem;
+      
+      .section-title {
+        font-size: 2rem;
+        white-space: normal;
+      }
+      
+      .side-line {
+        max-width: 100px;
+        flex-grow: 0;
+        flex-basis: 100px;
+      }
+    }
+  }
+  
+  .conditions-section {
+    .section-title-wrapper {
+      gap: 1rem;
+      
+      .section-title {
+        font-size: 2rem;
+        white-space: normal;
+      }
+      
+      .side-line {
+        max-width: 100px;
+        flex-grow: 0;
+        flex-basis: 100px;
+      }
+    }
+  }
+  
+  .packages-section,
+  .courses-section,
+  .conditions-section {
+    padding: 4rem 0;
+  }
+  
+  .cta-section {
+    padding: 40px 20px;
+    
+    .cta-buttons {
+      flex-direction: column;
+      gap: 1.5rem;
+      
+      .cta-btn {
+        width: 100%;
+        max-width: none; // Full width on mobile
+      }
+    }
+  }
+  
+  .cta-footer {
+    padding: 4rem 20px;
+    
+    h2 {
+      font-size: 2rem;
+    }
+    
+    p {
+      font-size: 1.1rem;
+    }
+  }
+  
+  .section-title {
+    font-size: 2rem !important;
+  }
+  
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

@@ -515,7 +515,7 @@ export class KitchenReportModalComponent implements OnInit {
     }));
 
     // Optional: Sort categories (Put Mains first, Salads second, etc.)
-    const categoryOrder = ['מנות עיקריות', 'סלטים', 'דגים', 'קינוחים', 'תוספות'];
+    const categoryOrder = ['מנות עיקריות', 'סלטים', 'דגים', 'ממולאים', 'תוספות'];
     groupedArray.sort((a, b) => {
       const indexA = categoryOrder.indexOf(a.category);
       const indexB = categoryOrder.indexOf(b.category);

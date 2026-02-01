@@ -18,16 +18,16 @@ $gray-bg: #f8f8f8;
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 50px 0 30px 0; // Spacing above/below
-    overflow: hidden; // Prevent horizontal scrollbar if lines are too wide
-    margin-bottom: 60px; // Space below the title
+    padding: 50px 0 30px 0;
+    overflow: hidden; // Prevent horizontal scrollbar
+    margin-bottom: 60px;
     
     .section-title {
-      margin: 0 25px; // Space between text and lines
+      margin: 0 30px; // Space between text and lines
       color: #1f3540; // Navy
       font-size: 2.8rem;
       font-weight: 700;
-      white-space: nowrap; // Don't break line
+      white-space: nowrap;
     }
     
     .decorative-line {
@@ -36,14 +36,14 @@ $gray-bg: #f8f8f8;
       border-radius: 2px;
     }
     
-    // Right line (Visual Right in RTL): Starts thin (transparent) and gets thicker (gold) as it approaches text
+    // Right line: Starts thin (transparent) and gets thicker (gold) as it approaches text
     .right-line {
-      background: linear-gradient(to right, transparent, #e0c075);
+      background: linear-gradient(to left, transparent, #e0c075);
     }
     
-    // Left line (Visual Left in RTL): Starts thin (transparent) and gets thicker (gold) as it approaches text
+    // Left line: Starts thin (transparent) and gets thicker (gold) as it approaches text
     .left-line {
-      background: linear-gradient(to left, transparent, #e0c075);
+      background: linear-gradient(to right, transparent, #e0c075);
     }
     
     // Mobile adjustments
@@ -54,78 +54,9 @@ $gray-bg: #f8f8f8;
         font-size: 2rem;
         margin: 0 15px;
       }
-    }
-  }
-  
-  .section-subtitle {
-    font-size: 1.1rem;
-    color: #666;
-    margin-bottom: 40px;
-  }
-  
-  // --- Categories ---
-  .categories-wrapper {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 30px;
-    margin-bottom: 60px;
-    
-    .category-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-decoration: none;
-      cursor: pointer;
       
-      .cat-circle {
-        width: 150px; // Increased from 100px
-        height: 150px; // Increased from 100px
-        border-radius: 50%;
-        background-color: $gray-bg;
-        border: 2px solid transparent;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 12px;
-        transition: all 0.3s ease;
-        overflow: hidden;
-        position: relative;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-        
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        
-        // Icon shows if image fails/missing
-        .fallback-icon {
-          position: absolute;
-          font-size: 40px;
-          width: 40px;
-          height: 40px;
-          color: #ccc;
-          z-index: 0;
-        }
-      }
-      
-      .cat-name {
-        font-size: 1rem;
-        color: $navy;
-        font-weight: 600;
-        transition: color 0.3s;
-      }
-      
-      &:hover {
-        .cat-circle {
-          border-color: $gold;
-          transform: translateY(-5px);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-        }
-        .cat-name {
-          color: $gold;
-        }
+      .decorative-line {
+        height: 1.5px;
       }
     }
   }
@@ -328,32 +259,6 @@ $gray-bg: #f8f8f8;
     .elegant-title-wrapper {
       .section-title {
         font-size: 2rem;
-      }
-    }
-    
-    .section-subtitle {
-      font-size: 1rem;
-      margin-bottom: 30px;
-    }
-    
-    .categories-wrapper {
-      gap: 15px;
-      
-      .category-item {
-        .cat-circle {
-          width: 105px; // Increased from 70px
-          height: 105px; // Increased from 70px
-          
-          .fallback-icon {
-            font-size: 50px; // Adjust icon size too
-            width: 50px;
-            height: 50px;
-          }
-        }
-        
-        .cat-name {
-          font-size: 0.9rem;
-        }
       }
     }
     

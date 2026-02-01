@@ -24,11 +24,11 @@ interface Category {
 export class FeaturedMenuComponent implements OnInit {
   // Categories aligned with 'Ready for Shabbat' sections
   categories: Category[] = [
-    { id: 'salads', name: 'סלטים', image: 'assets/images/Fish-category.jpg', filterValue: 'salads' },
-    { id: 'fish', name: 'דגים', image: 'assets/images/Fish-category.jpg', filterValue: 'fish' },
-    { id: 'main', name: 'מנות עיקריות', image: 'assets/images/Fish-category.jpg', filterValue: 'main' },
-    { id: 'sides', name: 'תוספות', image: 'assets/images/Fish-category.jpg', filterValue: 'sides' },
-    { id: 'desserts', name: 'קינוחים', image: 'assets/images/Fish-category.jpg', filterValue: 'desserts' }
+    { id: 'salads', name: 'סלטים', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png', filterValue: 'salads' },
+    { id: 'fish', name: 'דגים', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906619/IMG_9719_mmhoct.jpg', filterValue: 'fish' },
+    { id: 'main', name: 'מנות עיקריות', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906616/IMG_9691_vlsp6w.jpg', filterValue: 'main' },
+    { id: 'sides', name: 'תוספות', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906623/IMG_9705_voigt1.jpg', filterValue: 'sides' },
+    { id: 'desserts', name: 'ממולאים', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768169598/magadim-catering/zvaljwkf37merstx1wmx.jpg', filterValue: 'desserts' }
   ];
 
   // Featured products from Main Courses category (Dynamic Data)
@@ -53,8 +53,8 @@ export class FeaturedMenuComponent implements OnInit {
         // Filter only items where isFeatured === true
         const featuredItems = items.filter(item => item.isFeatured === true);
         
-        // Take first 4 items (to ensure layout doesn't break)
-        this.featuredMainCourses = featuredItems.slice(0, 4);
+        // Take first 8 items (up to 8 cards)
+        this.featuredMainCourses = featuredItems.slice(0, 8);
         this.isLoading = false;
       },
       error: (error) => {

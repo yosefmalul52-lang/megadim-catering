@@ -1,112 +1,319 @@
 <div class="holiday-page">
   
+  <!-- Hero Section -->
   <section class="hero-section">
-    <div class="hero-overlay"></div>
     <div class="container hero-content">
-      <h4 class="sub-title">חוגגים שבת חתן? ברית? או סתם רוצים לנוח?</h4>
-      <h1 class="main-title">מגדים לאירועי שבת וחג</h1>
-      <div class="gold-line"></div>
+      <div class="title-wrapper">
+        <span class="side-line"></span>
+        <h1 class="main-title">מגדים לאירועי שבת וחג</h1>
+        <span class="side-line"></span>
+      </div>
       <p class="hero-desc">
-        קייטרינג מגדים מציע מבחר גדול של אוכל ביתי טעים ואיכותי שישדרג לכם את עונג שבת וחג.
-        פתרון מושלם לאירוח ללא מאמץ.
+        קייטרינג מגדים מציע מבחר גדול של אוכל ביתי טעים ואיכותי שישדרג לכם את עונג שבת וחג. פתרון מושלם לאירוח ללא מאמץ.
       </p>
-      <button mat-flat-button class="hero-btn">למעבר לטופס ההזמנה</button>
     </div>
   </section>
   
-  <div class="container">
-    <h2 class="section-title">בחרו את החבילה המתאימה לכם</h2>
-    
-    <div class="packages-grid">
-      
-      <div class="package-card">
-        <div class="card-header">
+  <!-- Main Packages Section -->
+  <section class="packages-section">
+    <div class="container">
+      <div class="packages-grid">
+        <div class="package-card">
           <h3>ארוחה אחת</h3>
-          <div class="price">70 ₪ <span>למנה</span></div>
-        </div>
-        <div class="card-body">
-          <h4>מה בתפריט?</h4>
-          <ul class="check-list">
-            <li><mat-icon>check</mat-icon> <strong>6</strong> סוגי סלטים לבחירה</li>
-            <li><mat-icon>check</mat-icon> <strong>2</strong> מנות עיקריות</li>
-            <li><mat-icon>check</mat-icon> <strong>3</strong> תוספות חמות</li>
-          </ul>
-          <div class="separator"></div>
-          <ul class="add-ons-list">
-            <li><mat-icon>add_circle</mat-icon> מנות ראשונות: תוספת 20 ₪ למנה</li>
+          <div class="price-display">
+            <span class="price-amount">70</span>
+            <span class="price-currency">₪</span>
+            <span class="price-label">למנה</span>
+          </div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">6 סוגי סלטים לבחירה</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">2 מנות ראשונות (תוספת 20 ₪ למנה)</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">2 מנות עיקריות</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">3 תוספות</span></li>
           </ul>
         </div>
+        
+        <div class="package-card featured">
+          <div class="featured-badge">הכי משתלם</div>
+          <h3>שתי ארוחות (ערב + בוקר)</h3>
+          <div class="price-display">
+            <span class="price-amount">135</span>
+            <span class="price-currency">₪</span>
+            <span class="price-label">למנה</span>
+          </div>
+          <ul class="features-list">
+            <li><span class="check-icon">✓</span><span class="list-text">8 סוגי סלטים</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">2 מנות ראשונות (תוספת 20 ₪ למנה לכל ארוחה)</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">2 מנות עיקריות לכל ארוחה</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">3 תוספות לערב + 2 תוספות לבוקר</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">כולל לחמניות (בהזמנה של 20 מנות ומעלה)</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Info Section -->
+  <section class="info-section">
+    <div class="container">
+      <div class="info-box">
+        <p><strong>בהזמנה בפחות מ-20 מנות ניתן לבחור:</strong> מנה ראשונה אחת, מנה עיקרית אחת ושתי תוספות (בכל ארוחה).</p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Upgrades Section -->
+  <section class="upgrades-section">
+    <div class="container">
+      <div class="section-title-wrapper">
+        <span class="side-line"></span>
+        <h2 class="section-title">תוספות ושדרוגים</h2>
+        <span class="side-line"></span>
       </div>
       
-      <div class="package-card featured">
-        <div class="badge">הכי משתלם</div>
-        <div class="card-header">
-          <h3>שתי ארוחות (ערב + בוקר)</h3>
-          <div class="price">135 ₪ <span>למנה</span></div>
+      <div class="upgrades-grid">
+        <div class="upgrade-card">
+          <h3>סעודה שלישית</h3>
+          <p>סלטים + פשטידת ירקות</p>
+          <div class="upgrade-price">+25 ₪ למנה</div>
         </div>
-        <div class="card-body">
-          <h4>מה בתפריט?</h4>
-          <ul class="check-list">
-            <li><mat-icon>check</mat-icon> <strong>8</strong> סוגי סלטים עשירים</li>
-            <li><mat-icon>check</mat-icon> <strong>2</strong> עיקריות לערב + <strong>2</strong> לבוקר</li>
-            <li><mat-icon>check</mat-icon> <strong>3</strong> תוספות לערב + <strong>2</strong> לבוקר</li>
-            <li><mat-icon>bakery_dining</mat-icon> כולל לחמניות (בהזמנה מעל 20 מנות)</li>
-          </ul>
-          <div class="separator"></div>
-          <ul class="add-ons-list">
-            <li><mat-icon>add_circle</mat-icon> מנות ראשונות: תוספת 20 ₪ לכל ארוחה</li>
-          </ul>
+        
+        <div class="upgrade-card">
+          <h3>תוספת דג</h3>
+          <p>שדרוג למנה עיקרית</p>
+          <div class="upgrade-price">+18 ₪ למנה</div>
+        </div>
+        
+        <div class="upgrade-card">
+          <h3>קינוחי ביסקוטי</h3>
+          <p>סיום מתוק לארוחה</p>
+          <div class="upgrade-price">8 ₪ לאדם לארוחה</div>
+        </div>
+        
+        <div class="upgrade-card">
+          <h3>כשרות מחפוד</h3>
+          <p>בשר ועוף מחפוד</p>
+          <div class="upgrade-price">7 ₪ למנה לארוחה</div>
         </div>
       </div>
     </div>
-    
-    <div class="small-order-note">
-      <mat-icon>info</mat-icon>
-      <div class="note-text">
-        <strong>מזמינים פחות מ-20 מנות?</strong>
-        <span>התפריט מותאם אישית: מנה ראשונה אחת, מנה עיקרית אחת ושתי תוספות (בכל ארוחה).</span>
-      </div>
-    </div>
-  </div>
+  </section>
   
-  <div class="container">
-    <h2 class="section-title">תוספות ושדרוגים</h2>
-    
-    <div class="extras-grid">
-      <div class="extra-item">
-        <mat-icon>soup_kitchen</mat-icon>
-        <h3>סעודה שלישית</h3>
-        <p>סלטים + פשטידת ירקות</p>
-        <div class="extra-price">+25 ₪ למנה</div>
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-buttons">
+        <button class="cta-btn cta-btn-secondary">
+          <mat-icon>download</mat-icon>
+          <span>להורדת התפריט</span>
+        </button>
+        <button class="cta-btn cta-btn-primary" (click)="toggleOrderForm()">
+          <mat-icon>event</mat-icon>
+          <span>טופס הזמנה</span>
+        </button>
       </div>
-      <div class="extra-item">
-        <mat-icon>set_meal</mat-icon>
-        <h3>תוספת דג</h3>
-        <p>שדרוג למנה עיקרית</p>
-        <div class="extra-price">+18 ₪ למנה</div>
-      </div>
-      <div class="extra-item">
-        <mat-icon>cake</mat-icon>
-        <h3>קינוחי ביסקוטי</h3>
-        <p>סיום מתוק לארוחה</p>
-        <div class="extra-price">+8 ₪ לאדם</div>
-      </div>
-      <div class="extra-item kosher">
-        <mat-icon>verified</mat-icon>
-        <h3>כשרות מהדרין</h3>
-        <p>בשר ועוף מחפוד</p>
-        <div class="extra-price">+7 ₪ למנה</div>
+      <div class="cta-notes">
+        <p class="cta-note">יין, שתייה וכלים חד-פעמיים בתוספת תשלום (לציין בהערות אם מעוניינים).</p>
+        <p class="cta-note">קינוחי ביסקוטי 8 ₪ לאדם לארוחה (לציין בהערות אם מעוניינים).</p>
+        <p class="cta-note">איסוף מקייטרינג מגדים או משלוח לכתובת בתשלום.</p>
       </div>
     </div>
-    
-    <div class="footer-notes">
-      <p><mat-icon>wine_bar</mat-icon> יין, שתייה וכלים חד-פעמיים בתוספת תשלום (יש לציין בהערות).</p>
-      <p><mat-icon>local_shipping</mat-icon> איסוף עצמי מקייטרינג מגדים או משלוח עד הבית בתשלום.</p>
+  </section>
+  
+  <!-- Order Form Modal -->
+  @if (isOrderFormOpen) {
+    <div class="order-modal-overlay" (click)="closeModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>טופס הזמנת אירוע לשבת וחג</h2>
+          <button class="close-btn" (click)="closeModal()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        
+        <form class="order-form" (ngSubmit)="submitOrder()">
+          <!-- Section 1: Personal Details -->
+          <div class="form-section">
+            <h3 class="section-title">פרטים אישיים</h3>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>שם מלא *</label>
+                <input type="text" [(ngModel)]="orderForm.fullName" name="fullName" required>
+              </div>
+              <div class="form-group">
+                <label>טלפון *</label>
+                <input type="tel" [(ngModel)]="orderForm.phone" name="phone" required>
+              </div>
+              <div class="form-group">
+                <label>אימייל *</label>
+                <input type="email" [(ngModel)]="orderForm.email" name="email" required>
+              </div>
+              <div class="form-group">
+                <label>מספר מנות *</label>
+                <input type="number" [(ngModel)]="orderForm.numberOfPortions" name="numberOfPortions" required>
+              </div>
+              <div class="form-group">
+                <label>תאריך האירוע *</label>
+                <input type="date" [(ngModel)]="orderForm.eventDate" name="eventDate" required>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Section 2: Meal Time -->
+          <div class="form-section">
+            <h3 class="section-title">זמן הארוחה</h3>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="mealTime" value="evening" [(ngModel)]="orderForm.mealTime">
+                <span>ערב שבת</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="mealTime" value="morning" [(ngModel)]="orderForm.mealTime">
+                <span>שבת בבוקר</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="mealTime" value="both" [(ngModel)]="orderForm.mealTime">
+                <span>שתי ארוחות שבת</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- Section 3: Salads -->
+          <div class="form-section">
+            <h3 class="section-title">סלטים (6-8 לבחירה)</h3>
+            <div class="selects-grid">
+              @for (index of saladIndexes; track index) {
+                <div class="form-group">
+                  <label>סלטים - בחירה {{ index }}</label>
+                  <select [(ngModel)]="orderForm.salads[index - 1]" [name]="'salad' + index">
+                    <option value="" disabled selected>בחר סלט...</option>
+                    @for (salad of saladOptions; track salad) {
+                      <option [value]="salad">{{ salad }}</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+          </div>
+          
+          <!-- Section 4: First Course -->
+          <div class="form-section">
+            <h3 class="section-title">מנה ראשונה (2-4 לבחירה)</h3>
+            <div class="selects-grid">
+              @for (index of firstCourseIndexes; track index) {
+                <div class="form-group">
+                  <label>מנה ראשונה - בחירה {{ index }}</label>
+                  <select [(ngModel)]="orderForm.firstCourses[index - 1]" [name]="'firstCourse' + index">
+                    <option value="" disabled selected>בחר מנה ראשונה...</option>
+                    @for (dish of firstCourseOptions; track dish) {
+                      <option [value]="dish">{{ dish }}</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+          </div>
+          
+          <!-- Section 5: Main Course -->
+          <div class="form-section">
+            <h3 class="section-title">מנה עיקרית (2-4 לבחירה)</h3>
+            <div class="selects-grid">
+              @for (index of mainCourseIndexes; track index) {
+                <div class="form-group">
+                  <label>מנה עיקרית - בחירה {{ index }}</label>
+                  <select [(ngModel)]="orderForm.mainCourses[index - 1]" [name]="'mainCourse' + index">
+                    <option value="" disabled selected>בחר מנה עיקרית...</option>
+                    @for (dish of mainCourseOptions; track dish) {
+                      <option [value]="dish">{{ dish }}</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+          </div>
+          
+          <!-- Section 6: Sides -->
+          <div class="form-section">
+            <h3 class="section-title">תוספות (3-5 לבחירה)</h3>
+            <div class="selects-grid">
+              <div class="sides-group">
+                <h4>תוספות לערב</h4>
+                @for (index of sidesEveningIndexes; track index) {
+                  <div class="form-group">
+                    <label>תוספת ערב - בחירה {{ index }}</label>
+                    <select [(ngModel)]="orderForm.sidesEvening[index - 1]" [name]="'sideEvening' + index">
+                      <option value="" disabled selected>בחר תוספת...</option>
+                      @for (side of sideDishOptions; track side) {
+                        <option [value]="side">{{ side }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+              <div class="sides-group">
+                <h4>תוספות לבוקר</h4>
+                @for (index of sidesMorningIndexes; track index) {
+                  <div class="form-group">
+                    <label>תוספת בוקר - בחירה {{ index }}</label>
+                    <select [(ngModel)]="orderForm.sidesMorning[index - 1]" [name]="'sideMorning' + index">
+                      <option value="" disabled selected>בחר תוספת...</option>
+                      @for (side of sideDishOptions; track side) {
+                        <option [value]="side">{{ side }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+          
+          <!-- Section 7: Seuda Shlishit -->
+          <div class="form-section">
+            <h3 class="section-title">סעודה שלישית (תוספת 25 ₪ למנה)</h3>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="seudaShlishit" value="yes" [(ngModel)]="orderForm.seudaShlishit">
+                <span>כן</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="seudaShlishit" value="no" [(ngModel)]="orderForm.seudaShlishit">
+                <span>לא</span>
+              </label>
+            </div>
+            @if (orderForm.seudaShlishit === 'yes') {
+              <p class="info-text">כולל סלטים, פשטידה, ודג בתוספת 18 ₪</p>
+            }
+          </div>
+          
+          <!-- Section 8: Delivery/Pickup -->
+          <div class="form-section">
+            <h3 class="section-title">אספקה</h3>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="deliveryType" value="pickup" [(ngModel)]="orderForm.deliveryType">
+                <span>איסוף עצמי</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="deliveryType" value="delivery" [(ngModel)]="orderForm.deliveryType">
+                <span>משלוח לכתובת</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label>כתובת למשלוח</label>
+              <input type="text" [(ngModel)]="orderForm.address" name="address">
+            </div>
+            <div class="form-group">
+              <label>הערות</label>
+              <textarea [(ngModel)]="orderForm.remarks" name="remarks" rows="4"></textarea>
+            </div>
+          </div>
+          
+          <!-- Submit Button -->
+          <div class="form-footer">
+            <button type="submit" class="submit-btn">שלח הזמנה</button>
+          </div>
+        </form>
+      </div>
     </div>
-    
-    <div class="cta-wrapper">
-      <button mat-flat-button class="order-btn">לטופס ההזמנה</button>
-    </div>
-  </div>
+  }
 </div>
-
