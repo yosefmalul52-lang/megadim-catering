@@ -100,11 +100,6 @@ import { LanguageService } from '../../../../services/language.service';
               <p>צ'ולנט חם ומוכן לשישי בלילה, מוגש עם לחם טרי</p>
               <span class="featured-price">החל מ-₪{{ getMinPrice() }}</span>
             </div>
-            <div class="featured-card">
-              <h4>פרגית מלאה לשבת</h4>
-              <p>פרגית שלמה ממולאת באורז וירקות, מספיקה ל-4-6 איש</p>
-              <span class="featured-price">₪{{ getFeaturedPrice() }}</span>
-            </div>
           </div>
         </div>
       </div>

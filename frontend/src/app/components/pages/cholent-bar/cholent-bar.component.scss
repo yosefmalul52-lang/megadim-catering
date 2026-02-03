@@ -1,218 +1,322 @@
+// Luxury Restaurant Menu Paper Style - Clean & Elegant
 $navy: #1f3540;
-$gold: #E0C075;
+$gold: var(--primary-gold); // Use global gold color: #e0c075
 $white: #FFFFFF;
-$gray-bg: #eeeff0;
+$off-white: #f9f9f9; // Soft off-white background
+$light-gray: #f5f5f5;
+$dark-text: #222;
+$gray-text: #777; // Lighter gray for descriptions
+$dotted-line: rgba(0, 0, 0, 0.15); // Extremely subtle dotted line
 
 .cholent-page {
   direction: rtl;
-  font-family: 'Segoe UI', sans-serif;
-  color: $navy;
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-// Hero (Consistent with other pages)
-.hero-section {
-  position: relative;
-  height: 380px;
+  font-family: 'Heebo', 'Georgia', serif; // Elegant serif font
+  background: $off-white;
+  min-height: 100vh;
+  padding: 40px 20px;
   display: flex;
-  align-items: center;
   justify-content: center;
-  text-align: center;
-  background-image: url('/assets/images/Fish-category.jpg');
-  background-size: cover;
-  background-position: center;
-  color: $white;
-  
-  .hero-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba($navy, 0.5);
-    z-index: 1;
-  }
-  
-  .hero-content {
-    position: relative;
-    z-index: 2;
-    max-width: 800px;
-  }
-  
-  .sub-title {
-    font-size: 1.2rem;
-    color: $gold;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-  
-  .main-title {
-    font-size: 3.5rem;
-    font-weight: 800;
-    margin-bottom: 20px;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  }
-  
-  .gold-line {
-    width: 80px;
-    height: 4px;
-    background: $gold;
-    margin: 0 auto 30px auto;
-    border-radius: 2px;
-  }
-  
-  .hero-desc {
-    font-size: 1.2rem;
-    line-height: 1.6;
-    font-weight: 500;
-    margin-bottom: 30px;
-  }
-  
-  .hero-btn {
-    background: $gold;
-    color: $white;
-    padding: 10px 35px;
-    border-radius: 50px;
-    font-size: 1.1rem;
-    
-    &:hover {
-      background: lighten($gold, 10%);
-    }
-  }
+  align-items: flex-start;
 }
 
-// Menu Section
-.menu-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 30px;
-  max-width: 1000px;
-  margin: 80px auto;
-}
-
-.menu-category {
+// Luxury Paper Container - Clean & Floating
+.luxury-menu-paper {
   background: $white;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-  transition: transform 0.3s;
-  
-  &:hover {
-    transform: translateY(-5px);
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 60px 80px; // Massive padding for elegance
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05); // Very soft, diffuse shadow
+  position: relative;
+  // Removed heavy borders - clean floating look
+
+  @media (max-width: 768px) {
+    padding: 40px 30px; // Reduced padding on mobile
   }
-  
-  &.featured {
-    grid-column: 1 / -1; // Span full width
-    border-top: 5px solid $gold;
-    background: #fffcf5; // Very subtle gold tint
-    
-    .category-header h2 {
-      font-size: 2rem;
-    }
+
+  @media (max-width: 480px) {
+    padding: 30px 20px; // Even less padding on small mobile
   }
-  
-  .category-header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin-bottom: 30px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
-    
-    mat-icon {
-      color: $gold;
-      font-size: 30px;
-      width: 30px;
-      height: 30px;
-    }
-    
-    h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      color: $navy;
-      font-weight: 800;
-    }
+}
+
+// Header - Elegant Typography
+.menu-header {
+  text-align: center;
+  margin-bottom: 60px;
+  padding-bottom: 40px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08); // Subtle divider
+
+  .restaurant-title {
+    font-size: 3rem;
+    font-weight: 400; // Lighter for elegance
+    color: $navy;
+    margin: 0 0 20px 0;
+    letter-spacing: 4px; // Increased letter-spacing
+    font-family: 'Heebo', 'Georgia', serif;
   }
-  
-  .menu-items {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+
+  .header-divider {
+    width: 100px;
+    height: 2px; // Thinner divider
+    background: var(--primary-gold);
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    margin-bottom: 40px;
+    padding-bottom: 30px;
     
-    .item {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      
-      .item-details {
-        flex: 1;
-        
-        h3 {
-          margin: 0 0 5px 0;
-          font-size: 1.15rem;
-          font-weight: 700;
-          color: #333;
-        }
-        
-        p {
-          margin: 0;
-          font-size: 0.95rem;
-          color: #777;
-        }
-      }
-      
-      .item-price {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: $gold;
-        white-space: nowrap;
-        margin-right: 15px;
-      }
-      
-      &.simple {
-        align-items: center;
-        border-bottom: 1px dashed #eee;
-        padding-bottom: 10px;
-        
-        span {
-          font-size: 1.1rem;
-          color: #555;
-          flex: 1;
-        }
-        
-        strong {
-          color: $navy;
-          font-size: 1.1rem;
-        }
-      }
-    }
-    
-    .separator {
-      height: 1px;
-      background: #eee;
-      margin: 10px 0;
+    .restaurant-title {
+      font-size: 2.2rem;
+      letter-spacing: 3px;
     }
   }
 }
 
-// Responsive
-@media (max-width: 768px) {
-  .hero-section {
-    height: 300px;
+// Section Title - Elegant with Serif
+.section-title {
+  text-align: center;
+  margin: 60px 0 40px 0; // More spacing
+  position: relative;
+  padding: 0 40px;
+
+  span {
+    font-size: 2rem;
+    font-weight: 400; // Lighter weight for elegance
+    color: var(--primary-gold);
+    background: $white;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+    letter-spacing: 3px; // Increased letter-spacing
+    font-family: 'Heebo', 'Georgia', serif;
+  }
+
+  // Decorative lines on sides - more subtle
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 100px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--primary-gold), transparent);
+    opacity: 0.6; // More subtle
+  }
+
+  &::before {
+    right: 0;
+  }
+
+  &::after {
+    left: 0;
+  }
+
+  @media (max-width: 768px) {
+    margin: 50px 0 30px 0;
     
-    .main-title {
-      font-size: 2.5rem;
+    span {
+      font-size: 1.6rem;
+      letter-spacing: 2px;
+    }
+    
+    &::before,
+    &::after {
+      width: 60px;
     }
   }
-  
-  .menu-grid {
-    grid-template-columns: 1fr;
-    margin: 60px auto;
-    
-    .menu-category.featured {
-      grid-column: auto;
-    }
+}
+
+// Menu Items Container
+.menu-items {
+  margin-bottom: 50px;
+}
+
+// Menu Item - Increased Vertical Spacing
+.menu-item {
+  margin-bottom: 2.5rem; // Significant spacing between items
+}
+
+// Menu Row (Name + Dots + Price + Button)
+.menu-row {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.item-details {
+  flex-grow: 1;
+  display: flex;
+  align-items: baseline;
+  min-width: 0; // Allow text truncation
+}
+
+.item-name {
+  font-size: 1.3rem; // Slightly larger
+  font-weight: 300; // Light weight for elegance (not bold)
+  color: $dark-text;
+  white-space: nowrap;
+  margin-left: 0;
+  font-family: 'Heebo', 'Georgia', serif;
+}
+
+.item-dots {
+  flex-grow: 1;
+  border-bottom: 1px dotted $dotted-line; // Extremely subtle: 1px instead of 2px
+  margin: 0 15px;
+  height: 1px;
+  min-width: 20px;
+}
+
+.item-actions {
+  display: flex;
+  align-items: baseline; // Align with item name baseline
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.item-price {
+  color: var(--primary-gold);
+  font-weight: 400; // Lighter weight for elegance
+  font-size: 1.3rem;
+  min-width: 60px;
+  text-align: left;
+  font-family: 'Heebo', 'Georgia', serif;
+}
+
+// Add Button - Minimalist Text Button Style
+.btn-add {
+  background: transparent;
+  border: none; // Remove border completely
+  color: var(--primary-gold);
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: 300; // Light weight
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: baseline; // Align with price and name
+  gap: 5px;
+  white-space: nowrap;
+  text-decoration: none;
+  font-family: 'Heebo', 'Georgia', serif;
+
+  i {
+    font-size: 0.85rem;
+  }
+
+  &:hover {
+    text-decoration: underline; // Simple underline on hover
+    color: var(--primary-gold);
+    opacity: 0.8;
+  }
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+// Item Description - Moved Closer, Smaller, Lighter
+.item-desc {
+  font-size: 0.9rem;
+  color: $gray-text; // #777 - lighter gray
+  margin: 0.5rem 0 0 0; // Moved closer to item name (reduced from 1.5rem)
+  padding-right: 0;
+  line-height: 1.5;
+  font-style: italic;
+  font-weight: 300; // Light weight
+  font-family: 'Heebo', 'Georgia', serif;
+}
+
+// Loading State
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: $navy;
+
+  i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--primary-gold);
+    display: block;
+  }
+
+  span {
+    font-size: 1.1rem;
+    display: block;
+  }
+}
+
+// Empty State
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: $gray-text;
+  font-size: 1.1rem;
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .cholent-page {
+    padding: 20px 10px;
+  }
+
+  .luxury-menu-paper {
+    padding: 30px 20px;
+  }
+
+  .menu-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .item-details {
+    width: 100%;
+    margin-bottom: 5px;
+  }
+
+  .item-dots {
+    display: none; // Hide dots on mobile for cleaner look
+  }
+
+  .item-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 5px;
+  }
+
+  .item-name {
+    font-size: 1.1rem;
+  }
+
+  .item-price {
+    font-size: 1.2rem;
+  }
+
+  .btn-add {
+    padding: 0; // Keep minimal padding
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .luxury-menu-paper {
+    padding: 25px 15px;
+  }
+
+  .menu-header .restaurant-title {
+    font-size: 1.8rem;
+  }
+
+  .section-title span {
+    font-size: 1.4rem;
+  }
+
+  .item-name {
+    font-size: 1rem;
+  }
+
+  .item-price {
+    font-size: 1.1rem;
   }
 }
