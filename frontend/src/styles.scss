@@ -66,7 +66,12 @@ $my-theme: mat.m2-define-light-theme((
 // 7. Apply the theme
 @include mat.all-component-themes($my-theme);
 
-// 8. Global Styles & Reset
+// 8. Global CSS Variables
+:root {
+  --primary-gold: #e0c075;
+}
+
+// 9. Global Styles & Reset
 html {
   margin: 0 !important;
   padding: 0 !important;
@@ -132,4 +137,70 @@ body {
 /* Ensure LTR mode works when selected */
 .app-container[dir="ltr"] {
   direction: ltr;
+}
+
+/* === RESPONSIVE GRID CLASSES FOR PRODUCT CARDS === */
+.grid-3-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+
+  @media (max-width: 992px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grid-4-cols {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  width: 100%;
+
+  @media (max-width: 992px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* === LUXURY GOLD BACK BUTTON === */
+.btn-gold-back {
+  background: var(--primary-gold);
+  border: 2px solid var(--primary-gold);
+  color: #1f3540;
+  padding: 10px 24px;
+  font-weight: bold;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Heebo', sans-serif;
+  text-decoration: none;
+  font-size: 1rem;
+
+  i {
+    font-size: 14px;
+  }
+
+  &:hover {
+    background: var(--primary-gold);
+    color: #1f3540;
+    opacity: 0.9;
+  }
+}
+
+.category-header-actions {
+  padding: 20px;
+  display: flex;
+  justify-content: flex-start; // RTL: flex-start = right side
+  direction: rtl;
 }

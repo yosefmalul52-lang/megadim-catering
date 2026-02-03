@@ -1,0 +1,59 @@
+<div class="category-header-actions">
+  <button class="btn-gold-back" routerLink="/ready-for-shabbat">
+    <i class="fas fa-arrow-right"></i> חזרה לתפריט
+  </button>
+</div>
+
+<header class="luxury-category-header">
+  <span class="decorative-line"></span>
+  <span class="decorative-diamond"></span>
+  <h1>תוספות</h1>
+  <span class="decorative-diamond"></span>
+  <span class="decorative-line"></span>
+</header>
+
+<div class="side-dishes-page">
+  <div class="container">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading">
+      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+      <span>טוען תוספות...</span>
+    </div>
+
+    <!-- Sides Grid -->
+    <div class="product-grid" *ngIf="!isLoading">
+      <div *ngFor="let dish of sideDishes" class="product-card">
+        <div class="image-container">
+          <img [src]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="dish.name" (click)="viewDetails(dish)">
+        </div>
+
+        <div class="card-content">
+          <h3 (click)="viewDetails(dish)">{{ dish.name }}</h3>
+          <p class="description">{{ dish.description }}</p>
+          
+          <div class="price-row">
+            <span class="currency">₪</span>{{ getPrice(dish) }}
+            <span class="unit" *ngIf="dish.pricePer100g"> / ליחידה (משוער)</span>
+          </div>
+
+          <div class="card-actions">
+            <button class="btn-outline" (click)="viewDetails(dish)">
+              פרטים
+            </button>
+            <button class="btn-solid" (click)="addToCart(dish)">
+              <i class="fas fa-shopping-cart"></i> הוסף לסל
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading && sideDishes.length === 0" class="empty-state">
+      <i class="fas fa-utensils" aria-hidden="true"></i>
+      <h3>אין תוספות זמינות כרגע</h3>
+      <p>אנחנו עובדים על הוספת מנות חדשות. חזור בקרוב!</p>
+    </div>
+  </div>
+</div>
+

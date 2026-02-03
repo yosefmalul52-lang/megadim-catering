@@ -118,7 +118,7 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
     /* ============================================
        Variables (Luxury Gold/Black/White Theme)
        ============================================ */
-    $color-gold: #C5B19B;
+    $color-gold: #e0c075; // Updated to match --primary-gold
     $color-gold-light: #E8DCC8;
     $color-gold-dark: #A08B6F;
     $color-black: #0E1A24;

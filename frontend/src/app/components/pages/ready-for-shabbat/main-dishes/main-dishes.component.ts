@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { MenuService, MenuItem } from '../../../../services/menu.service';
@@ -9,15 +10,24 @@ import { LanguageService } from '../../../../services/language.service';
 @Component({
   selector: 'app-main-dishes',
   standalone: true,
-  imports: [CommonModule, TranslateModule],
+  imports: [CommonModule, TranslateModule, RouterModule],
   template: `
     <div class="main-dishes-page">
+      <div class="category-header-actions">
+        <button class="btn-gold-back" routerLink="/ready-for-shabbat">
+          <i class="fas fa-arrow-right"></i> חזרה לתפריט
+        </button>
+      </div>
+
+      <header class="luxury-category-header">
+        <span class="decorative-line"></span>
+        <span class="decorative-diamond"></span>
+        <h1>מנות עיקריות</h1>
+        <span class="decorative-diamond"></span>
+        <span class="decorative-line"></span>
+      </header>
+
       <div class="container">
-        <div class="page-header">
-          <div class="section-title">
-            <h2>מנות עיקריות</h2>
-          </div>
-        </div>
 
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
@@ -27,7 +37,7 @@ import { LanguageService } from '../../../../services/language.service';
 
         <!-- Dishes Grid -->
         <!-- Product Cards Grid - EXACT REFERENCE DESIGN -->
-        <div class="menu-grid" *ngIf="!isLoading">
+        <div class="menu-grid grid-4-cols" *ngIf="!isLoading">
           <div 
             *ngFor="let dish of mainDishes; trackBy: trackByItemId" 
             class="product-card"
@@ -50,26 +60,26 @@ import { LanguageService } from '../../../../services/language.service';
               <div class="card-price">
                 <span class="currency">₪</span>{{ getPrice(dish) }}
               </div>
-            </div>
-            
-            <!-- Card Actions -->
-            <div class="card-actions">
-              <button 
-                (click)="viewDetails(dish)" 
-                class="btn btn-details"
-                [attr.aria-label]="'פרטים על ' + dish.name"
-              >
-                פרטים
-              </button>
-              <button 
-                (click)="addToCart(dish)" 
-                class="btn btn-cart"
-                [attr.aria-label]="'הוסף לסל ' + dish.name"
-                [disabled]="!isAvailable(dish)"
-              >
-                <i class="fas fa-shopping-cart"></i>
-                הוספה לסל
-              </button>
+              
+              <!-- Card Actions -->
+              <div class="card-actions">
+                <button 
+                  (click)="viewDetails(dish)" 
+                  class="btn btn-details"
+                  [attr.aria-label]="'פרטים על ' + dish.name"
+                >
+                  פרטים
+                </button>
+                <button 
+                  (click)="addToCart(dish)" 
+                  class="btn btn-cart"
+                  [attr.aria-label]="'הוסף לסל ' + dish.name"
+                  [disabled]="!isAvailable(dish)"
+                >
+                  <i class="fas fa-shopping-cart"></i>
+                  הוספה לסל
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -152,11 +162,12 @@ import { LanguageService } from '../../../../services/language.service';
         }
       }
       
-      // The Fading Lines
+      // The Fading Lines - Short lines (half width on each side)
       &::before,
       &::after {
         content: '';
-        flex: 1;
+        flex: 0 0 auto;
+        width: 100px;
         height: 2px;
         border-radius: 2px;
       }
@@ -194,9 +205,6 @@ import { LanguageService } from '../../../../services/language.service';
 
     // === PIXEL-PERFECT PRODUCT CARD - EXACT ASADO REFERENCE ===
     .menu-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 30px;
       padding: 20px 0;
       margin-bottom: 4rem;
     }
@@ -207,13 +215,18 @@ import { LanguageService } from '../../../../services/language.service';
       flex-direction: column;
       height: 100%; // Ensures all cards in grid are same height
       background-color: #fff;
-      border: 1px solid #d4af37; // The Gold Border Frame
-      border-radius: 0; // SQUARE corners as requested
+      border-radius: 12px;
       overflow: hidden;
-      transition: transform 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      padding-top: 24px; // White space at the top
+      padding-left: 0;
+      padding-right: 0;
+      padding-bottom: 0;
 
       &:hover {
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
       }
     }
 
@@ -228,108 +241,143 @@ import { LanguageService } from '../../../../services/language.service';
     // Image Container
     .card-image-container {
       width: 100%;
-      height: 250px; // Fixed height for uniformity
+      height: 220px;
       overflow: hidden;
+      background-color: #ffffff;
+      border-radius: 0; // Sharp corners
+      padding: 0;
+      margin: 0;
+      position: relative;
 
       .card-img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        object-position: center;
         display: block;
+        border-radius: 0; // Sharp corners
       }
     }
 
     // Card Body (Content Area)
     .card-body {
-      padding: 20px 15px;
+      padding: 0 16px 16px 16px; // Padding on sides and bottom, no top padding
       text-align: center;
-      flex-grow: 1; // Pushes the buttons down
+      flex-grow: 1;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      justify-content: space-between;
+      
+      // Ensure consistent width for alignment
+      > * {
+        width: 100%;
+      }
+    }
+    
+    // Description should grow to push buttons down
+    .card-description {
+      flex-grow: 1;
     }
 
     // Title
     .card-title {
-      font-family: 'Heebo', sans-serif; // Or project font
-      font-size: 1.8rem; // Large and bold like reference
-      font-weight: 800;
-      color: #1a2b3c; // Dark Blue
-      margin: 0 0 10px 0;
-      letter-spacing: -0.5px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #1a2b3c;
+      margin: 0 0 8px 0;
+      text-align: center;
     }
 
     // Description
     .card-description {
-      font-size: 1rem;
-      color: #666;
-      line-height: 1.4;
-      margin-bottom: 15px;
-      max-width: 90%;
+      font-size: 0.95rem;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 12px;
+      max-width: 100%;
+      flex-grow: 1;
     }
 
     // Price (Large Gold)
     .card-price {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #d4af37; // Gold Price
-      margin-top: auto; // Pushes price slightly down if needed
-      margin-bottom: 5px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--primary-gold);
+      text-align: center;
+      margin-bottom: 12px;
 
       .currency {
-        font-size: 1.4rem;
+        font-size: 1rem;
         margin-left: 2px;
       }
     }
 
     // Card Actions (Buttons Section)
     .card-actions {
-      padding: 15px;
-      display: flex;
-      gap: 15px; // Space between buttons
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
       margin-top: auto;
+      padding: 0;
     }
 
     // Button Base Styles
     .btn {
-      flex: 1; // Both buttons take equal width
-      padding: 12px 0;
-      font-size: 1.1rem;
-      font-weight: 700;
+      width: 100%;
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: bold;
       cursor: pointer;
-      border-radius: 0; // SQUARE buttons
+      border-radius: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
+      gap: 6px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      height: 42px;
+      text-align: center;
     }
 
-    // Details Button (Gold Border)
+    // Details Button (Secondary - Gold Border)
     .btn-details {
-      background: #fff;
-      border: 1px solid #d4af37;
-      color: #d4af37;
+      background: transparent;
+      border: 2px solid var(--primary-gold);
+      color: var(--primary-gold);
+      font-weight: bold;
 
       &:hover {
-        background: #fcf8eb;
+        background: rgba(224, 192, 117, 0.1);
+        box-shadow: 0 2px 8px rgba(224, 192, 117, 0.2);
       }
     }
 
-    // Cart Button (Dark Blue)
+    // Cart Button (Primary - Solid Gold)
     .btn-cart {
-      background: #1a2b3c;
-      border: 1px solid #1a2b3c;
-      color: #fff;
+      background: var(--primary-gold);
+      border: none;
+      color: #1f3540;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(224, 192, 117, 0.4);
 
       &:hover:not(:disabled) {
-        background: lighten(#1a2b3c, 5%);
+        background: rgba(224, 192, 117, 0.95);
+        box-shadow: 0 6px 15px rgba(224, 192, 117, 0.5);
+        transform: translateY(-1px);
       }
 
       &:disabled {
-        background: #ccc;
-        color: #666;
+        background: #f5f5f5;
+        border: none;
+        color: #999;
         cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      i {
+        color: #1f3540;
       }
     }
 
@@ -415,174 +463,91 @@ import { LanguageService } from '../../../../services/language.service';
         justify-content: center;
       }
     }
+
+    // Container for the Back Button
+    .category-header-actions {
+      padding: 20px 20px 0 20px;
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    // The Luxury Header
+    .luxury-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 10px 0 40px 0;
+      width: 100%;
+      padding: 0 20px;
+
+      h1 {
+        color: #1f3540;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        white-space: nowrap;
+      }
+
+      .decorative-diamond {
+        width: 8px;
+        height: 8px;
+        background-color: var(--primary-gold);
+        transform: rotate(45deg);
+        flex-shrink: 0;
+      }
+
+      .decorative-line {
+        height: 2px;
+        background-color: var(--primary-gold);
+        flex-grow: 1;
+        max-width: 100px;
+        opacity: 0.6;
+      }
+    }
   `]
 })
 export class MainDishesComponent implements OnInit {
   menuService = inject(MenuService);
   cartService = inject(CartService);
   languageService = inject(LanguageService);
+  router = inject(Router);
 
   mainDishes: MenuItem[] = [];
   isLoading = true;
 
-  featuredMainDishes = [
-    {
-      id: 'asado',
-      name: 'אסאדו',
-      description: 'אסאדו ארגנטינאי מסורתי עשוי מבשר איכותי, מתובל בתבלינים מיוחדים וצלוי על הגריל. טעם עשיר ומענג שמביא את הטעמים האותנטיים של המטבח הארגנטינאי.',
-      recommendedServing: 'כ-300 גרם',
-      pricePer100g: 18.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'מיוחד']
-    },
-    {
-      id: 'roasted-beef',
-      name: 'צלי בקר',
-      description: 'צלי בקר איכותי מבושל לאט עם ירקות שורש ותבלינים מיוחדים. מרקם רך ועשיר עם טעם עמוק ומשביע שמביא את הטעמים הקלאסיים של המטבח המסורתי.',
-      recommendedServing: 'כ-400 גרם',
-      pricePer100g: 16.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'מסורתי']
-    },
-    {
-      id: 'liver-sauce',
-      name: 'כבד ברוטב',
-      description: 'כבד איכותי ברוטב עשיר ומתובל, מבושל לאט עם בצל ותבלינים מיוחדים. טעם עשיר ומעניין שמביא את הטעמים המוכרים והאהובים של המטבח המסורתי.',
-      recommendedServing: 'כ-250 גרם',
-      pricePer100g: 12.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'מסורתי']
-    },
-    {
-      id: 'chicken-legs-silan',
-      name: 'כרעיים עוף בסילאן',
-      description: 'כרעיים עוף איכותיים ברוטב סילאן מתוק וטעים, צלויים בתנור. שילוב מושלם בין הטעם העשיר של העוף למתיקות העדינה של הסילאן.',
-      recommendedServing: 'כ-350 גרם',
-      pricePer100g: 13.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['עוף', 'מתוק']
-    },
-    {
-      id: 'chicken-legs-herbs',
-      name: 'כרעיים עוף בעשבי תיבול',
-      description: 'כרעיים עוף איכותיים מתובלים בעשבי תיבול טריים ומיוחדים, צלויים בתנור. שילוב מושלם בין הטעם העשיר של העוף לטעמים המרעננים של עשבי התיבול.',
-      recommendedServing: 'כ-350 גרם',
-      pricePer100g: 13.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['עוף', 'בריא']
-    },
-    {
-      id: 'chicken-legs-spicy',
-      name: 'כרעיים עוף פיקנטי',
-      description: 'כרעיים עוף איכותיים מתובלים בתבלינים חריפים ופיקנטיים מיוחדים, צלויים בתנור. טעם עשיר וחריף שמביא חום וטעם ייחודי, מושלם לחובבי החריפות.',
-      recommendedServing: 'כ-350 גרם',
-      pricePer100g: 13.5,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['עוף', 'חריף']
-    },
-    {
-      id: 'schnitzel',
-      name: 'שניצל',
-      description: 'שניצל קלאסי ביתי עשוי מבשר איכותי, מצופה בפירורי לחם וטוגן עד לזהב. מרקם פריך מבחוץ ורך מבפנים עם טעם קלאסי ומשביע.',
-      recommendedServing: 'כ-250 גרם',
-      pricePer100g: 12.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'קלאסי']
-    },
-    {
-      id: 'schnitzel-small',
-      name: 'שניצלונים',
-      description: 'שניצלונים קטנים וטעימים עשויים מבשר איכותי, מצופים בפירורי לחם וטוגנים עד לזהב. מושלמים כמנה ראשונה או כמנה עיקרית קלילה.',
-      recommendedServing: 'כ-200 גרם',
-      pricePer100g: 12.5,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'קלאסי']
-    },
-    {
-      id: 'turkey-shawarma',
-      name: 'שווארמה הודו',
-      description: 'שווארמה הודו איכותית מתובלת בתבלינים מיוחדים, צלויה בתנור. טעם עשיר ומתובל שמביא את הטעמים האותנטיים של המטבח המזרח תיכוני.',
-      recommendedServing: 'כ-300 גרם',
-      pricePer100g: 14.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['הודו', 'מזרחי']
-    },
-    {
-      id: 'chicken-herbs',
-      name: 'פרגית בעשבי תיבול',
-      description: 'פרגית איכותית מתובלת בעשבי תיבול טריים ומיוחדים, צלויה בתנור. שילוב מושלם בין הטעם העשיר של הפרגית לטעמים המרעננים של עשבי התיבול.',
-      recommendedServing: 'כ-600 גרם',
-      pricePer100g: 12.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['עוף', 'בריא']
-    },
-    {
-      id: 'chicken-eastern',
-      name: 'פרגית בסגנון מזרחי',
-      description: 'פרגית איכותית מתובלת בסגנון מזרחי אותנטי עם תבלינים מיוחדים, צלויה בתנור. טעם עשיר ומתובל שמביא את הטעמים האותנטיים של המטבח המזרחי.',
-      recommendedServing: 'כ-600 גרם',
-      pricePer100g: 12.5,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['עוף', 'מזרחי']
-    },
-    {
-      id: 'chicken-teriyaki',
-      name: 'פרגית ברוטב טריאקי',
-      description: 'פרגית איכותית ברוטב טריאקי אסיאתי מתוק וטעים, צלויה בתנור. שילוב מושלם בין הטעם העשיר של הפרגית למתיקות העדינה של רוטב הטריאקי.',
-      recommendedServing: 'כ-600 גרם',
-      pricePer100g: 13.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['עוף', 'אסיאתי']
-    },
-    {
-      id: 'meatballs-sauce',
-      name: 'קציצות בשר ברוטב',
-      description: 'קציצות בשר איכותיות ברוטב עשיר ומתובל, מבושלות לאט. מרקם רך ועשיר עם טעם קלאסי ומשביע שמביא את הטעמים המוכרים והאהובים של המטבח המסורתי.',
-      recommendedServing: 'כ-300 גרם',
-      pricePer100g: 13.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'מסורתי']
-    },
-    {
-      id: 'cholent-meat',
-      name: 'צ\'ולנט בשרי',
-      description: 'צ\'ולנט בשרי מסורתי עשוי מבשר איכותי, תפוחי אדמה ושעועית, מבושל שעות ארוכות על אש נמוכה. טעם עשיר ומשביע שמביא את הטעמים האותנטיים של המטבח המסורתי.',
-      recommendedServing: 'כ-400 גרם',
-      pricePer100g: 10.0,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['בשרי', 'שבתי', 'מסורתי']
-    },
-    {
-      id: 'cholent-parve',
-      name: 'צ\'ולנט פרווה',
-      description: 'צ\'ולנט פרווה מסורתי עשוי מתפוחי אדמה, שעועית וירקות, מבושל שעות ארוכות על אש נמוכה. טעם עשיר ומשביע שמביא את הטעמים האותנטיים של המטבח המסורתי.',
-      recommendedServing: 'כ-400 גרם',
-      pricePer100g: 9.5,
-      imageUrl: '/assets/images/fish/Fish-stretched.jpg',
-      tags: ['פרווה', 'שבתי', 'מסורתי']
-    }
-  ];
+  // REMOVED: Hardcoded featuredMainDishes array
+  // All data now comes from MenuService (Single Source of Truth)
+  // This ensures consistency and prevents "Product not found" errors
+  featuredMainDishes: any[] = []; // Deprecated - kept for backward compatibility only
 
   ngOnInit(): void {
     this.loadMainDishes();
   }
 
+  /**
+   * Load main dishes from MenuService (Single Source of Truth)
+   * This ensures consistency - cards are generated FROM service data,
+   * so it's IMPOSSIBLE for a card to link to a product that doesn't exist
+   */
   private loadMainDishes(): void {
     this.isLoading = true;
-    // Always use featuredMainDishes - they contain all the main dishes
-    this.mainDishes = this.featuredMainDishes.map(d => ({
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      price: d.pricePer100g * 4,
-      imageUrl: d.imageUrl,
-      category: 'מנות עיקריות',
-      tags: d.tags,
-      isAvailable: true,
-      servingSize: d.recommendedServing,
-      pricePer100g: d.pricePer100g
-    } as MenuItem & { pricePer100g: number; recommendedServing: string }));
-    this.isLoading = false;
+    console.log('🔄 Loading main dishes from MenuService...');
+    
+    // Use getProductsByCategory to get ALL products for this category
+    this.menuService.getProductsByCategory('main-dishes').subscribe({
+      next: (items) => {
+        console.log('✅ Loaded', items.length, 'main dishes from MenuService');
+        this.mainDishes = items;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('❌ Error loading main dishes:', error);
+        this.mainDishes = [];
+        this.isLoading = false;
+      }
+    });
   }
 
   addToCart(item: MenuItem): void {
@@ -677,9 +642,10 @@ export class MainDishesComponent implements OnInit {
   }
 
   viewDetails(dish: MenuItem): void {
-    // Navigate to dish details or show modal
-    // For now, log to console - can be expanded later
-    console.log('View details for:', dish.name);
-    // TODO: Implement navigation or modal
+    const dishId = dish.id || dish._id || '';
+    if (dishId) {
+      // Use SHORT route path: 'main' instead of 'main-dishes'
+      this.router.navigate(['/ready-for-shabbat/main', dishId]);
+    }
   }
 }

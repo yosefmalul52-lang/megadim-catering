@@ -1,0 +1,235 @@
+$navy: #1f3540;
+$gold: #E0C075;
+$white: #FFFFFF;
+
+// Container for the Back Button
+.category-header-actions {
+  padding: 20px 20px 0 20px;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+// The Luxury Header
+.luxury-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin: 10px 0 40px 0;
+  width: 100%;
+  padding: 0 20px;
+
+  h1 {
+    color: #1f3540;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .decorative-diamond {
+    width: 8px;
+    height: 8px;
+    background-color: var(--primary-gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+
+  .decorative-line {
+    height: 2px;
+    background-color: var(--primary-gold);
+    flex-grow: 1;
+    max-width: 100px;
+    opacity: 0.6;
+  }
+}
+
+.fish-page {
+  direction: rtl;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: $white;
+  padding: 2rem 0;
+  min-height: 70vh;
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: $navy;
+    
+    i {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: $gold;
+      display: block;
+    }
+    
+    span {
+      font-size: 1.1rem;
+      display: block;
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: $navy;
+    
+    i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: $gold;
+      display: block;
+    }
+    
+    h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    p {
+      font-size: 1rem;
+      color: #666;
+    }
+  }
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  padding: 20px;
+  
+  @media (max-width: 1200px) { 
+    grid-template-columns: repeat(3, 1fr); 
+  }
+  @media (max-width: 900px) { 
+    grid-template-columns: repeat(2, 1fr); 
+  }
+  @media (max-width: 600px) { 
+    grid-template-columns: 1fr; 
+  }
+}
+
+.product-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  
+  // THE "FRAME" EFFECT
+  padding-top: 24px;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+  
+  transition: transform 0.2s;
+  &:hover { 
+    transform: translateY(-5px); 
+  }
+}
+
+.image-container {
+  width: 100%;
+  height: 220px;
+  margin: 0;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0;
+    cursor: pointer;
+  }
+}
+
+.card-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  text-align: center;
+
+  h3 {
+    color: #1f3540;
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .description {
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    margin-bottom: 16px;
+    flex-grow: 1;
+  }
+
+  .price-row {
+    color: var(--primary-gold);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+    
+    .currency {
+      margin-left: 4px;
+    }
+    
+    .unit { 
+      font-size: 0.9rem; 
+      font-weight: normal; 
+      color: #888; 
+    }
+  }
+}
+
+.card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: auto;
+  
+  button {
+    padding: 10px 0;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    
+    &.btn-solid {
+      background: var(--primary-gold);
+      color: #1f3540;
+      border: none;
+      &:hover { 
+        opacity: 0.9; 
+      }
+    }
+    
+    &.btn-outline {
+      background: transparent;
+      border: 2px solid var(--primary-gold);
+      color: var(--primary-gold);
+      &:hover { 
+        background: var(--primary-gold); 
+        color: #1f3540; 
+      }
+    }
+  }
+}
+

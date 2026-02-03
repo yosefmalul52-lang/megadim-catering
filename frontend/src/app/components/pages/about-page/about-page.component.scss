@@ -25,9 +25,9 @@
   color: #1a252f;
 }
 
-.gold-text { color: #C5A065; }
+.gold-text { color: var(--primary-gold); }
 .gold-subtitle {
-  color: #C5A065;
+  color: var(--primary-gold);
   font-size: 1.2rem;
   font-weight: 600;
   margin-bottom: 10px;
@@ -37,7 +37,7 @@
 .gold-line {
   width: 60px;
   height: 4px;
-  background: #C5A065;
+  background: var(--primary-gold);
   margin-bottom: 30px;
 }
 
@@ -77,7 +77,7 @@
   border-radius: 15px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.05);
   transition: transform 0.3s ease;
-  border-top: 5px solid #C5A065;
+  border-top: 5px solid var(--primary-gold);
 }
 
 .service-card:hover {
@@ -100,7 +100,7 @@
 
 .quote-mark {
   font-size: 6rem;
-  color: #C5A065;
+  color: var(--primary-gold);
   line-height: 1;
   margin-bottom: -20px;
   opacity: 0.8;
@@ -121,8 +121,8 @@
 
 .gold-btn {
   background: transparent;
-  border: 1px solid #C5A065;
-  color: #C5A065;
+  border: 1px solid var(--primary-gold);
+  color: var(--primary-gold);
   padding: 15px 40px;
   font-size: 1.1rem;
   border-radius: 50px;
@@ -131,7 +131,7 @@
 }
 
 .gold-btn:hover {
-  background: #C5A065;
+  background: var(--primary-gold);
   color: #fff;
 }
 

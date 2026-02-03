@@ -5,14 +5,14 @@ import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 
 @Component({
-  selector: 'app-desserts',
+  selector: 'app-stuffed',
   standalone: true,
   imports: [CommonModule, RouterModule],
-  templateUrl: './desserts.component.html',
-  styleUrls: ['./desserts.component.scss']
+  templateUrl: './stuffed.component.html',
+  styleUrls: ['./stuffed.component.scss']
 })
-export class DessertsComponent implements OnInit {
-  desserts: MenuItem[] = [];
+export class StuffedComponent implements OnInit {
+  stuffedDishes: MenuItem[] = [];
   isLoading: boolean = true;
 
   constructor(
@@ -22,14 +22,14 @@ export class DessertsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Fetch 'desserts' category (maps to 'קינוחים' in MenuService)
-    this.menuService.getProductsByCategory('desserts').subscribe({
+    // Fetch 'stuffed' category (maps to 'ממולאים' in MenuService)
+    this.menuService.getProductsByCategory('stuffed').subscribe({
       next: (items) => {
-        this.desserts = items;
+        this.stuffedDishes = items;
         this.isLoading = false;
       },
       error: (err) => {
-        console.error('Error loading desserts:', err);
+        console.error('Error loading stuffed:', err);
         this.isLoading = false;
       }
     });
@@ -48,16 +48,17 @@ export class DessertsComponent implements OnInit {
       price: price,
       imageUrl: item.imageUrl,
       description: item.description,
-      category: item.category || 'desserts'
+      category: item.category || 'stuffed'
     });
   }
 
   viewDetails(item: MenuItem): void {
     const id = item.id || item._id;
-    if (id) this.router.navigate(['/ready-for-shabbat/desserts', id]);
+    if (id) this.router.navigate(['/ready-for-shabbat/stuffed', id]);
   }
 
   getPrice(item: MenuItem): number {
     return item.price || item.pricePer100g || (item.pricingOptions?.[0]?.price) || 0;
   }
 }
+

@@ -1,7 +1,7 @@
 /* ============================================
    Variables (Luxury Gold/Black/White Theme)
    ============================================ */
-$color-gold: #C5B19B;
+$color-gold: var(--primary-gold);
 $color-gold-light: #E8DCC8;
 $color-gold-dark: #A08B6F;
 $color-black: #0E1A24;
@@ -240,7 +240,7 @@ $shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
   }
 }

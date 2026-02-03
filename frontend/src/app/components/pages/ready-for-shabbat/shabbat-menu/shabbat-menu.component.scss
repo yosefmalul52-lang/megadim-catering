@@ -1,0 +1,253 @@
+$navy: #1f3540;
+$gold: #E0C075;
+$white: #FFFFFF;
+
+// === Luxury Page Header (Megadim Brand Style) ===
+.luxury-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $white;
+  padding: 50px 20px 30px;
+  gap: 20px;
+  overflow: hidden; // Prevent horizontal scrollbar
+
+  h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: $navy;
+    margin: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  // Decorative Gold Lines
+  .decorative-line {
+    flex: 1;
+    max-width: 200px;
+    height: 2px;
+    border-radius: 2px;
+  }
+
+  // First line (right side in RTL): fades from right (transparent) to left (gold)
+  .decorative-line:first-child {
+    background: linear-gradient(to left, transparent, var(--primary-gold));
+  }
+
+  // Last line (left side in RTL): fades from left (transparent) to right (gold)
+  .decorative-line:last-child {
+    background: linear-gradient(to right, transparent, var(--primary-gold));
+  }
+
+  // Decorative Gold Diamonds
+  .decorative-diamond {
+    width: 12px;
+    height: 12px;
+    background-color: var(--primary-gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(224, 192, 117, 0.3);
+  }
+
+  // Mobile Responsiveness
+  @media (max-width: 768px) {
+    padding: 40px 15px 25px;
+    gap: 15px;
+
+    h1 {
+      font-size: 2rem;
+    }
+
+    .decorative-line {
+      max-width: 100px;
+      height: 1.5px;
+    }
+
+    .decorative-diamond {
+      width: 10px;
+      height: 10px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 30px 10px 20px;
+    gap: 10px;
+
+    h1 {
+      font-size: 1.6rem;
+    }
+
+    .decorative-line {
+      max-width: 60px;
+      height: 1px;
+    }
+
+    .decorative-diamond {
+      width: 8px;
+      height: 8px;
+    }
+  }
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+// === Navigation Cards (BENTO GRID LAYOUT) ===
+.categories-nav {
+  background-color: $white;
+  padding: 40px 20px;
+  border-bottom: none;
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  // BENTO GRID: 3-column layout with fixed row heights
+  .nav-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 230px;
+    gap: 20px;
+    width: 100%;
+  }
+
+  // --- CATEGORY ITEM ---
+  .category-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0 !important;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+    height: 100%;
+
+    // Active state for routerLinkActive
+    &.active {
+      box-shadow: 0 8px 20px rgba(224, 192, 117, 0.5);
+      border: 3px solid var(--primary-gold);
+    }
+    
+    // Standard items: span 1 column, 1 row
+    grid-column: span 1;
+    grid-row: span 1;
+
+    // Main Dishes: Positioned at column 1-2 (right side in RTL), row 1-2 (Top-Right 2x2 area)
+    &.item-main-dishes {
+      grid-column: 1 / span 2;
+      grid-row: 1 / span 2;
+      height: 100%;
+    }
+
+    // Image styling
+    .category-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      transition: transform 0.5s ease;
+      display: block;
+      border-radius: 0 !important;
+      filter: none !important;
+    }
+
+    // Text Overlay
+    .category-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 25%;
+      padding: 15px 10px;
+      background: linear-gradient(to top, #1f2937 0%, rgba(31, 41, 55, 0.7) 70%, transparent 100%);
+      text-align: center;
+      z-index: 2;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+
+      h3 {
+        color: var(--primary-gold) !important;
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        font-family: 'Heebo', sans-serif;
+      }
+    }
+
+    // Larger text for featured item
+    &.item-main-dishes .category-info h3 {
+      font-size: 1.6rem;
+    }
+
+    // Hover: Zoom image
+    &:hover {
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+      
+      .category-image {
+        transform: scale(1.08);
+      }
+    }
+  }
+
+  // RESPONSIVE DESIGN
+  @media (max-width: 968px) {
+    padding: 30px 15px;
+
+    .container {
+      max-width: 100%;
+    }
+
+    .nav-cards-grid {
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: 200px;
+      gap: 15px;
+    }
+
+    .category-item {
+      &.item-main-dishes {
+        grid-column: 1 / span 2;
+        grid-row: span 1;
+        height: 100%;
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 30px 15px;
+
+    .nav-cards-grid {
+      grid-template-columns: 1fr;
+      grid-auto-rows: 200px;
+      gap: 15px;
+    }
+
+    .category-item {
+      height: 100%;
+      
+      &.item-main-dishes {
+        grid-column: span 1;
+        grid-row: span 1;
+        height: 100%;
+      }
+
+      .category-info {
+        padding: 12px 8px;
+        
+        h3 {
+          font-size: 1rem;
+        }
+      }
+
+      &.item-main-dishes .category-info h3 {
+        font-size: 1.2rem;
+      }
+    }
+  }
+}
+

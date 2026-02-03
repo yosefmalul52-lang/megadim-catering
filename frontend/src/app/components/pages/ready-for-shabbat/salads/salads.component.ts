@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { MenuService, MenuItem } from '../../../../services/menu.service';
@@ -10,15 +10,24 @@ import { LanguageService } from '../../../../services/language.service';
 @Component({
   selector: 'app-salads',
   standalone: true,
-  imports: [CommonModule, TranslateModule],
+  imports: [CommonModule, TranslateModule, RouterModule],
   template: `
     <div class="salads-page">
+      <div class="category-header-actions">
+        <button class="btn-gold-back" routerLink="/ready-for-shabbat">
+          <i class="fas fa-arrow-right"></i> חזרה לתפריט
+        </button>
+      </div>
+
+      <header class="luxury-category-header">
+        <span class="decorative-line"></span>
+        <span class="decorative-diamond"></span>
+        <h1>סלטים</h1>
+        <span class="decorative-diamond"></span>
+        <span class="decorative-line"></span>
+      </header>
+
       <div class="container">
-        <div class="page-header">
-          <div class="section-title">
-            <h2>סלטים</h2>
-          </div>
-        </div>
 
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
@@ -27,7 +36,7 @@ import { LanguageService } from '../../../../services/language.service';
         </div>
 
         <!-- Salads Grid -->
-        <div class="menu-grid" *ngIf="!isLoading">
+        <div class="menu-grid grid-4-cols" *ngIf="!isLoading">
           <div 
             *ngFor="let salad of salads; trackBy: trackByItemId" 
             class="product-card"
@@ -89,6 +98,11 @@ import { LanguageService } from '../../../../services/language.service';
                 <span class="price">₪{{ salad.price }}</span>
               </div>
               
+              <!-- Error Message -->
+              <div class="error-message" *ngIf="hasValidationError(salad.id || salad._id || '')">
+                נא לבחור גודל תחילה
+              </div>
+              
               <div class="actions">
                 <button 
                   (click)="showDetails(salad)" 
@@ -102,7 +116,7 @@ import { LanguageService } from '../../../../services/language.service';
                   (click)="addToCart(salad)" 
                   class="btn-add"
                   [attr.aria-label]="'הוסף לסל ' + salad.name"
-                  [disabled]="!isAvailable(salad) || !hasSelectedOption(salad)"
+                  [disabled]="!isAvailable(salad)"
                 >
                   <i class="fas fa-shopping-cart"></i>
                   {{ 'PRODUCT.ADD_TO_CART' | translate }}
@@ -209,10 +223,6 @@ import { LanguageService } from '../../../../services/language.service';
     }
 
     .menu-grid {
-      display: grid;
-      // Force 4 columns on desktop
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px; // Slightly tighter gap to fit 4 nicely
       margin-bottom: 4rem;
       padding-bottom: 40px;
       width: 100%;
@@ -226,52 +236,38 @@ import { LanguageService } from '../../../../services/language.service';
     }
 
     .product-card {
-      background: #ffffff;
-      border: 1px solid #eaeaea; // Very subtle border
-      border-radius: 0; // Square corners for premium look
+      background: #fff;
+      border-radius: 12px;
       height: 100%;
       display: flex;
       flex-direction: column;
-      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
       position: relative;
       overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
 
       // Hover Effect: Lift and Gold Border
       &:hover {
-        transform: translateY(-5px);
-        border-color: #E0C075; // $gold
-        box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
       }
 
-      // 1. Image Area - ABSOLUTE CENTER (THE NUCLEAR OPTION)
+      // 1. Image Area
       .image-container {
-        position: relative; // Parent must be relative
+        position: relative;
         width: 100%;
         height: 220px;
         background-color: #ffffff;
         overflow: hidden;
-
-        // No flex or grid needed on parent anymore
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         img {
-          position: absolute; // Take out of flow
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%); // Shift back by half its own width/height
-
-          // Constrain size to create the white frame
-          max-width: 85%;
-          max-height: 85%;
-
-          // Reset overrides with !important to kill any global interference
-          width: auto !important;
-          height: auto !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          display: block !important;
-
+          width: 100%;
+          height: 100%;
           object-fit: contain;
-          transition: transform 0.5s ease;
+          display: block;
         }
 
         // Badge styling
@@ -279,12 +275,12 @@ import { LanguageService } from '../../../../services/language.service';
           position: absolute;
           top: 10px;
           right: 10px;
-          background-color: #E0C075; // $gold
-          color: #1f3540; // $navy
+          background-color: var(--primary-gold);
+          color: #1f3540;
           padding: 4px 12px;
           font-size: 0.75rem;
           font-weight: 800;
-          border-radius: 0;
+          border-radius: 6px;
           z-index: 2;
           text-transform: uppercase;
         }
@@ -295,37 +291,42 @@ import { LanguageService } from '../../../../services/language.service';
         }
       }
 
-      // Zoom effect needs adjustment for transform
+      // Zoom effect
       &:hover .image-container img {
-        // We must include the translate in the hover or it will jump back!
-        transform: translate(-50%, -50%) scale(1.08);
+        transform: scale(1.02);
       }
 
       &.is-unavailable:hover .image-container img {
-        transform: translate(-50%, -50%) scale(1);
+        transform: scale(1);
       }
 
       // 2. Content Area
       .card-body {
-        padding: 0 20px 20px 20px; // Padding around text
+        padding: 16px;
         flex-grow: 1;
         display: flex;
         flex-direction: column;
-        text-align: right; // RTL
+        text-align: center;
+        justify-content: space-between;
+        
+        // Ensure dropdown and buttons align by having consistent padding context
+        > * {
+          width: 100%;
+        }
 
         h3.title {
-          font-size: 1.25rem;
-          font-weight: 800;
-          color: #1f3540; // $navy
+          font-size: 1.3rem;
+          font-weight: bold;
+          color: #1f3540;
           margin-bottom: 8px;
           line-height: 1.3;
         }
 
         p.description {
-          font-size: 0.9rem;
-          color: #666666; // $gray-text
+          font-size: 0.95rem;
+          color: #555;
           line-height: 1.5;
-          margin-bottom: 20px;
+          margin-bottom: 12px;
           flex-grow: 1;
         }
 
@@ -344,21 +345,28 @@ import { LanguageService } from '../../../../services/language.service';
           width: 100%;
         }
 
-        // Dropdown styling
+        // Dropdown styling - Clean white background with gold border on focus
         .form-control, select {
           width: 100%;
-          padding: 10px;
+          padding: 10px 12px;
           border: 1px solid #ddd;
-          background-color: #fafafa;
-          border-radius: 0;
-          margin-bottom: 15px;
+          background-color: #ffffff;
+          border-radius: 8px;
+          margin-bottom: 12px;
           font-size: 0.9rem;
-          color: #1f3540; // $navy
+          color: #1f3540;
           cursor: pointer;
-          transition: border-color 0.2s;
+          transition: all 0.2s ease;
+          font-family: inherit;
+          
           &:focus {
             outline: none;
-            border-color: #1f3540; // $navy
+            border-color: var(--primary-gold);
+            box-shadow: 0 0 0 2px rgba(224, 192, 117, 0.1);
+          }
+          
+          &:hover {
+            border-color: #bbb;
           }
         }
 
@@ -398,12 +406,12 @@ import { LanguageService } from '../../../../services/language.service';
           justify-content: center;
 
           &:hover {
-            border-color: #E0C075; // $mustard-gold
+            border-color: var(--primary-gold);
             background: #fafafa;
           }
 
           &.active {
-            border-color: #E0C075; // $mustard-gold
+            border-color: var(--primary-gold);
             background: rgba(224, 192, 117, 0.1);
             box-shadow: 0 2px 8px rgba(224, 192, 117, 0.2);
           }
@@ -418,7 +426,7 @@ import { LanguageService } from '../../../../services/language.service';
         .size-price {
           font-size: 1rem;
           font-weight: bold;
-          color: #E0C075; // $mustard-gold
+          color: var(--primary-gold);
         }
 
         .size-btn.active .size-price {
@@ -427,26 +435,39 @@ import { LanguageService } from '../../../../services/language.service';
 
         // Price Section
         .price-section {
-          margin-bottom: 20px;
+          margin-bottom: 12px;
+          text-align: center;
           
           .price {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #E0C075; // $mustard-gold
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-gold);
           }
+        }
+
+        // Error Message
+        .error-message {
+          color: #dc3545;
+          font-size: 0.85rem;
+          margin-bottom: 8px;
+          text-align: center;
+          padding: 0 16px;
         }
 
         // 3. Buttons Area
         .actions {
           display: grid;
-          grid-template-columns: 1fr 2fr; // Details (small) | Add (large)
-          gap: 12px;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          width: 100%;
           margin-top: auto;
+          padding: 0;
+          margin: 16px 0 0 0;
 
           button {
             height: 42px;
-            border-radius: 0; // Square
-            font-weight: 700;
+            border-radius: 0;
+            font-weight: bold;
             font-size: 0.95rem;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -454,44 +475,55 @@ import { LanguageService } from '../../../../services/language.service';
             align-items: center;
             justify-content: center;
             gap: 5px;
+            padding: 10px 20px;
+            white-space: nowrap;
+            width: 100%;
+            text-align: center;
 
             i {
               font-size: 1rem;
             }
           }
 
-          // 'Details' - Secondary Button
+          // 'Details' - Secondary Button (Gold Outline)
           .btn-details {
             background: transparent;
-            border: 1px solid #1f3540; // $navy
-            color: #1f3540; // $navy
+            border: 2px solid var(--primary-gold);
+            color: var(--primary-gold);
+            font-weight: bold;
+            
             &:hover {
-              background: rgba(31, 53, 64, 0.05); // rgba($navy, 0.05)
+              background: rgba(224, 192, 117, 0.1);
+              box-shadow: 0 2px 8px rgba(224, 192, 117, 0.2);
             }
           }
 
-          // 'Add to Cart' - Primary Gold Button
+          // 'Add to Cart' - Primary Button (Solid Gold)
           .btn-add {
-            background: #E0C075; // $gold
-            border: 1px solid #E0C075; // $gold
-            color: #1f3540; // Contrast text (navy)
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            background: var(--primary-gold);
+            border: none;
+            color: #1f3540;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(224, 192, 117, 0.4);
 
             &:hover:not(:disabled) {
-              background: darken(#E0C075, 5%);
-              box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+              background: rgba(224, 192, 117, 0.95);
+              box-shadow: 0 6px 15px rgba(224, 192, 117, 0.5);
+              transform: translateY(-1px);
             }
 
             &:disabled {
-              background: #ccc;
-              color: #666;
+              background: #f5f5f5;
+              border: none;
+              color: #999;
               cursor: not-allowed;
-              border-color: #ccc;
+              box-shadow: none;
             }
 
             i {
               margin-left: 6px;
               font-size: 18px;
+              color: #1f3540;
             }
           }
         }
@@ -587,6 +619,49 @@ import { LanguageService } from '../../../../services/language.service';
         font-size: 2rem;
       }
     }
+
+    // Container for the Back Button
+    .category-header-actions {
+      padding: 20px 20px 0 20px;
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    // The Luxury Header
+    .luxury-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 10px 0 40px 0;
+      width: 100%;
+      padding: 0 20px;
+
+      h1 {
+        color: #1f3540;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        white-space: nowrap;
+      }
+
+      .decorative-diamond {
+        width: 8px;
+        height: 8px;
+        background-color: var(--primary-gold);
+        transform: rotate(45deg);
+        flex-shrink: 0;
+      }
+
+      .decorative-line {
+        height: 2px;
+        background-color: var(--primary-gold);
+        flex-grow: 1;
+        max-width: 100px;
+        opacity: 0.6;
+      }
+    }
   `]
 })
 export class SaladsComponent implements OnInit {
@@ -600,25 +675,29 @@ export class SaladsComponent implements OnInit {
   selectedSizes: { [key: string]: 'small' | 'large' } = {}; // Legacy support
   selectedOptions: { [key: string]: number } = {}; // For pricingOptions: itemId -> option index
   selectedVariants: { [key: string]: number } = {}; // For pricingVariants: itemId -> variant index
+  validationErrors: { [key: string]: boolean } = {}; // Track validation errors per item
 
   ngOnInit(): void {
     this.loadSalads();
   }
 
+  /**
+   * Load salads from MenuService (Single Source of Truth)
+   * This ensures consistency - cards are generated FROM service data
+   */
   private loadSalads(): void {
     this.isLoading = true;
-    // Load salads from API - NO hardcoded data
-    this.menuService.getMenuItems().subscribe({
+    console.log('🔄 Loading salads from MenuService...');
+    
+    // Use getProductsByCategory to get ALL products for this category
+    this.menuService.getProductsByCategory('salads').subscribe({
       next: (items) => {
-        console.log('Data from DB:', items);
-        // Filter only salads from the API
-        this.salads = items.filter(item => item.category === 'סלטים');
-        console.log('Loaded salads from API:', this.salads.length);
+        console.log('✅ Loaded', items.length, 'salads from MenuService');
+        this.salads = items;
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Error loading salads from API:', error);
-        // If server is down, list will be empty (proving we are no longer using hardcoded data)
+        console.error('❌ Error loading salads:', error);
         this.salads = [];
         this.isLoading = false;
       }
@@ -639,6 +718,8 @@ export class SaladsComponent implements OnInit {
     const optionIndex = parseInt(select.value, 10);
     if (!isNaN(optionIndex)) {
       this.selectedOptions[itemId] = optionIndex;
+      // Clear validation error when option is selected
+      this.validationErrors[itemId] = false;
     }
   }
 
@@ -657,6 +738,8 @@ export class SaladsComponent implements OnInit {
 
   selectVariant(itemId: string, variantIndex: number): void {
     this.selectedVariants[itemId] = variantIndex;
+    // Clear validation error when variant is selected
+    this.validationErrors[itemId] = false;
   }
 
   getSelectedVariantIndex(itemId: string): number {
@@ -717,10 +800,17 @@ export class SaladsComponent implements OnInit {
     
     const itemId = item.id || item._id || '';
     
-    if (!this.hasSelectedOption(item)) {
-      alert('אנא בחרו אפשרות לפני הוספה לסל');
+    // Check if item requires size selection
+    const requiresSelection = this.hasPricingOptions(item) || this.hasPricingVariants(item);
+    
+    if (requiresSelection && !this.hasSelectedOption(item)) {
+      // Set validation error instead of alert
+      this.validationErrors[itemId] = true;
       return;
     }
+    
+    // Clear validation error if validation passes
+    this.validationErrors[itemId] = false;
 
     let itemName = item.name;
     let price = this.getSelectedPrice(item);
@@ -783,5 +873,9 @@ export class SaladsComponent implements OnInit {
 
   showDetails(salad: MenuItem): void {
     this.router.navigate(['/ready-for-shabbat/salads', salad.id || salad._id || '']);
+  }
+
+  hasValidationError(itemId: string): boolean {
+    return this.validationErrors[itemId] === true;
   }
 }

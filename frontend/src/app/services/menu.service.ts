@@ -70,6 +70,233 @@ export class MenuService {
   private loadingSubject = new BehaviorSubject<boolean>(false);
   public loading$ = this.loadingSubject.asObservable();
 
+  // Master Product List - Centralized data source for ALL products
+  // This ensures Product Details page works for ALL items, even if not in backend
+  // SINGLE SOURCE OF TRUTH - All category components must use this data
+  private _allProducts: MenuItem[] = [
+    // Main Dishes
+    {
+      id: 'asado',
+      _id: 'asado',
+      name: 'אסאדו',
+      category: 'מנות עיקריות',
+      description: 'אסאדו ארגנטינאי מסורתי עשוי מבשר איכותי, מתובל בתבלינים מיוחדים וצלוי על הגריל. טעם עשיר ומענג שמביא את הטעמים האותנטיים של המטבח הארגנטינאי.',
+      price: 72,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      tags: ['בשרי', 'מיוחד'],
+      isAvailable: true,
+      isPopular: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'roasted-beef',
+      _id: 'roasted-beef',
+      name: 'צלי בקר',
+      category: 'מנות עיקריות',
+      description: 'צלי בקר איכותי מבושל לאט עם ירקות שורש ותבלינים מיוחדים. מרקם רך ועשיר עם טעם עמוק ומשביע שמביא את הטעמים הקלאסיים של המטבח המסורתי.',
+      price: 64,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      tags: ['בשרי', 'מסורתי'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'liver-sauce',
+      _id: 'liver-sauce',
+      name: 'כבד ברוטב',
+      category: 'מנות עיקריות',
+      description: 'כבד איכותי ברוטב עשיר ומתובל, מבושל לאט עם בצל ותבלינים מיוחדים. טעם עשיר ומעניין שמביא את הטעמים המוכרים והאהובים של המטבח המסורתי.',
+      price: 48,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      tags: ['בשרי', 'מסורתי'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'moussaka',
+      _id: 'moussaka',
+      name: 'מוסאקה',
+      category: 'מנות עיקריות',
+      description: 'מוסאקה מסורתית עם חצילים, בשר טחון ורוטב בצל. מנה עשירה ומשביעה.',
+      price: 65,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      tags: [],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    // Fish
+    {
+      id: 'salmon-teriyaki',
+      _id: 'salmon-teriyaki',
+      name: 'סלמון ברוטב טריאקי',
+      category: 'דגים',
+      description: 'פילה סלמון איכותי ברוטב טריאקי מתוק וחריף, אפוי בתנור. מנה בריאה וטעימה עם טעם אסיאתי אותנטי.',
+      price: 85,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      tags: ['בריא'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'salmon',
+      _id: 'salmon',
+      name: 'סלמון אפוי',
+      category: 'דגים',
+      description: 'סלמון טרי אפוי בתנור עם עשבי תיבול ולימון. מנה בריאה וטעימה.',
+      price: 85,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      tags: ['בריא'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'gefilte-fish',
+      _id: 'gefilte-fish',
+      name: 'גפילטע פיש',
+      category: 'דגים',
+      description: 'גפילטע פיש מסורתי לשבת, מוכן בסגנון ביתי עם גזר וצנון.',
+      price: 55,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      tags: [],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    // Salads
+    {
+      id: 'hummus',
+      _id: 'hummus',
+      name: 'סלט חומוס',
+      category: 'סלטים',
+      description: 'חומוס קלאסי ביתי עשוי מגרגרי חומוס איכותיים, טחינה משובחת, לימון טרי ושום. מרקם קרמי ועדין עם טעם עשיר ומאוזן.',
+      price: 17,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
+      tags: ['טבעוני', 'ללא גלוטן'],
+      isAvailable: true,
+      pricingOptions: [
+        { label: '250 גרם', price: 17, amount: '250 גרם' },
+        { label: '500 גרם', price: 29, amount: '500 גרם' }
+      ],
+      pricingVariants: []
+    },
+    {
+      id: 'tahini',
+      _id: 'tahini',
+      name: 'סלט טחינה',
+      category: 'סלטים',
+      description: 'טחינה קרמית ומרוכזת עשויה משומשום איכותי, מתובלת בלימון טרי ושום. מרקם חלק ועשיר שמביא טעם מזרח תיכוני אותנטי.',
+      price: 18,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
+      tags: ['טבעוני', 'ללא גלוטן'],
+      isAvailable: true,
+      pricingOptions: [
+        { label: '250 גרם', price: 18, amount: '250 גרם' },
+        { label: '500 גרם', price: 32, amount: '500 גרם' }
+      ],
+      pricingVariants: []
+    },
+    // Sides
+    {
+      id: 'rice',
+      _id: 'rice',
+      name: 'אורז לבן',
+      category: 'תוספות',
+      description: 'אורז לבן מבושל בסגנון ביתי, פריך וטעים. מתאים לכל מנה עיקרית.',
+      price: 15,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906621/IMG_9702_f9k2xj.jpg',
+      tags: ['טבעוני', 'ללא גלוטן'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'potatoes',
+      _id: 'potatoes',
+      name: 'תפוחי אדמה',
+      category: 'תוספות',
+      description: 'תפוחי אדמה מבושלים או צלויים, מתובלים בתבלינים. תוספת קלאסית וטעימה.',
+      price: 12,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906621/IMG_9702_f9k2xj.jpg',
+      tags: ['טבעוני', 'ללא גלוטן'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    // Desserts (קינוחים)
+    {
+      id: 'chocolate-mousse',
+      _id: 'chocolate-mousse',
+      name: 'מוס שוקולד אישי',
+      category: 'קינוחים',
+      description: 'מוס שוקולד בלגי עשיר ואוורירי, מוגש בכוסית אישית. קינוח מושלם ושוקולדי.',
+      price: 15,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      tags: ['חלבי/פרווה', 'שוקולד'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'cheesecake-crumb',
+      _id: 'cheesecake-crumb',
+      name: 'עוגת גבינה פירורים',
+      category: 'קינוחים',
+      description: 'עוגת גבינה קרה עם פירורים פריכים, במרקם שמנת עשיר. מוגש בפרוסה אישית.',
+      price: 18,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      tags: ['חלבי'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'malabi',
+      _id: 'malabi',
+      name: 'מלבי שמנת',
+      category: 'קינוחים',
+      description: 'מלבי שמנת מסורתי עם סירופ מי ורדים, קוקוס ובוטנים. טעם של בית.',
+      price: 12,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      tags: ['ללא גלוטן'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    {
+      id: 'apple-pie',
+      _id: 'apple-pie',
+      name: 'פאי תפוחים אישי',
+      category: 'קינוחים',
+      description: 'פאי תפוחים חם וביתי עם קינמון ובצק פריך. מומלץ להגיש חם.',
+      price: 22,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      tags: ['פרווה'],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    },
+    // Stuffed (ממולאים) - keeping the old tiramisu here for backward compatibility
+    {
+      id: 'tiramisu',
+      _id: 'tiramisu',
+      name: 'טירמיסו',
+      category: 'ממולאים',
+      description: 'טירמיסו קלאסי איטלקי עם קפה, ביסקוויטים וקרם מתוק. קינוח מושלם לסיום הארוחה.',
+      price: 35,
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      tags: [],
+      isAvailable: true,
+      pricingOptions: [],
+      pricingVariants: []
+    }
+  ];
+
   // Mock data for development - now uses backend API data format
   private mockMenuItems: MenuItem[] = [];
 
@@ -413,6 +640,186 @@ export class MenuService {
       catchError(error => {
         console.error('❌ Error deleting menu item:', error);
         throw error;
+      })
+    );
+  }
+
+  /**
+   * Universal method to get a product by ID from ALL categories
+   * Searches through all menu items regardless of category
+   * First searches in backend data, then falls back to master product list
+   */
+  getProductById(id: string): Observable<MenuItem | null> {
+    if (!id || id.trim() === '') {
+      console.warn('⚠️ getProductById called with empty ID');
+      return new Observable<MenuItem | null>(observer => {
+        observer.next(null);
+        observer.complete();
+      });
+    }
+
+    console.log('🔍 Searching for product with ID:', id);
+
+    return this.getMenuItems().pipe(
+      map<MenuItem[], MenuItem | null>(backendItems => {
+        // First, search in backend items
+        let foundProduct = backendItems.find(item => 
+          (item.id && item.id === id) || 
+          (item._id && item._id === id) ||
+          (item.id && item.id.toString() === id) ||
+          (item._id && item._id.toString() === id)
+        );
+        
+        if (foundProduct) {
+          console.log('✅ Found product in backend:', foundProduct.name, 'in category:', foundProduct.category);
+          return foundProduct;
+        }
+
+        // If not found in backend, search in master product list
+        console.log('🔍 Product not found in backend, searching in master product list...');
+        foundProduct = this._allProducts.find(item => 
+          (item.id && item.id === id) || 
+          (item._id && item._id === id) ||
+          (item.id && item.id.toString() === id) ||
+          (item._id && item._id.toString() === id)
+        );
+
+        if (foundProduct) {
+          console.log('✅ Found product in master list:', foundProduct.name, 'in category:', foundProduct.category);
+          return foundProduct;
+        }
+
+        // If still not found, return a fallback placeholder to prevent crashes
+        console.warn('⚠️ Product not found with ID:', id, '- Returning fallback placeholder');
+        const fallbackProduct: MenuItem = {
+          id: id,
+          _id: id,
+          name: 'מוצר לא נמצא',
+          category: 'מנות עיקריות',
+          description: 'המוצר המבוקש לא נמצא במערכת. אנא נסה שוב מאוחר יותר.',
+          price: 0,
+          imageUrl: '/assets/images/placeholder-dish.jpg',
+          tags: [],
+          isAvailable: false,
+          pricingOptions: [],
+          pricingVariants: []
+        };
+        
+        console.log('📦 Returning fallback product:', fallbackProduct);
+        return fallbackProduct;
+      }),
+      catchError(error => {
+        console.error('❌ Error fetching product by ID:', error);
+        
+        // On error, try to find in master product list
+        const foundProduct = this._allProducts.find(item => 
+          (item.id && item.id === id) || 
+          (item._id && item._id === id) ||
+          (item.id && item.id.toString() === id) ||
+          (item._id && item._id.toString() === id)
+        );
+
+        if (foundProduct) {
+          console.log('✅ Found product in master list after error:', foundProduct.name);
+          return new Observable<MenuItem | null>(observer => {
+            observer.next(foundProduct);
+            observer.complete();
+          });
+        }
+
+        // Return fallback if not found
+        const fallbackProduct: MenuItem = {
+          id: id,
+          _id: id,
+          name: 'מוצר לא נמצא',
+          category: 'מנות עיקריות',
+          description: 'המוצר המבוקש לא נמצא במערכת. אנא נסה שוב מאוחר יותר.',
+          price: 0,
+          imageUrl: '/assets/images/placeholder-dish.jpg',
+          tags: [],
+          isAvailable: false,
+          pricingOptions: [],
+          pricingVariants: []
+        };
+
+        return new Observable<MenuItem | null>(observer => {
+          observer.next(fallbackProduct);
+          observer.complete();
+        });
+      })
+    );
+  }
+
+  /**
+   * Get all products from master list (for fallback/offline scenarios)
+   * Returns Observable for consistency with other methods
+   */
+  getAllProducts(): Observable<MenuItem[]> {
+    return new Observable<MenuItem[]>(observer => {
+      observer.next([...this._allProducts]);
+      observer.complete();
+    });
+  }
+
+  /**
+   * Get products by category from master list
+   * Maps category names (Hebrew or English) to filter products
+   */
+  getProductsByCategory(category: string): Observable<MenuItem[]> {
+    // Map category strings to Hebrew category names
+    const categoryMap: { [key: string]: string } = {
+      'main-dishes': 'מנות עיקריות',
+      'main': 'מנות עיקריות',
+      'fish': 'דגים',
+      'salads': 'סלטים',
+      'desserts': 'קינוחים',
+      'sides': 'תוספות',
+      'side-dishes': 'תוספות',
+      'stuffed': 'ממולאים'
+    };
+
+    const hebrewCategory = categoryMap[category.toLowerCase()] || category;
+    
+    console.log('🔍 getProductsByCategory - Requested:', category, 'Mapped to:', hebrewCategory);
+    
+    // First try to get from backend
+    return this.getMenuItems().pipe(
+      map(backendItems => {
+        // Filter backend items by category
+        const backendFiltered = backendItems.filter(item => 
+          item.category === hebrewCategory || 
+          item.category === category ||
+          item.category?.toLowerCase() === category.toLowerCase()
+        );
+
+        // Also get from master list
+        const masterFiltered = this._allProducts.filter(item => 
+          item.category === hebrewCategory || 
+          item.category === category ||
+          item.category?.toLowerCase() === category.toLowerCase()
+        );
+
+        // Merge and deduplicate by ID
+        const allProducts = [...backendFiltered, ...masterFiltered];
+        const uniqueProducts = Array.from(
+          new Map(allProducts.map(item => [item.id || item._id || '', item])).values()
+        );
+
+        console.log(`✅ getProductsByCategory - Found ${uniqueProducts.length} products for category: ${category}`);
+        return uniqueProducts;
+      }),
+      catchError(error => {
+        console.error('❌ Error in getProductsByCategory, using master list only:', error);
+        // Fallback to master list only
+        const masterFiltered = this._allProducts.filter(item => 
+          item.category === hebrewCategory || 
+          item.category === category ||
+          item.category?.toLowerCase() === category.toLowerCase()
+        );
+        return new Observable<MenuItem[]>(observer => {
+          observer.next([...masterFiltered]);
+          observer.complete();
+        });
       })
     );
   }

@@ -1,0 +1,29 @@
+<!-- Main Title -->
+<header class="luxury-page-header">
+  <span class="decorative-line"></span>
+  <span class="decorative-diamond"></span>
+  <h1>אוכל מוכן לשבת וחג</h1>
+  <span class="decorative-diamond"></span>
+  <span class="decorative-line"></span>
+</header>
+
+<!-- Navigation Cards (Bento Grid) -->
+<section class="categories-nav">
+  <div class="container">
+    <div class="nav-cards-grid">
+      <div 
+        *ngFor="let category of categories; let i = index" 
+        class="category-item"
+        [class.item-main-dishes]="category.id === 'main'"
+        [routerLink]="[category.id]"
+        routerLinkActive="active"
+      >
+        <img [src]="category.image" [alt]="category.title" class="category-image">
+        <div class="category-info">
+          <h3>{{ category.title }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
