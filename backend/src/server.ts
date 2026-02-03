@@ -3,6 +3,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+console.log('🚀 Server starting with Vercel CORS fix applied!');
+
 // Now import everything else after env is loaded
 import express from 'express';
 import mongoose from 'mongoose';
@@ -47,12 +49,16 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // CORS middleware - MUST be first, before any other middleware or routes
-// Allow ALL origins temporarily to rule out CORS issues
+// Allow Vercel and Localhost to access the server
 app.use(cors({
-  origin: true, // Allow all origins reflected (more permissive than '*')
-  credentials: true, // Allow credentials with origin: true
+  origin: [
+    'http://localhost:4200', // Local development
+    'https://magadim-backend.onrender.com', // Render backend (if needed)
+    /\.vercel\.app$/ // All Vercel preview and production deployments (matches *.vercel.app)
+  ],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
 // Middleware
