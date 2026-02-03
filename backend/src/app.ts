@@ -14,6 +14,7 @@ import testimonialsRoutes from './routes/testimonials.routes';
 import agentRoutes from './routes/agent.routes';
 import galleryRoutes from './routes/gallery.routes';
 import videoRoutes from './routes/video.routes';
+import settingsRoutes from './routes/settings.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -119,6 +120,7 @@ app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/videos', videoRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
@@ -139,7 +141,8 @@ app.get('/', (req: Request, res: Response) => {
       testimonials: '/api/testimonials',
       agent: '/api/agent',
       gallery: '/api/gallery',
-      videos: '/api/videos'
+      videos: '/api/videos',
+      settings: '/api/settings'
     },
     documentation: 'Visit /api for more information'
   });
@@ -161,7 +164,8 @@ app.get('/api', (req: Request, res: Response) => {
       testimonials: '/api/testimonials',
       agent: '/api/agent',
       gallery: '/api/gallery',
-      videos: '/api/videos'
+      videos: '/api/videos',
+      settings: '/api/settings'
     },
     documentation: 'Contact info@megadim-catering.com for API documentation'
   });
