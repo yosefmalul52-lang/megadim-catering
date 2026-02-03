@@ -25,6 +25,7 @@ const employee_routes_1 = __importDefault(require("./routes/employee.routes"));
 const attendance_routes_1 = __importDefault(require("./routes/attendance.routes"));
 const gallery_routes_1 = __importDefault(require("./routes/gallery.routes"));
 const video_routes_1 = __importDefault(require("./routes/video.routes"));
+const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
 // Import 404 handler
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
 // Debugging: Check loaded environment variables
@@ -86,6 +87,8 @@ app.use('/api/employees', employee_routes_1.default);
 app.use('/api/attendance', attendance_routes_1.default);
 app.use('/api/gallery', gallery_routes_1.default);
 app.use('/api/videos', video_routes_1.default);
+app.use('/api/settings', settings_routes_1.default);
+console.log('✅ Settings route registered at /api/settings'); // Debug log
 // 404 handler for undefined routes (must be after all routes)
 app.use('*', notFoundHandler_1.notFoundHandler);
 // Global Error Handler (must be last)
