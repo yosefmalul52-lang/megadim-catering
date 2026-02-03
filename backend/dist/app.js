@@ -18,6 +18,7 @@ const testimonials_routes_1 = __importDefault(require("./routes/testimonials.rou
 const agent_routes_1 = __importDefault(require("./routes/agent.routes"));
 const gallery_routes_1 = __importDefault(require("./routes/gallery.routes"));
 const video_routes_1 = __importDefault(require("./routes/video.routes"));
+const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
 // Import middleware
 const errorHandler_1 = require("./middleware/errorHandler");
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
@@ -107,6 +108,7 @@ app.use('/api/testimonials', testimonials_routes_1.default);
 app.use('/api/agent', agent_routes_1.default);
 app.use('/api/gallery', gallery_routes_1.default);
 app.use('/api/videos', video_routes_1.default);
+app.use('/api/settings', settings_routes_1.default);
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({
@@ -126,7 +128,8 @@ app.get('/', (req, res) => {
             testimonials: '/api/testimonials',
             agent: '/api/agent',
             gallery: '/api/gallery',
-            videos: '/api/videos'
+            videos: '/api/videos',
+            settings: '/api/settings'
         },
         documentation: 'Visit /api for more information'
     });
@@ -147,7 +150,8 @@ app.get('/api', (req, res) => {
             testimonials: '/api/testimonials',
             agent: '/api/agent',
             gallery: '/api/gallery',
-            videos: '/api/videos'
+            videos: '/api/videos',
+            settings: '/api/settings'
         },
         documentation: 'Contact info@megadim-catering.com for API documentation'
     });
