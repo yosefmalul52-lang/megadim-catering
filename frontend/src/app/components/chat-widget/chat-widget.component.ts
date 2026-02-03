@@ -193,7 +193,7 @@ export class ChatWidgetComponent implements AfterViewInit, OnDestroy {
           required: ['fullName','phone','email','eventDate','eventTime','guestCount'],
         },
         onCall: async (args: CateringInquiryArgs) => {
-          const res = await fetch(`${environment.apiBase}/api/catering-inquiry`, {
+          const res = await fetch(`${environment.apiUrl}/catering-inquiry`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(args),
@@ -238,7 +238,7 @@ export class ChatWidgetComponent implements AfterViewInit, OnDestroy {
     try {
       // Build minimal message history for /api/chat
       const history = this.messages.map(m => ({ role: m.isBot ? 'assistant' : 'user', content: m.text }));
-      const res = await this.http.post<any>(`${environment.apiBase}/api/chat`, {
+      const res = await this.http.post<any>(`${environment.apiUrl}/chat`, {
         conversationId: this.conversationId,
         systemPrompt: environment.assistant.systemPrompt,
         messages: history,

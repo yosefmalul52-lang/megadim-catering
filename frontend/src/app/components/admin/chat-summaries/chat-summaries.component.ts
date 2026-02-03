@@ -105,7 +105,7 @@ export class ChatSummariesComponent implements OnInit, OnDestroy {
   }
 
   private fetch(): void {
-    this.http.get<{ ok: boolean; data: ChatSummaryRecord[] }>(`${environment.apiBase}/api/admin/summaries?key=${encodeURIComponent(ADMIN_KEY)}`)
+    this.http.get<{ ok: boolean; data: ChatSummaryRecord[] }>(`${environment.apiUrl}/admin/summaries?key=${encodeURIComponent(ADMIN_KEY)}`)
       .subscribe({
         next: (r) => {
           if (r.ok) this.items = r.data || [];
@@ -118,7 +118,7 @@ export class ChatSummariesComponent implements OnInit, OnDestroy {
   }
 
   private listen(): void {
-    const url = `${environment.apiBase}/api/admin/stream?key=${encodeURIComponent(ADMIN_KEY)}`;
+    const url = `${environment.apiUrl}/admin/stream?key=${encodeURIComponent(ADMIN_KEY)}`;
     this.es = new EventSource(url);
     this.es.addEventListener('summary', (ev: MessageEvent) => {
       try {

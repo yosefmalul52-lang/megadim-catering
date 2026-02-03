@@ -47,7 +47,7 @@ export interface RegisterResponse {
 export class AuthService {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'auth_user';
-  private apiUrl = environment.apiUrl || 'http://localhost:4000/api'; // Backend runs on port 4000
+  private apiUrl = environment.apiUrl;
   
   private isLoggedInSubject = new BehaviorSubject<boolean>(this.isLoggedIn());
   public isLoggedIn$ = this.isLoggedInSubject.asObservable();

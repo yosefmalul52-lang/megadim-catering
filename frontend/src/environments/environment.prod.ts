@@ -3,7 +3,6 @@ export const environment = {
   apiUrl: 'https://magadim-backend.onrender.com/api',
   appName: 'Megadim Catering',
   version: '1.0.0',
-  apiBase: 'https://YOUR_SERVER_DOMAIN',
   assistant: {
     chatKitEnabled: false,
     systemPrompt: `את/ה העוזר/ת של “מגדים” – קייטרינג יוקרתי וכשר לאירועים.

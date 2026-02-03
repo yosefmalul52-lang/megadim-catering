@@ -20,7 +20,7 @@ export interface UploadResponse {
 })
 export class UploadService {
   private http = inject(HttpClient);
-  private apiUrl = environment.apiUrl || 'http://localhost:4000/api';
+  private apiUrl = `${environment.apiUrl}/upload`;
 
   /**
    * Upload an image file to Cloudinary via backend
@@ -32,7 +32,7 @@ export class UploadService {
     formData.append('image', file);
 
     return this.http.post<{ success: boolean; message?: string; imageUrl: string; publicId?: string; format?: string; width?: number; height?: number; bytes?: number }>(
-      `${this.apiUrl}/upload`,
+      this.apiUrl,
       formData
     ).pipe(
       map(response => ({
