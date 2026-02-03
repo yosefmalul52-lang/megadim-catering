@@ -37,12 +37,26 @@ export class AdminSettingsComponent implements OnInit {
     this.isLoading = true;
     this.settingsService.getSettings().subscribe({
       next: (settings) => {
-        this.settingsForm.patchValue({
-          shabbatMenuUrl: settings.shabbatMenuUrl || '',
-          eventsMenuUrl: settings.eventsMenuUrl || '',
-          contactPhone: settings.contactPhone || '',
-          whatsappLink: settings.whatsappLink || ''
-        });
+        console.log('Received settings data:', settings); // Debug log
+
+        // Safely handle null or undefined data
+        if (settings) {
+          this.settingsForm.patchValue({
+            shabbatMenuUrl: settings.shabbatMenuUrl || '',
+            eventsMenuUrl: settings.eventsMenuUrl || '',
+            contactPhone: settings.contactPhone || '',
+            whatsappLink: settings.whatsappLink || ''
+          });
+        } else {
+          // Handle empty data case without crashing
+          console.warn('Settings data is null, initializing with defaults.');
+          this.settingsForm.patchValue({
+            shabbatMenuUrl: '',
+            eventsMenuUrl: '',
+            contactPhone: '',
+            whatsappLink: ''
+          });
+        }
         this.isLoading = false;
       },
       error: (error) => {
@@ -51,6 +65,13 @@ export class AdminSettingsComponent implements OnInit {
         this.toastr.error('שגיאה בטעינת ההגדרות', 'שגיאה', {
           timeOut: 5000,
           positionClass: 'toast-top-left'
+        });
+        // Initialize form with empty values on error
+        this.settingsForm.patchValue({
+          shabbatMenuUrl: '',
+          eventsMenuUrl: '',
+          contactPhone: '',
+          whatsappLink: ''
         });
       }
     });

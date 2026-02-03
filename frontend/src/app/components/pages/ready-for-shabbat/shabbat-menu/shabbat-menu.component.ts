@@ -20,6 +20,7 @@ export class ShabbatMenuComponent implements OnInit {
   settingsService = inject(SiteSettingsService);
   
   settings: SiteSettings | null = null;
+  shabbatMenuPdfUrl: string = '';
   
   // All categories with their metadata
   categories = [
@@ -63,17 +64,27 @@ export class ShabbatMenuComponent implements OnInit {
 
   ngOnInit(): void {
     // Fetch site settings
-    this.settingsService.getSettings().subscribe(settings => {
-      this.settings = settings;
+    this.settingsService.getSettings().subscribe(s => {
+      if (s && s.shabbatMenuUrl) {
+        this.shabbatMenuPdfUrl = s.shabbatMenuUrl;
+        console.log('✅ Shabbat PDF URL loaded:', this.shabbatMenuPdfUrl);
+      } else {
+        this.shabbatMenuPdfUrl = '';
+        console.warn('ShabbatMenuComponent: No shabbatMenuUrl found in settings');
+      }
     });
   }
 
-  get shabbatMenuUrl(): string {
-    return this.settings?.shabbatMenuUrl || '';
-  }
-
-  hasMenuUrl(): boolean {
-    return !!this.shabbatMenuUrl && this.shabbatMenuUrl.trim() !== '';
+  openMenu(): void {
+    console.log('Attempting to open menu URL:', this.shabbatMenuPdfUrl); // Debug log
+    
+    if (this.shabbatMenuPdfUrl) {
+      // Force open in new tab
+      window.open(this.shabbatMenuPdfUrl, '_blank'); 
+    } else {
+      console.error('Menu URL is missing or empty!');
+      alert('קישור לתפריט טרם עודכן במערכת'); // Optional user feedback
+    }
   }
 }
 

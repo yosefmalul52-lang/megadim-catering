@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
+import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 
 @Component({
   selector: 'app-holiday-food',
@@ -12,7 +13,11 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './holiday-food.component.html',
   styleUrls: ['./holiday-food.component.scss']
 })
-export class HolidayFoodComponent {
+export class HolidayFoodComponent implements OnInit {
+  settingsService = inject(SiteSettingsService);
+  settings: SiteSettings | null = null;
+  eventsMenuUrl: string = '';
+  
   isOrderFormOpen: boolean = false;
   
   // Arrays for dropdown loops
@@ -131,5 +136,35 @@ export class HolidayFoodComponent {
   
   closeModal() {
     this.toggleOrderForm();
+  }
+
+  ngOnInit(): void {
+    // Fetch site settings
+    this.settingsService.getSettings().subscribe(s => {
+      if (s && s.eventsMenuUrl) {
+        this.eventsMenuUrl = s.eventsMenuUrl;
+        this.settings = s;
+        console.log('✅ Events Menu URL loaded:', this.eventsMenuUrl);
+      } else {
+        this.eventsMenuUrl = '';
+        console.warn('HolidayFoodComponent: No eventsMenuUrl found in settings');
+      }
+    });
+  }
+
+  openMenu(): void {
+    console.log('Attempting to open menu URL:', this.eventsMenuUrl); // Debug log
+    
+    if (this.eventsMenuUrl) {
+      // Force open in new tab
+      window.open(this.eventsMenuUrl, '_blank'); 
+    } else {
+      console.error('Menu URL is missing or empty!');
+      alert('קישור לתפריט טרם עודכן במערכת'); // Optional user feedback
+    }
+  }
+
+  hasMenuUrl(): boolean {
+    return !!this.eventsMenuUrl && this.eventsMenuUrl.trim() !== '';
   }
 }

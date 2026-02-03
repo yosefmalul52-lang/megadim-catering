@@ -44,8 +44,54 @@ export class SiteSettingsService {
 
     // Fetch from API
     this.isLoadingSubject.next(true);
-    return this.http.get<SiteSettingsResponse>(this.apiUrl).pipe(
-      map(response => response.data),
+    return this.http.get<any>(this.apiUrl).pipe(
+      map(response => {
+        console.log('Raw API response:', response); // Debug log
+        
+        // Handle null or undefined response
+        if (!response) {
+          console.warn('API returned null/undefined, using default settings');
+          return {
+            shabbatMenuUrl: '',
+            eventsMenuUrl: '',
+            contactPhone: '',
+            whatsappLink: ''
+          };
+        }
+        
+        // Handle both response formats: wrapped {success, data} or direct settings object
+        let settings: SiteSettings | null = null;
+        
+        if (typeof response === 'object') {
+          // Check if response has 'data' property (wrapped format: {success: true, data: {...}})
+          if ('data' in response && response.data !== null && response.data !== undefined) {
+            settings = response.data as SiteSettings;
+          } 
+          // Check if response is a direct settings object (has shabbatMenuUrl or eventsMenuUrl)
+          else if ('shabbatMenuUrl' in response || 'eventsMenuUrl' in response) {
+            settings = response as SiteSettings;
+          }
+        }
+        
+        // If still null, return default settings
+        if (!settings) {
+          console.warn('API returned invalid settings format, using defaults. Response:', response);
+          settings = {
+            shabbatMenuUrl: '',
+            eventsMenuUrl: '',
+            contactPhone: '',
+            whatsappLink: ''
+          };
+        }
+        
+        // Ensure all required fields exist with safe defaults
+        return {
+          shabbatMenuUrl: settings.shabbatMenuUrl || '',
+          eventsMenuUrl: settings.eventsMenuUrl || '',
+          contactPhone: settings.contactPhone || '',
+          whatsappLink: settings.whatsappLink || ''
+        };
+      }),
       tap(settings => {
         // Cache the settings
         this.settingsSubject.next(settings);
@@ -61,6 +107,7 @@ export class SiteSettingsService {
           contactPhone: '',
           whatsappLink: ''
         };
+        this.settingsSubject.next(defaultSettings);
         return of(defaultSettings);
       })
     );
@@ -72,8 +119,54 @@ export class SiteSettingsService {
    */
   updateSettings(settings: Partial<SiteSettings>): Observable<SiteSettings> {
     this.isLoadingSubject.next(true);
-    return this.http.put<SiteSettingsResponse>(this.apiUrl, settings).pipe(
-      map(response => response.data),
+    return this.http.put<any>(this.apiUrl, settings).pipe(
+      map(response => {
+        console.log('Raw API update response:', response); // Debug log
+        
+        // Handle null or undefined response
+        if (!response) {
+          console.warn('API returned null/undefined after update, using input data');
+          return {
+            shabbatMenuUrl: settings.shabbatMenuUrl || '',
+            eventsMenuUrl: settings.eventsMenuUrl || '',
+            contactPhone: settings.contactPhone || '',
+            whatsappLink: settings.whatsappLink || ''
+          };
+        }
+        
+        // Handle both response formats: wrapped {success, data} or direct settings object
+        let updatedSettings: SiteSettings | null = null;
+        
+        if (typeof response === 'object') {
+          // Check if response has 'data' property (wrapped format)
+          if ('data' in response && response.data !== null && response.data !== undefined) {
+            updatedSettings = response.data as SiteSettings;
+          } 
+          // Otherwise, treat response as direct settings object
+          else if ('shabbatMenuUrl' in response || 'eventsMenuUrl' in response) {
+            updatedSettings = response as SiteSettings;
+          }
+        }
+        
+        // If still null, create settings from the input data
+        if (!updatedSettings) {
+          console.warn('API returned invalid settings format after update, using input data');
+          updatedSettings = {
+            shabbatMenuUrl: settings.shabbatMenuUrl || '',
+            eventsMenuUrl: settings.eventsMenuUrl || '',
+            contactPhone: settings.contactPhone || '',
+            whatsappLink: settings.whatsappLink || ''
+          };
+        }
+        
+        // Ensure all required fields exist with safe defaults
+        return {
+          shabbatMenuUrl: updatedSettings.shabbatMenuUrl || '',
+          eventsMenuUrl: updatedSettings.eventsMenuUrl || '',
+          contactPhone: updatedSettings.contactPhone || '',
+          whatsappLink: updatedSettings.whatsappLink || ''
+        };
+      }),
       tap(updatedSettings => {
         // Update cache with new settings
         this.settingsSubject.next(updatedSettings);

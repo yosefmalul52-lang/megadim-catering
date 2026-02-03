@@ -103,7 +103,11 @@
   <section class="cta-section">
     <div class="container">
       <div class="cta-buttons">
-        <button class="cta-btn cta-btn-secondary">
+        <button 
+          *ngIf="hasMenuUrl()"
+          (click)="openMenu()" 
+          class="cta-btn cta-btn-secondary"
+          style="cursor: pointer; z-index: 10; position: relative;">
           <mat-icon>download</mat-icon>
           <span>להורדת התפריט</span>
         </button>

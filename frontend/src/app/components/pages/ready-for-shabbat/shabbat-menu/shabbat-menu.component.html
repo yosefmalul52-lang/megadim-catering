@@ -28,17 +28,19 @@
 </section>
 
 <!-- Download Menu Button -->
-<section class="download-menu-section" *ngIf="hasMenuUrl()">
+<section class="download-menu-section">
   <div class="container">
-    <a 
-      [href]="shabbatMenuUrl" 
-      target="_blank" 
-      rel="noopener noreferrer"
-      class="download-menu-btn"
-    >
-      <i class="fas fa-download"></i>
-      <span>הורדת תפריט PDF</span>
-    </a>
+    <button 
+      *ngIf="shabbatMenuPdfUrl"
+      (click)="openMenu()" 
+      class="btn-gold-download"
+      style="cursor: pointer; z-index: 10; position: relative; display: inline-block; padding: 10px 20px; background: var(--primary-gold); color: #1f3540; text-decoration: none; border: none; border-radius: 5px; font-weight: bold; font-family: 'Heebo', sans-serif;">
+      <i class="fas fa-file-pdf"></i> הורד תפריט שבת וחג
+    </button>
+
+    <span *ngIf="!shabbatMenuPdfUrl" style="color: gray; font-size: 0.9em;">
+      (טרם עודכן תפריט)
+    </span>
   </div>
 </section>
 
