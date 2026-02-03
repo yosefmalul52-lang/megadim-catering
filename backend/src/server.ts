@@ -47,11 +47,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // CORS middleware - MUST be first, before any other middleware or routes
+// Allow ALL origins temporarily to rule out CORS issues
 app.use(cors({
-  origin: '*',  // Allow ALL origins for now to fix the blocking issue
-  credentials: true,
+  origin: true, // Allow all origins reflected (more permissive than '*')
+  credentials: true, // Allow credentials with origin: true
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 }));
 
 // Middleware

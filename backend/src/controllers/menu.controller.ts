@@ -7,6 +7,329 @@ export class MenuController {
   getAllMenuItems = asyncHandler(async (req: Request, res: Response) => {
     const { category, tag, available, popular } = req.query;
     
+    // Check if database is empty or has partial data (less than 5 items)
+    const itemCount = await MenuItem.countDocuments();
+    
+    if (itemCount < 5) {
+      console.log(`📦 Database has only ${itemCount} items. Restoring full menu...`);
+      
+      // Clear partial data to be safe
+      await MenuItem.deleteMany({});
+      console.log('🗑️ Cleared existing menu data');
+      
+      // Master Menu Data - Full menu with ALL categories
+      const masterMenu = [
+        // --- SALADS (סלטים) ---
+        {
+          name: 'חומוס ביתי',
+          category: 'סלטים',
+          description: 'עם שמן זית וגרגירים',
+          price: 25,
+          imageUrl: 'assets/images/salads/hummus.jpg',
+          tags: ['טבעוני', 'ללא גלוטן'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'מטבוחה מרוקאית',
+          category: 'סלטים',
+          description: 'פיקנטית אש',
+          price: 30,
+          imageUrl: 'assets/images/salads/matbucha.jpg',
+          tags: ['טבעוני', 'ללא גלוטן', 'חריף'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'חציל במיונז',
+          category: 'סלטים',
+          description: 'טעם ביתי',
+          price: 28,
+          imageUrl: 'assets/images/salads/eggplant.jpg',
+          tags: ['טבעוני'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'כרוב שמיר',
+          category: 'סלטים',
+          description: 'סלט מרענן',
+          price: 25,
+          imageUrl: 'assets/images/salads/cabbage.jpg',
+          tags: ['טבעוני', 'ללא גלוטן'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        
+        // --- FISH (דגים) ---
+        {
+          name: 'פילה סלמון',
+          category: 'דגים',
+          description: 'בעשבי תיבול ולימון',
+          price: 85,
+          imageUrl: 'assets/images/fish/salmon.jpg',
+          tags: ['דג', 'בריא'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: true
+        },
+        {
+          name: 'נסיכת הנילוס',
+          category: 'דגים',
+          description: 'ברוטב מרוקאי חריף (חריימה)',
+          price: 70,
+          imageUrl: 'assets/images/fish/nilus.jpg',
+          tags: ['דג', 'חריף', 'מסורתי'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'דג דניס שלם',
+          category: 'דגים',
+          description: 'אפוי בתנור',
+          price: 95,
+          imageUrl: 'assets/images/fish/denis.jpg',
+          tags: ['דג', 'מסורתי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'גפילטע פיש',
+          category: 'דגים',
+          description: 'מסורתי עם גזר',
+          price: 22,
+          imageUrl: 'assets/images/fish/gefilte.jpg',
+          tags: ['דג', 'מסורתי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        
+        // --- MAIN DISHES (מנות עיקריות) ---
+        {
+          name: 'עוף בזיתים',
+          category: 'מנות עיקריות',
+          description: 'ברוטב עשיר',
+          price: 65,
+          imageUrl: 'assets/images/main/chicken.jpg',
+          tags: ['עוף', 'מסורתי'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: true
+        },
+        {
+          name: 'אסאדו בבישול ארוך',
+          category: 'מנות עיקריות',
+          description: 'ביין וירקות שורש',
+          price: 110,
+          imageUrl: 'assets/images/main/asado.jpg',
+          tags: ['בשרי', 'מיוחד'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: true
+        },
+        {
+          name: 'שניצל ביתי',
+          category: 'מנות עיקריות',
+          description: 'פריך וזהוב',
+          price: 55,
+          imageUrl: 'assets/images/main/schnitzel.jpg',
+          tags: ['בשרי', 'קלאסי'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'לשון ברוטב פטריות',
+          category: 'מנות עיקריות',
+          description: 'רך במיוחד',
+          price: 120,
+          imageUrl: 'assets/images/main/tongue.jpg',
+          tags: ['בשרי', 'מיוחד'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        
+        // --- CHOLENT BAR (צ'ולנט) ---
+        {
+          name: 'צ\'ולנט בשרי',
+          category: 'צ\'ולנט',
+          description: 'צלחת עשירה + לחמניה',
+          price: 45,
+          imageUrl: 'assets/images/cholent/meat.jpg',
+          tags: ['בשרי', 'מסורתי'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'צ\'ולנט פרווה',
+          category: 'צ\'ולנט',
+          description: 'צלחת מסורתית + לחמניה',
+          price: 35,
+          imageUrl: 'assets/images/cholent/parve.jpg',
+          tags: ['פרווה', 'מסורתי'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'ארוחת המבורגר',
+          category: 'צ\'ולנט',
+          description: 'קציצה, צ\'יפס ושתייה',
+          price: 54,
+          imageUrl: 'assets/images/cholent/burger.jpg',
+          tags: ['בשרי', 'ארוחה מלאה'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'המבורגר בלחמניה',
+          category: 'צ\'ולנט',
+          description: 'מוגש עם ירקות טריים ורטבים',
+          price: 42,
+          imageUrl: 'assets/images/cholent/burger-single.jpg',
+          tags: ['בשרי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'חלה שניצל',
+          category: 'צ\'ולנט',
+          description: 'מבחר סלטים לבחירה וצ\'יפס בצד',
+          price: 38,
+          imageUrl: 'assets/images/cholent/schnitzel-challah.jpg',
+          tags: ['בשרי', 'ארוחה מלאה'],
+          isAvailable: true,
+          isPopular: true,
+          isFeatured: false
+        },
+        {
+          name: 'נשנושי שניצלונים וצ\'יפס',
+          category: 'צ\'ולנט',
+          description: 'מנה כיפית ופריכה',
+          price: 32,
+          imageUrl: 'assets/images/cholent/nuggets.jpg',
+          tags: ['בשרי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'קוגל ירושלמי',
+          category: 'צ\'ולנט',
+          description: 'חריף ומתוק במידה הנכונה',
+          price: 8,
+          imageUrl: 'assets/images/cholent/kugel-jerusalem.jpg',
+          tags: ['פרווה', 'מסורתי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'קוגל תפוחי אדמה',
+          category: 'צ\'ולנט',
+          description: 'בטעם של בית',
+          price: 8,
+          imageUrl: 'assets/images/cholent/kugel-potato.jpg',
+          tags: ['פרווה', 'מסורתי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'כבד קצוץ',
+          category: 'צ\'ולנט',
+          description: 'עם בצל מטוגן וקרקרים',
+          price: 30,
+          imageUrl: 'assets/images/cholent/liver.jpg',
+          tags: ['בשרי', 'מסורתי'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'צ\'יפס',
+          category: 'צ\'ולנט',
+          description: 'פריך ולוהט. קטן: 10 ₪ / גדול: 20 ₪',
+          price: 10,
+          imageUrl: 'assets/images/cholent/fries.jpg',
+          tags: ['פרווה'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'סופלה שוקולד',
+          category: 'צ\'ולנט',
+          description: 'מוגש חם עם גלידה וניל',
+          price: 22,
+          imageUrl: 'assets/images/cholent/souffle.jpg',
+          tags: ['קינוח', 'שוקולד'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'פלטת קינוחים זוגית',
+          category: 'צ\'ולנט',
+          description: 'מבחר מתוקים מפנק',
+          price: 40,
+          imageUrl: 'assets/images/cholent/dessert-platter.jpg',
+          tags: ['קינוח'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'שתייה קלה',
+          category: 'צ\'ולנט',
+          description: 'קולה, פנטה, זירו, XL',
+          price: 8,
+          imageUrl: 'assets/images/cholent/drinks.jpg',
+          tags: ['שתייה'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'מים',
+          category: 'צ\'ולנט',
+          description: 'מים מינרליים',
+          price: 5,
+          imageUrl: 'assets/images/cholent/water.jpg',
+          tags: ['שתייה'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        },
+        {
+          name: 'בירה קרה',
+          category: 'צ\'ולנט',
+          description: 'בקבוק בירה צונן',
+          price: 15,
+          imageUrl: 'assets/images/cholent/beer.jpg',
+          tags: ['שתייה', 'אלכוהול'],
+          isAvailable: true,
+          isPopular: false,
+          isFeatured: false
+        }
+      ];
+      
+      // Insert all items at once
+      const seededItems = await MenuItem.insertMany(masterMenu);
+      console.log(`♻️ Database restored with full menu. Seeded ${seededItems.length} menu items across all categories.`);
+    }
+    
     // Build MongoDB query
     const query: any = {};
     

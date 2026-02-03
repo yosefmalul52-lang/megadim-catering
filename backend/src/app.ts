@@ -23,27 +23,15 @@ import { notFoundHandler } from './middleware/notFoundHandler';
 const app: Application = express();
 
 // Force CORS Headers - MUST be first, before any other middleware
+// Allow ALL origins temporarily to rule out CORS issues
 app.use((req: Request, res: Response, next: NextFunction) => {
-  // Allow both local development and production origins
-  const allowedOrigins = [
-    'http://localhost:4200', // Local frontend development
-    'https://magadim-backend.onrender.com', // Production backend (if needed)
-    'https://megadim-catering.com', // Production frontend (if exists)
-    'https://www.megadim-catering.com' // Production frontend with www (if exists)
-  ];
-  
+  // Allow all origins - reflect the request origin
   const origin = req.headers.origin;
-  
-  // Set CORS headers
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin) {
     res.header("Access-Control-Allow-Origin", origin);
   } else {
-    // Fallback: allow all origins in development, restrict in production
-    if (process.env.NODE_ENV !== 'production') {
-      res.header("Access-Control-Allow-Origin", "*");
-    }
+    res.header("Access-Control-Allow-Origin", "*");
   }
-  
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
