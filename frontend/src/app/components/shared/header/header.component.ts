@@ -14,6 +14,7 @@ import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
 import { AuthModalService } from '../../../services/auth-modal.service';
+import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 
 @Component({
   selector: 'app-header',
@@ -41,8 +42,10 @@ export class HeaderComponent implements OnInit {
   searchService = inject(SearchService);
   authService = inject(AuthService);
   authModalService = inject(AuthModalService);
+  settingsService = inject(SiteSettingsService);
   private router = inject(Router);
   
+  settings: SiteSettings | null = null;
   isUserMenuOpen = false;
   isSearchOpen = false;
   currentUser = this.authService.currentUser;
@@ -82,6 +85,15 @@ export class HeaderComponent implements OnInit {
     this.cartService.cartItems$.subscribe(() => {
       this.cartSummary = this.cartService.cartSummary;
     });
+    
+    // Fetch site settings
+    this.settingsService.getSettings().subscribe(settings => {
+      this.settings = settings;
+    });
+  }
+
+  get contactPhone(): string {
+    return this.settings?.contactPhone || '052-8240230';
   }
 
   onSearchClick(): void {

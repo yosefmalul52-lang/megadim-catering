@@ -12,7 +12,7 @@
         <div class="social-icons">
           <a href="#" class="social-btn"><i class="fab fa-facebook-f"></i></a>
           <a href="#" class="social-btn"><i class="fab fa-instagram"></i></a>
-          <a href="#" class="social-btn"><i class="fab fa-whatsapp"></i></a>
+          <a [href]="whatsappLink" target="_blank" rel="noopener noreferrer" class="social-btn"><i class="fab fa-whatsapp"></i></a>
         </div>
       </div>
       
@@ -35,7 +35,7 @@
             <mat-icon>phone</mat-icon>
             <div class="info">
               <span>טלפון להזמנות:</span>
-              <a href="tel:0528240230">052-8240230</a>
+              <a [href]="'tel:' + contactPhone">{{ contactPhone }}</a>
             </div>
           </li>
           <li>

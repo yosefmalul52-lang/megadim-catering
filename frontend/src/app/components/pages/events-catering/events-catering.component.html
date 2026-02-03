@@ -161,10 +161,16 @@
   <section class="cta-section">
     <div class="container">
       <div class="cta-buttons">
-        <button class="cta-btn cta-btn-secondary">
+        <a 
+          *ngIf="hasMenuUrl()"
+          [href]="eventsMenuUrl" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="cta-btn cta-btn-secondary"
+        >
           <mat-icon>download</mat-icon>
           <span>להורדת התפריט</span>
-        </button>
+        </a>
         <button class="cta-btn cta-btn-primary">
           <mat-icon>event</mat-icon>
           <span>טופס הזמנה</span>

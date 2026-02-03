@@ -27,3 +27,18 @@
   </div>
 </section>
 
+<!-- Download Menu Button -->
+<section class="download-menu-section" *ngIf="hasMenuUrl()">
+  <div class="container">
+    <a 
+      [href]="shabbatMenuUrl" 
+      target="_blank" 
+      rel="noopener noreferrer"
+      class="download-menu-btn"
+    >
+      <i class="fas fa-download"></i>
+      <span>הורדת תפריט PDF</span>
+    </a>
+  </div>
+</section>
+

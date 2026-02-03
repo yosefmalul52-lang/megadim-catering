@@ -47,6 +47,10 @@ export const adminRoutes: Routes = [
       {
         path: 'gallery',
         loadComponent: () => import('./unified-gallery/unified-gallery.component').then(m => m.UnifiedGalleryComponent)
+      },
+      {
+        path: 'settings',
+        loadComponent: () => import('./admin-settings/admin-settings.component').then(m => m.AdminSettingsComponent)
       }
     ]
   }

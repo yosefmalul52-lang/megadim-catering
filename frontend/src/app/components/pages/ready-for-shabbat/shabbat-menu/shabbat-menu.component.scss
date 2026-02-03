@@ -251,3 +251,55 @@ $white: #FFFFFF;
   }
 }
 
+// === Download Menu Section ===
+.download-menu-section {
+  background-color: $white;
+  padding: 40px 20px;
+  text-align: center;
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .download-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 32px;
+    background: var(--primary-gold);
+    color: #1f3540;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(224, 192, 117, 0.4);
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+
+    i {
+      font-size: 1.2rem;
+    }
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(224, 192, 117, 0.6);
+      opacity: 0.95;
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 30px 15px;
+
+    .download-menu-btn {
+      padding: 14px 24px;
+      font-size: 1rem;
+    }
+  }
+}
+

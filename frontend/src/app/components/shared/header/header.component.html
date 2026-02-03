@@ -2,7 +2,7 @@
   <!-- Row 1: Top Bar (Navy) -->
   <div class="top-bar">
     <div class="top-bar-content">
-      <a href="tel:0528240230" class="mobile-phone-icon" aria-label="Call us">
+      <a [href]="'tel:' + contactPhone" class="mobile-phone-icon" aria-label="Call us">
         <mat-icon>phone</mat-icon>
       </a>
       <span class="desktop-phone-text">{{ 'NAV.ORDER_TEL' | translate }}</span>

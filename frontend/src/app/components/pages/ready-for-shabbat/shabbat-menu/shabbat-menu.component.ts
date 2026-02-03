@@ -1,7 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { RouterModule } from '@angular/router';
+import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
 
 @Component({
   selector: 'app-shabbat-menu',
@@ -14,8 +15,11 @@ import { RouterModule } from '@angular/router';
   templateUrl: './shabbat-menu.component.html',
   styleUrls: ['./shabbat-menu.component.scss']
 })
-export class ShabbatMenuComponent {
+export class ShabbatMenuComponent implements OnInit {
   translateService = inject(TranslateService);
+  settingsService = inject(SiteSettingsService);
+  
+  settings: SiteSettings | null = null;
   
   // All categories with their metadata
   categories = [
@@ -56,5 +60,20 @@ export class ShabbatMenuComponent {
       image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914767/IMG_9678_sfg0bj.jpg'
     }
   ];
+
+  ngOnInit(): void {
+    // Fetch site settings
+    this.settingsService.getSettings().subscribe(settings => {
+      this.settings = settings;
+    });
+  }
+
+  get shabbatMenuUrl(): string {
+    return this.settings?.shabbatMenuUrl || '';
+  }
+
+  hasMenuUrl(): boolean {
+    return !!this.shabbatMenuUrl && this.shabbatMenuUrl.trim() !== '';
+  }
 }
 

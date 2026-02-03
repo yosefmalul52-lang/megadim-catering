@@ -100,6 +100,16 @@ import { AuthService } from '../../../services/auth.service';
             <i class="fas fa-images"></i>
             <span>ניהול גלריה</span>
           </a>
+          
+          <a 
+            routerLink="/admin/settings" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-cog"></i>
+            <span>הגדרות אתר</span>
+          </a>
         </nav>
         
         <div class="sidebar-footer">
@@ -470,7 +480,8 @@ export class AdminLayoutComponent implements OnInit {
     '/admin/menu': 'ניהול תפריט',
     '/admin/orders': 'הזמנות',
     '/admin/summaries': 'סיכומי שיחה',
-    '/admin/gallery': 'ניהול גלריה'
+    '/admin/gallery': 'ניהול גלריה',
+    '/admin/settings': 'הגדרות אתר'
   };
 
   ngOnInit(): void {
