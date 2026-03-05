@@ -60,5 +60,12 @@ export class GallerySectionComponent implements OnInit {
   trackByItemId(index: number, item: GalleryItem): string {
     return item._id || item.id || index.toString();
   }
+
+  onImageError(event: Event): void {
+    const img = event.target as HTMLImageElement | null;
+    if (img) {
+      img.src = '/assets/images/placeholder-dish.jpg';
+    }
+  }
 }
 

@@ -10,7 +10,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { OrderService, OrderRequest } from '../../services/order.service';
-import { CartService } from '../../services/cart.service';
+import { CartService, CartItem } from '../../services/cart.service';
 
 @Component({
   selector: 'app-order',
@@ -178,7 +178,7 @@ export class OrderComponent implements OnInit {
 
   orderForm!: FormGroup;
   isSubmitting = false;
-  cartItems = this.cartService.getCart();
+  cartItems: CartItem[] = this.cartService.currentCart;
 
   ngOnInit(): void {
     this.orderForm = this.fb.group({
@@ -191,6 +191,11 @@ export class OrderComponent implements OnInit {
       guestCount: [''],
       notes: ['']
     });
+
+    // Keep cart items in sync with cart service
+    this.cartService.cartItems$.subscribe((items) => {
+      this.cartItems = items;
+    });
   }
 
   onSubmit(): void {
@@ -201,7 +206,7 @@ export class OrderComponent implements OnInit {
     this.isSubmitting = true;
 
     // Convert cart items to order items
-    const orderItems = this.cartItems.map(item => ({
+    const orderItems = this.cartItems.map((item: CartItem) => ({
       id: item.id,
       name: item.name,
       quantity: item.quantity,

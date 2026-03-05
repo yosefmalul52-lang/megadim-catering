@@ -11,9 +11,13 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatRadioModule } from '@angular/material/radio';
 
+import { HttpClient } from '@angular/common/http';
 import { CartService, CartItem } from '../../../services/cart.service';
 import { LanguageService } from '../../../services/language.service';
+import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-cart-modal',
@@ -28,11 +32,12 @@ import { LanguageService } from '../../../services/language.service';
     MatNativeDateModule,
     MatButtonModule,
     MatSnackBarModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatRadioModule
   ],
   template: `
     <div class="cart-overlay" [class.open]="isCartOpen" (click)="closeCart()">
-      <div class="cart-modal" (click)="$event.stopPropagation()">
+      <div class="cart-modal" [attr.dir]="'rtl'" (click)="$event.stopPropagation()">
         <!-- Cart Header -->
         <div class="cart-header">
           <h2 class="cart-title">
@@ -56,10 +61,10 @@ import { LanguageService } from '../../../services/language.service';
           <!-- Empty Cart State -->
           <div class="empty-cart" *ngIf="cartItems.length === 0">
             <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-            <h3>העגלה ריקה</h3>
+            <h3>העגלה שלך ריקה</h3>
             <p>הוסף מנות לעגלה כדי להתחיל הזמנה</p>
-            <button class="btn btn-primary" (click)="closeCart()">
-              חזור לתפריט
+            <button class="btn-back-to-menu" (click)="closeCart()">
+              חזרה לתפריט
             </button>
           </div>
           
@@ -132,7 +137,7 @@ import { LanguageService } from '../../../services/language.service';
           </div>
         </div>
         
-        <!-- Cart Footer -->
+        <!-- Cart Footer: summary + sticky action buttons (only when cart has items) -->
         <div class="cart-footer" *ngIf="cartItems.length > 0">
           <div class="cart-summary">
             <div class="summary-row">
@@ -144,105 +149,32 @@ import { LanguageService } from '../../../services/language.service';
               <span class="summary-value total-price">₪{{ cartSummary.totalPrice }}</span>
             </div>
           </div>
-          
-          <!-- Checkout Form -->
-          <div class="checkout-section" *ngIf="!showCheckoutForm">
-            <div class="cart-actions">
-              <button 
-                class="btn btn-secondary clear-cart-btn"
-                (click)="clearCart()"
-                [attr.aria-label]="'נקה את כל העגלה'"
-              >
-                נקה עגלה
-              </button>
-              
-              <button 
-                class="btn btn-primary checkout-btn"
-                (click)="showCheckoutForm = true"
-              >
-                <i class="fas fa-shopping-bag"></i>
-                בצע הזמנה
-              </button>
-            </div>
-          </div>
 
-          <!-- Checkout Form -->
-          <div class="checkout-form-section" *ngIf="showCheckoutForm">
-            <mat-card class="order-card">
-              <mat-card-header>
-                <mat-card-title>הזמנה חדשה</mat-card-title>
-              </mat-card-header>
-              
-              <mat-card-content>
-                <form [formGroup]="orderForm" (ngSubmit)="placeOrder()">
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>שם מלא</mat-label>
-                    <input matInput formControlName="fullName" placeholder="הזן שם מלא" required>
-                    <mat-error *ngIf="orderForm.get('fullName')?.hasError('required')">
-                      שם מלא נדרש
-                    </mat-error>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>טלפון</mat-label>
-                    <input matInput formControlName="phone" placeholder="052-123-4567" required>
-                    <mat-error *ngIf="orderForm.get('phone')?.hasError('required')">
-                      טלפון נדרש
-                    </mat-error>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>תאריך אירוע</mat-label>
-                    <input matInput [matDatepicker]="picker" formControlName="eventDate" placeholder="בחר תאריך">
-                    <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-                    <mat-datepicker #picker></mat-datepicker>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>אימייל (אופציונלי)</mat-label>
-                    <input matInput type="email" formControlName="email" placeholder="your@email.com">
-                    <mat-error *ngIf="orderForm.get('email')?.hasError('email')">
-                      אימייל לא תקין
-                    </mat-error>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>כתובת (אופציונלי)</mat-label>
-                    <input matInput formControlName="address" placeholder="רחוב, עיר">
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>הערות (אופציונלי)</mat-label>
-                    <textarea matInput formControlName="notes" 
-                              placeholder="הערות מיוחדות, אלרגיות, או בקשות נוספות..."
-                              rows="3"
-                              maxlength="500"></textarea>
-                    <mat-hint align="end">{{ (orderForm.get('notes')?.value || '').length }}/500</mat-hint>
-                  </mat-form-field>
-
-                  <div class="checkout-actions">
-                    <button
-                      type="button"
-                      mat-button
-                      (click)="showCheckoutForm = false"
-                      [disabled]="isSubmitting"
-                    >
-                      חזור
-                    </button>
-                    <button
-                      type="submit"
-                      mat-raised-button
-                      color="primary"
-                      [disabled]="orderForm.invalid || isSubmitting || cartItems.length === 0"
-                    >
-                      <mat-spinner *ngIf="isSubmitting" diameter="20" style="display: inline-block; margin-left: 8px;"></mat-spinner>
-                      <span *ngIf="!isSubmitting">שלח הזמנה</span>
-                      <span *ngIf="isSubmitting">שולח...</span>
-                    </button>
-                  </div>
-                </form>
-              </mat-card-content>
-            </mat-card>
+          <div class="cart-footer-actions">
+            <button
+              type="button"
+              class="btn-clear-cart"
+              (click)="clearCart()"
+              [attr.aria-label]="'נקה את כל העגלה'"
+            >
+              ניקוי עגלה
+            </button>
+            <button
+              type="button"
+              class="btn-go-to-cart"
+              (click)="goToCart()"
+              [attr.aria-label]="'מעבר לעגלת הקניות'"
+            >
+              מעבר לעגלת הקניות
+            </button>
+            <button
+              type="button"
+              class="btn-checkout"
+              (click)="goToCheckout()"
+              [attr.aria-label]="'ביצוע ההזמנה'"
+            >
+              ביצוע ההזמנה
+            </button>
           </div>
         </div>
       </div>
@@ -253,6 +185,8 @@ import { LanguageService } from '../../../services/language.service';
 export class CartModalComponent implements OnInit, OnDestroy {
   cartService = inject(CartService);
   languageService = inject(LanguageService);
+  settingsService = inject(SiteSettingsService);
+  http = inject(HttpClient);
   router = inject(Router);
   snackBar = inject(MatSnackBar);
   fb = inject(FormBuilder);
@@ -264,18 +198,25 @@ export class CartModalComponent implements OnInit, OnDestroy {
   cartSummary = this.cartService.cartSummary;
   showCheckoutForm = false;
   isSubmitting = false;
+  settings: SiteSettings | null = null;
   
   orderForm!: FormGroup;
 
   ngOnInit(): void {
-    // Initialize form
     this.orderForm = this.fb.group({
       fullName: ['', [Validators.required]],
       phone: ['', [Validators.required]],
+      customerEmail: ['', [Validators.email]],
       eventDate: [null],
-      email: ['', [Validators.email]],
+      deliveryType: ['pickup' as 'pickup' | 'delivery'],
       address: [''],
       notes: ['']
+    });
+    this.updateAddressValidators();
+    this.orderForm.get('deliveryType')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.updateAddressValidators());
+    
+    this.settingsService.getSettings(true).pipe(takeUntil(this.destroy$)).subscribe(s => {
+      this.settings = s;
     });
     
     // Subscribe to cart state
@@ -346,8 +287,28 @@ export class CartModalComponent implements OnInit, OnDestroy {
   clearCart(): void {
     if (confirm('האם אתה בטוח שברצונך לנקות את העגלה?')) {
       this.cartService.clearCart();
-      this.resetCheckoutForm();
     }
+  }
+
+  goToCart(): void {
+    this.cartService.closeCart();
+    this.router.navigate(['/cart']);
+  }
+
+  goToCheckout(): void {
+    this.cartService.closeCart();
+    this.router.navigate(['/checkout']);
+  }
+
+  private updateAddressValidators(): void {
+    const addressControl = this.orderForm.get('address');
+    if (!addressControl) return;
+    if (this.orderForm.get('deliveryType')?.value === 'delivery') {
+      addressControl.setValidators([Validators.required]);
+    } else {
+      addressControl.clearValidators();
+    }
+    addressControl.updateValueAndValidity();
   }
 
   placeOrder(): void {
@@ -366,48 +327,70 @@ export class CartModalComponent implements OnInit, OnDestroy {
     }
 
     this.isSubmitting = true;
-
-    // Format event date if provided
     const formValue = this.orderForm.value;
-    const customerDetails = {
-      fullName: formValue.fullName,
-      phone: formValue.phone,
-      email: formValue.email || '',
-      address: formValue.address || '',
-      notes: formValue.notes || '',
-      eventDate: formValue.eventDate ? this.formatDate(formValue.eventDate) : undefined
+    const deliveryType = (formValue.deliveryType === 'delivery' ? 'delivery' : 'pickup') as 'pickup' | 'delivery';
+    const eventDateStr = formValue.eventDate ? this.formatDate(formValue.eventDate) : undefined;
+    const summary = this.cartService.cartSummary;
+    const items = summary.items.map(i => ({
+      id: i.id,
+      name: i.name,
+      quantity: i.quantity,
+      price: i.price
+    }));
+    const total = summary.totalPrice;
+
+    const customerEmail = (formValue.customerEmail || '').trim();
+    const payload = {
+      customerName: (formValue.fullName || '').trim(),
+      phone: (formValue.phone || '').trim(),
+      customerEmail: customerEmail || undefined,
+      eventDate: eventDateStr,
+      deliveryType,
+      address: deliveryType === 'delivery' ? (formValue.address || '').trim() : undefined,
+      notes: (formValue.notes || '').trim() || undefined,
+      items,
+      total
     };
 
-    this.cartService.sendOrder(customerDetails).subscribe({
-      next: (response) => {
-        console.log('Order submitted successfully:', response);
-        
-        // Show success message
-        this.snackBar.open('ההזמנה התקבלה בהצלחה!', 'סגור', {
+    const waLines = [
+      'הזמנה חדשה - קייטרינג מגדים',
+      `שם: ${payload.customerName}`,
+      `טלפון: ${payload.phone}`,
+      `סוג מסירה: ${deliveryType === 'delivery' ? 'משלוח' : 'איסוף עצמי'}`,
+      ...(payload.eventDate ? [`תאריך אירוע: ${payload.eventDate}`] : []),
+      ...(payload.address ? [`כתובת: ${payload.address}`] : []),
+      ...(payload.notes ? [`הערות: ${payload.notes}`] : []),
+      '',
+      'פרטי ההזמנה:',
+      ...items.map(i => `• ${i.name} x${i.quantity} - ₪${(i.price * i.quantity).toFixed(2)}`),
+      '',
+      `סה"כ: ₪${total.toFixed(2)}`
+    ];
+    const waMessage = waLines.join('\n');
+
+    const phoneFromSettings = (this.settings?.contactPhone || '0528240230').replace(/\D/g, '');
+    const cleanPhone = phoneFromSettings.startsWith('0') ? '972' + phoneFromSettings.slice(1) : phoneFromSettings.startsWith('972') ? phoneFromSettings : '972' + phoneFromSettings;
+
+    this.http.post<{ success: boolean; message?: string }>(`${environment.apiUrl}/order/send`, payload).subscribe({
+      next: () => {
+        window.open('https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(waMessage), '_blank');
+        this.cartService.clearCart();
+        this.resetCheckoutForm();
+        this.closeCart();
+        this.snackBar.open('ההזמנה נשלחה למייל ופתחנו את וואטסאפ להשלמה', 'סגור', {
           duration: 4000,
           horizontalPosition: 'start',
           verticalPosition: 'top'
         });
-        
-        // Reset form and close cart
-        this.resetCheckoutForm();
-        this.closeCart();
-        
-        // Redirect to home after 2 seconds
-        setTimeout(() => {
-          this.router.navigate(['/']);
-        }, 2000);
+        this.isSubmitting = false;
       },
-      error: (error) => {
-        console.error('Error placing order:', error);
-        
-        // Show error message
-        this.snackBar.open('שגיאה בשליחת ההזמנה', 'סגור', {
+      error: (err) => {
+        console.error('Error sending order email:', err);
+        this.snackBar.open(err.error?.message || 'שגיאה בשליחת ההזמנה למייל', 'סגור', {
           duration: 5000,
           horizontalPosition: 'start',
           verticalPosition: 'top'
         });
-        
         this.isSubmitting = false;
       }
     });

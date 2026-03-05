@@ -4,6 +4,7 @@
   "description": "Megadim Catering Website - Premium kosher catering services",
   "scripts": {
     "ng": "ng",
+    "dev": "ng serve",
     "start": "ng serve",
     "start:admin": "ng serve --port 4201 --host 0.0.0.0",
     "build": "ng build",

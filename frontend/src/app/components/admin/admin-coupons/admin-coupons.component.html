@@ -1,0 +1,128 @@
+<div class="admin-coupons-page">
+  <div class="container">
+    <div class="page-header">
+      <div class="header-content">
+        <h1 class="page-title">ניהול קופונים והנחות</h1>
+        <p class="page-description">צור וערוך קודי קופון להנחות ללקוחות</p>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-value">{{ coupons.length }}</span>
+        <span class="stat-label">סה״כ קופונים</span>
+      </div>
+    </div>
+
+    <section class="create-section card">
+      <h2 class="card-title">קופון חדש</h2>
+      <form [formGroup]="createForm" (ngSubmit)="onSubmitCreate()" class="create-form">
+        <div class="form-row">
+          <div class="field">
+            <label for="code">קוד קופון</label>
+            <input id="code" type="text" formControlName="code" class="input" placeholder="למשל VIP10" />
+            @if (createForm.get('code')?.invalid && createForm.get('code')?.touched) {
+              <span class="field-error">חובה</span>
+            }
+          </div>
+          <div class="field">
+            <label for="discountType">סוג הנחה</label>
+            <select id="discountType" formControlName="discountType" class="input">
+              <option value="percentage">אחוז</option>
+              <option value="fixedAmount">סכום קבוע</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="discountValue">ערך הנחה</label>
+            <input id="discountValue" type="number" formControlName="discountValue" class="input" min="0" step="0.01" />
+            @if (createForm.get('discountValue')?.invalid && createForm.get('discountValue')?.touched) {
+              <span class="field-error">ערך חוקי</span>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="minOrderValue">מינימום הזמנה (₪)</label>
+            <input id="minOrderValue" type="number" formControlName="minOrderValue" class="input" min="0" />
+          </div>
+          <div class="field">
+            <label for="expiryDate">תוקף</label>
+            <input id="expiryDate" type="date" formControlName="expiryDate" class="input" />
+            @if (createForm.get('expiryDate')?.invalid && createForm.get('expiryDate')?.touched) {
+              <span class="field-error">חובה</span>
+            }
+          </div>
+          <div class="field">
+            <label for="maxUses">מקסימום שימושים (מכסה)</label>
+            <input id="maxUses" type="number" formControlName="maxUses" class="input" min="1" />
+            @if (createForm.get('maxUses')?.invalid && createForm.get('maxUses')?.touched) {
+              <span class="field-error">לפחות 1</span>
+            }
+          </div>
+        </div>
+        <div class="form-row form-row-actions">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="isActive" />
+            <span>פעיל</span>
+          </label>
+          <button type="submit" class="btn-create" [disabled]="isSubmitting">
+            @if (isSubmitting) { יוצר... } @else { צור קופון חדש }
+          </button>
+        </div>
+      </form>
+    </section>
+
+    @if (successMessage) {
+      <div class="message success-message">{{ successMessage }}</div>
+    }
+    @if (errorMessage) {
+      <div class="message error-message">{{ errorMessage }}</div>
+    }
+
+    @if (isLoading) {
+      <div class="loading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>טוען קופונים...</span>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="coupons-table">
+          <thead>
+            <tr>
+              <th>קוד</th>
+              <th>הנחה</th>
+              <th>מינימום הזמנה</th>
+              <th>תוקף</th>
+              <th>שימושים (נוכחי/מקס)</th>
+              <th>סטטוס</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of coupons; track c._id) {
+              <tr [class.expired]="isExpired(c)">
+                <td class="code-cell">{{ c.code }}</td>
+                <td class="discount-cell">{{ getDiscountLabel(c) }}</td>
+                <td class="min-cell">₪{{ c.minOrderValue | number:'1.0-0' }}</td>
+                <td class="date-cell">{{ c.expiryDate | date:'dd/MM/yyyy' }}</td>
+                <td class="uses-cell">{{ c.currentUses }} / {{ c.maxUses }}</td>
+                <td class="active-cell">
+                  <button type="button" class="toggle-btn" [class.active]="c.isActive" (click)="toggleActive(c)" [attr.aria-label]="c.isActive ? 'כבה קופון' : 'הפעל קופון'">
+                    {{ c.isActive ? 'פעיל' : 'כבוי' }}
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (coupons.length === 0) {
+        <div class="empty-state">
+          <i class="fas fa-ticket-alt"></i>
+          <h3>אין קופונים</h3>
+          <p>צור קופון חדש באמצעות הטופס למעלה</p>
+        </div>
+      }
+    }
+  </div>
+</div>

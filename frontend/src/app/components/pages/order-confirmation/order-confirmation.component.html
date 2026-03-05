@@ -1,0 +1,25 @@
+<div class="confirmation-page" dir="rtl">
+  <div class="container">
+    <div class="card">
+      <div class="icon-wrap">
+        <span class="icon" aria-hidden="true">✓</span>
+      </div>
+      <h1 class="title">תודה שהזמנתם!</h1>
+      <p class="subtitle">ההזמנה התקבלה בהצלחה</p>
+
+      @if (orderId) {
+        <p class="order-number">
+          <span class="label">מספר הזמנה:</span>
+          <span class="value">{{ orderId }}</span>
+        </p>
+      }
+
+      <div class="next-steps">
+        <p class="next-steps-title">מה קורה עכשיו?</p>
+        <p class="next-steps-text">אנחנו כבר מתחילים לעבוד על ההזמנה שלכם! תקבלו עדכון בהתאם. לכל שאלה – צרו איתנו קשר.</p>
+      </div>
+
+      <a routerLink="/" class="btn-home">חזרה לדף הבית</a>
+    </div>
+  </div>
+</div>

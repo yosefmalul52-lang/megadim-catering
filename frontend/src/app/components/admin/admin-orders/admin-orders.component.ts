@@ -1,889 +1,400 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { CommonModule, DatePipe } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
-import { OrderService, Order } from '../../../services/order.service';
+import { OrderService, Order, DashboardStats } from '../../../services/order.service';
 import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
+import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-order-builder.component';
 
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, KitchenReportModalComponent],
-  template: `
-    <div class="admin-orders-page">
-      <div class="container">
-        <div class="page-header">
-          <div class="header-content">
-            <p class="page-description">צפה וניהול כל ההזמנות</p>
-            <div class="header-actions">
-              <button 
-                class="btn-kitchen-report"
-                (click)="openKitchenReport()"
-                data-tooltip="דוח הכנות למטבח"
-                [attr.aria-label]="'דוח הכנות למטבח'"
-              >
-                <i class="fas fa-utensils"></i>
-                דוח מטבח
-              </button>
-              <button 
-                class="btn-refresh"
-                (click)="manualRefresh()"
-                [disabled]="isRefreshing"
-                data-tooltip="רענן רשימת הזמנות"
-                [attr.aria-label]="'רענן רשימת הזמנות'"
-              >
-                <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing"></i>
-                <span *ngIf="!isRefreshing">רענן</span>
-                <span *ngIf="isRefreshing">מרענן...</span>
-              </button>
-            </div>
-          </div>
-          <div class="auto-refresh-indicator" *ngIf="autoRefreshEnabled">
-            <i class="fas fa-circle" [class.pulse]="true"></i>
-            <span>עדכון אוטומטי פעיל (כל 30 שניות)</span>
-          </div>
-        </div>
-
-        <!-- Loading State -->
-        <div *ngIf="isLoading" class="loading">
-          <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-          <span>טוען הזמנות...</span>
-        </div>
-
-        <!-- Orders Table -->
-        <div *ngIf="!isLoading" class="table-container">
-          <table class="orders-table">
-            <thead>
-              <tr>
-                <th>תאריך ושעה</th>
-                <th>לקוח</th>
-                <th>טלפון</th>
-                <th>סה"כ</th>
-                <th>סטטוס</th>
-                <th>פעולות</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let order of orders; trackBy: trackByOrderId">
-                <td class="date-cell">
-                  {{ formatDate(order.createdAt) }}
-                </td>
-                <td class="customer-cell">
-                  {{ order.customerDetails.fullName || 'לא צוין' }}
-                </td>
-                <td class="phone-cell">
-                  {{ order.customerDetails.phone || 'לא צוין' }}
-                </td>
-                <td class="total-cell">
-                  ₪{{ order.totalPrice | number:'1.2-2' }}
-                </td>
-                <td class="status-cell">
-                  <select 
-                    class="status-select"
-                    [value]="order.status"
-                    (change)="updateStatus(order, $event)"
-                    [attr.aria-label]="'עדכן סטטוס הזמנה ' + (order._id || order.id)"
-                  >
-                    <option value="new">חדש</option>
-                    <option value="in-progress">בטיפול</option>
-                    <option value="ready">מוכן</option>
-                    <option value="delivered">נמסר</option>
-                    <option value="cancelled">בוטל</option>
-                  </select>
-                  <span class="status-badge" [ngClass]="'status-' + order.status">
-                    {{ getStatusLabel(order.status) }}
-                  </span>
-                </td>
-                <td class="actions-cell">
-                  <button 
-                    class="btn-view-details"
-                    (click)="viewOrderDetails(order)"
-                    data-tooltip="צפה בפרטי הזמנה"
-                    [attr.aria-label]="'צפה בפרטי הזמנה ' + (order._id || order.id)"
-                  >
-                    <i class="fas fa-eye"></i>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Empty State -->
-          <div *ngIf="orders.length === 0" class="empty-state">
-            <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-            <h3>אין הזמנות כרגע</h3>
-            <p>כשיתקבלו הזמנות חדשות, הן יופיעו כאן</p>
-          </div>
-        </div>
-
-        <!-- Order Details Modal -->
-        <div class="modal-overlay" *ngIf="selectedOrder" (click)="closeModal()">
-          <div class="modal-content" (click)="$event.stopPropagation()">
-            <div class="modal-header">
-              <h2>פרטי הזמנה</h2>
-              <button class="btn-close" (click)="closeModal()" aria-label="סגור">
-                <i class="fas fa-times"></i>
-              </button>
-            </div>
-            
-            <div class="modal-body" *ngIf="selectedOrder">
-              <!-- Customer Details -->
-              <div class="details-section">
-                <h3>פרטי לקוח</h3>
-                <div class="detail-row">
-                  <span class="detail-label">שם מלא:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.fullName || 'לא צוין' }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">טלפון:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.phone || 'לא צוין' }}</span>
-                </div>
-                <div class="detail-row" *ngIf="selectedOrder.customerDetails.email">
-                  <span class="detail-label">אימייל:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.email }}</span>
-                </div>
-                <div class="detail-row" *ngIf="selectedOrder.customerDetails.address">
-                  <span class="detail-label">כתובת:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.address }}</span>
-                </div>
-                <div class="detail-row" *ngIf="selectedOrder.customerDetails.notes">
-                  <span class="detail-label">הערות:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.notes }}</span>
-                </div>
-              </div>
-
-              <!-- Order Items -->
-              <div class="details-section">
-                <h3>פריטי ההזמנה</h3>
-                <div class="items-list">
-                  <div 
-                    *ngFor="let item of selectedOrder.items; let i = index" 
-                    class="order-item"
-                  >
-                    <div class="item-info">
-                      <span class="item-name">{{ item.name }}</span>
-                      <span class="item-quantity">x{{ item.quantity }}</span>
-                      <span class="item-price" *ngIf="item.selectedOption">
-                        ({{ item.selectedOption.label }} - {{ item.selectedOption.amount }})
-                      </span>
-                    </div>
-                    <div class="item-total">
-                      ₪{{ (item.price * item.quantity) | number:'1.2-2' }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Order Summary -->
-              <div class="details-section">
-                <div class="order-summary">
-                  <div class="summary-row">
-                    <span class="summary-label">סה"כ הזמנה:</span>
-                    <span class="summary-value">₪{{ selectedOrder.totalPrice | number:'1.2-2' }}</span>
-                  </div>
-                  <div class="summary-row">
-                    <span class="summary-label">סטטוס:</span>
-                    <span class="summary-value status-badge" [class]="'status-' + selectedOrder.status">
-                      {{ getStatusLabel(selectedOrder.status) }}
-                    </span>
-                  </div>
-                  <div class="summary-row">
-                    <span class="summary-label">תאריך הזמנה:</span>
-                    <span class="summary-value">{{ formatDate(selectedOrder.createdAt) }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Success/Error Messages -->
-        <div *ngIf="successMessage" class="message success-message">
-          <i class="fas fa-check-circle"></i>
-          {{ successMessage }}
-        </div>
-        <div *ngIf="errorMessage" class="message error-message">
-          <i class="fas fa-exclamation-circle"></i>
-          {{ errorMessage }}
-        </div>
-      </div>
-
-      <!-- Kitchen Report Modal -->
-      <app-kitchen-report-modal *ngIf="showKitchenReport" (closeModal)="closeKitchenReport()"></app-kitchen-report-modal>
-    </div>
-  `,
-  styles: [`
-    .admin-orders-page {
-      padding: 2rem 0;
-      min-height: 70vh;
-      background: #f3f4f6; // Cool Light Gray (matching Dashboard)
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-
-    .page-header {
-      margin-bottom: 2rem;
-    }
-
-    .header-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .header-content > div:first-child {
-      text-align: right;
-    }
-
-    .page-header h1 {
-      color: #0E1A24;
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-      font-weight: bold;
-    }
-
-    .page-header p {
-      color: #6c757d;
-      font-size: 1.1rem;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-
-    .btn-kitchen-report {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      background: transparent;
-      color: #475569;
-      border: 1px solid #e5e7eb; // Thin border (matching Menu Management)
-      border-radius: 0.5rem; // Rounded corners
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    .btn-kitchen-report:hover {
-      background: #f9fafb; // Light gray background on hover
-      border-color: #3b82f6; // Blue border on hover
-      color: #3b82f6; // Blue text on hover
-    }
-
-    .btn-kitchen-report i {
-      font-size: 1rem;
-    }
-
-    .btn-refresh {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      background: #10b981; // Emerald Green (matching Dashboard)
-      color: white;
-      border: none;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    .btn-refresh:hover:not(:disabled) {
-      background: #059669; // Slightly darker green
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    }
-
-    .btn-refresh:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .btn-refresh i {
-      font-size: 1rem;
-    }
-
-    .btn-refresh i.fa-spin {
-      animation: fa-spin 1s infinite linear;
-    }
-
-    .auto-refresh-indicator {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      background: #e8f5e9;
-      border-radius: 0.5rem;
-      font-size: 0.85rem;
-      color: #2e7d32;
-      text-align: right;
-    }
-
-    .auto-refresh-indicator i {
-      font-size: 0.6rem;
-      color: #4caf50;
-    }
-
-    .auto-refresh-indicator i.pulse {
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-      }
-      50% {
-        opacity: 0.5;
-      }
-    }
-
-    .loading {
-      text-align: center;
-      padding: 3rem 0;
-      color: #6c757d;
-    }
-
-    .loading i {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      color: #cbb69e;
-    }
-
-    /* Clean SaaS Table Container */
-    .table-container {
-      background: white;
-      border-radius: 16px; // Rounded corners (16px)
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); // Standard subtle shadow
-      overflow: hidden;
-    }
-
-    .orders-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .orders-table thead {
-      background: #f8fafc; // Light gray background (#f8fafc)
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    .orders-table th {
-      padding: 16px; // Increased cell padding (16px)
-      text-align: right;
-      font-weight: 600; // Font-weight 600
-      font-size: 0.875rem;
-      text-transform: uppercase;
-      color: #475569; // Dark Slate text (#475569)
-      letter-spacing: 0.05em;
-      border: none;
-      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    .orders-table tbody tr {
-      background: white; // Pure white background
-      border-bottom: 1px solid #e2e8f0;
-      transition: background-color 0.2s ease;
-    }
-
-    .orders-table tbody tr:hover {
-      background-color: #eff6ff; // Very light blue (#eff6ff) on hover
-    }
-
-    .orders-table td {
-      padding: 16px; // Increased cell padding (16px) for spacious look
-      vertical-align: middle;
-      font-size: 0.95rem;
-      border: none;
-      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    .date-cell {
-      font-size: 0.9rem;
-      color: #6c757d;
-      white-space: nowrap;
-    }
-
-    .customer-cell {
-      font-weight: 600;
-      color: #0E1A24;
-    }
-
-    .phone-cell {
-      font-family: monospace;
-      color: #6c757d;
-    }
-
-    .total-cell {
-      font-weight: 700;
-      color: #1f3444;
-      font-size: 1.1rem;
-    }
-
-    .status-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .status-select {
-      padding: 0.5rem 1rem;
-      border: 1px solid #e5e7eb; // Thin border (matching Menu Management)
-      border-radius: 0.5rem; // Rounded corners
-      background: white;
-      font-size: 0.875rem;
-      color: #1f2937;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      width: 100%;
-      max-width: 150px;
-      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    .status-select:hover {
-      border-color: #3b82f6; // Blue on hover
-    }
-
-    .status-select:focus {
-      outline: none;
-      border-color: #3b82f6; // Blue on focus
-      background: #f9fafb; // Light gray background on focus
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    /* Clean SaaS Status Badges (Pills) */
-    .status-badge {
-      display: inline-block;
-      padding: 0.375rem 0.875rem;
-      border-radius: 9999px; // Fully rounded (border-radius: 9999px)
-      font-size: 0.75rem; // Small text
-      font-weight: 700; // Bold
-      white-space: nowrap;
-      font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    .status-new,
-    .status-badge.status-new {
-      background: #dbeafe; // Blue background (#dbeafe)
-      color: #1e40af; // Blue text (#1e40af)
-    }
-
-    .status-in-progress,
-    .status-badge.status-in-progress {
-      background: #ffedd5; // Yellow/Orange background (#ffedd5)
-      color: #9a3412; // Orange text (#9a3412)
-    }
-
-    .status-ready,
-    .status-badge.status-ready {
-      background: #ffedd5; // Yellow/Orange background (same as processing)
-      color: #9a3412; // Orange text
-    }
-
-    .status-delivered,
-    .status-badge.status-delivered {
-      background: #d1fae5; // Emerald Green background (#d1fae5)
-      color: #065f46; // Green text (#065f46)
-    }
-
-    .status-cancelled,
-    .status-badge.status-cancelled {
-      background: #fee2e2; // Red background (#fee2e2)
-      color: #991b1b; // Red text (#991b1b)
-    }
-
-    .actions-cell {
-      text-align: center;
-    }
-
-    /* Clean SaaS Action Buttons (Icon-only) */
-    .btn-view-details {
-      width: 36px;
-      height: 36px;
-      padding: 0;
-      background: transparent;
-      color: #64748b; // Dark gray (ghost-button style)
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      text-decoration: none;
-    }
-
-    .btn-view-details:hover {
-      background: rgba(59, 130, 246, 0.1); // Light blue background
-      color: #3b82f6; // Blue on hover
-    }
-
-    .btn-view-details i {
-      font-size: 1rem;
-    }
-
-    .btn-view-details span {
-      display: none; // Hide text, icon-only
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 4rem 2rem;
-      color: #6c757d;
-    }
-
-    .empty-state i {
-      font-size: 4rem;
-      color: #cbb69e;
-      margin-bottom: 1rem;
-    }
-
-    /* Modal Styles */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 2rem;
-    }
-
-    .modal-content {
-      background: white;
-      border-radius: 1rem;
-      max-width: 700px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.5rem;
-      border-bottom: 1px solid #eee;
-    }
-
-    .modal-header h2 {
-      color: #0E1A24;
-      margin: 0;
-      font-size: 1.5rem;
-    }
-
-    .btn-close {
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      color: #6c757d;
-      cursor: pointer;
-      padding: 0.5rem;
-      transition: color 0.3s ease;
-    }
-
-    .btn-close:hover {
-      color: #0E1A24;
-    }
-
-    .modal-body {
-      padding: 1.5rem;
-    }
-
-    .details-section {
-      margin-bottom: 2rem;
-    }
-
-    .details-section h3 {
-      color: #0E1A24;
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid #cbb69e;
-    }
-
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-
-    .detail-label {
-      font-weight: 600;
-      color: #6c757d;
-    }
-
-    .detail-value {
-      color: #0E1A24;
-      text-align: left;
-    }
-
-    .items-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .order-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      background: #f8f9fa;
-      border-radius: 0.5rem;
-    }
-
-    .item-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .item-name {
-      font-weight: 600;
-      color: #0E1A24;
-    }
-
-    .item-quantity {
-      color: #6c757d;
-      font-size: 0.9rem;
-    }
-
-    .item-price {
-      color: #6c757d;
-      font-size: 0.85rem;
-    }
-
-    .item-total {
-      font-weight: 700;
-      color: #1f3444;
-      font-size: 1.1rem;
-    }
-
-    .order-summary {
-      background: #f8f9fa;
-      padding: 1.5rem;
-      border-radius: 0.5rem;
-    }
-
-    .summary-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid #e0e0e0;
-    }
-
-    .summary-row:last-child {
-      border-bottom: none;
-    }
-
-    .summary-label {
-      font-weight: 600;
-      color: #6c757d;
-    }
-
-    .summary-value {
-      color: #0E1A24;
-      font-weight: 600;
-    }
-
-    .message {
-      padding: 1rem;
-      border-radius: 0.5rem;
-      margin-top: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .success-message {
-      background: #d4edda;
-      color: #155724;
-    }
-
-    .error-message {
-      background: #f8d7da;
-      color: #721c24;
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      .orders-table {
-        font-size: 0.85rem;
-      }
-
-      .orders-table th,
-      .orders-table td {
-        padding: 0.5rem;
-      }
-
-      .status-select {
-        max-width: 120px;
-        font-size: 0.8rem;
-      }
-
-      .modal-content {
-        margin: 1rem;
-        max-height: 95vh;
-      }
-    }
-  `]
+  imports: [CommonModule, DatePipe, KitchenReportModalComponent, ManualOrderBuilderComponent],
+  templateUrl: './admin-orders.component.html',
+  styleUrls: ['./admin-orders.component.scss']
 })
 export class AdminOrdersComponent implements OnInit, OnDestroy {
   orderService = inject(OrderService);
+  private route = inject(ActivatedRoute);
+
+  /** When true, hide orders list and show full-page manual order builder */
+  isCreatingOrder = false;
+
+  /** Optional filter from query params when navigating from customers page */
+  customerFilter: { email?: string; phone?: string } = {};
 
   orders: Order[] = [];
+  archiveOrders: Order[] = [];
+  stats: DashboardStats = { pendingCount: 0, eventsTodayCount: 0, monthlyRevenue: 0 };
+  currentTab: 'pending' | 'processing' | 'ready' | 'archive' = 'pending';
   isLoading = true;
   isRefreshing = false;
+  isLoadingArchive = false;
+  statusUpdatingId: string | null = null;
   selectedOrder: Order | null = null;
+  orderToEditStatus: Order | null = null;
   showKitchenReport = false;
   successMessage = '';
   errorMessage = '';
-  
+
+  readonly statusOptions = [
+    { value: 'pending', label: 'ממתין' },
+    { value: 'processing', label: 'בטיפול' },
+    { value: 'ready', label: 'מוכן' }
+  ];
+
   private autoRefreshSubscription?: Subscription;
   private previousOrderCount = 0;
   autoRefreshEnabled = true;
-  private readonly REFRESH_INTERVAL = 30000; // 30 seconds
+  private readonly REFRESH_INTERVAL = 30000;
 
   ngOnInit(): void {
+    this.loadStats();
     this.loadOrders();
+    this.loadArchiveOrders();
     this.startAutoRefresh();
+    this.route.queryParams.subscribe((params) => {
+      this.customerFilter = {};
+      if (params['customerEmail']) this.customerFilter.email = params['customerEmail'];
+      if (params['customerPhone']) this.customerFilter.phone = params['customerPhone'];
+    });
   }
 
   ngOnDestroy(): void {
     this.stopAutoRefresh();
   }
 
+  loadStats(): void {
+    this.orderService.getDashboardStats().subscribe((s) => (this.stats = s));
+  }
+
   private startAutoRefresh(): void {
     if (!this.autoRefreshEnabled) return;
-
-    // Start immediately and then every 30 seconds
     this.autoRefreshSubscription = interval(this.REFRESH_INTERVAL)
       .pipe(
-        startWith(0), // Start immediately
-        switchMap(() => {
-          // Silent refresh - don't show loading spinner
-          return this.orderService.getAllOrders();
-        })
+        startWith(0),
+        switchMap(() => this.orderService.getAllOrders(false))
       )
       .subscribe({
         next: (orders: Order[]) => {
           const newOrderCount = orders.length;
-          
-          // Check if new orders were added
           if (newOrderCount > this.previousOrderCount && this.previousOrderCount > 0) {
-            const newOrdersCount = newOrderCount - this.previousOrderCount;
-            this.successMessage = `התקבלו ${newOrdersCount} הזמנות חדשות!`;
-            setTimeout(() => {
-              this.successMessage = '';
-            }, 5000);
-            
-            // Play subtle notification sound (optional - browser may block autoplay)
+            this.successMessage = `התקבלו ${newOrderCount - this.previousOrderCount} הזמנות חדשות!`;
+            setTimeout(() => (this.successMessage = ''), 5000);
             this.playNotificationSound();
           }
-          
-          // Update orders silently
           this.orders = orders;
           this.previousOrderCount = newOrderCount;
           this.isRefreshing = false;
+          this.loadStats();
+          if (this.currentTab === 'archive') this.loadArchiveOrders();
         },
-        error: (error: any) => {
-          console.error('Error in auto-refresh:', error);
-          this.isRefreshing = false;
-          // Don't show error message for background refresh failures
-        }
+        error: () => (this.isRefreshing = false)
       });
   }
 
   private stopAutoRefresh(): void {
-    if (this.autoRefreshSubscription) {
-      this.autoRefreshSubscription.unsubscribe();
-      this.autoRefreshSubscription = undefined;
-    }
+    this.autoRefreshSubscription?.unsubscribe();
+    this.autoRefreshSubscription = undefined;
   }
 
   private playNotificationSound(): void {
-    // Create a subtle notification sound using Web Audio API
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 800; // Higher pitch
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Low volume
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.2);
-    } catch (error) {
-      // Browser may block audio autoplay - silently fail
-      console.debug('Could not play notification sound:', error);
-    }
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+    } catch {}
   }
 
   manualRefresh(): void {
     if (this.isRefreshing) return;
-    
     this.isRefreshing = true;
     this.loadOrders();
+    if (this.currentTab === 'archive') this.loadArchiveOrders();
   }
 
   loadOrders(): void {
-    // Only show full loading spinner on initial load
-    if (!this.isRefreshing) {
-      this.isLoading = true;
-    }
-    
-    this.orderService.getAllOrders().subscribe({
+    if (!this.isRefreshing) this.isLoading = true;
+    this.orderService.getAllOrders(false).subscribe({
       next: (orders: Order[]) => {
-        const newOrderCount = orders.length;
-        
-        // Check if new orders were added (only on manual refresh)
-        if (this.isRefreshing && newOrderCount > this.previousOrderCount && this.previousOrderCount > 0) {
-          const newOrdersCount = newOrderCount - this.previousOrderCount;
-          this.successMessage = `התקבלו ${newOrdersCount} הזמנות חדשות!`;
-          setTimeout(() => {
-            this.successMessage = '';
-          }, 5000);
+        if (this.isRefreshing && orders.length > this.previousOrderCount && this.previousOrderCount > 0) {
+          this.successMessage = `התקבלו ${orders.length - this.previousOrderCount} הזמנות חדשות!`;
+          setTimeout(() => (this.successMessage = ''), 5000);
         }
-        
         this.orders = orders;
-        this.previousOrderCount = newOrderCount;
+        this.previousOrderCount = orders.length;
         this.isLoading = false;
         this.isRefreshing = false;
-        console.log('✅ Loaded orders:', orders.length);
+        this.loadStats();
       },
-      error: (error: any) => {
-        console.error('Error loading orders:', error);
+      error: () => {
         this.errorMessage = 'שגיאה בטעינת ההזמנות';
         this.isLoading = false;
         this.isRefreshing = false;
+      }
+    });
+  }
+
+  loadArchiveOrders(): void {
+    this.isLoadingArchive = true;
+    this.orderService.getAllOrders(true).subscribe({
+      next: (list) => {
+        this.archiveOrders = list;
+        this.isLoadingArchive = false;
+      },
+      error: () => {
+        this.isLoadingArchive = false;
+        this.errorMessage = 'שגיאה בטעינת הארכיון';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
+  setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'archive'): void {
+    this.currentTab = tab;
+    if (tab === 'archive') this.loadArchiveOrders();
+  }
+
+  /** Called when archive list might have changed so the view updates immediately */
+  private refreshArchiveIfActive(): void {
+    if (this.currentTab === 'archive') this.loadArchiveOrders();
+  }
+
+  private matchesCustomerFilter(order: Order): boolean {
+    if (!this.customerFilter.email && !this.customerFilter.phone) return true;
+    const cd = order.customerDetails || {};
+    const emailMatch = !this.customerFilter.email || (!!cd.email && String(cd.email).toLowerCase() === String(this.customerFilter.email).toLowerCase());
+    const phoneMatch = !this.customerFilter.phone || (!!cd.phone && String(cd.phone).trim() === String(this.customerFilter.phone).trim());
+    return Boolean(emailMatch && phoneMatch);
+  }
+
+  get filteredOrders(): Order[] {
+    let list: Order[];
+    if (this.currentTab === 'archive') list = this.archiveOrders;
+    else {
+      list = this.orders.filter((o) => {
+        if (this.currentTab === 'pending') return this.isPending(o.status);
+        if (this.currentTab === 'processing') return this.isProcessing(o.status);
+        if (this.currentTab === 'ready') return o.status === 'ready' || o.status === 'delivered';
+        return false;
+      });
+    }
+    return list.filter((o) => this.matchesCustomerFilter(o));
+  }
+
+  get countPending(): number {
+    return this.orders.filter((o) => this.isPending(o.status)).length;
+  }
+  get countProcessing(): number {
+    return this.orders.filter((o) => this.isProcessing(o.status)).length;
+  }
+  get countReady(): number {
+    return this.orders.filter((o) => o.status === 'ready' || o.status === 'delivered').length;
+  }
+  get countArchive(): number {
+    return this.archiveOrders.length;
+  }
+
+  get emptyStateMessage(): string {
+    const messages: Record<string, string> = {
+      pending: 'אין הזמנות ממתינות כרגע',
+      processing: 'אין הזמנות בטיפול כרגע',
+      ready: 'אין הזמנות מוכנות כרגע',
+      archive: 'אין פריטים בארכיון'
+    };
+    return messages[this.currentTab] || 'אין הזמנות';
+  }
+
+  archiveOrder(order: Order): void {
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+    const confirmed = window.confirm('להעביר הזמנה זו לארכיון? לא תימחק לצמיתות.');
+    if (!confirmed) return;
+    this.statusUpdatingId = orderId;
+    this.orderService.deleteOrder(orderId).subscribe({
+      next: () => {
+        this.orders = this.orders.filter((o) => (o._id || o.id) !== orderId);
+        this.archiveOrders = [...this.archiveOrders, { ...order, isDeleted: true }];
+        this.successMessage = 'ההזמנה הועברה לארכיון בהצלחה';
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.statusUpdatingId = null;
+        this.loadStats();
+        this.refreshArchiveIfActive();
+      },
+      error: () => {
+        this.errorMessage = 'שגיאה בהעברה לארכיון';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+        this.statusUpdatingId = null;
+      }
+    });
+  }
+
+  restoreOrder(order: Order): void {
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+    this.statusUpdatingId = orderId;
+    this.orderService.restoreOrder(orderId).subscribe({
+      next: (restored) => {
+        this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
+        this.orders = [restored, ...this.orders];
+        this.successMessage = 'ההזמנה שוחזרה בהצלחה והועברה לטאב ממתינים';
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.statusUpdatingId = null;
+        this.loadStats();
+        this.refreshArchiveIfActive();
+      },
+      error: () => {
+        this.errorMessage = 'שגיאה בשחזור ההזמנה';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+        this.statusUpdatingId = null;
+      }
+    });
+  }
+
+  permanentlyDeleteOrder(order: Order): void {
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+    const confirmDelete = window.confirm(
+      'האם אתה בטוח שברצונך למחוק את ההזמנה לצמיתות? פעולה זו אינה ניתנת לביטול.'
+    );
+    if (!confirmDelete) return;
+    this.statusUpdatingId = orderId;
+    this.orderService.hardDeleteOrder(orderId).subscribe({
+      next: () => {
+        this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
+        this.successMessage = 'ההזמנה נמחקה לצמיתות';
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.statusUpdatingId = null;
+        this.loadStats();
+        this.refreshArchiveIfActive();
+      },
+      error: () => {
+        this.errorMessage = 'שגיאה במחיקה לצמיתות';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+        this.statusUpdatingId = null;
+      }
+    });
+  }
+
+  getWhatsAppLink(order: Order): string {
+    const phone = (order.customerDetails?.phone || '').replace(/\D/g, '');
+    const num = phone.startsWith('0') ? '972' + phone.slice(1) : phone.startsWith('972') ? phone : '972' + phone;
+    const text = encodeURIComponent(
+      `שלום, הזמנה #${(order._id || order.id)?.toString().slice(-8)}\nלקוח: ${order.customerDetails?.fullName || ''}`
+    );
+    return `https://wa.me/${num}?text=${text}`;
+  }
+
+  printOrder(order: Order): void {
+    const itemsHtml = (order.items || [])
+      .map(
+        (i) =>
+          `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₪${(i.price * i.quantity).toFixed(2)}</td></tr>`
+      )
+      .join('');
+    const html = `
+      <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${order._id || order.id}</title>
+      <style>body{font-family:Heebo,Arial;padding:20px;max-width:600px;margin:0 auto}
+      table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px;text-align:right}
+      th{background:#f5f5f5} h1{color:#0E1A24} .total{font-weight:bold;font-size:1.2em}</style></head>
+      <body>
+        <h1>הזמנה #${(order._id || order.id)?.toString().slice(-8)}</h1>
+        <p><strong>לקוח:</strong> ${order.customerDetails?.fullName || 'לא צוין'}</p>
+        <p><strong>טלפון:</strong> ${order.customerDetails?.phone || 'לא צוין'}</p>
+        <p><strong>תאריך אירוע:</strong> ${order.customerDetails?.eventDate || 'לא צוין'}</p>
+        <table><thead><tr><th>פריט</th><th>כמות</th><th>סה"כ</th></tr></thead><tbody>${itemsHtml}</tbody></table>
+        <p class="total">סה"כ לתשלום: ₪${(order.totalPrice ?? 0).toFixed(2)}</p>
+      </body></html>`;
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      setTimeout(() => {
+        w.print();
+        w.close();
+      }, 300);
+    }
+  }
+
+  isPending(status: string): boolean {
+    return status === 'pending' || status === 'new';
+  }
+
+  isProcessing(status: string): boolean {
+    return status === 'processing' || status === 'in-progress';
+  }
+
+  isCompleted(status: string): boolean {
+    return status === 'ready' || status === 'delivered' || status === 'cancelled';
+  }
+
+  changeStatus(order: Order, newStatus: Order['status']): void {
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+    this.statusUpdatingId = orderId;
+    const prev = order.status;
+    order.status = newStatus;
+    this.orderService.updateOrderStatus(orderId, newStatus).subscribe({
+      next: (updated) => {
+        const idx = this.orders.findIndex((o) => (o._id || o.id) === orderId);
+        if (idx > -1) this.orders[idx] = updated;
+        this.successMessage =
+          newStatus === 'processing'
+            ? 'ההזמנה אושרה ומייל נשלח ללקוח'
+            : `סטטוס עודכן ל-${this.getStatusLabel(newStatus)}`;
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.statusUpdatingId = null;
+        this.loadStats();
+        this.previousOrderCount = this.orders.length;
+      },
+      error: () => {
+        order.status = prev;
+        this.errorMessage = 'שגיאה בעדכון סטטוס';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+        this.statusUpdatingId = null;
+      }
+    });
+  }
+
+  openStatusEdit(order: Order): void {
+    this.orderToEditStatus = order;
+  }
+
+  closeStatusEdit(): void {
+    this.orderToEditStatus = null;
+  }
+
+  applyStatus(value: string): void {
+    const order = this.orderToEditStatus;
+    if (!order) return;
+    const orderId = order._id || order.id || '';
+    if (!orderId) return;
+    const prev = order.status;
+    order.status = value as Order['status'];
+    this.orderService.updateOrderStatus(orderId, value as Order['status']).subscribe({
+      next: (updated) => {
+        const idx = this.orders.findIndex((o) => (o._id || o.id) === orderId);
+        if (idx > -1) this.orders[idx] = updated;
+        this.successMessage = `סטטוס עודכן ל-${this.getStatusLabel(value)}`;
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.closeStatusEdit();
+        this.loadStats();
+      },
+      error: () => {
+        order.status = prev;
+        this.errorMessage = 'שגיאה בעדכון סטטוס';
+        setTimeout(() => (this.errorMessage = ''), 3000);
       }
     });
   }
@@ -892,37 +403,25 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const select = event.target as HTMLSelectElement;
     const newStatus = select.value as Order['status'];
     const orderId = order._id || order.id || '';
-
     if (!orderId) {
       this.errorMessage = 'שגיאה: מזהה הזמנה חסר';
       return;
     }
-
-    // Optimistically update UI
     const originalStatus = order.status;
     order.status = newStatus;
-
     this.orderService.updateOrderStatus(orderId, newStatus).subscribe({
       next: (updatedOrder: Order) => {
-        // Update the order in the list
-        const index = this.orders.findIndex(o => (o._id || o.id) === orderId);
-        if (index > -1) {
-          this.orders[index] = updatedOrder;
-        }
+        const index = this.orders.findIndex((o) => (o._id || o.id) === orderId);
+        if (index > -1) this.orders[index] = updatedOrder;
         this.successMessage = `סטטוס ההזמנה עודכן ל-${this.getStatusLabel(newStatus)}`;
-        setTimeout(() => {
-          this.successMessage = '';
-        }, 3000);
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.loadStats();
       },
-      error: (error: any) => {
-        console.error('Error updating order status:', error);
-        // Revert the change
+      error: () => {
         order.status = originalStatus;
         select.value = originalStatus;
         this.errorMessage = 'שגיאה בעדכון סטטוס ההזמנה';
-        setTimeout(() => {
-          this.errorMessage = '';
-        }, 3000);
+        setTimeout(() => (this.errorMessage = ''), 3000);
       }
     });
   }
@@ -935,6 +434,22 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.selectedOrder = null;
   }
 
+  openManualOrderBuilder(): void {
+    this.isCreatingOrder = true;
+  }
+
+  onManualOrderBack(): void {
+    this.isCreatingOrder = false;
+  }
+
+  onManualOrderCreated(): void {
+    this.isCreatingOrder = false;
+    this.loadOrders();
+    this.loadStats();
+    this.successMessage = 'הזמנה טלפונית נוספה בהצלחה';
+    setTimeout(() => (this.successMessage = ''), 5000);
+  }
+
   openKitchenReport(): void {
     this.showKitchenReport = true;
   }
@@ -945,8 +460,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   formatDate(date: string | Date | undefined): string {
     if (!date) return 'לא צוין';
-    const d = new Date(date);
-    return d.toLocaleDateString('he-IL', {
+    return new Date(date).toLocaleDateString('he-IL', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -956,12 +470,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   getStatusLabel(status: string): string {
-    const labels: { [key: string]: string } = {
-      'new': 'חדש',
+    const labels: Record<string, string> = {
+      pending: 'ממתין',
+      new: 'חדש',
+      processing: 'בטיפול',
       'in-progress': 'בטיפול',
-      'ready': 'מוכן',
-      'delivered': 'נמסר',
-      'cancelled': 'בוטל'
+      ready: 'מוכן',
+      delivered: 'נמסר',
+      cancelled: 'בוטל'
     };
     return labels[status] || status;
   }
@@ -970,4 +486,3 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return order._id || order.id || '';
   }
 }
-

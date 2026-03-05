@@ -29,7 +29,6 @@
         <div class="form-group">
           <label for="shabbatMenuUrl" class="form-label">
             קישור לתפריט שבת
-            <span class="required">*</span>
           </label>
           <input
             type="url"
@@ -47,7 +46,6 @@
         <div class="form-group">
           <label for="eventsMenuUrl" class="form-label">
             קישור לתפריט אירועים
-            <span class="required">*</span>
           </label>
           <input
             type="url"
@@ -83,7 +81,21 @@
             class="form-input"
             placeholder="052-8240230"
           />
-          <small class="form-hint">מספר טלפון המוצג בכותרת ובפוטר</small>
+          <small class="form-hint">מספר טלפון המוצג בכותרת ובפוטר; משמש גם כיעד לוואטסאפ בהזמנות</small>
+        </div>
+
+        <div class="form-group">
+          <label for="orderEmail" class="form-label">
+            אימייל לקבלת הזמנות
+          </label>
+          <input
+            type="email"
+            id="orderEmail"
+            formControlName="orderEmail"
+            class="form-input"
+            placeholder="yosefmalul52@gmail.com"
+          />
+          <small class="form-hint">כתובת אליה נשלחות הזמנות מהעגלה (WhatsApp + מייל)</small>
         </div>
 
         <div class="form-group">
@@ -101,12 +113,159 @@
         </div>
       </div>
 
+      <div class="settings-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-utensils"></i>
+            צ'ולנט בר
+          </h3>
+          <p class="card-description">פתיחה ידנית והודעה מותאמת בעמוד הצ'ולנט בר</p>
+        </div>
+
+        <div class="form-group toggle-group">
+          <mat-slide-toggle
+            id="cholentForceOpen"
+            formControlName="cholentForceOpen"
+            color="primary"
+          >
+            פתיחה ידנית של הצ'ולנט בר (עוקף זמנים)
+          </mat-slide-toggle>
+          <small class="form-hint">כשמופעל – ההזמנות פתוחות תמיד, בלי תלות ביום או בשעה</small>
+        </div>
+
+        <div class="form-group">
+          <label for="cholentCustomMessage" class="form-label">
+            הודעה מותאמת אישית לצ'ולנט בר
+          </label>
+          <input
+            type="text"
+            id="cholentCustomMessage"
+            formControlName="cholentCustomMessage"
+            class="form-input"
+            placeholder="למשל: אזל המלאי! / פתוח להזמנות"
+          />
+          <small class="form-hint">הודעה שמוצגת בראש עמוד הצ'ולנט בר (אופציונלי)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="cholentClosedMessage" class="form-label">
+            הודעת סגירה (מוצגת כשהבר סגור להזמנות)
+          </label>
+          <input
+            type="text"
+            id="cholentClosedMessage"
+            formControlName="cholentClosedMessage"
+            class="form-input"
+            placeholder="ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00"
+          />
+          <small class="form-hint">הודעה שמוצגת כשהצ'ולנט בר סגור (למשל שעות פתיחה)</small>
+        </div>
+      </div>
+
+      <div class="settings-card announcements-accordion-card" formGroupName="pageAnnouncements">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-bell"></i>
+            הודעות באנר ופופ-אפ לדפי האתר
+          </h3>
+          <p class="card-description">באנר עליון, כותרת ותוכן לפופ-אפ לכל דף (רק אם יש טקסט)</p>
+        </div>
+
+        <mat-accordion class="page-announcements-accordion">
+          <mat-expansion-panel *ngFor="let pageId of PAGE_IDS" [formGroupName]="pageId" class="page-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title class="panel-title-with-icon">
+                <i class="fas fa-file-alt panel-title-icon"></i>
+                <span class="panel-title-text">{{ PAGE_LABELS[pageId] }}</span>
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="panel-fields">
+              <div class="form-group">
+                <label [attr.for]="'banner-' + pageId" class="form-label">טקסט לבאנר עליון</label>
+                <input
+                  type="text"
+                  [id]="'banner-' + pageId"
+                  formControlName="bannerText"
+                  class="form-input"
+                  placeholder="טקסט לבאנר בראש הדף"
+                />
+              </div>
+              <div class="form-group">
+                <label [attr.for]="'popupTitle-' + pageId" class="form-label">כותרת לפופ-אפ</label>
+                <input
+                  type="text"
+                  [id]="'popupTitle-' + pageId"
+                  formControlName="popupTitle"
+                  class="form-input"
+                  placeholder="כותרת להודעה קופצת"
+                />
+              </div>
+              <div class="form-group">
+                <label [attr.for]="'popupText-' + pageId" class="form-label">תוכן לפופ-אפ</label>
+                <input
+                  type="text"
+                  [id]="'popupText-' + pageId"
+                  formControlName="popupText"
+                  class="form-input"
+                  placeholder="תוכן ההודעה הקופצת"
+                />
+              </div>
+            </div>
+          </mat-expansion-panel>
+        </mat-accordion>
+      </div>
+
+      <div class="settings-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-calendar-day"></i>
+            ימי הזמנה
+          </h3>
+          <p class="card-description">בחר באילו ימים ניתן לבחור תאריך אירוע בדף ביצוע ההזמנה</p>
+        </div>
+        <div class="form-group lead-days-group">
+          <label for="minimumLeadDays" class="form-label">מינימום ימים מראש</label>
+          <input
+            type="number"
+            id="minimumLeadDays"
+            [(ngModel)]="minimumLeadDays"
+            min="0"
+            max="30"
+            step="1"
+            class="form-input lead-days-input"
+          />
+          <small class="form-hint">התאריך המוקדם ביותר לבחירה יהיה היום + מספר ימים זה (למשל 2 = מינימום 48 שעות)</small>
+        </div>
+        <div class="days-management">
+          <label *ngFor="let day of DAY_LABELS" class="day-checkbox">
+            <input
+              type="checkbox"
+              [checked]="isDayAllowed(day.value)"
+              (change)="toggleDay(day.value)"
+            />
+            <span>{{ day.label }}</span>
+          </label>
+        </div>
+        <div class="form-actions-inline">
+          <button
+            type="button"
+            class="btn-save btn-save-days"
+            (click)="saveAllowedDays()"
+            [disabled]="isSavingDays || allowedDays.length === 0"
+          >
+            <i class="fas fa-spinner fa-spin" *ngIf="isSavingDays"></i>
+            <span *ngIf="!isSavingDays">שמור ימים</span>
+            <span *ngIf="isSavingDays">שומר...</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Submit Button -->
       <div class="form-actions">
         <button
           type="submit"
           class="btn-save"
-          [disabled]="isSaving || settingsForm.invalid"
+          [disabled]="isSaving || !settingsForm.valid || !settingsForm.dirty"
         >
           <i class="fas fa-save" *ngIf="!isSaving"></i>
           <i class="fas fa-spinner fa-spin" *ngIf="isSaving"></i>

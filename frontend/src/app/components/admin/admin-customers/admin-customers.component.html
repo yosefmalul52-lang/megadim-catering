@@ -1,0 +1,202 @@
+<div class="admin-customers-page">
+  <div class="container">
+    <div class="page-header">
+      <div class="header-content">
+        <h1 class="page-title">ניהול לקוחות (CRM)</h1>
+        <p class="page-description">צפה וניהול לקוחות, תגיות, הערות ומגבלות תזונה</p>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-value">{{ countAll }}</span>
+        <span class="stat-label">סה״כ לקוחות</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ countVip }}</span>
+        <span class="stat-label">VIP</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ countDormant }}</span>
+        <span class="stat-label">רדומים (60+ ימים)</span>
+      </div>
+    </div>
+
+    <!-- Smart filters -->
+    <div class="filters-bar">
+      @for (opt of filterOptions; track opt.value) {
+        <button
+          type="button"
+          class="filter-btn"
+          [class.active]="currentFilter === opt.value"
+          (click)="setFilter(opt.value)"
+        >
+          {{ opt.label }}
+        </button>
+      }
+    </div>
+
+    @if (successMessage) {
+      <div class="message success-message">{{ successMessage }}</div>
+    }
+    @if (errorMessage) {
+      <div class="message error-message">{{ errorMessage }}</div>
+    }
+
+    @if (isLoading) {
+      <div class="loading">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <span>טוען לקוחות...</span>
+      </div>
+    } @else {
+      <div class="table-container">
+        <table class="customers-table">
+          <thead>
+            <tr>
+              <th>שם הלקוח</th>
+              <th>טלפון</th>
+              <th>אימייל</th>
+              <th>תאריך הצטרפות</th>
+              <th>הזמנה אחרונה</th>
+              <th>תגיות</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (user of filteredUsers; track user._id) {
+              <tr
+                class="clickable-row"
+                [class.selected]="selectedUser?._id === user._id"
+                (click)="openPanel(user)"
+              >
+                <td class="name-cell">{{ user.fullName || '—' }}</td>
+                <td class="phone-cell">{{ user.phone || '—' }}</td>
+                <td class="email-cell">{{ user.username || '—' }}</td>
+                <td class="date-cell">{{ user.createdAt | date:'dd/MM/yyyy' }}</td>
+                <td class="date-cell">
+                  @if (user.lastOrderDate) {
+                    {{ user.lastOrderDate | date:'dd/MM/yyyy' }}
+                  } @else {
+                    —
+                  }
+                </td>
+                <td class="tags-cell">
+                  @for (tag of (user.tags || []).slice(0, 3); track tag) {
+                    <span class="tag-pill">{{ tag }}</span>
+                  }
+                  @if ((user.tags?.length ?? 0) > 3) {
+                    <span class="tag-pill tag-more">+{{ (user.tags?.length ?? 0) - 3 }}</span>
+                  }
+                  @if (!user.tags?.length) {
+                    <span class="tag-none">—</span>
+                  }
+                </td>
+                <td class="actions-cell" (click)="$event.stopPropagation()">
+                  <a [href]="getWhatsAppLink(user)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ">
+                    <i class="fab fa-whatsapp"></i>
+                  </a>
+                  <a [routerLink]="getOrdersLink(user)" class="btn-action btn-orders" title="צפה בהזמנות">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>הזמנות</span>
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (filteredUsers.length === 0) {
+        <div class="empty-state">
+          <i class="fas fa-users" aria-hidden="true"></i>
+          <h3>אין תוצאות</h3>
+          <p>@if (currentFilter !== 'all') { נסה לשנות סינון } @else { אין לקוחות רשומים }</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Side panel (CRM details) -->
+  @if (selectedUser) {
+    <div class="panel-overlay" (click)="closePanel()" role="button" tabindex="0" (keydown.enter)="closePanel()"></div>
+    <aside class="crm-panel" role="dialog" aria-label="פרטי לקוח">
+      <div class="panel-header">
+        <h2 class="panel-title">{{ selectedUser.fullName || 'לקוח' }}</h2>
+        <button type="button" class="btn-close-panel" (click)="closePanel()" aria-label="סגור">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="panel-body">
+        <p class="panel-meta">{{ selectedUser.phone || '—' }} · {{ selectedUser.username || '—' }}</p>
+        <div class="panel-actions-inline">
+          <a [href]="getWhatsAppLink(selectedUser)" target="_blank" rel="noopener noreferrer" class="btn-panel btn-whatsapp">
+            <i class="fab fa-whatsapp"></i> וואטסאפ
+          </a>
+          <a [routerLink]="getOrdersLink(selectedUser)" class="btn-panel btn-orders">צפה בהזמנות</a>
+        </div>
+
+        <div class="panel-section">
+          <label class="panel-label">הערות פנימיות (Admin)</label>
+          <textarea
+            class="panel-textarea"
+            [(ngModel)]="panelAdminNotes"
+            rows="4"
+            placeholder="הערות שמורות רק למנהל..."
+          ></textarea>
+        </div>
+
+        <div class="panel-section">
+          <label class="panel-label">מגבלות תזונה / אלרגיות</label>
+          <input
+            type="text"
+            class="panel-input"
+            [(ngModel)]="panelDietaryInfo"
+            placeholder="למשל: גלוטן, אלרגיה לבוטנים..."
+          />
+        </div>
+
+        <div class="panel-section">
+          <label class="panel-label">תגיות</label>
+          <div class="tags-preset">
+            @for (tag of presetTags; track tag) {
+              <button
+                type="button"
+                class="tag-pill tag-btn"
+                [class.active]="panelTags.includes(tag)"
+                (click)="panelTags.includes(tag) ? removeTag(tag) : addTag(tag)"
+              >
+                {{ tag }}
+              </button>
+            }
+          </div>
+          <div class="tag-add-row">
+            <input
+              type="text"
+              class="panel-input tag-input"
+              [(ngModel)]="tagInput"
+              placeholder="תגית מותאמת..."
+              (keydown.enter)="addTag(''); $event.preventDefault()"
+            />
+            <button type="button" class="btn-add-tag" (click)="addTag('')">הוסף</button>
+          </div>
+          <div class="tags-current">
+            @for (tag of panelTags; track tag) {
+              <span class="tag-pill">
+                {{ tag }}
+                <button type="button" class="tag-remove" (click)="removeTag(tag)" aria-label="הסר">×</button>
+              </span>
+            }
+          </div>
+        </div>
+
+        <button type="button" class="btn-save-crm" (click)="saveCrm()" [disabled]="isSavingCrm">
+          @if (isSavingCrm) {
+            <i class="fas fa-spinner fa-spin"></i> שומר...
+          } @else {
+            <i class="fas fa-check"></i> שמור שינויים
+          }
+        </button>
+      </div>
+    </aside>
+  }
+</div>

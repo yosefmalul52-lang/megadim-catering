@@ -1,0 +1,389 @@
+<div class="admin-orders-page">
+  @if (isCreatingOrder) {
+    <app-manual-order-builder
+      (back)="onManualOrderBack()"
+      (orderCreated)="onManualOrderCreated()"
+    />
+  } @else {
+  <div class="container">
+    <!-- Dashboard Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-value">{{ stats.pendingCount }}</span>
+        <span class="stat-label">הזמנות חדשות</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ stats.eventsTodayCount }}</span>
+        <span class="stat-label">אירועים להיום</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">₪{{ stats.monthlyRevenue | number:'1.0-0' }}</span>
+        <span class="stat-label">סה"כ הכנסות (חודשי)</span>
+      </div>
+    </div>
+
+    <div class="page-header">
+      <div class="header-content">
+        <p class="page-description">צפה וניהול כל ההזמנות</p>
+        <div class="header-actions">
+          <button
+            class="btn-create-order"
+            type="button"
+            (click)="openManualOrderBuilder()"
+            [attr.aria-label]="'הזמנה טלפונית חדשה'"
+          >
+            <i class="fas fa-plus"></i>
+            הזמנה טלפונית חדשה
+          </button>
+          <button
+            class="btn-kitchen-report"
+            (click)="openKitchenReport()"
+            [attr.aria-label]="'דוח הכנות למטבח'"
+          >
+            <i class="fas fa-utensils"></i>
+            דוח מטבח
+          </button>
+          <button
+            class="btn-refresh"
+            (click)="manualRefresh()"
+            [disabled]="isRefreshing"
+            [attr.aria-label]="'רענן רשימת הזמנות'"
+          >
+            <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing"></i>
+            @if (!isRefreshing) { רענן } @else { מרענן... }
+          </button>
+        </div>
+      </div>
+      @if (autoRefreshEnabled && currentTab !== 'archive') {
+        <div class="auto-refresh-indicator">
+          <i class="fas fa-circle pulse"></i>
+          <span>עדכון אוטומטי פעיל (כל 30 שניות)</span>
+        </div>
+      }
+    </div>
+
+    <!-- Tab bar -->
+    <nav class="tabs-nav" role="tablist">
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="currentTab === 'pending'"
+        (click)="setCurrentTab('pending')"
+        role="tab"
+      >
+        ממתינים
+        <span class="tab-badge">{{ countPending }}</span>
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="currentTab === 'processing'"
+        (click)="setCurrentTab('processing')"
+        role="tab"
+      >
+        בטיפול
+        <span class="tab-badge">{{ countProcessing }}</span>
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="currentTab === 'ready'"
+        (click)="setCurrentTab('ready')"
+        role="tab"
+      >
+        מוכנים
+        <span class="tab-badge">{{ countReady }}</span>
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="currentTab === 'archive'"
+        (click)="setCurrentTab('archive')"
+        role="tab"
+      >
+        ארכיון
+        <span class="tab-badge">{{ countArchive }}</span>
+      </button>
+    </nav>
+
+    @if (isLoading && currentTab !== 'archive') {
+      <div class="loading">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <span>טוען הזמנות...</span>
+      </div>
+    }
+    @if (currentTab === 'archive' && isLoadingArchive) {
+      <div class="loading">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <span>טוען ארכיון...</span>
+      </div>
+    }
+
+    @if (!isLoading && (currentTab !== 'archive' || !isLoadingArchive)) {
+      <!-- Desktop: table -->
+      <div class="table-container orders-desktop">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>תאריך הזמנה</th>
+              <th>תאריך אירוע</th>
+              <th>לקוח</th>
+              <th>טלפון</th>
+              <th>סה"כ</th>
+              <th>סטטוס</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of filteredOrders; track order._id || order.id || $index) {
+              <tr>
+                <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
+                <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
+                <td class="phone-cell">{{ order.customerDetails?.phone || 'לא צוין' }}</td>
+                <td class="total-cell">₪{{ order.totalPrice | number:'1.2-2' }}</td>
+                <td class="status-cell">
+                  <div class="status-action-wrapper">
+                    <span class="status-badge" [ngClass]="'status-' + order.status">
+                      {{ getStatusLabel(order.status) }}
+                    </span>
+                    <div class="action-buttons-container">
+                      @if (isPending(order.status) && !order.isDeleted) {
+                        <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')" title="אשר הזמנה ושלח מייל">
+                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                          אשר הזמנה
+                        </button>
+                      }
+                      @if (isProcessing(order.status) && !order.isDeleted) {
+                        <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')" title="סמן כהושלם">
+                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
+                          סמן כמוכן
+                        </button>
+                      }
+                      @if (!order.isDeleted) {
+                        <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)" title="העבר לארכיון">
+                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
+                          מחק/ארכיון
+                        </button>
+                      }
+                      @if (order.isDeleted) {
+                        <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)" title="שחזר הזמנה">
+                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
+                          שחזר הזמנה
+                        </button>
+                        <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)" title="מחק לצמיתות (לא ניתן לביטול)">
+                          <i class="fas fa-trash-alt"></i> מחק לצמיתות
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </td>
+                <td class="actions-cell">
+                  <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ"><i class="fab fa-whatsapp"></i></a>
+                  <button type="button" class="btn-action btn-print" (click)="printOrder(order)" title="הדפס"><i class="fas fa-print"></i></button>
+                  <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)" title="פרטים"><i class="fas fa-eye"></i></button>
+                  @if (currentTab !== 'archive') {
+                    <button type="button" class="btn-action btn-edit" (click)="openStatusEdit(order)" title="עדכן סטטוס"><i class="fas fa-edit"></i></button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile/Tablet: cards -->
+      <div class="order-cards orders-mobile">
+        @for (order of filteredOrders; track order._id || order.id || $index) {
+          <div class="order-card">
+            <div class="order-card-header">
+              <span class="order-card-total">₪{{ order.totalPrice | number:'1.2-2' }}</span>
+            </div>
+            <div class="order-card-body">
+              <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
+              <p class="order-card-meta">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }} · {{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</p>
+            </div>
+            <div class="status-action-wrapper order-card-status-actions">
+              <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+              <div class="action-buttons-container">
+                @if (isPending(order.status) && !order.isDeleted) {
+                  <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')">
+                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                    אשר הזמנה
+                  </button>
+                }
+                @if (isProcessing(order.status) && !order.isDeleted) {
+                  <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')">
+                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
+                    סמן כמוכן
+                  </button>
+                }
+                @if (!order.isDeleted) {
+                  <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)">
+                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
+                    מחק/ארכיון
+                  </button>
+                }
+                @if (order.isDeleted) {
+                  <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)">
+                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
+                    שחזר הזמנה
+                  </button>
+                  <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)">
+                    <i class="fas fa-trash-alt"></i> מחק לצמיתות
+                  </button>
+                }
+              </div>
+            </div>
+            <div class="order-card-links">
+              <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
+              <button type="button" class="btn-action btn-print" (click)="printOrder(order)"><i class="fas fa-print"></i></button>
+              <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)"><i class="fas fa-eye"></i></button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (filteredOrders.length === 0) {
+        <div class="empty-state">
+          <i class="fas fa-inbox" aria-hidden="true"></i>
+          <h3>{{ emptyStateMessage }}</h3>
+          <p>@if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן } @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }</p>
+        </div>
+      }
+    }
+
+    <!-- Order Details Modal -->
+    @if (selectedOrder) {
+      <div class="modal-overlay" (click)="closeModal()">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>פרטי הזמנה</h2>
+            <button type="button" class="btn-close" (click)="closeModal()" aria-label="סגור">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="details-section">
+              <h3>פרטי לקוח</h3>
+              <div class="detail-row">
+                <span class="detail-label">שם מלא:</span>
+                <span class="detail-value">{{ selectedOrder.customerDetails?.fullName || 'לא צוין' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">טלפון:</span>
+                <span class="detail-value">{{ selectedOrder.customerDetails?.phone || 'לא צוין' }}</span>
+              </div>
+              @if (selectedOrder.customerDetails?.email) {
+                <div class="detail-row">
+                  <span class="detail-label">אימייל:</span>
+                  <span class="detail-value">{{ selectedOrder.customerDetails.email }}</span>
+                </div>
+              }
+              @if (selectedOrder.customerDetails?.address) {
+                <div class="detail-row">
+                  <span class="detail-label">כתובת:</span>
+                  <span class="detail-value">{{ selectedOrder.customerDetails.address }}</span>
+                </div>
+              }
+              @if (selectedOrder.customerDetails?.eventDate) {
+                <div class="detail-row">
+                  <span class="detail-label">תאריך אירוע:</span>
+                  <span class="detail-value">{{ selectedOrder.customerDetails.eventDate | date:'dd/MM/yyyy' }}</span>
+                </div>
+              }
+              @if (selectedOrder.customerDetails?.notes) {
+                <div class="detail-row">
+                  <span class="detail-label">הערות:</span>
+                  <span class="detail-value">{{ selectedOrder.customerDetails.notes }}</span>
+                </div>
+              }
+            </div>
+            <div class="details-section">
+              <h3>פריטי ההזמנה</h3>
+              <div class="items-list">
+                @for (item of selectedOrder.items; track $index) {
+                  <div class="order-item">
+                    <div class="item-info">
+                      <span class="item-name">{{ item.name }}</span>
+                      <span class="item-quantity">x{{ item.quantity }}</span>
+                      @if (item.selectedOption) {
+                        <span class="item-price">({{ item.selectedOption.label }} - {{ item.selectedOption.amount }})</span>
+                      }
+                    </div>
+                    <div class="item-total">₪{{ (item.price * item.quantity) | number:'1.2-2' }}</div>
+                  </div>
+                }
+              </div>
+            </div>
+            <div class="details-section">
+              <div class="order-summary">
+                <div class="summary-row">
+                  <span class="summary-label">סה"כ הזמנה:</span>
+                  <span class="summary-value">₪{{ selectedOrder.totalPrice | number:'1.2-2' }}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">סטטוס:</span>
+                  <span class="summary-value status-badge" [ngClass]="'status-' + selectedOrder.status">
+                    {{ getStatusLabel(selectedOrder.status) }}
+                  </span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">תאריך הזמנה:</span>
+                  <span class="summary-value">{{ selectedOrder.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Status Edit Modal -->
+    @if (orderToEditStatus) {
+      <div class="modal-overlay" (click)="closeStatusEdit()">
+        <div class="modal-content modal-status" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>עדכון סטטוס הזמנה</h2>
+            <button type="button" class="btn-close" (click)="closeStatusEdit()" aria-label="סגור">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="order-ref">הזמנה #{{ (orderToEditStatus._id || orderToEditStatus.id)?.toString()?.slice(-8) ?? '' }}</p>
+            <div class="status-edit-actions">
+              @for (s of statusOptions; track s.value) {
+                <button
+                  type="button"
+                  class="btn-status-option"
+                  [class.active]="orderToEditStatus.status === s.value"
+                  (click)="applyStatus(s.value)"
+                >
+                  {{ s.label }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (successMessage) {
+      <div class="message success-message">
+        <i class="fas fa-check-circle"></i>
+        {{ successMessage }}
+      </div>
+    }
+    @if (errorMessage) {
+      <div class="message error-message">
+        <i class="fas fa-exclamation-circle"></i>
+        {{ errorMessage }}
+      </div>
+    }
+  </div>
+
+  @if (showKitchenReport) {
+    <app-kitchen-report-modal (closeModal)="closeKitchenReport()"></app-kitchen-report-modal>
+  }
+  }
+</div>

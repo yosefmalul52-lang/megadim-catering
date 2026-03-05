@@ -1,0 +1,9 @@
+<div class="luxury-popup-overlay" *ngIf="show" (click)="onOverlayClick()">
+  <div class="luxury-popup-box" (click)="onBoxClick($event)">
+    <button class="close-btn" (click)="closePopup()" type="button">&times;</button>
+    <div class="popup-content">
+      <h2 class="popup-title" *ngIf="title">{{ title }}</h2>
+      <p class="popup-text" *ngIf="text">{{ text }}</p>
+    </div>
+  </div>
+</div>

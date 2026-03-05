@@ -1,3 +1,10 @@
+<app-page-banner [message]="settings?.pageAnnouncements?.['desserts']?.bannerText"></app-page-banner>
+<app-page-popup
+  [show]="showPopup"
+  [title]="(settings?.pageAnnouncements?.['desserts']?.popupTitle) ?? ''"
+  [text]="(settings?.pageAnnouncements?.['desserts']?.popupText) ?? ''"
+  (close)="closePopup()"
+></app-page-popup>
 <div class="category-header-actions">
   <button class="btn-gold-back" routerLink="/ready-for-shabbat">
     <i class="fas fa-arrow-right"></i> חזרה לתפריט

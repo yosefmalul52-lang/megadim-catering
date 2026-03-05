@@ -1,5 +1,12 @@
 <div class="holiday-page">
-  
+  <app-page-banner [message]="settings?.pageAnnouncements?.['holiday']?.bannerText"></app-page-banner>
+  <app-page-popup
+    [show]="showPopup"
+    [title]="(settings?.pageAnnouncements?.['holiday']?.popupTitle) ?? ''"
+    [text]="(settings?.pageAnnouncements?.['holiday']?.popupText) ?? ''"
+    (close)="closePopup()"
+  ></app-page-popup>
+
   <!-- Hero Section -->
   <section class="hero-section">
     <div class="container hero-content">
@@ -104,12 +111,11 @@
     <div class="container">
       <div class="cta-buttons">
         <button 
-          *ngIf="hasMenuUrl()"
           (click)="openMenu()" 
           class="cta-btn cta-btn-secondary"
           style="cursor: pointer; z-index: 10; position: relative;">
           <mat-icon>download</mat-icon>
-          <span>להורדת התפריט</span>
+          <span>להורדת התפריט{{ !hasMenuUrl() ? ' (טרם עודכן)' : '' }}</span>
         </button>
         <button class="cta-btn cta-btn-primary" (click)="toggleOrderForm()">
           <mat-icon>event</mat-icon>

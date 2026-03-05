@@ -1,0 +1,102 @@
+<div class="cart-page" dir="rtl">
+  <div class="container">
+    <!-- Centered page header with decorative lines -->
+    <header class="page-header">
+      <div class="page-title-wrapper">
+        <span class="decorative-line right-line" aria-hidden="true"></span>
+        <h1 class="page-title">עגלת קניות</h1>
+        <span class="decorative-line left-line" aria-hidden="true"></span>
+      </div>
+    </header>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="cartItems.length === 0">
+      <div class="empty-icon" aria-hidden="true">
+        <i class="fas fa-shopping-bag"></i>
+      </div>
+      <p class="empty-message">העגלה שלך ריקה</p>
+      <p class="empty-sub">הוסף מנות מהתפריט כדי להתחיל הזמנה</p>
+      <a routerLink="/ready-for-shabbat" class="btn-back">חזרה לתפריט והוספת מנות</a>
+    </div>
+
+    <!-- Main content: grid 1fr 350px -->
+    <div class="cart-layout" *ngIf="cartItems.length > 0">
+      <div class="cart-main">
+        <div class="cart-list">
+          <div
+            class="cart-item"
+            *ngFor="let item of cartItems; trackBy: trackByItemId"
+          >
+            <div class="item-image">
+              <img
+                [src]="item.imageUrl || 'assets/images/placeholder-dish.jpg'"
+                [alt]="item.name"
+                loading="lazy"
+              >
+            </div>
+            <div class="item-info">
+              <h3 class="item-name">{{ cleanItemName(item.name) }}</h3>
+              <p class="item-unit-price"><bdi>{{ item.price.toFixed(2) }} ש"ח</bdi> ליחידה</p>
+            </div>
+            <div class="quantity-pill">
+              <button
+                type="button"
+                class="qty-btn minus"
+                (click)="decreaseQuantity(item.id)"
+                [disabled]="item.quantity <= 1"
+                [attr.aria-label]="'הפחת ' + item.name"
+              >−</button>
+              <span class="qty-value">{{ item.quantity }}</span>
+              <button
+                type="button"
+                class="qty-btn plus"
+                (click)="increaseQuantity(item.id)"
+                [attr.aria-label]="'הוסף ' + item.name"
+              >+</button>
+            </div>
+            <div class="item-row-total">
+              <bdi>{{ (item.price * item.quantity).toFixed(2) }} ש"ח</bdi>
+            </div>
+            <button
+              type="button"
+              class="btn-remove"
+              (click)="removeItem(item.id)"
+              [attr.aria-label]="'הסר ' + item.name + ' מהעגלה'"
+            >
+              <i class="fas fa-trash-alt" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <div class="summary-card">
+          <div class="summary-header">סיכום הזמנה</div>
+          <div class="summary-body">
+            <div class="summary-row">
+              <span class="summary-label">סה"כ פריטים</span>
+              <span class="summary-value">{{ cartSummary.totalItems }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">סכום ביניים</span>
+              <span class="summary-value"><bdi>{{ cartSummary.totalPrice.toFixed(2) }} ש"ח</bdi></span>
+            </div>
+            <div class="summary-row total-row">
+              <span class="summary-label">סה"כ לתשלום</span>
+              <span class="summary-total"><bdi>{{ cartSummary.totalPrice.toFixed(2) }} ש"ח</bdi></span>
+            </div>
+            <div class="summary-confidence">
+              <span class="confidence-item"><i class="fas fa-lock"></i> הזמנה מאובטחת</span>
+              <span class="confidence-item"><i class="fas fa-leaf"></i> קייטרינג טרי יום-יום</span>
+              <span class="confidence-item"><i class="fas fa-truck"></i> משלוח מבוקר טמפרטורה</span>
+            </div>
+            <div class="summary-actions">
+              <a routerLink="/checkout" class="btn-checkout">המשך לתשלום</a>
+              <button type="button" class="btn-clear" (click)="clearCart()">ניקוי עגלה</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>

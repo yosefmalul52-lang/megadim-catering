@@ -1,5 +1,12 @@
 <div class="events-page">
-  
+  <app-page-banner [message]="settings?.pageAnnouncements?.['events']?.bannerText"></app-page-banner>
+  <app-page-popup
+    [show]="showPopup"
+    [title]="(settings?.pageAnnouncements?.['events']?.popupTitle) ?? ''"
+    [text]="(settings?.pageAnnouncements?.['events']?.popupText) ?? ''"
+    (close)="closePopup()"
+  ></app-page-popup>
+
   <!-- Hero Section -->
   <section class="hero-section">
     <div class="container hero-content">
@@ -161,12 +168,12 @@
   <section class="cta-section">
     <div class="container">
       <div class="cta-buttons">
-        <a 
-          *ngIf="hasMenuUrl()"
-          [href]="eventsMenuUrl" 
-          target="_blank" 
-          rel="noopener noreferrer"
+        <a
+          href="assets/menus/events.pdf"
+          download="תפריט-אירועים-מגדים.pdf"
           class="cta-btn cta-btn-secondary"
+          target="_blank"
+          rel="noopener noreferrer"
         >
           <mat-icon>download</mat-icon>
           <span>להורדת התפריט</span>

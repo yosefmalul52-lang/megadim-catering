@@ -570,7 +570,7 @@ $text-gray: #4b5563;
     gap: 2rem;
     
     .cta-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
@@ -586,6 +586,8 @@ $text-gray: #4b5563;
       transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); // Smooth premium transition
       font-family: 'Heebo', sans-serif;
       white-space: nowrap;
+      text-decoration: none; // For <a> tags – look like button
+      box-sizing: border-box;
       
       mat-icon {
         font-size: 24px;

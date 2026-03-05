@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -51,6 +53,9 @@ export class HeaderComponent implements OnInit {
   currentUser = this.authService.currentUser;
   cartSummary = this.cartService.cartSummary;
   currentLanguage = 'he';
+  isLoggedIn$: Observable<boolean> = this.authService.currentUser$.pipe(
+    map(user => !!user)
+  );
 
   get isLoggedIn(): boolean {
     return this.authService.isLoggedIn();

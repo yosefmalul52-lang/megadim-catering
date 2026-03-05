@@ -52,14 +52,15 @@ import { ToastService } from '../../../services/toast.service';
               
               <div class="item-image">
                 <img
-                  [src]="item.imageUrl || '/assets/images/placeholder-food.jpg'"
-                  [alt]="item.name"
+                  [src]="getItemImage(item)"
                   (error)="handleImageError($event)"
+                  class="item-thumbnail"
+                  [alt]="getItemDisplayName(item)"
                 />
               </div>
               
               <div class="item-details">
-                <h3 class="item-name">{{ item.name }}</h3>
+                <h3 class="item-name">{{ getItemDisplayName(item) }}</h3>
                 <div class="item-meta">
                   <span class="item-quantity">
                     <i class="fas fa-box" aria-hidden="true"></i>
@@ -212,11 +213,38 @@ export class OrderDetailsModalComponent implements OnInit {
     return index;
   }
 
+  readonly defaultPlaceholder = 'assets/images/default-food-placeholder.jpg';
+  /** Data URL fallback when even placeholder fails (no broken icon). */
+  readonly placeholderDataUrl = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"%3E%3Crect fill="%23f3f4f6" width="80" height="80"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-size="10"%3Eתמונה%3C/text%3E%3C/svg%3E';
+
+  getItemImage(item: OrderItem | null | undefined): string {
+    if (!item) return this.defaultPlaceholder;
+    const raw = (item as any).imageUrl ?? (item as any).image ?? (item as any).product?.imageUrl ?? (item as any).product?.image ?? '';
+    const url = typeof raw === 'string' ? raw.trim() : '';
+    if (!url) return this.defaultPlaceholder;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const assetsPath = url.startsWith('/assets/') ? url.slice(1) : url.startsWith('assets/') ? url : '';
+    if (assetsPath) return assetsPath;
+    return this.defaultPlaceholder;
+  }
+
+  getItemDisplayName(item: OrderItem): string {
+    const name = item.name || (item as any).productName || (item as any).product?.name || '';
+    const variant = (item as any).variant ?? (item as any).size ?? (item as any).selectedOption?.label ?? '';
+    if (!variant) return name;
+    if (name.includes('(') && name.includes(')')) return name;
+    return String(name).trim() + ' (' + String(variant).trim() + ')';
+  }
+
   handleImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
-    if (img) {
-      img.src = '/assets/images/placeholder-food.jpg';
+    if (!img) return;
+    const current = (img.src || '').toString();
+    if (current.includes('default-food-placeholder') || current.includes('placeholder-dish')) {
+      img.src = this.placeholderDataUrl;
+      return;
     }
+    img.src = this.defaultPlaceholder;
   }
 }
 

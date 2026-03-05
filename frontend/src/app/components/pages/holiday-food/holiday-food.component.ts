@@ -5,11 +5,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
+import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-holiday-food',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, FormsModule],
+  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, FormsModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './holiday-food.component.html',
   styleUrls: ['./holiday-food.component.scss']
 })
@@ -17,7 +19,8 @@ export class HolidayFoodComponent implements OnInit {
   settingsService = inject(SiteSettingsService);
   settings: SiteSettings | null = null;
   eventsMenuUrl: string = '';
-  
+  showPopup = false;
+
   isOrderFormOpen: boolean = false;
   
   // Arrays for dropdown loops
@@ -139,11 +142,14 @@ export class HolidayFoodComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Fetch site settings
-    this.settingsService.getSettings().subscribe(s => {
+    this.settingsService.getSettings(true).subscribe(s => {
+      this.settings = s || null;
+      const hol = s?.pageAnnouncements?.['holiday'];
+      if ((hol?.popupTitle?.trim() ?? '') !== '' || (hol?.popupText?.trim() ?? '') !== '') {
+        this.showPopup = true;
+      }
       if (s && s.eventsMenuUrl) {
         this.eventsMenuUrl = s.eventsMenuUrl;
-        this.settings = s;
         console.log('✅ Events Menu URL loaded:', this.eventsMenuUrl);
       } else {
         this.eventsMenuUrl = '';
@@ -166,5 +172,9 @@ export class HolidayFoodComponent implements OnInit {
 
   hasMenuUrl(): boolean {
     return !!this.eventsMenuUrl && this.eventsMenuUrl.trim() !== '';
+  }
+
+  closePopup(): void {
+    this.showPopup = false;
   }
 }

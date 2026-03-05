@@ -343,6 +343,14 @@ export class MenuService {
     return this.loadMenuItems();
   }
 
+  /**
+   * Get all menu items from the API (same as getMenuItems).
+   * Use this for public menu pages so they reflect real-time database values from Admin.
+   */
+  getAllItems(): Observable<MenuItem[]> {
+    return this.getMenuItems();
+  }
+
   loadMenuItems(): Observable<MenuItem[]> {
     this.loadingSubject.next(true);
     

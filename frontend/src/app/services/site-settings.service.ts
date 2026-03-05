@@ -4,11 +4,50 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { tap, catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
+export interface PageAnnouncement {
+  bannerText?: string;
+  popupTitle?: string;
+  popupText?: string;
+}
+
+export type PageId = 'home' | 'events' | 'holiday' | 'cholent' | 'salads' | 'fish' | 'desserts';
+
+export const PAGE_IDS: PageId[] = ['home', 'events', 'holiday', 'cholent', 'salads', 'fish', 'desserts'];
+
+function defaultPageAnnouncements(): Record<string, PageAnnouncement> {
+  const out: Record<string, PageAnnouncement> = {};
+  for (const id of PAGE_IDS) {
+    out[id] = { bannerText: '', popupTitle: '', popupText: '' };
+  }
+  return out;
+}
+
+function normalizePageAnnouncements(pa: Record<string, PageAnnouncement> | null | undefined): Record<string, PageAnnouncement> {
+  const out = defaultPageAnnouncements();
+  if (pa && typeof pa === 'object') {
+    for (const id of PAGE_IDS) {
+      if (pa[id] && typeof pa[id] === 'object') {
+        out[id] = {
+          bannerText: typeof pa[id].bannerText === 'string' ? pa[id].bannerText! : '',
+          popupTitle: typeof pa[id].popupTitle === 'string' ? pa[id].popupTitle! : '',
+          popupText: typeof pa[id].popupText === 'string' ? pa[id].popupText! : ''
+        };
+      }
+    }
+  }
+  return out;
+}
+
 export interface SiteSettings {
   shabbatMenuUrl: string;
   eventsMenuUrl: string;
   contactPhone?: string;
+  orderEmail?: string;
   whatsappLink?: string;
+  cholentForceOpen?: boolean;
+  cholentCustomMessage?: string;
+  cholentClosedMessage?: string;
+  pageAnnouncements?: Record<string, PageAnnouncement>;
 }
 
 export interface SiteSettingsResponse {
@@ -24,88 +63,90 @@ export class SiteSettingsService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/settings`;
 
-  // Cache settings in BehaviorSubject to avoid repeated API calls
   private settingsSubject = new BehaviorSubject<SiteSettings | null>(null);
   public settings$ = this.settingsSubject.asObservable();
 
   private isLoadingSubject = new BehaviorSubject<boolean>(false);
   public isLoading$ = this.isLoadingSubject.asObservable();
 
-  /**
-   * Get site settings from API
-   * Uses cache if available, otherwise fetches from API
-   */
-  getSettings(): Observable<SiteSettings> {
-    // Return cached value if available
-    const cached = this.settingsSubject.value;
-    if (cached) {
-      return of(cached);
+  /** Get page announcement for a given page id (always returns an object with bannerText, popupTitle, popupText). */
+  getPageAnnouncement(settings: SiteSettings | null, pageId: PageId): PageAnnouncement {
+    const pa = settings?.pageAnnouncements ? normalizePageAnnouncements(settings.pageAnnouncements) : defaultPageAnnouncements();
+    return pa[pageId] || { bannerText: '', popupTitle: '', popupText: '' };
+  }
+
+  getSettings(forceRefresh = false): Observable<SiteSettings> {
+    if (!forceRefresh) {
+      const cached = this.settingsSubject.value;
+      if (cached) return of(cached);
+    } else {
+      this.settingsSubject.next(null);
     }
 
-    // Fetch from API
     this.isLoadingSubject.next(true);
     return this.http.get<any>(this.apiUrl).pipe(
       map(response => {
-        console.log('Raw API response:', response); // Debug log
-        
-        // Handle null or undefined response
         if (!response) {
-          console.warn('API returned null/undefined, using default settings');
           return {
             shabbatMenuUrl: '',
             eventsMenuUrl: '',
             contactPhone: '',
-            whatsappLink: ''
+            orderEmail: '',
+            whatsappLink: '',
+            cholentForceOpen: false,
+            cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+            cholentCustomMessage: '',
+            pageAnnouncements: defaultPageAnnouncements()
           };
         }
-        
-        // Handle both response formats: wrapped {success, data} or direct settings object
         let settings: SiteSettings | null = null;
-        
         if (typeof response === 'object') {
-          // Check if response has 'data' property (wrapped format: {success: true, data: {...}})
-          if ('data' in response && response.data !== null && response.data !== undefined) {
+          if ('data' in response && response.data != null) {
             settings = response.data as SiteSettings;
-          } 
-          // Check if response is a direct settings object (has shabbatMenuUrl or eventsMenuUrl)
-          else if ('shabbatMenuUrl' in response || 'eventsMenuUrl' in response) {
+          } else if ('shabbatMenuUrl' in response || 'eventsMenuUrl' in response) {
             settings = response as SiteSettings;
           }
         }
-        
-        // If still null, return default settings
         if (!settings) {
-          console.warn('API returned invalid settings format, using defaults. Response:', response);
           settings = {
             shabbatMenuUrl: '',
             eventsMenuUrl: '',
             contactPhone: '',
-            whatsappLink: ''
+            orderEmail: '',
+            whatsappLink: '',
+            cholentForceOpen: false,
+            cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+            cholentCustomMessage: '',
+            pageAnnouncements: defaultPageAnnouncements()
           };
         }
-        
-        // Ensure all required fields exist with safe defaults
         return {
           shabbatMenuUrl: settings.shabbatMenuUrl || '',
           eventsMenuUrl: settings.eventsMenuUrl || '',
           contactPhone: settings.contactPhone || '',
-          whatsappLink: settings.whatsappLink || ''
+          orderEmail: settings.orderEmail || '',
+          whatsappLink: settings.whatsappLink || '',
+          cholentForceOpen: !!settings.cholentForceOpen,
+          cholentCustomMessage: settings.cholentCustomMessage || '',
+          cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          pageAnnouncements: normalizePageAnnouncements(settings.pageAnnouncements)
         };
       }),
       tap(settings => {
-        // Cache the settings
         this.settingsSubject.next(settings);
         this.isLoadingSubject.next(false);
       }),
-      catchError(error => {
-        console.error('Error fetching site settings:', error);
+      catchError(() => {
         this.isLoadingSubject.next(false);
-        // Return default settings on error
         const defaultSettings: SiteSettings = {
           shabbatMenuUrl: '',
           eventsMenuUrl: '',
           contactPhone: '',
-          whatsappLink: ''
+          whatsappLink: '',
+          cholentForceOpen: false,
+          cholentCustomMessage: '',
+          cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          pageAnnouncements: defaultPageAnnouncements()
         };
         this.settingsSubject.next(defaultSettings);
         return of(defaultSettings);
@@ -113,85 +154,69 @@ export class SiteSettingsService {
     );
   }
 
-  /**
-   * Update site settings (Admin only)
-   * @param settings Partial settings object with fields to update
-   */
   updateSettings(settings: Partial<SiteSettings>): Observable<SiteSettings> {
     this.isLoadingSubject.next(true);
     return this.http.put<any>(this.apiUrl, settings).pipe(
       map(response => {
-        console.log('Raw API update response:', response); // Debug log
-        
-        // Handle null or undefined response
         if (!response) {
-          console.warn('API returned null/undefined after update, using input data');
           return {
             shabbatMenuUrl: settings.shabbatMenuUrl || '',
             eventsMenuUrl: settings.eventsMenuUrl || '',
             contactPhone: settings.contactPhone || '',
-            whatsappLink: settings.whatsappLink || ''
-          };
+            orderEmail: settings.orderEmail || '',
+            whatsappLink: settings.whatsappLink || '',
+            cholentForceOpen: !!settings.cholentForceOpen,
+            cholentCustomMessage: settings.cholentCustomMessage || '',
+            cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+            pageAnnouncements: normalizePageAnnouncements(settings.pageAnnouncements)
+          } as SiteSettings;
         }
-        
-        // Handle both response formats: wrapped {success, data} or direct settings object
-        let updatedSettings: SiteSettings | null = null;
-        
+        let updated: SiteSettings | null = null;
         if (typeof response === 'object') {
-          // Check if response has 'data' property (wrapped format)
-          if ('data' in response && response.data !== null && response.data !== undefined) {
-            updatedSettings = response.data as SiteSettings;
-          } 
-          // Otherwise, treat response as direct settings object
-          else if ('shabbatMenuUrl' in response || 'eventsMenuUrl' in response) {
-            updatedSettings = response as SiteSettings;
-          }
+          if ('data' in response && response.data != null) updated = response.data as SiteSettings;
+          else if ('shabbatMenuUrl' in response || 'eventsMenuUrl' in response) updated = response as SiteSettings;
         }
-        
-        // If still null, create settings from the input data
-        if (!updatedSettings) {
-          console.warn('API returned invalid settings format after update, using input data');
-          updatedSettings = {
+        if (!updated) {
+          updated = {
             shabbatMenuUrl: settings.shabbatMenuUrl || '',
             eventsMenuUrl: settings.eventsMenuUrl || '',
             contactPhone: settings.contactPhone || '',
-            whatsappLink: settings.whatsappLink || ''
-          };
+            orderEmail: settings.orderEmail || '',
+            whatsappLink: settings.whatsappLink || '',
+            cholentForceOpen: !!settings.cholentForceOpen,
+            cholentCustomMessage: settings.cholentCustomMessage || '',
+            cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+            pageAnnouncements: normalizePageAnnouncements(settings.pageAnnouncements)
+          } as SiteSettings;
         }
-        
-        // Ensure all required fields exist with safe defaults
         return {
-          shabbatMenuUrl: updatedSettings.shabbatMenuUrl || '',
-          eventsMenuUrl: updatedSettings.eventsMenuUrl || '',
-          contactPhone: updatedSettings.contactPhone || '',
-          whatsappLink: updatedSettings.whatsappLink || ''
+          shabbatMenuUrl: updated.shabbatMenuUrl || '',
+          eventsMenuUrl: updated.eventsMenuUrl || '',
+          contactPhone: updated.contactPhone || '',
+          orderEmail: updated.orderEmail || '',
+          whatsappLink: updated.whatsappLink || '',
+          cholentForceOpen: !!updated.cholentForceOpen,
+          cholentCustomMessage: updated.cholentCustomMessage || '',
+          cholentClosedMessage: updated.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          pageAnnouncements: normalizePageAnnouncements(updated.pageAnnouncements)
         };
       }),
-      tap(updatedSettings => {
-        // Update cache with new settings
-        this.settingsSubject.next(updatedSettings);
+      tap(s => {
+        this.settingsSubject.next(s);
         this.isLoadingSubject.next(false);
       }),
-      catchError(error => {
-        console.error('Error updating site settings:', error);
+      catchError(err => {
         this.isLoadingSubject.next(false);
-        throw error;
+        throw err;
       })
     );
   }
 
-  /**
-   * Clear cache (useful for forcing a refresh)
-   */
   clearCache(): void {
     this.settingsSubject.next(null);
   }
 
-  /**
-   * Get current cached settings (synchronous)
-   */
   getCurrentSettings(): SiteSettings | null {
     return this.settingsSubject.value;
   }
 }
-

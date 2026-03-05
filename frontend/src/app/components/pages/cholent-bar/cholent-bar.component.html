@@ -1,4 +1,11 @@
 <div class="cholent-page">
+  <app-page-banner [message]="settings?.pageAnnouncements?.['cholent']?.bannerText"></app-page-banner>
+  <app-page-popup
+    [show]="showPopup"
+    [title]="(settings?.pageAnnouncements?.['cholent']?.popupTitle) ?? ''"
+    [text]="(settings?.pageAnnouncements?.['cholent']?.popupText) ?? ''"
+    (close)="closePopup()"
+  ></app-page-popup>
   <div class="luxury-menu-paper">
     
     <!-- Header Section -->
@@ -7,22 +14,34 @@
       <div class="header-divider"></div>
     </header>
 
+    <!-- Custom message from admin -->
+    <div *ngIf="cholentCustomMessage" class="cholent-custom-message">
+      {{ cholentCustomMessage }}
+    </div>
+
+    <!-- Closed state message (when not open and no order functionality) -->
+    <div *ngIf="!isLoading && !isCholentBarOpen()" class="cholent-closed-message">
+      <i class="fas fa-clock"></i>
+      <p>{{ cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00' }}</p>
+    </div>
+
     <!-- Loading State -->
     <div *ngIf="isLoading" class="loading">
       <i class="fas fa-spinner fa-spin"></i>
       <span>טוען תפריט...</span>
     </div>
 
-    <!-- Menu Content -->
+    <!-- Menu Content: sections from API, grouped by category -->
     <div *ngIf="!isLoading" class="menu-content">
-      
-      <!-- Cholent Section -->
-      <section class="menu-section" *ngIf="cholentDishes.length > 0">
+      <section
+        *ngFor="let group of itemsGroupedByCategory"
+        class="menu-section"
+      >
         <h2 class="section-title">
-          <span>הצ'ולנט שלנו</span>
+          <span>{{ group.categoryLabel }}</span>
         </h2>
         <div class="menu-items">
-          <div *ngFor="let dish of cholentDishes" class="menu-item">
+          <div *ngFor="let dish of group.items" class="menu-item">
             <div class="menu-row">
               <div class="item-details">
                 <span class="item-name">{{ dish.name }}</span>
@@ -30,80 +49,19 @@
               </div>
               <div class="item-actions">
                 <span class="item-price">{{ getPrice(dish) }} ₪</span>
+                <button *ngIf="isCholentBarOpen()" type="button" class="btn-add" (click)="addToCart(dish)" aria-label="הוסף לעגלה">
+                  <i class="fas fa-plus"></i> הוסף לעגלה
+                </button>
               </div>
             </div>
             <p class="item-desc">{{ dish.description }}</p>
           </div>
         </div>
       </section>
-
-      <!-- Meat Specials Section -->
-      <section class="menu-section" *ngIf="meatSpecials.length > 0">
-        <h2 class="section-title">
-          <span>מיוחדים בשריים</span>
-        </h2>
-        <div class="menu-items">
-          <div *ngFor="let dish of meatSpecials" class="menu-item">
-            <div class="menu-row">
-              <div class="item-details">
-                <span class="item-name">{{ dish.name }}</span>
-                <span class="item-dots"></span>
-              </div>
-              <div class="item-actions">
-                <span class="item-price">{{ getPrice(dish) }} ₪</span>
-              </div>
-            </div>
-            <p class="item-desc">{{ dish.description }}</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Sides & Kugel Section -->
-      <section class="menu-section" *ngIf="sidesItems.length > 0">
-        <h2 class="section-title">
-          <span>תוספות וקוגל</span>
-        </h2>
-        <div class="menu-items">
-          <div *ngFor="let dish of sidesItems" class="menu-item">
-            <div class="menu-row">
-              <div class="item-details">
-                <span class="item-name">{{ dish.name }}</span>
-                <span class="item-dots"></span>
-              </div>
-              <div class="item-actions">
-                <span class="item-price">{{ getPrice(dish) }} ₪</span>
-              </div>
-            </div>
-            <p class="item-desc">{{ dish.description }}</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Desserts & Drinks Section -->
-      <section class="menu-section" *ngIf="dessertsItems.length > 0">
-        <h2 class="section-title">
-          <span>מתוקים ושתייה</span>
-        </h2>
-        <div class="menu-items">
-          <div *ngFor="let dish of dessertsItems" class="menu-item">
-            <div class="menu-row">
-              <div class="item-details">
-                <span class="item-name">{{ dish.name }}</span>
-                <span class="item-dots"></span>
-              </div>
-              <div class="item-actions">
-                <span class="item-price">{{ getPrice(dish) }} ₪</span>
-              </div>
-            </div>
-            <p class="item-desc">{{ dish.description }}</p>
-          </div>
-        </div>
-      </section>
-
     </div>
 
     <!-- Empty State -->
-    <div *ngIf="!isLoading && cholentItems.length === 0" class="empty-state">
+    <div *ngIf="!isLoading && itemsGroupedByCategory.length === 0" class="empty-state">
       <p>אין מנות זמינות כרגע</p>
     </div>
 

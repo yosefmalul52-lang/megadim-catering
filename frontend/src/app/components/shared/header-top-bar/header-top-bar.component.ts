@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
@@ -98,13 +100,13 @@ import { AuthModalService } from '../../../services/auth-modal.service';
                 <button 
                   class="icon-btn user-btn"
                   (click)="onUserIconClick()"
-                  [class.text-primary]="isLoggedIn"
-                  [title]="isLoggedIn ? (currentUser?.role === 'admin' ? 'עבור ללוח בקרה' : 'ההזמנות שלי') : 'התחבר/הירשם'"
-                  [attr.aria-label]="isLoggedIn ? (currentUser?.role === 'admin' ? 'עבור ללוח בקרה' : 'ההזמנות שלי') : 'התחבר או הירשם'"
+                  [title]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'עבור ללוח בקרה' : 'האזור האישי שלי') : 'התחבר/הירשם'"
+                  [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'עבור ללוח בקרה' : 'האזור האישי שלי') : 'התחבר או הירשם'"
                   style="cursor: pointer"
                 >
-                  <i class="fas fa-user" aria-hidden="true"></i>
+                  <i class="fas fa-user" aria-hidden="true" [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''"></i>
                 </button>
+                <span style="font-size: 10px; color: red; margin-left: 2px;" [title]="'Auth: ' + ((isLoggedIn$ | async) ? 'ON' : 'OFF')">{{ (isLoggedIn$ | async) ? 'ON' : 'OFF' }}</span>
                 
                 <!-- User Dropdown -->
                 <div class="user-dropdown" *ngIf="isUserMenuOpen">
@@ -136,13 +138,13 @@ import { AuthModalService } from '../../../services/auth-modal.service';
                       לוח בקרה
                     </a>
                     <a 
-                      routerLink="/my-orders" 
+                      routerLink="/my-account" 
                       class="dropdown-item" 
                       *ngIf="currentUser?.role === 'user'"
                       (click)="closeUserMenu()"
                     >
                       <i class="fas fa-shopping-bag" aria-hidden="true"></i>
-                      ההזמנות שלי
+                      האזור האישי שלי
                     </a>
                     <button class="dropdown-item logout-btn" (click)="logout()">
                       <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
@@ -173,8 +175,11 @@ export class HeaderTopBarComponent implements OnInit {
   currentLanguage = 'he';
   currentUser = this.authService.currentUser;
   cartSummary = this.cartService.cartSummary;
+  /** Reactive auth state – BehaviorSubject in AuthService emits immediately on subscribe. */
+  isLoggedIn$: Observable<boolean> = this.authService.currentUser$.pipe(
+    map(user => !!user)
+  );
 
-  // Getter for logged in status
   get isLoggedIn(): boolean {
     return this.authService.isLoggedIn();
   }
@@ -209,8 +214,8 @@ export class HeaderTopBarComponent implements OnInit {
         // Admin -> go to admin dashboard
         this.router.navigate(['/admin']);
       } else {
-        // Regular user -> go to my orders
-        this.router.navigate(['/my-orders']);
+        // Regular user -> go to personal account area
+        this.router.navigate(['/my-account']);
       }
     } else {
       // Guest -> open auth modal

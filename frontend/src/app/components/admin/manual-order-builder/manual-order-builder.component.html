@@ -1,0 +1,148 @@
+<div class="order-builder-page">
+  <header class="builder-header">
+    <button type="button" class="btn-back" (click)="goBack()" aria-label="חזור להזמנות">
+      <i class="fas fa-arrow-right"></i>
+      <span>חזור להזמנות</span>
+    </button>
+    <h1 class="builder-title">הזמנה טלפונית חדשה</h1>
+  </header>
+
+  <form [formGroup]="form" class="order-builder-form">
+    <div class="order-builder-container">
+      <!-- Right column: Customer & Event (in RTL this appears on the right) -->
+      <div class="column-details">
+        <div class="card card-customer">
+          <h2 class="card-title">פרטי לקוח</h2>
+          <div class="card-body">
+            <div class="field">
+              <label for="customerName">שם מלא</label>
+              <input id="customerName" type="text" formControlName="customerName" placeholder="שם הלקוח" class="input" />
+              @if (form.get('customerName')?.invalid && form.get('customerName')?.touched) {
+                <span class="field-error">חובה</span>
+              }
+            </div>
+            <div class="field">
+              <label for="phone">טלפון</label>
+              <input id="phone" type="tel" formControlName="phone" placeholder="טלפון" class="input" />
+              @if (form.get('phone')?.invalid && form.get('phone')?.touched) {
+                <span class="field-error">חובה</span>
+              }
+            </div>
+            <div class="field">
+              <label for="email">אימייל (אופציונלי)</label>
+              <input id="email" type="email" formControlName="email" placeholder="אימייל" class="input" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-event">
+          <h2 class="card-title">פרטי אירוע ומשלוח</h2>
+          <div class="card-body">
+            <div class="field">
+              <label for="eventDate">תאריך אירוע</label>
+              <input id="eventDate" type="date" formControlName="eventDate" class="input" />
+              @if (form.get('eventDate')?.invalid && form.get('eventDate')?.touched) {
+                <span class="field-error">חובה</span>
+              }
+            </div>
+            <div class="field">
+              <label for="deliveryMethod">אופן מסירה</label>
+              <select id="deliveryMethod" formControlName="deliveryMethod" class="input input-select">
+                <option value="pickup">איסוף</option>
+                <option value="delivery">משלוח</option>
+              </select>
+            </div>
+            @if (isDelivery) {
+              <div class="field">
+                <label for="city">עיר</label>
+                <input id="city" type="text" formControlName="city" placeholder="עיר" class="input" />
+                @if (form.get('city')?.invalid && form.get('city')?.touched) {
+                  <span class="field-error">חובה</span>
+                }
+              </div>
+              <div class="field">
+                <label for="street">רחוב ומספר בית</label>
+                <input id="street" type="text" formControlName="street" placeholder="רחוב ומספר בית" class="input" />
+                @if (form.get('street')?.invalid && form.get('street')?.touched) {
+                  <span class="field-error">חובה</span>
+                }
+              </div>
+              <div class="field">
+                <label for="apartment">דירה</label>
+                <input id="apartment" type="text" formControlName="apartment" placeholder="דירה" class="input" />
+              </div>
+            }
+            <div class="field">
+              <label for="paymentStatus">סטטוס תשלום</label>
+              <select id="paymentStatus" formControlName="paymentStatus" class="input input-select">
+                <option value="unpaid">לא שולם</option>
+                <option value="paid">שולם</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="adminNotes">הערות פנימיות</label>
+              <textarea id="adminNotes" formControlName="adminNotes" rows="3" placeholder="הערות (למשל: ישלם במזומן לנהג)" class="input input-textarea"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Left column: Order items & total -->
+      <div class="column-items">
+        <div class="card card-items">
+          <h2 class="card-title">בניית ההזמנה</h2>
+          <div class="card-body">
+            <div formArrayName="items" class="items-list">
+              @for (item of items.controls; track $index) {
+                <div [formGroupName]="$index" class="item-row">
+                  <input formControlName="productName" placeholder="שם פריט" class="input input-item-name" />
+                  <input formControlName="quantity" type="number" min="1" class="input input-qty" />
+                  <input formControlName="price" type="number" min="0" step="0.01" placeholder="מחיר" class="input input-price" />
+                  <button type="button" class="btn-remove-item" (click)="removeItem($index)" [disabled]="items.length === 1" aria-label="הסר פריט">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              }
+            </div>
+            <button type="button" class="btn-add-item" (click)="addItem()">
+              <i class="fas fa-plus"></i>
+              הוסף פריט
+            </button>
+          </div>
+        </div>
+
+        <div class="card card-summary">
+          <h2 class="card-title">סה"כ לתשלום</h2>
+          <div class="card-body">
+            <div class="summary-row">
+              <span class="summary-label">סיכום ביניים (מפריטים):</span>
+              <span class="summary-value">₪{{ computedSubtotal | number:'1.2-2' }}</span>
+            </div>
+            <button type="button" class="btn-apply-subtotal" (click)="applySubtotalToTotal()">העתק לסה"כ</button>
+            <div class="field field-total">
+              <label for="totalAmount">סכום סופי (₪)</label>
+              <input id="totalAmount" type="number" formControlName="totalAmount" min="0" step="0.01" class="input input-total" />
+              @if (form.get('totalAmount')?.invalid && form.get('totalAmount')?.touched) {
+                <span class="field-error">נא להזין סכום חוקי</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        @if (errorMessage) {
+          <p class="error-msg">{{ errorMessage }}</p>
+        }
+
+        <button type="button" class="btn-submit" (click)="submit()" [disabled]="isSubmitting">
+          @if (isSubmitting) {
+            <i class="fas fa-spinner fa-spin"></i>
+            שומר...
+          } @else {
+            <i class="fas fa-check"></i>
+            שמור הזמנה טלפונית
+          }
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

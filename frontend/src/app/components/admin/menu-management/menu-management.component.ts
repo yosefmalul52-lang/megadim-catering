@@ -4,6 +4,17 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Va
 import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.service';
 import { UploadService } from '../../../services/upload.service';
 
+/** Default category options when no menu items exist yet (so admin can add first item). */
+const DEFAULT_CATEGORIES = [
+  { id: 'salads', name: 'סלטים', description: 'סלטים' },
+  { id: 'fish', name: 'דגים', description: 'דגים' },
+  { id: 'main', name: 'מנות עיקריות', description: 'מנות עיקריות' },
+  { id: 'cholent', name: 'צ\'ולנט', description: 'צ\'ולנט בר' },
+  { id: 'sides', name: 'תוספות', description: 'תוספות' },
+  { id: 'desserts', name: 'קינוחים', description: 'קינוחים' },
+  { id: 'stuffed', name: 'ממולאים', description: 'ממולאים' }
+];
+
 @Component({
   selector: 'app-menu-management',
   standalone: true,
@@ -23,7 +34,7 @@ import { UploadService } from '../../../services/upload.service';
           <label>קטגוריה:</label>
           <select [(ngModel)]="selectedCategory" (change)="filterByCategory()">
             <option value="">כל הקטגוריות</option>
-            <option *ngFor="let cat of categories" [value]="cat.name">{{ cat.name }}</option>
+            <option *ngFor="let cat of displayCategories" [value]="cat.name">{{ cat.name }}</option>
           </select>
         </div>
 
@@ -223,7 +234,7 @@ import { UploadService } from '../../../services/upload.service';
                     <label>קטגוריה *</label>
                     <select formControlName="category" required class="form-input">
                       <option value="">בחר קטגוריה</option>
-                      <option *ngFor="let cat of categories" [value]="cat.name">{{ cat.name }}</option>
+                      <option *ngFor="let cat of displayCategories" [value]="cat.name">{{ cat.name }}</option>
                     </select>
                   </div>
 
@@ -1637,6 +1648,10 @@ export class MenuManagementComponent implements OnInit {
   filteredItems: MenuItem[] = [];
   itemsByCategory: { category: string; items: MenuItem[] }[] = [];
   categories: any[] = [];
+  /** Categories for dropdowns: from API when available, else defaults so admin can add first item. */
+  get displayCategories(): any[] {
+    return this.categories?.length ? this.categories : DEFAULT_CATEGORIES;
+  }
   selectedCategory: string = '';
   
   showModal = false;

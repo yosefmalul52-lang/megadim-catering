@@ -52,13 +52,43 @@ import { AuthService } from '../../../services/auth.service';
           </a>
           
           <a 
+            routerLink="/admin/customers" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-users"></i>
+            <span>לקוחות</span>
+          </a>
+          
+          <a 
+            routerLink="/admin/coupons" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-ticket-alt"></i>
+            <span>ניהול קופונים</span>
+          </a>
+          
+          <a 
+            routerLink="/admin/shipping" 
+            routerLinkActive="active"
+            class="nav-link"
+            (click)="closeSidebarOnMobile()"
+          >
+            <i class="fas fa-money-bill-wave"></i>
+            <span>מחירי משלוח ואזורים</span>
+          </a>
+          
+          <a 
             routerLink="/admin/delivery" 
             routerLinkActive="active"
             class="nav-link"
             (click)="closeSidebarOnMobile()"
           >
             <i class="fas fa-truck"></i>
-            <span>ניהול משלוחים</span>
+            <span>סידור משלוחים</span>
           </a>
           
           <a 
@@ -69,26 +99,6 @@ import { AuthService } from '../../../services/auth.service';
           >
             <i class="fas fa-shopping-basket"></i>
             <span>רשימת קניות</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/employees" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-users"></i>
-            <span>ניהול צוות</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/summaries" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-comments"></i>
-            <span>סיכומי שיחה</span>
           </a>
           
           <a 
@@ -479,7 +489,9 @@ export class AdminLayoutComponent implements OnInit {
     '/admin/dashboard': 'לוח בקרה',
     '/admin/menu': 'ניהול תפריט',
     '/admin/orders': 'הזמנות',
-    '/admin/summaries': 'סיכומי שיחה',
+    '/admin/customers': 'לקוחות',
+    '/admin/coupons': 'ניהול קופונים',
+    '/admin/shipping': 'מחירי משלוח ואזורים',
     '/admin/gallery': 'ניהול גלריה',
     '/admin/settings': 'הגדרות אתר'
   };

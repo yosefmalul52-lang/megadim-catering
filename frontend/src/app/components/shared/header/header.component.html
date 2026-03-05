@@ -35,8 +35,8 @@
             <span class="cart-badge" *ngIf="cartSummary.totalItems > 0">{{ cartSummary.totalItems }}</span>
           </button>
           
-          <button mat-icon-button aria-label="אזור אישי" (click)="onUserClick()">
-            <mat-icon>person</mat-icon>
+          <button mat-icon-button aria-label="אזור אישי" (click)="onUserClick()" class="user-icon-btn" [class.user-icon-gold]="isLoggedIn$ | async">
+            <mat-icon [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''">person</mat-icon>
           </button>
         </div>
       </div>

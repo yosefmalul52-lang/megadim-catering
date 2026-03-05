@@ -92,11 +92,29 @@
   transition: all $transition-normal;
   position: relative;
   font-size: 1.375rem; // 22px - adjusted for 70px height
+
+  &.user-btn {
+    color: $color-white; /* Default: visible on dark bar */
+    transition: all 0.3s ease;
+
+    &:hover,
+    &:focus {
+      color: #c5a059;
+
+      i {
+        color: inherit;
+      }
+    }
+  }
   
   &:hover, &:focus {
     background-color: rgba(255, 255, 255, 0.1);
-    color: $color-gold;
     transform: translateY(-1px);
+  }
+
+  &:not(.user-btn):hover,
+  &:not(.user-btn):focus {
+    color: $color-gold;
   }
   
   &:active {
@@ -106,16 +124,6 @@
   &.active {
     background-color: $color-gold;
     color: $color-navy;
-  }
-
-  // Primary color for logged-in users
-  &.text-primary {
-    color: $color-gold;
-    
-    &:hover, &:focus {
-      color: lighten($color-gold, 10%);
-      background-color: rgba($color-gold, 0.15);
-    }
   }
   
   @media (max-width: $breakpoint-sm - 1px) {

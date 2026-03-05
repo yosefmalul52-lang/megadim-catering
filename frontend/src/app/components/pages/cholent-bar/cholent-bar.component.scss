@@ -73,6 +73,44 @@ $dotted-line: rgba(0, 0, 0, 0.15); // Extremely subtle dotted line
   }
 }
 
+// Custom message from admin (prominent at top)
+.cholent-custom-message {
+  text-align: center;
+  padding: 16px 24px;
+  margin: 0 0 24px 0;
+  background: linear-gradient(135deg, rgba(224, 192, 117, 0.2), rgba(224, 192, 117, 0.08));
+  border: 1px solid rgba(224, 192, 117, 0.4);
+  border-radius: 8px;
+  color: $navy;
+  font-size: 1.2rem;
+  font-weight: 500;
+  font-family: 'Heebo', 'Georgia', serif;
+}
+
+// Closed state message
+.cholent-closed-message {
+  text-align: center;
+  padding: 28px 24px;
+  margin: 0 0 32px 0;
+  background: $light-gray;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  color: $gray-text;
+
+  i {
+    font-size: 2rem;
+    color: var(--primary-gold);
+    display: block;
+    margin-bottom: 12px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.15rem;
+    font-family: 'Heebo', 'Georgia', serif;
+  }
+}
+
 // Section Title - Elegant with Serif
 .section-title {
   text-align: center;

@@ -6,13 +6,23 @@ import { TranslateModule } from '@ngx-translate/core';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { LanguageService } from '../../../../services/language.service';
+import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
+import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
+import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-salads',
   standalone: true,
-  imports: [CommonModule, TranslateModule, RouterModule],
+  imports: [CommonModule, TranslateModule, RouterModule, PageBannerComponent, PagePopupComponent],
   template: `
     <div class="salads-page">
+      <app-page-banner [message]="settings?.pageAnnouncements?.['salads']?.bannerText"></app-page-banner>
+      <app-page-popup
+        [show]="showPopup"
+        [title]="(settings?.pageAnnouncements?.['salads']?.popupTitle) ?? ''"
+        [text]="(settings?.pageAnnouncements?.['salads']?.popupText) ?? ''"
+        (close)="closePopup()"
+      ></app-page-popup>
       <div class="category-header-actions">
         <button class="btn-gold-back" routerLink="/ready-for-shabbat">
           <i class="fas fa-arrow-right"></i> חזרה לתפריט
@@ -668,7 +678,11 @@ export class SaladsComponent implements OnInit {
   menuService = inject(MenuService);
   cartService = inject(CartService);
   languageService = inject(LanguageService);
+  settingsService = inject(SiteSettingsService);
   router = inject(Router);
+
+  settings: SiteSettings | null = null;
+  showPopup = false;
 
   salads: MenuItem[] = [];
   isLoading = true;
@@ -678,7 +692,18 @@ export class SaladsComponent implements OnInit {
   validationErrors: { [key: string]: boolean } = {}; // Track validation errors per item
 
   ngOnInit(): void {
+    this.settingsService.getSettings(true).subscribe(s => {
+      this.settings = s ?? null;
+      const pa = s?.pageAnnouncements?.['salads'];
+      if ((pa?.popupTitle?.trim() ?? '') !== '' || (pa?.popupText?.trim() ?? '') !== '') {
+        this.showPopup = true;
+      }
+    });
     this.loadSalads();
+  }
+
+  closePopup(): void {
+    this.showPopup = false;
   }
 
   /**

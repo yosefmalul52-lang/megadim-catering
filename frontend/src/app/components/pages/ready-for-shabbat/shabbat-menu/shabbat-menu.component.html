@@ -30,17 +30,15 @@
 <!-- Download Menu Button -->
 <section class="download-menu-section">
   <div class="container">
-    <button 
-      *ngIf="shabbatMenuPdfUrl"
-      (click)="openMenu()" 
-      class="btn-gold-download"
-      style="cursor: pointer; z-index: 10; position: relative; display: inline-block; padding: 10px 20px; background: var(--primary-gold); color: #1f3540; text-decoration: none; border: none; border-radius: 5px; font-weight: bold; font-family: 'Heebo', sans-serif;">
-      <i class="fas fa-file-pdf"></i> הורד תפריט שבת וחג
-    </button>
-
-    <span *ngIf="!shabbatMenuPdfUrl" style="color: gray; font-size: 0.9em;">
-      (טרם עודכן תפריט)
-    </span>
+    <a
+      href="assets/menus/shabbat-menu.pdf"
+      download="תפריט-שבת-מגדים.pdf"
+      class="download-menu-btn"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <i class="fas fa-file-pdf"></i> להורדת התפריט
+    </a>
   </div>
 </section>
 

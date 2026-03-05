@@ -1,0 +1,27 @@
+.page-announcement-wrapper {
+  padding: 20px 20px 0; /* Space from the top */
+  display: flex;
+  justify-content: center;
+}
+
+.announcement-box {
+  background: linear-gradient(180deg, #fefaf2 0%, #f7ecd3 100%); /* Light cream/gold gradient */
+  border: 1px solid #e2cfa4; /* Soft gold border */
+  border-radius: 8px; /* Rounded corners */
+  color: #1a2332; /* Dark navy/almost black for contrast */
+  text-align: center;
+  padding: 15px 30px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  width: 100%;
+  max-width: 800px; /* Keep it boxed, not full width */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
+}
+
+/* Make it slightly smaller on mobile */
+@media (max-width: 600px) {
+  .announcement-box {
+    font-size: 1.1rem;
+    padding: 12px 20px;
+  }
+}

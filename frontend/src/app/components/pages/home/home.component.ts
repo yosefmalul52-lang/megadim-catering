@@ -9,14 +9,16 @@ import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
 import { MenuService } from '../../../services/menu.service';
 import { TestimonialsService } from '../../../services/testimonials.service';
+import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { FeaturedMenuComponent } from '../../featured-menu/featured-menu.component';
 import { AboutComponent } from '../../about/about.component';
 import { VideoSectionComponent } from '../../video-section/video-section.component';
+import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, FeaturedMenuComponent, AboutComponent, VideoSectionComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, FeaturedMenuComponent, AboutComponent, VideoSectionComponent, PagePopupComponent],
   template: `
     <div class="home-page">
       <!-- Hero Section -->
@@ -193,6 +195,13 @@ import { VideoSectionComponent } from '../../video-section/video-section.compone
           </div>
         </div>
       </section>
+
+      <app-page-popup
+        [show]="showPopup"
+        [title]="(settings?.pageAnnouncements?.['home']?.popupTitle) ?? ''"
+        [text]="(settings?.pageAnnouncements?.['home']?.popupText) ?? ''"
+        (close)="closePopup()"
+      ></app-page-popup>
     </div>
   `,
   styles: [`
@@ -808,11 +817,15 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   cartService = inject(CartService);
   menuService = inject(MenuService);
   testimonialsService = inject(TestimonialsService);
+  settingsService = inject(SiteSettingsService);
   router = inject(Router);
 
   @ViewChild('carouselTrack') carouselTrack!: ElementRef;
   
   private intersectionObserver?: IntersectionObserver;
+
+  settings: SiteSettings | null = null;
+  showPopup = false;
 
   // Component state
   highlightedMenuItems: any[] = [];
@@ -822,7 +835,19 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   menuCategories: any[] = [];
 
   ngOnInit(): void {
-    // Component initialization
+    this.settingsService.getSettings(true).subscribe(s => {
+      this.settings = s;
+      const home = this.settings?.pageAnnouncements?.['home'];
+      const hasTitle = (home?.popupTitle?.trim() ?? '') !== '';
+      const hasText = (home?.popupText?.trim() ?? '') !== '';
+      if (hasTitle || hasText) {
+        this.showPopup = true;
+      }
+    });
+  }
+
+  closePopup(): void {
+    this.showPopup = false;
   }
 
   ngAfterViewInit(): void {

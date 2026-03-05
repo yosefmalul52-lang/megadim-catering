@@ -64,7 +64,7 @@ export class ShabbatMenuComponent implements OnInit {
 
   ngOnInit(): void {
     // Fetch site settings
-    this.settingsService.getSettings().subscribe(s => {
+    this.settingsService.getSettings(true).subscribe(s => {
       if (s && s.shabbatMenuUrl) {
         this.shabbatMenuPdfUrl = s.shabbatMenuUrl;
         console.log('✅ Shabbat PDF URL loaded:', this.shabbatMenuPdfUrl);

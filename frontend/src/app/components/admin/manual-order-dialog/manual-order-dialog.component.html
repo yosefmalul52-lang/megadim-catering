@@ -1,0 +1,115 @@
+<h2 mat-dialog-title>הזמנה טלפונית חדשה</h2>
+<mat-dialog-content>
+  <form [formGroup]="form" class="manual-order-form">
+    <section class="form-section">
+      <h3>פרטי לקוח</h3>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>שם מלא</mat-label>
+        <input matInput formControlName="customerName" placeholder="שם הלקוח">
+        <mat-error *ngIf="form.get('customerName')?.hasError('required')">חובה</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>טלפון</mat-label>
+        <input matInput formControlName="phone" placeholder="טלפון">
+        <mat-error *ngIf="form.get('phone')?.hasError('required')">חובה</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>אימייל (אופציונלי)</mat-label>
+        <input matInput formControlName="email" type="email" placeholder="אימייל">
+      </mat-form-field>
+    </section>
+
+    <section class="form-section">
+      <h3>פרטי אירוע</h3>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>תאריך אירוע</mat-label>
+        <input matInput [matDatepicker]="picker" formControlName="eventDate">
+        <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+        <mat-datepicker #picker></mat-datepicker>
+        <mat-error *ngIf="form.get('eventDate')?.hasError('required')">חובה</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>אופן מסירה</mat-label>
+        <mat-select formControlName="deliveryMethod">
+          <mat-option value="pickup">איסוף</mat-option>
+          <mat-option value="delivery">משלוח</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <ng-container *ngIf="isDelivery">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>עיר</mat-label>
+          <input matInput formControlName="city" placeholder="עיר">
+          <mat-error *ngIf="form.get('city')?.hasError('required')">חובה</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>רחוב ומספר בית</mat-label>
+          <input matInput formControlName="street" placeholder="רחוב ומספר בית">
+          <mat-error *ngIf="form.get('street')?.hasError('required')">חובה</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>דירה</mat-label>
+          <input matInput formControlName="apartment" placeholder="דירה">
+        </mat-form-field>
+      </ng-container>
+    </section>
+
+    <section class="form-section">
+      <h3>פריטים</h3>
+      <div formArrayName="items" class="items-list">
+        <div *ngFor="let item of items.controls; let i = index" [formGroupName]="i" class="item-row">
+          <mat-form-field appearance="outline" class="item-name">
+            <mat-label>שם פריט</mat-label>
+            <input matInput formControlName="productName" placeholder="שם הפריט">
+            <mat-error *ngIf="items.at(i).get('productName')?.hasError('required')">חובה</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="item-qty">
+            <mat-label>כמות</mat-label>
+            <input matInput type="number" formControlName="quantity" min="1">
+            <mat-error>כמות חוקית</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="item-price">
+            <mat-label>מחיר</mat-label>
+            <input matInput type="number" formControlName="price" min="0">
+            <mat-error>מחיר חוקי</mat-error>
+          </mat-form-field>
+          <button mat-icon-button type="button" (click)="removeItem(i)" [disabled]="items.length === 1" matTooltip="הסר פריט">
+            <mat-icon>remove_circle_outline</mat-icon>
+          </button>
+        </div>
+      </div>
+      <button mat-stroked-button type="button" (click)="addItem()" class="add-item-btn">
+        <mat-icon>add</mat-icon>
+        הוסף פריט
+      </button>
+    </section>
+
+    <section class="form-section">
+      <h3>תשלום והערות</h3>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>סכום כולל (₪)</mat-label>
+        <input matInput type="number" formControlName="totalAmount" min="0">
+        <mat-error *ngIf="form.get('totalAmount')?.hasError('required')">חובה</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>סטטוס תשלום</mat-label>
+        <mat-select formControlName="paymentStatus">
+          <mat-option value="unpaid">לא שולם</mat-option>
+          <mat-option value="paid">שולם</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>הערות פנימיות</mat-label>
+        <textarea matInput formControlName="adminNotes" rows="3" placeholder="הערות (למשל: ישלם במזומן לנהג)"></textarea>
+      </mat-form-field>
+    </section>
+
+    <p class="error-msg" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">ביטול</button>
+  <button mat-raised-button color="primary" (click)="submit()" [disabled]="isSubmitting">
+    {{ isSubmitting ? 'שומר...' : 'שמור הזמנה' }}
+  </button>
+</mat-dialog-actions>

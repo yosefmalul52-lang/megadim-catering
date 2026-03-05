@@ -1,0 +1,227 @@
+<div class="shipping-page">
+  <div class="container">
+    <div class="page-header">
+      <h1 class="page-title">מחירי משלוח וניהול אזורים</h1>
+      <p class="page-description">משלוח חינם, טבלת טווחי מרחק ועדכון מחירים לפי עיר</p>
+    </div>
+
+    <!-- Section A: Global Settings & Address Tester -->
+    <section class="section-card section-a">
+      <h2 class="section-title"><i class="fas fa-sliders-h"></i> הגדרות גלובליות וכלי בדיקה</h2>
+      <div class="section-a-grid">
+        <div class="global-block">
+          <h3 class="card-subtitle">משלוח חינם</h3>
+          <div class="global-form">
+            <div class="form-row">
+              <label class="field-label">משלוח חינם מעל סכום (₪)</label>
+              <input type="number" min="0" step="10" [(ngModel)]="global.freeShippingThreshold" (blur)="saveGlobal()" class="field-input" />
+            </div>
+            <div class="form-row toggle-row">
+              <label class="toggle-label">
+                <input type="checkbox" [(ngModel)]="global.isFreeShippingActive" (change)="saveGlobal()" />
+                <span>הפעל משלוח חינם מעל הסכום</span>
+              </label>
+            </div>
+            @if (globalSaving) {
+              <span class="save-indicator"><i class="fas fa-spinner fa-spin"></i> שומר...</span>
+            }
+            @if (globalSaveError) {
+              <p class="error-text">{{ globalSaveError }}</p>
+            }
+          </div>
+        </div>
+        <div class="tester-block">
+          <h3 class="card-subtitle">כלי בדיקת כתובת</h3>
+          <p class="test-desc">הזן כתובת או עיר כדי לראות מרחק ומחיר סופי (לפי כללי המשלוח)</p>
+          <div class="test-box">
+            <input type="text" [(ngModel)]="testAddress" placeholder="כתובת או עיר, למשל: ירושלים" class="test-input" />
+            <input type="number" min="0" step="10" [(ngModel)]="testCartTotal" placeholder="סכום עגלה (לבדיקת חינם)" class="test-cart-input" />
+            <button type="button" class="btn-test" (click)="runTest()" [disabled]="testLoading || !testAddress?.trim()">
+              @if (testLoading) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-calculator"></i> }
+              חשב
+            </button>
+          </div>
+          @if (testResult !== null) {
+            <div class="test-result" [class.free]="testResult.isFree" [class.out-of-area]="testResult.outOfArea">
+              @if (testResult.outOfArea) {
+                <span class="result-value out-of-area"><i class="fas fa-exclamation-triangle"></i> מחוץ לאזור המשלוחים</span>
+              } @else {
+                <span class="result-label">מחיר משלוח:</span>
+                @if (testResult.isFree) {
+                  <span class="result-value free">חינם!</span>
+                  <span class="result-original">(במקור {{ testResult.originalPrice }} ₪)</span>
+                } @else {
+                  <span class="result-value">{{ testResult.price }} ₪</span>
+                }
+                <span class="result-distance">מרחק: {{ testResult.distance }} ק״מ</span>
+              }
+            </div>
+          }
+          @if (testError) {
+            <p class="error-text">{{ testError }}</p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Section B: Distance Ranges Table (Core Logic) -->
+    <section class="section-card section-b">
+      <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-route"></i> תעריפים לפי מרחק (ברירת מחדל)</h2>
+        <button type="button" class="btn-add" (click)="openAddTier()">
+          <i class="fas fa-plus"></i> הוסף טווח
+        </button>
+      </div>
+      <p class="section-hint">הגדר טווחי ק״מ ומחיר לכל טווח. אם המרחק חורג מהטווח המקסימלי – הלקוח יקבל "מחוץ לאזור המשלוחים".</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>מינימום ק״מ</th>
+              <th>מקסימום ק״מ</th>
+              <th>מחיר משלוח (₪)</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tier of tiers; track tier._id) {
+              <tr>
+                <td>{{ tier.minDistanceKm }}</td>
+                <td>{{ tier.maxDistanceKm }}</td>
+                <td>{{ tier.price }}</td>
+                <td>
+                  <button type="button" class="btn-icon edit" (click)="openEditTier(tier)" title="ערוך"><i class="fas fa-edit"></i></button>
+                  <button type="button" class="btn-icon delete" (click)="deleteTier(tier)" title="מחק"><i class="fas fa-trash-alt"></i></button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (tiers.length === 0 && !tiersLoading) {
+        <p class="empty-msg">אין טווחים. הוסף טווח מרחק ומחיר.</p>
+      }
+      @if (tiersLoading) {
+        <p class="loading-msg"><i class="fas fa-spinner fa-spin"></i> טוען...</p>
+      }
+    </section>
+
+    <!-- Section C: City Overrides (Exceptions) -->
+    <section class="section-card section-c">
+      <div class="section-header">
+        <h2 class="section-title"><i class="fas fa-map-marker-alt"></i> תעריפים מיוחדים לפי יישוב (עוקף מרחק)</h2>
+        <button type="button" class="btn-add" (click)="openAddCity()">
+          <i class="fas fa-plus"></i> הוסף עיר
+        </button>
+      </div>
+      <p class="section-hint">ערים עם מחיר קבוע – מתעלמים מחישוב המרחק ומחזירים את המחיר שכאן.</p>
+      <div class="search-row">
+        <input type="text" [(ngModel)]="citySearch" placeholder="חפש עיר..." class="search-input" />
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>עיר</th>
+              <th>מחיר קבוע (₪)</th>
+              <th>פעיל</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (city of filteredCities; track city._id) {
+              <tr>
+                <td>{{ city.displayName }}</td>
+                <td>
+                  <input type="number" min="0" step="1" [ngModel]="city.overridePrice" (ngModelChange)="city.overridePrice = $event; markDirty(city)" class="cell-input" />
+                </td>
+                <td>
+                  <label class="toggle-cell">
+                    <input type="checkbox" [ngModel]="city.isActive" (ngModelChange)="toggleCityActive(city)" />
+                  </label>
+                </td>
+                <td>
+                  <button type="button" class="btn-icon save" (click)="saveCity(city)" [disabled]="!isDirty(city)" title="שמור"><i class="fas fa-save"></i></button>
+                  <button type="button" class="btn-icon delete" (click)="deleteCity(city)" title="מחק"><i class="fas fa-trash-alt"></i></button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (cities.length === 0 && !citiesLoading) {
+        <p class="empty-msg">אין ערים עם תעריף מיוחד.</p>
+      }
+      @if (citiesLoading) {
+        <p class="loading-msg"><i class="fas fa-spinner fa-spin"></i> טוען...</p>
+      }
+    </section>
+  </div>
+
+  <!-- Add/Edit Tier Modal -->
+  @if (showTierModal) {
+    <div class="modal-overlay" (click)="closeTierModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ editingTier ? 'עריכת טווח' : 'הוסף טווח מרחק' }}</h3>
+          <button type="button" class="btn-close" (click)="closeTierModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label class="field-label">מינימום ק״מ</label>
+            <input type="number" min="0" step="0.5" [(ngModel)]="tierForm.minKm" class="field-input" />
+          </div>
+          <div class="form-row">
+            <label class="field-label">מקסימום ק״מ</label>
+            <input type="number" min="0" step="0.5" [(ngModel)]="tierForm.maxKm" class="field-input" />
+          </div>
+          <div class="form-row">
+            <label class="field-label">מחיר משלוח (₪)</label>
+            <input type="number" min="0" step="1" [(ngModel)]="tierForm.price" class="field-input" />
+          </div>
+          @if (tierError) {
+            <p class="error-text">{{ tierError }}</p>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" (click)="closeTierModal()">ביטול</button>
+          <button type="button" class="btn-primary" (click)="submitTier()" [disabled]="tierSaving">
+            @if (tierSaving) { <i class="fas fa-spinner fa-spin"></i> } {{ editingTier ? 'שמור' : 'הוסף' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Add City Modal -->
+  @if (showAddModal) {
+    <div class="modal-overlay" (click)="closeAddCity()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>הוסף עיר עם מחיר קבוע</h3>
+          <button type="button" class="btn-close" (click)="closeAddCity()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-hint">מחיר זה יעקוף את חישוב המרחק עבור עיר זו.</p>
+          <div class="form-row">
+            <label class="field-label">שם עיר</label>
+            <input type="text" [(ngModel)]="newCityName" placeholder="למשל: ירושלים" class="field-input" />
+          </div>
+          <div class="form-row">
+            <label class="field-label">מחיר קבוע (₪)</label>
+            <input type="number" min="0" step="1" [(ngModel)]="newCityPrice" class="field-input" />
+          </div>
+          @if (addError) {
+            <p class="error-text">{{ addError }}</p>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" (click)="closeAddCity()">ביטול</button>
+          <button type="button" class="btn-primary" (click)="submitAddCity()" [disabled]="addSaving || !newCityName?.trim()">
+            @if (addSaving) { <i class="fas fa-spinner fa-spin"></i> } הוסף
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

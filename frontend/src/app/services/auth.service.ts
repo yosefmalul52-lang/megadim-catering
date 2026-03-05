@@ -49,13 +49,12 @@ export class AuthService {
   private readonly USER_KEY = 'auth_user';
   private apiUrl = environment.apiUrl;
   
-  private isLoggedInSubject = new BehaviorSubject<boolean>(this.isLoggedIn());
+  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  public currentUser$ = this.currentUserSubject.asObservable();
+
+  private isLoggedInSubject = new BehaviorSubject<boolean>(false);
   public isLoggedIn$ = this.isLoggedInSubject.asObservable();
 
-  private currentUserSubject = new BehaviorSubject<User | null>(this.getUser());
-  public currentUser$ = this.currentUserSubject.asObservable();
-  
-  // Getter for current user (synchronous)
   get currentUser(): User | null {
     return this.currentUserSubject.value;
   }
@@ -64,8 +63,27 @@ export class AuthService {
     private http: HttpClient,
     private router: Router
   ) {
-    // Check if token is expired on service initialization
-    this.checkTokenValidity();
+    this.loadUserFromStorage();
+  }
+
+  /** On init: restore auth state from localStorage so late subscribers (e.g. Navbar) get current value immediately. */
+  private loadUserFromStorage(): void {
+    const token = this.getToken();
+    const user = this.getUser();
+    if (token && user) {
+      if (this.isLoggedIn()) {
+        this.currentUserSubject.next(user);
+        this.isLoggedInSubject.next(true);
+      } else {
+        this.clearToken();
+        this.clearUser();
+        this.currentUserSubject.next(null);
+        this.isLoggedInSubject.next(false);
+      }
+    } else {
+      this.currentUserSubject.next(null);
+      this.isLoggedInSubject.next(false);
+    }
   }
 
   /**
@@ -233,16 +251,9 @@ export class AuthService {
   }
 
   private checkTokenValidity(): void {
-    if (this.isLoggedIn()) {
-      const user = this.getUser();
-      if (user) {
-        this.currentUserSubject.next(user);
-      }
-      // Optionally validate with backend on service init
-      // this.validateToken().subscribe();
-    } else {
-      this.isLoggedInSubject.next(false);
+    if (!this.isLoggedIn()) {
       this.currentUserSubject.next(null);
+      this.isLoggedInSubject.next(false);
     }
   }
 }

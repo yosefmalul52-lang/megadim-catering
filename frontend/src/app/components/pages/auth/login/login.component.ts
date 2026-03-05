@@ -185,7 +185,8 @@ export class LoginComponent {
     this.errorMessage = '';
     
     const { phone, password } = this.loginForm.value;
-    this.authService.login({ phone, password }).subscribe({
+    // Backend expects "username"; we use phone as the username value here.
+    this.authService.login({ username: phone, password }).subscribe({
       next: (result) => {
         if (result.success) {
           this.router.navigate(['/']);

@@ -59,8 +59,25 @@ export const routes: Routes = [
     loadComponent: () => import('./components/pages/contact/contact.component').then(m => m.ContactComponent)
   },
   {
+    path: 'cart',
+    loadComponent: () => import('./components/pages/cart-page/cart-page.component').then(m => m.CartPageComponent)
+  },
+  {
+    path: 'checkout',
+    loadComponent: () => import('./components/pages/checkout-page/checkout-page.component').then(m => m.CheckoutPageComponent)
+  },
+  {
+    path: 'order-confirmation/:id',
+    loadComponent: () => import('./components/pages/order-confirmation/order-confirmation.component').then(m => m.OrderConfirmationComponent)
+  },
+  {
     path: 'my-orders',
     loadComponent: () => import('./components/pages/my-orders/my-orders.component').then(m => m.MyOrdersComponent),
+    canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
+  },
+  {
+    path: 'my-account',
+    loadComponent: () => import('@app/components/pages/user-profile/user-profile.component').then(m => m.UserProfileComponent),
     canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
   },
   

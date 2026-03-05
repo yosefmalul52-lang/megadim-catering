@@ -1,0 +1,91 @@
+<div class="admin-delivery-pricing" dir="rtl">
+  <div class="container">
+    <h1 class="page-title">מחירי משלוח (לפי ק״מ)</h1>
+
+    <!-- Free Shipping Settings Card -->
+    <section class="card settings-card">
+      <h2 class="card-title">הטבת משלוח חינם</h2>
+      <div class="settings-form">
+        <div class="setting-row">
+          <label class="toggle-label">
+            <input type="checkbox" [checked]="freeShippingActive" (change)="freeShippingActive = $any($event.target).checked">
+            הפעל מבצע משלוח חינם
+          </label>
+        </div>
+        <div class="setting-row">
+          <label for="freeShippingThreshold">משלוח חינם בהזמנה מעל (₪)</label>
+          <input type="number" id="freeShippingThreshold" [(ngModel)]="freeShippingThreshold" min="0" step="1" class="input threshold-input">
+        </div>
+        <button type="button" class="btn-primary" (click)="saveDeliverySettings()" [disabled]="isSavingSettings">
+          {{ isSavingSettings ? 'שומר...' : 'שמור הגדרות' }}
+        </button>
+      </div>
+    </section>
+
+    <!-- Section A: Add / Edit tier form -->
+    <section class="card form-card">
+      <h2 class="card-title">הוספת אזור חלוקה (לפי ק״מ)</h2>
+      <form [formGroup]="form" (ngSubmit)="submitTier()" class="tier-form">
+        <div class="form-row">
+          <div class="field">
+            <label for="minKm">ממרחק (ק״מ)</label>
+            <input type="number" id="minKm" formControlName="minDistanceKm" min="0" step="0.01" class="input">
+          </div>
+          <div class="field">
+            <label for="maxKm">עד מרחק (ק״מ)</label>
+            <input type="number" id="maxKm" formControlName="maxDistanceKm" min="0" step="0.01" class="input">
+          </div>
+          <div class="field">
+            <label for="price">מחיר (ש״ח)</label>
+            <input type="number" id="price" formControlName="price" min="0" step="1" class="input">
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn-primary" [disabled]="form.invalid || isSaving">
+              {{ editingId ? 'עדכן טווח' : 'הוסף טווח' }}
+            </button>
+            <button type="button" class="btn-secondary" *ngIf="editingId" (click)="cancelEdit()">ביטול</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <p class="error-msg" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+    <!-- Section B: Pricing table -->
+    <section class="card table-card">
+      <h2 class="card-title">טבלת טווחי מחירים</h2>
+      <div *ngIf="isLoading" class="loading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>טוען...</span>
+      </div>
+      <div *ngIf="!isLoading && tiers.length === 0" class="empty">אין טווחים להצגה. הוסף טווח למעלה.</div>
+      <div *ngIf="!isLoading && tiers.length > 0" class="table-wrap">
+        <table class="pricing-table">
+          <thead>
+            <tr>
+              <th>ממרחק (ק״מ)</th>
+              <th>עד מרחק (ק״מ)</th>
+              <th>מחיר משלוח (ש״ח)</th>
+              <th>פעולות</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tier of tiers">
+              <td>{{ tier.minDistanceKm }}</td>
+              <td>{{ tier.maxDistanceKm }}</td>
+              <td>{{ tier.price }}</td>
+              <td class="actions-cell">
+                <button type="button" class="btn-icon btn-edit" (click)="editTier(tier)" title="עריכה" aria-label="עריכה">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button type="button" class="btn-icon btn-delete" (click)="deleteTier(tier)" title="מחיקה" aria-label="מחיקה">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>

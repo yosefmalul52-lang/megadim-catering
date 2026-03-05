@@ -1,27 +1,38 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
+import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
+import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
+import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-fish',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './fish.component.html',
   styleUrls: ['./fish.component.scss']
 })
 export class FishComponent implements OnInit {
+  private menuService = inject(MenuService);
+  private cartService = inject(CartService);
+  private settingsService = inject(SiteSettingsService);
+  private router = inject(Router);
+
+  settings: SiteSettings | null = null;
+  showPopup = false;
   fishDishes: MenuItem[] = [];
   isLoading: boolean = true;
 
-  constructor(
-    private menuService: MenuService,
-    private cartService: CartService,
-    private router: Router
-  ) {}
-
   ngOnInit(): void {
+    this.settingsService.getSettings(true).subscribe(s => {
+      this.settings = s ?? null;
+      const pa = s?.pageAnnouncements?.['fish'];
+      if ((pa?.popupTitle?.trim() ?? '') !== '' || (pa?.popupText?.trim() ?? '') !== '') {
+        this.showPopup = true;
+      }
+    });
     this.menuService.getProductsByCategory('fish').subscribe({
       next: (items) => {
         this.fishDishes = items;
@@ -32,6 +43,10 @@ export class FishComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  closePopup(): void {
+    this.showPopup = false;
   }
 
   addToCart(item: MenuItem): void {

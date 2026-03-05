@@ -1,0 +1,114 @@
+<div class="user-profile-page">
+  <div class="container">
+    <!-- Top Greeting Section -->
+    <section class="profile-header">
+      <div class="profile-greeting">
+        <h1 class="greeting-title">שלום, {{ customerName }}</h1>
+        <p class="greeting-subtitle" *ngIf="!isLoading">
+          <ng-container *ngIf="hasOrders; else noOrdersSummary">
+            יש לך {{ orders.length }} הזמנות קודמות
+          </ng-container>
+          <ng-template #noOrdersSummary>
+            עדיין לא ביצעת הזמנות באתר – זה הזמן לנסות אותנו.
+          </ng-template>
+        </p>
+      </div>
+    </section>
+
+    <!-- Loading State -->
+    <section *ngIf="isLoading" class="loading-section">
+      <div class="loading-card">
+        <div class="spinner">
+          <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <p>טוען את האזור האישי שלך...</p>
+      </div>
+    </section>
+
+    <!-- Error State -->
+    <section *ngIf="!isLoading && errorMessage" class="error-section">
+      <div class="error-card">
+        <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+        <p>{{ errorMessage }}</p>
+      </div>
+    </section>
+
+    <!-- Empty State -->
+    <section *ngIf="!isLoading && !errorMessage && !hasOrders" class="empty-state">
+      <div class="empty-card">
+        <div class="empty-icon">
+          <i class="fas fa-box-open" aria-hidden="true"></i>
+        </div>
+        <h2>עדיין אין הזמנות</h2>
+        <p>כשתזמין פעם ראשונה, כל ההיסטוריה שלך תופיע כאן – ותוכל להזמין שוב בלחיצה אחת.</p>
+        <a routerLink="/" class="btn-gold">
+          <i class="fas fa-utensils" aria-hidden="true"></i>
+          להתחלת הזמנה
+        </a>
+      </div>
+    </section>
+
+    <!-- Order History -->
+    <section *ngIf="!isLoading && !errorMessage && hasOrders" class="orders-section">
+      <h2 class="section-title">היסטוריית הזמנות</h2>
+
+      <div class="orders-grid">
+        <article
+          class="order-card"
+          *ngFor="let order of orders; trackBy: trackByOrderId"
+        >
+          <!-- Card Header -->
+          <header class="order-card-header">
+            <div class="order-main-meta">
+              <div class="order-date">
+                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                <span>{{ formatDate(order.createdAt) }}</span>
+              </div>
+              <div class="event-date" *ngIf="order.customerDetails?.eventDate">
+                <i class="fas fa-calendar-check" aria-hidden="true"></i>
+                <span>תאריך אירוע: {{ formatDate(order.customerDetails.eventDate) }}</span>
+              </div>
+            </div>
+            <div class="order-total">
+              <span class="label">סה"כ</span>
+              <span class="amount">₪{{ order.totalPrice | number: '1.2-2' }}</span>
+            </div>
+          </header>
+
+          <!-- Card Body -->
+          <div class="order-card-body">
+            <div class="order-status-row">
+              <span class="status-badge" [ngClass]="getStatusClass(order.status)">
+                {{ getStatusLabel(order.status) }}
+              </span>
+              <span class="items-count">
+                <i class="fas fa-box" aria-hidden="true"></i>
+                {{ order.items.length }} פריטים
+              </span>
+            </div>
+
+            <div class="items-summary">
+              <span class="summary-label">סיכום פריטים:</span>
+              <p class="summary-text">
+                {{ getItemsSummary(order.items) }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Card Footer -->
+          <footer class="order-card-footer">
+            <button
+              type="button"
+              class="btn-reorder"
+              (click)="reorder(order)"
+            >
+              <i class="fas fa-sync-alt" aria-hidden="true"></i>
+              הזמן שוב
+            </button>
+          </footer>
+        </article>
+      </div>
+    </section>
+  </div>
+</div>
+

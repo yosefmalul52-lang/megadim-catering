@@ -227,6 +227,11 @@ $white: #FFFFFF;
             color: $gold;
           }
         }
+
+        /* User icon – gold when logged in (inline style + class for robustness) */
+        &.user-icon-gold mat-icon {
+          color: #c5a059 !important;
+        }
       }
       
       // Cart Badge Style

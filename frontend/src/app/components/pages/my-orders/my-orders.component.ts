@@ -1,8 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { OrderService, Order } from '../../../services/order.service';
+import { OrderService, Order, OrderItem } from '../../../services/order.service';
 import { AuthService } from '../../../services/auth.service';
+import { CartService, CartItem } from '../../../services/cart.service';
 import { OrderDetailsModalComponent } from '../../modals/order-details-modal/order-details-modal.component';
 
 @Component({
@@ -11,102 +12,98 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
   imports: [CommonModule, RouterLink, OrderDetailsModalComponent],
   template: `
     <div class="my-orders-page">
-      <div class="container">
-        <!-- Page Header -->
-        <div class="page-header">
-          <h1 class="page-title">ההזמנות שלי</h1>
-          <p class="page-subtitle" *ngIf="!isLoading && orders.length > 0">
-            סה"כ {{ orders.length }} הזמנות
-          </p>
-        </div>
-
-        <!-- Loading State -->
-        <div *ngIf="isLoading" class="loading-state">
-          <div class="loading-spinner">
-            <i class="fas fa-spinner fa-spin"></i>
-          </div>
-          <p class="loading-text">טוען הזמנות...</p>
-        </div>
-
-        <!-- Empty State -->
-        <div *ngIf="!isLoading && orders.length === 0 && !errorMessage" class="empty-state">
-          <div class="empty-icon">
-            <i class="fas fa-shopping-bag"></i>
-          </div>
-          <h2 class="empty-title">עדיין לא ביצעת הזמנות</h2>
-          <p class="empty-message">התחל להזמין מהתפריט המגוון שלנו</p>
-          <a routerLink="/" class="btn-start-ordering">
-            <i class="fas fa-utensils" aria-hidden="true"></i>
-            התחל להזמין
-          </a>
-        </div>
-
-        <!-- Orders Grid -->
-        <div *ngIf="!isLoading && orders.length > 0" class="orders-grid">
-          <div *ngFor="let order of orders; trackBy: trackByOrderId" class="order-card">
-            <!-- Card Header -->
-            <div class="order-card-header">
-              <div class="order-date">
-                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
-                <span>{{ formatDate(order.createdAt) }}</span>
-              </div>
-              <div class="order-id">
-                #{{ getOrderIdShort(order) }}
-              </div>
-            </div>
-
-            <!-- Card Body -->
-            <div class="order-card-body">
-              <div class="order-total">
-                <span class="total-label">סה"כ</span>
-                <span class="total-amount">₪{{ order.totalPrice | number:'1.2-2' }}</span>
-              </div>
-              <div class="order-items-count">
-                <i class="fas fa-box" aria-hidden="true"></i>
-                <span>{{ order.items.length }} פריטים</span>
-              </div>
-            </div>
-
-            <!-- Card Footer -->
-            <div class="order-card-footer">
-              <span class="status-badge" [ngClass]="getStatusClass(order.status)">
-                {{ getStatusLabel(order.status) }}
-              </span>
-              <button
-                type="button"
-                class="btn-view-details"
-                (click)="viewOrderDetails(order)"
-                [attr.aria-label]="'צפה בפרטי הזמנה ' + (order.id || order._id)"
-              >
-                <i class="fas fa-eye" aria-hidden="true"></i>
-                <span>צפה בפרטים</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Error Message -->
-        <div *ngIf="!isLoading && errorMessage" class="error-message">
-          <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-          <span>{{ errorMessage }}</span>
-        </div>
-
-        <!-- Logout Button -->
-        <div class="logout-section">
+      <div class="my-orders-container">
+        <!-- Logout (top-left) -->
+        <div class="logout-btn-wrapper">
           <button
             type="button"
             class="btn-logout"
             (click)="onLogout()"
             [disabled]="isLoggingOut"
-            [attr.aria-label]="'התנתק'"
           >
             <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
             <span>{{ isLoggingOut ? 'מתנתק...' : 'התנתק' }}</span>
           </button>
         </div>
+
+        <!-- Header (line–diamond–title–diamond–line, match shabbat-menu) -->
+        <header class="page-header">
+          <span class="decorative-line"></span>
+          <span class="decorative-diamond"></span>
+          <h1>ההזמנות שלי</h1>
+          <span class="decorative-diamond"></span>
+          <span class="decorative-line"></span>
+          <p *ngIf="!isLoading && orders.length > 0" class="page-header-sub">
+            {{ orders.length === 1 ? 'יש לך הזמנה 1 קודמת' : 'יש לך ' + orders.length + ' הזמנות קודמות' }}
+          </p>
+        </header>
+
+        <!-- Loading -->
+        <section *ngIf="isLoading" class="state state-loading">
+          <div class="spinner">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+          </div>
+          <p>טוען את ההזמנות שלך...</p>
+        </section>
+
+        <!-- Error -->
+        <section *ngIf="!isLoading && errorMessage" class="state state-error">
+          <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+          <p>{{ errorMessage }}</p>
+        </section>
+
+        <!-- Empty -->
+        <section *ngIf="!isLoading && !errorMessage && orders.length === 0" class="state state-empty">
+          <div class="empty-icon">
+            <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+          </div>
+          <h2>עדיין לא ביצעת הזמנות</h2>
+          <p>כשתזמין פעם ראשונה, כל ההיסטוריה שלך תופיע כאן.</p>
+          <a routerLink="/" class="btn-primary">
+            <i class="fas fa-utensils" aria-hidden="true"></i>
+            להתחלת הזמנה
+          </a>
+        </section>
+
+        <!-- Orders List -->
+        <section *ngIf="!isLoading && !errorMessage && orders.length > 0" class="orders-list">
+          <article
+            class="order-card"
+            *ngFor="let order of orders; trackBy: trackByOrderId"
+          >
+            <div class="card-header">
+              <div class="header-right">
+                <span class="order-date"><i class="far fa-calendar-alt" aria-hidden="true"></i> {{ order.createdAt | date:'dd/MM/yyyy' }}</span>
+                <span class="order-id">#{{ getOrderIdSuffix(order) }}</span>
+              </div>
+              <div class="header-left">
+                <span class="status-badge" [ngClass]="order.status">{{ translateStatus(order.status) }}</span>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="items-summary">
+                <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+                <p>{{ formatItems(order.items) }}</p>
+              </div>
+              <div class="order-total">
+                <span class="total-label">סה"כ לתשלום</span>
+                <span class="total-amount">₪{{ order.totalPrice | number:'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button type="button" class="btn-outline" (click)="viewOrderDetails(order)">
+                <i class="far fa-eye" aria-hidden="true"></i> צפה בפרטים
+              </button>
+              <button type="button" class="btn-primary-gold" (click)="reorder(order)">
+                <i class="fas fa-sync-alt" aria-hidden="true"></i> הזמן שוב
+              </button>
+            </div>
+          </article>
+        </section>
       </div>
 
-      <!-- Order Details Modal -->
       <app-order-details-modal
         *ngIf="selectedOrder"
         [order]="selectedOrder"
@@ -115,487 +112,443 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
     </div>
   `,
   styles: [`
-    /* ============================================
-       Variables (Luxury Gold/Black/White Theme)
-       ============================================ */
-    $color-gold: #e0c075; // Updated to match --primary-gold
-    $color-gold-light: #E8DCC8;
-    $color-gold-dark: #A08B6F;
-    $color-black: #0E1A24;
-    $color-navy: #1f3444;
-    $color-white: #FFFFFF;
-    $color-gray-light: #F5F5F5;
-    $color-gray: #6c757d;
-    $color-gray-dark: #4A4A4A;
-    
-    $font-family-hebrew: 'Segoe UI', 'Arial Hebrew', 'David', 'Guttman Yad', 'Arial', sans-serif;
-    
-    $border-radius: 12px;
-    $shadow-subtle: 0 4px 15px rgba(0, 0, 0, 0.05);
-    $shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
-    
-    /* ============================================
-       Page Layout
-       ============================================ */
+    $navy: #0f172a;
+    $navy-soft: #111827;
+    $gold: #c5a059;
+    $gold-soft: #f3e6c6;
+    $bg: #f3f4f6;
+    $text-main: #111827;
+    $text-muted: #6b7280;
+    $border: #e5e7eb;
+    $radius-card: 16px;
+    $radius-pill: 999px;
+    $shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
+    $shadow-strong: 0 20px 45px rgba(15, 23, 42, 0.12);
+    $font-he: 'Segoe UI', 'Heebo', 'Arial Hebrew', Arial, sans-serif;
+
     .my-orders-page {
       min-height: 80vh;
-      padding: 3rem 0;
-      background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+      padding: 40px 0;
+      background: radial-gradient(circle at top left, rgba(197, 160, 89, 0.08), transparent 55%),
+                  radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.08), transparent 55%),
+                  $bg;
       direction: rtl;
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-
-    /* ============================================
-       Page Header
-       ============================================ */
-    .page-header {
-      text-align: right;
-      margin-bottom: 3rem;
-    }
-
-    .page-title {
-      font-family: $font-family-hebrew;
-      font-size: 2.75rem;
-      font-weight: 700;
-      color: $color-black;
-      margin: 0 0 0.5rem 0;
-      letter-spacing: -0.5px;
-    }
-
-    .page-subtitle {
-      font-family: $font-family-hebrew;
-      font-size: 1.1rem;
-      color: $color-gray;
-      margin: 0;
-      font-weight: 400;
-    }
-
-    /* ============================================
-       Logout Section
-       ============================================ */
-    .logout-section {
       display: flex;
       justify-content: center;
+      box-sizing: border-box;
+    }
+
+    .my-orders-container {
+      max-width: 800px;
+      width: 100%;
+      margin: 40px auto;
+      padding: 0 20px;
+      box-sizing: border-box;
+      direction: rtl;
+      position: relative;
+    }
+
+    .logout-btn-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 0;
+      padding: 0;
+      z-index: 10;
+    }
+
+    .page-header {
+      display: flex;
       align-items: center;
-      margin-top: 4rem;
-      padding-top: 3rem;
-      border-top: 1px solid $color-gray-light;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 40px;
+      padding-top: 44px;
+      text-align: center;
+    }
+
+    .page-header .decorative-line {
+      flex: 1;
+      max-width: 200px;
+      height: 2px;
+      border-radius: 2px;
+    }
+
+    .page-header .decorative-line:first-of-type {
+      background: linear-gradient(to left, transparent, $gold);
+    }
+
+    .page-header .decorative-line:last-of-type {
+      background: linear-gradient(to right, transparent, $gold);
+    }
+
+    .page-header .decorative-diamond {
+      width: 12px;
+      height: 12px;
+      background-color: $gold;
+      transform: rotate(45deg);
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(197, 160, 89, 0.3);
+    }
+
+    .page-header h1 {
+      margin: 0;
+      font-family: $font-he;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: $navy-soft;
+      letter-spacing: -0.04em;
+      flex-shrink: 0;
+    }
+
+    .page-header-sub {
+      width: 100%;
+      margin: 10px 0 0;
+      font-family: $font-he;
+      font-size: 1.05rem;
+      color: $text-muted;
+    }
+
+    .state {
+      text-align: center;
+      font-family: $font-he;
+      padding: 48px 24px;
+      border-radius: $radius-card;
+      background: #ffffff;
+      box-shadow: $shadow-soft;
+      border: 1px solid $border;
+
+      &.state-loading {
+        .spinner {
+          margin-bottom: 16px;
+
+          i {
+            font-size: 2.4rem;
+            color: $gold;
+          }
+        }
+
+        p {
+          margin: 0;
+          color: $text-muted;
+          font-size: 1rem;
+        }
+      }
+
+      &.state-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+
+        i {
+          font-size: 2rem;
+          color: #dc2626;
+        }
+
+        p {
+          margin: 0;
+          color: #b91c1c;
+          font-size: 1rem;
+        }
+      }
+
+      &.state-empty {
+        .empty-icon {
+          margin-bottom: 20px;
+
+          i {
+            font-size: 3rem;
+            color: $gold-soft;
+          }
+        }
+
+        h2 {
+          margin: 0 0 10px;
+          font-size: 1.6rem;
+          font-weight: 700;
+          color: $navy-soft;
+        }
+
+        p {
+          margin: 0 0 24px;
+          font-size: 1rem;
+          color: $text-muted;
+        }
+      }
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: $radius-pill;
+      border: none;
+      background: linear-gradient(135deg, $navy, #1f2937);
+      color: #ffffff;
+      font-family: $font-he;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: $shadow-strong;
+      }
+
+      i {
+        font-size: 0.9rem;
+      }
+    }
+
+    .orders-list {
+      display: block;
+    }
+
+    .order-card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      margin-bottom: 24px;
+      border: 1px solid #f3f4f6;
+      border-right: 4px solid #c5a059;
+      overflow: hidden;
+      transition: all 0.3s ease;
+
+      &:hover {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+      }
+
+      .card-header {
+        background: #fafafa;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f3f4f6;
+
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+        }
+
+        .order-date {
+          font-weight: 600;
+          color: #1f2937;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-family: $font-he;
+          font-size: 0.95rem;
+
+          i {
+            color: $gold;
+          }
+        }
+
+        .order-id {
+          color: #9ca3af;
+          font-size: 0.9rem;
+          font-family: $font-he;
+        }
+
+        .header-left {
+          display: flex;
+          align-items: center;
+        }
+
+        .status-badge {
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          font-family: $font-he;
+          white-space: nowrap;
+
+          &.pending,
+          &.new {
+            background: #fef3c7;
+            color: #d97706;
+          }
+
+          &.completed,
+          &.delivered,
+          &.ready {
+            background: #d1fae5;
+            color: #059669;
+          }
+
+          &.processing,
+          &.in-progress {
+            background: #e0f2fe;
+            color: #0284c7;
+          }
+
+          &.cancelled {
+            background: #fee2e2;
+            color: #b91c1c;
+          }
+        }
+      }
+
+      .card-body {
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        direction: rtl;
+        text-align: right;
+
+        .items-summary {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          color: #4b5563;
+          max-width: 60%;
+          font-family: $font-he;
+          direction: rtl;
+          text-align: right;
+
+          i {
+            color: #c5a059;
+            margin-top: 4px;
+            font-size: 1rem;
+          }
+
+          p {
+            margin: 0;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            unicode-bidi: isolate;
+          }
+        }
+
+        .order-total {
+          text-align: left;
+          font-family: $font-he;
+
+          .total-label {
+            display: block;
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+          }
+
+          .total-amount {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f2937;
+          }
+        }
+      }
+
+      .card-footer {
+        padding: 16px 24px;
+        background: #ffffff;
+        border-top: 1px solid #f3f4f6;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+
+        button {
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: 0.2s;
+          font-family: $font-he;
+          font-size: 0.9rem;
+          border: none;
+        }
+
+        .btn-outline {
+          background: transparent;
+          border: 1px solid #d1d5db;
+          color: #374151;
+
+          &:hover {
+            background: #f3f4f6;
+          }
+        }
+
+        .btn-primary-gold {
+          background: #1f2937;
+          color: #c5a059;
+
+          &:hover {
+            background: #111827;
+          }
+        }
+      }
     }
 
     .btn-logout {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.875rem 2rem;
-      font-family: $font-family-hebrew;
-      font-size: 1.05rem;
-      font-weight: 600;
-      color: $color-white;
-      background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%);
-      border: none;
+      gap: 6px;
+      padding: 9px 20px;
       border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: #ffffff;
+      font-family: $font-he;
+      font-size: 0.95rem;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: $shadow-subtle;
-      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+      transition: all 0.2s ease;
 
       &:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: $shadow-hover;
-        background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
-      }
-
-      &:active:not(:disabled) {
-        transform: translateY(0);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
       }
 
       &:disabled {
-        opacity: 0.6;
+        opacity: 0.7;
         cursor: not-allowed;
-      }
-
-      i {
-        font-size: 1rem;
-      }
-    }
-
-    /* ============================================
-       Loading State
-       ============================================ */
-    .loading-state {
-      text-align: center;
-      padding: 6rem 0;
-    }
-
-    .loading-spinner {
-      margin-bottom: 1.5rem;
-      
-      i {
-        font-size: 3.5rem;
-        color: $color-gold;
-        animation: spin 1s linear infinite;
-      }
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-      font-family: $font-family-hebrew;
-      font-size: 1.2rem;
-      color: $color-gray;
-      margin: 0;
-    }
-
-    /* ============================================
-       Empty State
-       ============================================ */
-    .empty-state {
-      text-align: center;
-      padding: 6rem 2rem;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-
-    .empty-icon {
-      margin-bottom: 2rem;
-      
-      i {
-        font-size: 5rem;
-        color: $color-gold-light;
-      }
-    }
-
-    .empty-title {
-      font-family: $font-family-hebrew;
-      font-size: 2rem;
-      font-weight: 700;
-      color: $color-black;
-      margin: 0 0 1rem 0;
-    }
-
-    .empty-message {
-      font-family: $font-family-hebrew;
-      font-size: 1.1rem;
-      color: $color-gray;
-      margin: 0 0 2.5rem 0;
-      line-height: 1.6;
-    }
-
-    .btn-start-ordering {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 1rem 2rem;
-      font-family: $font-family-hebrew;
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: $color-white;
-      background: linear-gradient(135deg, $color-black 0%, $color-navy 100%);
-      border: none;
-      border-radius: $border-radius;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.3s ease;
-      box-shadow: $shadow-subtle;
-
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: $shadow-hover;
-        background: linear-gradient(135deg, $color-navy 0%, $color-black 100%);
-      }
-
-      i {
-        font-size: 1rem;
-      }
-    }
-
-    /* ============================================
-       Orders Grid
-       ============================================ */
-    .orders-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-bottom: 2rem;
-    }
-
-    /* ============================================
-       Order Card
-       ============================================ */
-    .order-card {
-      background: $color-white;
-      border-radius: $border-radius;
-      box-shadow: $shadow-subtle;
-      padding: 1.75rem;
-      transition: all 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-      border: 1px solid rgba(0, 0, 0, 0.05);
-
-      &:hover {
-        transform: translateY(-4px);
-        box-shadow: $shadow-hover;
-        border-color: $color-gold-light;
-      }
-    }
-
-    /* Card Header */
-    .order-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid $color-gray-light;
-    }
-
-    .order-date {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: $font-family-hebrew;
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: $color-gray-dark;
-
-      i {
-        color: $color-gold;
-        font-size: 0.9rem;
-      }
-    }
-
-    .order-id {
-      font-family: $font-family-hebrew;
-      font-size: 0.85rem;
-      color: $color-gray;
-      font-weight: 400;
-      letter-spacing: 0.5px;
-    }
-
-    /* Card Body */
-    .order-card-body {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      flex-grow: 1;
-    }
-
-    .order-total {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .total-label {
-      font-family: $font-family-hebrew;
-      font-size: 0.9rem;
-      color: $color-gray;
-      font-weight: 500;
-    }
-
-    .total-amount {
-      font-family: $font-family-hebrew;
-      font-size: 2rem;
-      font-weight: 700;
-      color: $color-black;
-      line-height: 1.2;
-    }
-
-    .order-items-count {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: $font-family-hebrew;
-      font-size: 0.95rem;
-      color: $color-gray-dark;
-      font-weight: 500;
-
-      i {
-        color: $color-gold;
-        font-size: 0.9rem;
-      }
-    }
-
-    /* Card Footer */
-    .order-card-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid $color-gray-light;
-    }
-
-    /* ============================================
-       Status Badge
-       ============================================ */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.5rem 1rem;
-      border-radius: 50px;
-      font-family: $font-family-hebrew;
-      font-size: 0.85rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .status-new {
-      background-color: rgba(25, 118, 210, 0.1);
-      color: #1976d2;
-    }
-
-    .status-in-progress {
-      background-color: rgba(255, 152, 0, 0.1);
-      color: #f57c00;
-    }
-
-    .status-ready {
-      background-color: rgba(76, 175, 80, 0.1);
-      color: #4caf50;
-    }
-
-    .status-delivered {
-      background-color: rgba(76, 175, 80, 0.15);
-      color: #2e7d32;
-    }
-
-    .status-cancelled {
-      background-color: rgba(211, 47, 47, 0.1);
-      color: #d32f2f;
-    }
-
-    /* ============================================
-       View Details Button
-       ============================================ */
-    .btn-view-details {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.65rem 1.25rem;
-      font-family: $font-family-hebrew;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: $color-black;
-      background: transparent;
-      border: 2px solid $color-black;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      white-space: nowrap;
-
-      &:hover {
-        background: $color-black;
-        color: $color-white;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      }
-
-      &:active {
-        transform: translateY(0);
-      }
-
-      i {
-        font-size: 0.9rem;
-      }
-    }
-
-    /* ============================================
-       Error Message
-       ============================================ */
-    .error-message {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      padding: 1.5rem 2rem;
-      background-color: rgba(211, 47, 47, 0.1);
-      color: #d32f2f;
-      border-radius: $border-radius;
-      font-family: $font-family-hebrew;
-      font-size: 1rem;
-      font-weight: 500;
-      margin-top: 2rem;
-
-      i {
-        font-size: 1.2rem;
-      }
-    }
-
-    /* ============================================
-       Responsive Design
-       ============================================ */
-    @media (max-width: 1024px) {
-      .orders-grid {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 1.5rem;
       }
     }
 
     @media (max-width: 768px) {
       .my-orders-page {
-        padding: 2rem 0;
+        padding: 24px 0;
       }
 
-      .container {
-        padding: 0 1.5rem;
+      .my-orders-container {
+        padding: 0 16px;
+        margin-top: 24px;
       }
 
-      .page-title {
-        font-size: 2.25rem;
+      .order-card .card-body {
+        flex-direction: column;
+        align-items: flex-start;
+
+        .items-summary {
+          max-width: 100%;
+        }
       }
 
-      .orders-grid {
-        grid-template-columns: 1fr;
-        gap: 1.25rem;
-      }
-
-      .order-card {
-        padding: 1.5rem;
-      }
-
-      .order-card-footer {
+      .order-card .card-footer {
         flex-direction: column;
         align-items: stretch;
-        gap: 0.75rem;
-      }
 
-      .btn-view-details {
-        width: 100%;
-        justify-content: center;
-      }
-
-      .logout-section {
-        margin-top: 3rem;
-        padding-top: 2rem;
-      }
-
-      .btn-logout {
-        width: 100%;
-        justify-content: center;
-        padding: 1rem 2rem;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .page-title {
-        font-size: 1.75rem;
-      }
-
-      .order-card {
-        padding: 1.25rem;
-      }
-
-      .total-amount {
-        font-size: 1.75rem;
+        button {
+          justify-content: center;
+          width: 100%;
+        }
       }
     }
   `]
@@ -604,6 +557,7 @@ export class MyOrdersComponent implements OnInit {
   private orderService = inject(OrderService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private cartService = inject(CartService);
 
   orders: Order[] = [];
   isLoading = true;
@@ -653,19 +607,66 @@ export class MyOrdersComponent implements OnInit {
     return orderId.toString().substring(0, 8);
   }
 
+  private static readonly STATUS_TRANSLATIONS: Record<string, string> = {
+    pending: 'ממתין לאישור',
+    processing: 'בהכנה',
+    completed: 'סופק',
+    cancelled: 'בוטל',
+    new: 'התקבלה',
+    'in-progress': 'בהכנה',
+    ready: 'מוכן למשלוח',
+    delivered: 'נמסר'
+  };
+
+  translateStatus(status: string): string {
+    return MyOrdersComponent.STATUS_TRANSLATIONS[status] || status;
+  }
+
   getStatusLabel(status: string): string {
-    const statusMap: { [key: string]: string } = {
-      'new': 'התקבלה',
-      'in-progress': 'בהכנה',
-      'ready': 'מוכן למשלוח',
-      'delivered': 'נמסר',
-      'cancelled': 'בוטל'
-    };
-    return statusMap[status] || status;
+    return this.translateStatus(status);
   }
 
   getStatusClass(status: string): string {
     return `status-${status}`;
+  }
+
+  getItemDisplayName(item: OrderItem): string {
+    const name = (item as any).name || (item as any).productName || '';
+    const variant = (item as any).variant ?? (item as any).size ?? (item as any).selectedOption?.label ?? '';
+    if (!variant) return name;
+    if (name.includes('(') && name.includes(')')) return name;
+    const cleanVariant = String(variant).split('-')[0].trim();
+    if (!cleanVariant) return name;
+    return name.trim() + ' (' + cleanVariant + ')';
+  }
+
+  formatItems(items: OrderItem[] | null | undefined): string {
+    if (!items || items.length === 0) return 'אין פריטים';
+    const formatSingleItem = (item: any) => {
+      let variantStr = '';
+      if (item.variant) {
+        const cleanVariant = item.variant.split('-')[0].trim();
+        variantStr = cleanVariant ? ` (${cleanVariant})` : '';
+      } else if (item.size) {
+        const cleanSize = String(item.size).split('-')[0].trim();
+        variantStr = cleanSize ? ` (${cleanSize})` : '';
+      }
+      const name = item.name || item.productName || '';
+      return `${name}${variantStr} x${item.quantity ?? 1}`;
+    };
+    const firstTwo = items.slice(0, 2).map(formatSingleItem).join(', ');
+    return items.length > 2 ? `${firstTwo} ועוד ${items.length - 2} פריטים...` : firstTwo;
+  }
+
+  getItemsSummary(items: OrderItem[]): string {
+    return this.formatItems(items);
+  }
+
+  getOrderIdSuffix(order: Order): string {
+    const id = order.id || order._id;
+    if (!id) return '';
+    const str = typeof id === 'string' ? id : String(id);
+    return str.length >= 6 ? str.slice(-6) : str;
   }
 
   trackByOrderId(index: number, order: Order): string {
@@ -708,6 +709,46 @@ export class MyOrdersComponent implements OnInit {
       this.router.navigate(['/']);
       this.isLoggingOut = false;
     }, 100);
+  }
+
+  reorder(order: Order): void {
+    if (!order || !order.items || order.items.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm('האם תרצה לרוקן את העגלה הנוכחית ולהוסיף את פריטי ההזמנה הזו?');
+    if (!confirmed) {
+      return;
+    }
+
+    this.cartService.clearCart();
+
+    order.items.forEach((item: OrderItem) => {
+      if (!item || !item.name) {
+        return;
+      }
+
+      const productId = (item as any).productId || item.name;
+      const quantity = item.quantity && item.quantity > 0 ? item.quantity : 1;
+
+      const cartItem: CartItem = {
+        id: String(productId),
+        name: item.name,
+        price: item.price,
+        quantity,
+        imageUrl: (item as any).imageUrl || '',
+        category: (item as any).category,
+        description: (item as any).description
+      };
+
+      try {
+        this.cartService.addToCart(cartItem, quantity);
+      } catch (err) {
+        console.error('Failed to add item to cart from reorder:', err);
+      }
+    });
+
+    this.router.navigate(['/checkout']);
   }
 }
 

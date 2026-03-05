@@ -3,11 +3,14 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MenuService, MenuItem } from '../../../services/menu.service';
 import { CartService } from '../../../services/cart.service';
+import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
+import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-cholent-bar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './cholent-bar.component.html',
   styleUrls: ['./cholent-bar.component.scss']
 })
@@ -15,87 +18,92 @@ export class CholentBarComponent implements OnInit {
   menuService = inject(MenuService);
   cartService = inject(CartService);
   router = inject(Router);
-  
-  // Group items by category for display
-  cholentItems: MenuItem[] = [];
-  cholentDishes: MenuItem[] = []; // Only cholent items
-  meatSpecials: MenuItem[] = []; // Meat specials (burger, schnitzel, etc.)
-  sidesItems: MenuItem[] = [];
-  dessertsItems: MenuItem[] = [];
+  settingsService = inject(SiteSettingsService);
+
+  settings: SiteSettings | null = null;
+  showPopup = false;
+
+  /** All items for the Cholent Bar page (from API), grouped by category for display. */
+  itemsGroupedByCategory: { category: string; categoryLabel: string; items: MenuItem[] }[] = [];
   isLoading: boolean = true;
 
+  cholentForceOpen: boolean = false;
+  cholentCustomMessage: string = '';
+  cholentClosedMessage: string = '';
+
   ngOnInit(): void {
-    // For now, we'll use hardcoded data since the service might not have cholent items yet
-    // In production, this would come from MenuService
+    this.settingsService.getSettings(true).subscribe(settings => {
+      this.settings = settings ?? null;
+      this.cholentForceOpen = !!settings?.cholentForceOpen;
+      this.cholentCustomMessage = (settings?.cholentCustomMessage || '').trim();
+      this.cholentClosedMessage = (settings?.cholentClosedMessage || '').trim() || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00';
+      const chol = settings?.pageAnnouncements?.['cholent'];
+      if ((chol?.popupTitle?.trim() ?? '') !== '' || (chol?.popupText?.trim() ?? '') !== '') {
+        this.showPopup = true;
+      }
+    });
     this.loadCholentItems();
   }
 
+  closePopup(): void {
+    this.showPopup = false;
+  }
+
+  /**
+   * Cholent Bar is OPEN if:
+   * - (Current day is Thursday AND current hour is between 09:00 and 17:00)
+   * OR
+   * - cholentForceOpen from settings is true
+   */
+  isCholentBarOpen(): boolean {
+    if (this.cholentForceOpen) {
+      return true;
+    }
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday, 4 = Thursday
+    const hour = now.getHours();
+    const isThursday = day === 4;
+    const withinHours = hour >= 9 && hour < 17;
+    return isThursday && withinHours;
+  }
+
+  /** Categories shown on the Cholent Bar page (DB category name -> section label). */
+  private static readonly CHOLENT_BAR_CATEGORIES: { id: string; label: string }[] = [
+    { id: 'צ\'ולנט', label: 'הצ\'ולנט שלנו' },
+    { id: 'משקאות', label: 'משקאות' },
+    { id: 'קינוחים', label: 'קינוחים' }
+  ];
+
   private loadCholentItems(): void {
-    // Try to load from service first
-    this.menuService.getProductsByCategory('cholent').subscribe({
+    const allowed = new Set(CholentBarComponent.CHOLENT_BAR_CATEGORIES.map(c => c.id));
+    this.menuService.getAllItems().subscribe({
       next: (items) => {
-        if (items && items.length > 0) {
-          this.cholentItems = items;
-          this.groupItemsByCategory();
+        const filtered = (items || []).filter((i) => i.category && allowed.has(i.category));
+        if (filtered.length > 0) {
+          this.itemsGroupedByCategory = this.groupByCategory(filtered);
         } else {
-          // Fallback to hardcoded items
-          this.loadHardcodedItems();
+          this.itemsGroupedByCategory = [];
         }
         this.isLoading = false;
       },
       error: () => {
-        this.loadHardcodedItems();
+        this.itemsGroupedByCategory = [];
         this.isLoading = false;
       }
     });
   }
 
-  private loadHardcodedItems(): void {
-    // Hardcoded items as fallback
-    this.cholentItems = [
-      { id: 'cholent-meat', name: 'צ\'ולנט בשרי', price: 45, description: 'צלחת צ\'ולנט עשירה + לחמניה טרייה', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'cholent-parve', name: 'צ\'ולנט פרווה', price: 35, description: 'צלחת צ\'ולנט מסורתי + לחמניה טרייה', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'burger-meal', name: 'ארוחת המבורגר', price: 54, description: 'קציצה עסיסית בלחמניה, צ\'יפס ושתייה', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'burger-single', name: 'המבורגר בלחמניה', price: 42, description: 'מוגש עם ירקות טריים ורטבים', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'schnitzel-challah', name: 'חלה שניצל', price: 38, description: 'מבחר סלטים לבחירה וצ\'יפס בצד', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'schnitzel-nuggets', name: 'נשנושי שניצלונים וצ\'יפס', price: 32, description: 'מנה כיפית ופריכה', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'kugel-jerusalem', name: 'קוגל ירושלמי', price: 8, description: 'חריף ומתוק במידה הנכונה', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'kugel-potato', name: 'קוגל תפוחי אדמה', price: 8, description: 'בטעם של בית', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'chopped-liver', name: 'כבד קצוץ', price: 30, description: 'עם בצל מטוגן וקרקרים', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'fries', name: 'צ\'יפס', price: 10, description: 'פריך ולוהט. קטן: 10 ₪ / גדול: 20 ₪', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'chocolate-souffle', name: 'סופלה שוקולד', price: 22, description: 'מוגש חם עם גלידה וניל', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'dessert-platter', name: 'פלטת קינוחים זוגית', price: 40, description: 'מבחר מתוקים מפנק', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'soft-drinks', name: 'שתייה קלה', price: 8, description: 'קולה, פנטה, זירו, XL', category: 'cholent', imageUrl: '', tags: [] },
-      { id: 'beer', name: 'בירה קרה', price: 15, description: 'בקבוק בירה צונן', category: 'cholent', imageUrl: '', tags: [] }
-    ];
-    this.groupItemsByCategory();
-  }
-
-  private groupItemsByCategory(): void {
-    // Group items by category for display - filter in TypeScript, not in template
-    this.cholentDishes = this.cholentItems.filter(item => 
-      item.name.includes('צ\'ולנט')
-    );
-    
-    this.meatSpecials = this.cholentItems.filter(item => 
-      !item.name.includes('צ\'ולנט') && (
-        item.name.includes('המבורגר') || 
-        item.name.includes('שניצל') ||
-        item.name.includes('כבד')
-      )
-    );
-    
-    this.sidesItems = this.cholentItems.filter(item => 
-      item.name.includes('קוגל') || 
-      item.name.includes('צ\'יפס')
-    );
-    
-    this.dessertsItems = this.cholentItems.filter(item => 
-      item.name.includes('סופלה') || 
-      item.name.includes('קינוחים') ||
-      item.name.includes('שתייה') ||
-      item.name.includes('בירה')
-    );
+  private groupByCategory(items: MenuItem[]): { category: string; categoryLabel: string; items: MenuItem[] }[] {
+    const order = CholentBarComponent.CHOLENT_BAR_CATEGORIES;
+    const map = new Map<string, MenuItem[]>();
+    items.forEach((item) => {
+      const cat = item.category || '';
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(item);
+    });
+    return order
+      .filter((c) => map.has(c.id))
+      .map((c) => ({ category: c.id, categoryLabel: c.label, items: map.get(c.id)! }));
   }
 
   addToCart(item: MenuItem): void {

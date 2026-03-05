@@ -11,7 +11,11 @@
       >
         <div class="item-wrapper">
           <div class="item-image" *ngIf="item.type === 'image'">
-            <img [src]="item.url" [alt]="item.title || 'Gallery image'" (error)="$event.target.src='/assets/images/placeholder-dish.jpg'">
+            <img
+              [src]="item.url"
+              [alt]="item.title || 'Gallery image'"
+              (error)="onImageError($event)"
+            >
           </div>
           
           <div class="item-video" *ngIf="item.type === 'video'">

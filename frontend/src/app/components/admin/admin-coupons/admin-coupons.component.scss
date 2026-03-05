@@ -1,0 +1,275 @@
+$brand-gold: #c5a059;
+$brand-dark: #0E1A24;
+$slate: #475569;
+$border: #e5e7eb;
+
+.admin-coupons-page {
+  padding: 2rem 0;
+  min-height: 70vh;
+  background: #f3f4f6;
+  direction: rtl;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.header-content {
+  .page-title {
+    margin: 0 0 0.35rem 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: $brand-dark;
+  }
+  .page-description {
+    margin: 0;
+    font-size: 1rem;
+    color: $slate;
+  }
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: #fff;
+  border: 2px solid rgba($brand-gold, 0.5);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: center;
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: $brand-dark;
+  }
+  .stat-label {
+    font-size: 0.9rem;
+    color: $slate;
+    font-weight: 500;
+  }
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid $border;
+  border-top: 3px solid $brand-gold;
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.card-title {
+  margin: 0;
+  padding: 1rem 24px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: $brand-dark;
+  border-bottom: 1px solid $border;
+  background: rgba($brand-gold, 0.06);
+}
+
+.create-form {
+  padding: 24px;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-row-actions {
+  margin-top: 1.25rem;
+  align-items: center;
+}
+
+.field {
+  flex: 1 1 160px;
+  min-width: 120px;
+  label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $slate;
+  }
+}
+
+.input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #f8fafc;
+  &:focus {
+    outline: none;
+    border-color: $brand-gold;
+    background: #fff;
+  }
+}
+
+.field-error {
+  display: block;
+  font-size: 0.85rem;
+  color: #b91c1c;
+  margin-top: 0.25rem;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: $slate;
+}
+
+.btn-create {
+  padding: 0.65rem 1.5rem;
+  background: $brand-gold;
+  color: $brand-dark;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem 0;
+  color: $slate;
+  i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: $brand-gold;
+  }
+}
+
+.table-container {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid $border;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.coupons-table {
+  width: 100%;
+  border-collapse: collapse;
+  thead {
+    background: #f8fafc;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  th {
+    padding: 14px 16px;
+    text-align: right;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: #475569;
+  }
+  td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.95rem;
+  }
+  tbody tr:hover {
+    background: #f8fafc;
+  }
+  tbody tr.expired {
+    opacity: 0.7;
+  }
+}
+
+.code-cell {
+  font-weight: 700;
+  color: $brand-dark;
+  font-family: monospace;
+}
+
+.discount-cell {
+  font-weight: 600;
+  color: $brand-gold;
+}
+
+.toggle-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid $border;
+  background: #f1f5f9;
+  color: $slate;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  &.active {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: #22c55e;
+    color: #15803d;
+  }
+  &:hover {
+    filter: brightness(0.95);
+  }
+}
+
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.success-message {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px dashed rgba($brand-gold, 0.4);
+  margin-top: 1rem;
+  color: $slate;
+  i {
+    font-size: 2.5rem;
+    color: rgba($brand-gold, 0.6);
+    margin-bottom: 0.75rem;
+  }
+  h3 {
+    color: $brand-dark;
+    margin: 0 0 0.35rem;
+  }
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+}
