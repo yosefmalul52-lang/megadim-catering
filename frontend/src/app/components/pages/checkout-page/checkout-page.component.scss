@@ -856,6 +856,38 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   }
 }
 
+.legal-checkbox-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  text-align: right;
+
+  input[type="checkbox"] {
+    margin-top: 0.25rem;
+    accent-color: $brand-gold;
+  }
+
+  label {
+    font-size: 0.9rem;
+    color: $elegant-dark;
+    cursor: pointer;
+
+    a {
+      color: $brand-gold;
+      text-decoration: underline;
+      &:hover { opacity: 0.9; }
+    }
+  }
+}
+
+.error-text {
+  color: #c62828;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  text-align: right;
+}
+
 // ========== Checkout actions – premium buttons ==========
 .checkout-actions {
   display: flex;

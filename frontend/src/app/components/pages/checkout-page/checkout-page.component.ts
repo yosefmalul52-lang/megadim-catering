@@ -113,7 +113,8 @@ export class CheckoutPageComponent implements OnInit {
       deliveryType: ['pickup' as 'pickup' | 'delivery', [Validators.required]],
       city: [''],
       streetAddress: [''],
-      notes: ['']
+      notes: [''],
+      termsAccepted: [false, [Validators.requiredTrue]]
     });
 
     // Auto-fill checkout form with logged-in user details

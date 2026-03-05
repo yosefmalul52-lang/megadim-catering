@@ -10,7 +10,6 @@ import { HeaderComponent } from './components/shared/header/header.component';
 import { SearchBarComponent } from './components/shared/search-bar/search-bar.component';
 import { CartModalComponent } from './components/shared/cart-modal/cart-modal.component';
 import { FooterComponent } from './components/shared/footer/footer.component';
-import { ChatWidgetComponent } from './components/chat-widget/chat-widget.component';
 import { AuthModalComponent } from './components/shared/auth-modal/auth-modal.component';
 import { ToastComponent } from './components/shared/toast/toast.component';
 
@@ -30,7 +29,6 @@ import { LanguageService } from './services/language.service';
     SearchBarComponent,
     CartModalComponent,
     FooterComponent,
-    ChatWidgetComponent,
     AuthModalComponent,
     ToastComponent
   ],
@@ -67,15 +65,21 @@ import { LanguageService } from './services/language.service';
       <!-- Cart Modal (hidden on login/admin pages) -->
       <app-cart-modal *ngIf="!isLoginOrAdminPage"></app-cart-modal>
       
-      <!-- Floating Chat Widget (hidden on login/admin pages) -->
-      <app-chat-widget *ngIf="!isLoginOrAdminPage"></app-chat-widget>
-      
       <!-- Auth Modal (available on all pages) -->
       <app-auth-modal></app-auth-modal>
       
       <!-- Toast Notifications (available on all pages) -->
       <app-toast></app-toast>
     </mat-sidenav-container>
+
+    <!-- Cookie Consent Banner -->
+    <div class="cookie-banner" *ngIf="showCookieBanner">
+      <p>אתר זה עושה שימוש בעוגיות (Cookies) כדי לשפר את חווית הגלישה, לנהל את אזור הלקוח ולאבטח את המידע שלך. בהמשך הגלישה באתר הנך מסכים למדיניות הפרטיות שלנו.</p>
+      <div class="cookie-actions">
+        <a routerLink="/privacy-policy">למידע נוסף</a>
+        <button type="button" class="btn-primary-gold" (click)="acceptCookies()">הבנתי ואישרתי</button>
+      </div>
+    </div>
     </div>
   `,
   styleUrls: ['./app.component.scss']
@@ -87,8 +91,12 @@ export class AppComponent implements OnInit {
   // Content direction property (NOT document direction)
   textDir: 'rtl' | 'ltr' = 'rtl';
   isLoginOrAdminPage = false;
+  showCookieBanner = false;
 
   ngOnInit(): void {
+    if (typeof localStorage !== 'undefined' && !localStorage.getItem('cookieConsent')) {
+      this.showCookieBanner = true;
+    }
     // Subscribe to language changes to update content direction
     this.languageService.currentLanguage$.subscribe(lang => {
       this.textDir = lang === 'he' ? 'rtl' : 'ltr';
@@ -110,5 +118,12 @@ export class AppComponent implements OnInit {
   private updatePageVisibility(): void {
     const url = this.router.url;
     this.isLoginOrAdminPage = url.startsWith('/login') || url.startsWith('/admin') || url.startsWith('/time-clock') || url.startsWith('/employee-login') || url.startsWith('/my-zone');
+  }
+
+  acceptCookies(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('cookieConsent', 'accepted');
+    }
+    this.showCookieBanner = false;
   }
 }

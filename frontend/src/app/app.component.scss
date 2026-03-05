@@ -81,3 +81,71 @@
 * {
   transition: color 0.3s ease, background-color 0.3s ease, opacity 0.3s ease;
 }
+
+// Cookie consent banner (white, clean, brand-aligned)
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 15px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  direction: rtl;
+  font-family: inherit;
+
+  p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .cookie-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    a {
+      color: #1f2937;
+      text-decoration: underline;
+      font-weight: 600;
+      transition: color 0.2s ease;
+
+      &:hover {
+        color: #c5a059;
+      }
+    }
+
+    .btn-primary-gold {
+      background: #c5a059;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s ease;
+      &:hover { background: #b8924a; }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .cookie-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: 15px;
+    padding: 15px 20px;
+
+    .cookie-actions {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}

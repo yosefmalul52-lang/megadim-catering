@@ -1,0 +1,24 @@
+.legal-page {
+  padding: 2rem 0 4rem;
+  min-height: 50vh;
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    color: #1f3540;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e0c075;
+    padding-bottom: 0.5rem;
+  }
+
+  p {
+    line-height: 1.7;
+    color: #333;
+    margin-bottom: 1rem;
+  }
+}

@@ -107,6 +107,16 @@ export const routes: Routes = [
     loadComponent: () => import('./components/employee/my-zone/my-zone.component').then(m => m.MyZoneComponent),
     canActivate: [() => import('./guards/employee.guard').then(m => m.employeeGuard)]
   },
+
+  // Legal pages
+  {
+    path: 'terms',
+    loadComponent: () => import('./components/pages/terms/terms.component').then(m => m.TermsComponent)
+  },
+  {
+    path: 'privacy-policy',
+    loadComponent: () => import('./components/pages/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
+  },
   
   // Admin Dashboard (Protected with AuthGuard)
   {

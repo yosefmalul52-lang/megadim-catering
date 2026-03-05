@@ -239,6 +239,13 @@
               <span class="confidence-item"><i class="fas fa-leaf"></i> קייטרינג טרי יום-יום</span>
               <span class="confidence-item"><i class="fas fa-truck"></i> משלוח מבוקר טמפרטורה</span>
             </div>
+            <div [formGroup]="orderForm" class="legal-checkbox-group">
+              <input type="checkbox" id="terms" formControlName="termsAccepted">
+              <label for="terms">קראתי ואני מסכים ל<a routerLink="/terms" target="_blank">תקנון האתר</a> ולמדיניות הביטולים.</label>
+            </div>
+            <div *ngIf="orderForm.get('termsAccepted')?.invalid && orderForm.get('termsAccepted')?.touched" class="error-text">
+              חובה לאשר את תקנון האתר כדי לבצע הזמנה.
+            </div>
             <div class="checkout-actions">
               <a routerLink="/cart" class="btn-premium btn-secondary">
                 <i class="fas fa-arrow-right" aria-hidden="true"></i>
