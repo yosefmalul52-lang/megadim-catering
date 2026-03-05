@@ -61,25 +61,26 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    // Create Token
+    // Create Token (7 days – balance of security and e‑commerce UX)
     const payload = { id: user._id, role: user.role };
     console.log('🔍 Creating JWT token with payload:', {
       id: payload.id,
       idString: String(payload.id),
       role: payload.role
     });
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
     console.log('✅ JWT token created successfully');
+
+    // Return user without password (sanitized)
+    const userResponse = await User.findById(user._id).select('-password').lean();
+    const safeUser = userResponse
+      ? { id: (userResponse as any)._id, fullName: (userResponse as any).fullName, username: (userResponse as any).username, role: (userResponse as any).role }
+      : { id: user._id, fullName: user.fullName, username: user.username, role: user.role };
 
     return res.json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        username: user.username,
-        role: user.role
-      }
+      user: safeUser
     });
   } catch (err: any) {
     console.error(err);
@@ -123,19 +124,20 @@ router.post('/register', async (req: Request, res: Response) => {
 
     await user.save();
 
-    // Create Token
+    // Create Token (7 days)
     const payload = { id: user._id, role: user.role };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
 
-    return res.json({ 
+    // Return user without password (sanitized)
+    const userResponse = await User.findById(user._id).select('-password').lean();
+    const safeUser = userResponse
+      ? { id: (userResponse as any)._id, fullName: (userResponse as any).fullName, username: (userResponse as any).username, role: (userResponse as any).role }
+      : { id: user._id, fullName, username: user.username, role: 'user' };
+
+    return res.json({
       success: true,
-      token, 
-      user: { 
-        id: user._id, 
-        fullName, 
-        username: user.username,
-        role: 'user' 
-      } 
+      token,
+      user: safeUser
     });
   } catch (err: any) {
     console.error(err);

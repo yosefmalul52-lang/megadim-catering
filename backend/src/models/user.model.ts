@@ -8,6 +8,10 @@ export interface User {
   createdAt: Date;
   updatedAt?: Date;
   lastLogin?: Date;
+  /** Admin-only CRM fields */
+  tags?: string[];
+  adminNotes?: string;
+  dietaryInfo?: string;
 }
 
 export interface CreateUserRequest {

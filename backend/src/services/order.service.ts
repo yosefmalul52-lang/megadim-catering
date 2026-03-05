@@ -1,15 +1,11 @@
 import Order, { IOrder } from '../models/Order';
-import { CreateOrderRequest, OrderResponse } from '../models/order.model';
-import { EmailService } from './email.service';
+import MenuItem from '../models/menuItem';
+import { CreateOrderRequest, CreateCheckoutOrderRequest, OrderResponse } from '../models/order.model';
+import { emailService } from './email.service';
 
 export class OrderService {
   // Categories that should only show units, not calculated weight
   private readonly UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
-  private emailService: EmailService;
-
-  constructor() {
-    this.emailService = new EmailService();
-  }
 
   // Submit a new order
   async submitOrder(orderData: CreateOrderRequest, userId: string | null = null): Promise<OrderResponse> {
@@ -17,20 +13,19 @@ export class OrderService {
       console.log('📝 OrderService: Creating order for user:', userId || 'Guest');
       console.log('📝 OrderService: Order data:', JSON.stringify(orderData, null, 2));
 
-      // Map items to include category if missing
+      // Map items to include category and imageUrl if missing
       const orderItems = orderData.items.map(item => {
-        // If category is missing, try to detect it from the item name
         let category = (item as any).category;
         if (!category || category.trim() === '') {
           category = this.detectCategoryFromName(item.name);
         }
-
         return {
           productId: item.id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
-          category: category // Include category for kitchen report
+          category,
+          imageUrl: (item as any).imageUrl || (item as any).image || undefined
         };
       });
 
@@ -63,7 +58,7 @@ export class OrderService {
 
       // Send order email to owner immediately after save
       try {
-        await this.emailService.sendOrderEmail(savedOrder);
+        await emailService.sendOrderEmail(savedOrder);
         console.log('✅ OrderService: Order email sent successfully');
       } catch (emailError: any) {
         // Log email error but don't fail the order creation
@@ -85,6 +80,54 @@ export class OrderService {
     }
   }
 
+  /** Create order from checkout payload (POST /api/orders). Saves to DB, sends admin email, returns saved order. */
+  async createOrderFromCheckout(payload: CreateCheckoutOrderRequest): Promise<IOrder> {
+    const addressStr =
+      typeof payload.address === 'string'
+        ? payload.address
+        : payload.address && typeof payload.address === 'object'
+          ? [payload.address.city, payload.address.street, payload.address.apartment].filter(Boolean).join(', ')
+          : '';
+
+    const orderItems = payload.items.map(item => ({
+      productId: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      category: (item as any).category || this.detectCategoryFromName(item.name),
+      imageUrl: (item as any).imageUrl || (item as any).image || undefined
+    }));
+
+    const isManual = payload.manualOrder === true;
+    const status = isManual ? 'processing' : 'pending';
+    const customerDetails: Record<string, unknown> = {
+      fullName: payload.customerName,
+      phone: payload.phone,
+      email: payload.email,
+      address: addressStr,
+      deliveryMethod: payload.deliveryMethod,
+      eventDate: payload.eventDate,
+      deliveryFee: payload.deliveryFee,
+      subtotal: payload.subtotal,
+      notes: payload.notes
+    };
+    if (isManual && payload.paymentStatus) {
+      customerDetails.isPaid = payload.paymentStatus === 'paid';
+    }
+    const order = new Order({
+      userId: (payload as any).userId ?? null,
+      customerDetails,
+      items: orderItems,
+      totalPrice: payload.totalAmount,
+      status
+    });
+
+    const savedOrder = await order.save();
+    console.log('✅ OrderService: Checkout order saved:', savedOrder._id);
+    // Admin email is sent from order.controller createOrder (nodemailer) so failures don't affect response
+    return savedOrder;
+  }
+
   // Get orders by user ID
   async getOrdersByUserId(userId: string): Promise<IOrder[]> {
     try {
@@ -99,16 +142,23 @@ export class OrderService {
     }
   }
 
-  // Get all orders with filters (Admin)
+  // Get all orders with filters (Admin). archive=true => isDeleted or cancelled; otherwise active only (isDeleted false).
   async getAllOrders(filters: {
     status?: string;
     limit?: number;
     offset?: number;
     startDate?: Date;
     endDate?: Date;
+    archive?: boolean;
   }): Promise<{ orders: IOrder[]; total: number }> {
     try {
       const query: any = {};
+
+      if (filters.archive === true) {
+        query.$or = [{ isDeleted: true }, { status: 'cancelled' }];
+      } else {
+        query.isDeleted = { $ne: true };
+      }
 
       if (filters.status) {
         query.status = filters.status;
@@ -126,8 +176,8 @@ export class OrderService {
 
       const total = await Order.countDocuments(query);
       const orders = await Order.find(query)
-        .sort({ createdAt: -1 })
-        .limit(filters.limit || 50)
+        .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
+        .limit(filters.limit || 100)
         .skip(filters.offset || 0)
         .lean();
 
@@ -141,7 +191,7 @@ export class OrderService {
     }
   }
 
-  // Get order by ID (with user verification)
+  // Get order by ID (with user verification). Enriches items with imageUrl from menu when missing.
   async getOrderById(orderId: string, userId: string): Promise<IOrder | null> {
     try {
       const order = await Order.findOne({
@@ -149,10 +199,33 @@ export class OrderService {
         userId: userId
       }).lean();
 
+      if (!order || !order.items?.length) return order as IOrder | null;
+
+      await this.enrichOrderItemsImageUrlPublic(order.items);
+
       return order as IOrder | null;
     } catch (error: any) {
       console.error('Error fetching order by ID:', error);
       throw error;
+    }
+  }
+
+  /** Fills imageUrl on each item from MenuItem when missing. Accepts productId as string or ObjectId. */
+  async enrichOrderItemsImageUrlPublic(items: any[]): Promise<void> {
+    if (!items?.length) return;
+    for (const item of items) {
+      if (item.imageUrl && String(item.imageUrl).trim()) continue;
+      const productId = item.productId;
+      if (!productId) continue;
+      try {
+        let product = await MenuItem.findById(productId).select('imageUrl').lean();
+        if (!product?.imageUrl && typeof productId === 'string') {
+          product = await MenuItem.findOne({ _id: productId }).select('imageUrl').lean();
+        }
+        if (product?.imageUrl) (item as any).imageUrl = String(product.imageUrl).trim();
+      } catch {
+        // ignore single lookup failure
+      }
     }
   }
 
@@ -179,6 +252,33 @@ export class OrderService {
       console.error('Error updating order status:', error);
       throw error;
     }
+  }
+
+  /** Dashboard stats: pending count, events today count, monthly revenue. */
+  async getDashboardStats(): Promise<{ pendingCount: number; eventsTodayCount: number; monthlyRevenue: number }> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const activeQuery = { isDeleted: { $ne: true } };
+    const [pendingCount, eventsTodayCount, monthlyRevenueResult] = await Promise.all([
+      Order.countDocuments({ ...activeQuery, status: { $in: ['pending', 'new'] } }),
+      Order.countDocuments({ ...activeQuery, 'customerDetails.eventDate': todayStr }),
+      Order.aggregate([
+        {
+          $match: {
+            isDeleted: { $ne: true },
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            status: { $ne: 'cancelled' }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+      ])
+    ]);
+
+    const monthlyRevenue = monthlyRevenueResult[0]?.total ?? 0;
+    return { pendingCount, eventsTodayCount, monthlyRevenue };
   }
 
   // Get order statistics
@@ -265,12 +365,43 @@ export class OrderService {
   }
 
   // Delete order
-  async deleteOrder(orderId: string): Promise<boolean> {
+  // Soft delete: set isDeleted = true
+  async deleteOrder(orderId: string): Promise<IOrder | null> {
     try {
-      const result = await Order.findByIdAndDelete(orderId);
-      return !!result;
+      const order = await Order.findByIdAndUpdate(
+        orderId,
+        { $set: { isDeleted: true } },
+        { new: true }
+      ).lean();
+      return order as IOrder | null;
     } catch (error: any) {
       console.error('Error deleting order:', error);
+      throw error;
+    }
+  }
+
+  // Restore order: set isDeleted = false and status = 'pending'
+  async restoreOrder(orderId: string): Promise<IOrder | null> {
+    try {
+      const order = await Order.findByIdAndUpdate(
+        orderId,
+        { $set: { isDeleted: false, status: 'pending' } },
+        { new: true }
+      ).lean();
+      return order as IOrder | null;
+    } catch (error: any) {
+      console.error('Error restoring order:', error);
+      throw error;
+    }
+  }
+
+  // Permanent delete: remove document from DB (irreversible)
+  async permanentDeleteOrder(orderId: string): Promise<boolean> {
+    try {
+      const result = await Order.findByIdAndDelete(orderId);
+      return result != null;
+    } catch (error: any) {
+      console.error('Error permanently deleting order:', error);
       throw error;
     }
   }
@@ -671,117 +802,102 @@ export class OrderService {
     return '-';
   }
 
-  // Get delivery/dispatch report - group active orders by city
-  async getDeliveryReport(): Promise<{ city: string; orders: any[] }[]> {
-    try {
-      console.log('🚚 Fetching Delivery Report...');
-      
-      // Relax the Status Filter: Include ALL statuses except 'Cancelled'
-      // Query: { status: { $ne: 'cancelled' } } (Show everything active/completed)
-      const query = {
-        status: { $ne: 'cancelled' }
+  /** Build delivery+pickup groups for a single day's orders. */
+  private async getDeliveryReportForOneDay(dateStr: string): Promise<{
+    deliveryByCity: { city: string; orders: any[] }[];
+    pickupByTime: { time: string; orders: any[] }[];
+  }> {
+    const query: Record<string, unknown> = {
+      status: { $ne: 'cancelled' },
+      isDeleted: { $ne: true },
+      'customerDetails.eventDate': dateStr
+    };
+    const activeOrders = await Order.find(query).lean();
+    const cityMap: { [key: string]: any[] } = {};
+    const pickupTimeMap: { [key: string]: any[] } = {};
+
+    for (const order of activeOrders) {
+      const customerDetails = (order as any).customerDetails || {};
+      const deliveryDetails = customerDetails.deliveryDetails || {};
+      const deliveryMethod = customerDetails.deliveryMethod === 'pickup' ? 'pickup' : 'delivery';
+
+      let city = deliveryDetails?.city || customerDetails.city || customerDetails.deliveryCity || null;
+      if (!city && customerDetails.address) {
+        const addressParts = customerDetails.address.split(',').map((p: string) => p.trim());
+        city = addressParts[addressParts.length - 1] || null;
+      }
+      if (city) city = city.trim();
+      else city = 'כתובת לא צוינה';
+
+      const orderSummary = {
+        _id: (order as any)._id.toString(),
+        status: (order as any).status || 'pending',
+        customerDetails: {
+          name: customerDetails.fullName || 'לא צוין',
+          phone: customerDetails.phone || 'לא צוין'
+        },
+        deliveryDetails: {
+          address: customerDetails.address || deliveryDetails.address || 'לא צוין',
+          city: city,
+          floor: deliveryDetails.floor || customerDetails.floor || null,
+          comments: customerDetails.notes || deliveryDetails.comments || null
+        },
+        totalPrice: order.totalPrice || 0,
+        isPaid: customerDetails.isPaid || deliveryDetails.isPaid || false,
+        items: (order as any).items || [],
+        notes: customerDetails.notes || deliveryDetails.comments || null,
+        deliveryMethod,
+        eventDate: customerDetails.eventDate || null,
+        preferredDeliveryTime: customerDetails.preferredDeliveryTime || null
       };
-      
-      console.log('🚚 OrderService: Starting delivery report generation');
-      console.log('🚚 OrderService: Query filter:', JSON.stringify(query));
 
-      // Find all orders except cancelled
-      const activeOrders = await Order.find(query).lean();
-
-      console.log('Found orders:', activeOrders.length);
-      
-      if (activeOrders.length === 0) {
-        console.log('⚠️ No orders found (excluding cancelled)');
-        return [];
-      }
-      
-      // Log sample order structure for debugging
-      if (activeOrders.length > 0) {
-        console.log('🚚 Sample order structure:', JSON.stringify(activeOrders[0], null, 2));
-      }
-
-      // Group orders by city
-      const cityMap: { [key: string]: any[] } = {};
-
-      for (const order of activeOrders) {
-        // Extract city from customerDetails or deliveryDetails
-        // Try multiple possible locations for city
-        // Ensure the code doesn't crash if deliveryDetails is undefined
-        const customerDetails = (order as any).customerDetails || {};
-        const deliveryDetails = customerDetails.deliveryDetails || {};
-        
-        console.log('🚚 Processing order:', (order as any)._id);
-        console.log('🚚 Order customerDetails:', JSON.stringify(customerDetails, null, 2));
-        console.log('🚚 Order deliveryDetails:', JSON.stringify(deliveryDetails, null, 2));
-        
-        // Get city from various possible locations
-        let city = deliveryDetails?.city || 
-                   customerDetails.city || 
-                   customerDetails.deliveryCity ||
-                   null;
-
-        // If city is not found, try to extract from address
-        if (!city && customerDetails.address) {
-          // Simple extraction: try to get city from address string
-          // This is a fallback - ideally city should be stored separately
-          const addressParts = customerDetails.address.split(',').map((p: string) => p.trim());
-          // Assume last part might be city, or look for common city patterns
-          city = addressParts[addressParts.length - 1] || null;
-          console.log('🚚 Extracted city from address:', city);
-        }
-
-        // Normalize city name (trim whitespace, handle case variations)
-        if (city) {
-          city = city.trim();
-          // Optional: normalize common variations (e.g., "Haifa" vs "חיפה")
-          // For now, just use as-is
-        } else {
-          // Handle missing cities: If order.deliveryDetails.city is missing/null, 
-          // group it under 'כללי / איסוף עצמי' (General/Pickup)
-          city = 'כללי / איסוף עצמי';
-          console.log('🚚 No city found, using default:', city);
-        }
-
-        // Create order summary with only necessary info
-        const orderSummary = {
-          _id: (order as any)._id.toString(),
-          customerDetails: {
-            name: customerDetails.fullName || 'לא צוין',
-            phone: customerDetails.phone || 'לא צוין'
-          },
-          deliveryDetails: {
-            address: customerDetails.address || deliveryDetails.address || 'לא צוין',
-            city: city,
-            floor: deliveryDetails.floor || customerDetails.floor || null,
-            comments: customerDetails.notes || deliveryDetails.comments || null
-          },
-          totalPrice: order.totalPrice || 0,
-          isPaid: customerDetails.isPaid || deliveryDetails.isPaid || false
-        };
-
-        // Add to city group
-        if (!cityMap[city]) {
-          cityMap[city] = [];
-        }
+      if (deliveryMethod === 'pickup') {
+        const timeSlot = orderSummary.preferredDeliveryTime || 'לא צוין';
+        if (!pickupTimeMap[timeSlot]) pickupTimeMap[timeSlot] = [];
+        pickupTimeMap[timeSlot].push(orderSummary);
+      } else {
+        if (!cityMap[city]) cityMap[city] = [];
         cityMap[city].push(orderSummary);
       }
+    }
 
-      // Convert map to array format
-      const report = Object.keys(cityMap).map(city => ({
-        city: city,
-        orders: cityMap[city]
-      }));
+    const deliveryByCity = Object.keys(cityMap)
+      .map(city => ({ city, orders: cityMap[city] }))
+      .sort((a, b) => a.city.localeCompare(b.city));
+    const pickupByTime = Object.keys(pickupTimeMap)
+      .map(time => ({ time, orders: pickupTimeMap[time] }))
+      .sort((a, b) => a.time.localeCompare(b.time));
+    return { deliveryByCity, pickupByTime };
+  }
 
-      // Sort by city name
-      report.sort((a, b) => a.city.localeCompare(b.city));
+  /** Get delivery report for a single day or a date range. Returns days keyed by YYYY-MM-DD. */
+  async getDeliveryReport(fromDate?: string, toDate?: string): Promise<{
+    days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }>;
+  }> {
+    try {
+      const norm = (d: string) => (d && d.indexOf('T') >= 0 ? d.slice(0, 10) : d) || '';
+      const from = norm(fromDate || '');
+      const to = norm(toDate || '');
 
-      console.log('🚚 OrderService: Delivery report generated:', report.length, 'cities');
-      console.log('🚚 OrderService: Sample report:', JSON.stringify(report.slice(0, 2), null, 2));
+      const dateStrings: string[] = [];
+      if (from && to) {
+        const start = new Date(from);
+        const end = new Date(to);
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          dateStrings.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+        }
+      } else if (from) {
+        dateStrings.push(from);
+      }
 
-      return report;
+      const days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }> = {};
+      for (const dateStr of dateStrings) {
+        days[dateStr] = await this.getDeliveryReportForOneDay(dateStr);
+      }
+      console.log('🚚 Delivery report: days', Object.keys(days).length);
+      return { days };
     } catch (error: any) {
       console.error('❌ Error generating delivery report:', error);
-      console.error('❌ Error stack:', error.stack);
       throw new Error(`Failed to generate delivery report: ${error.message}`);
     }
   }

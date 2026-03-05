@@ -1,7 +1,33 @@
 // CRITICAL: Load environment variables FIRST, before any other imports
-// Since we run npm start from backend/, dotenv will automatically find backend/.env
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import fs from 'fs';
+
+// Load .env: try cwd, then backend root, then project root (so backend/.env wins)
+const cwdEnv = path.join(process.cwd(), '.env');
+const backendEnv = path.join(__dirname, '..', '.env');
+const rootEnv = path.join(__dirname, '..', '..', '.env');
+
+dotenv.config(); // cwd
+for (const p of [backendEnv, rootEnv]) {
+  if (fs.existsSync(p)) {
+    const r = dotenv.config({ path: p });
+    if (!r.error) console.log('[env] Loaded:', p);
+    else console.warn('[env] Failed to load', p, r.error?.message);
+  }
+}
+
+// Normalize: trim so "KEY=  value  " or empty value is handled
+const raw = process.env.GOOGLE_MAPS_API_KEY;
+if (raw !== undefined) process.env.GOOGLE_MAPS_API_KEY = raw.trim();
+const hasMapsKey = !!process.env.GOOGLE_MAPS_API_KEY;
+
+if (hasMapsKey) {
+  console.log('[env] GOOGLE_MAPS_API_KEY is set (delivery fee API ready)');
+} else {
+  console.warn('[env] GOOGLE_MAPS_API_KEY is missing or empty.');
+  console.warn('[env] In backend/.env use exactly: GOOGLE_MAPS_API_KEY=your_key (no spaces around =)');
+}
 
 console.log('🚀 Server starting with Vercel CORS fix applied!');
 
@@ -9,12 +35,14 @@ console.log('🚀 Server starting with Vercel CORS fix applied!');
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import helmet from 'helmet';
 import { connectDatabase } from './config/database';
 
 // Import routes
 import menuRoutes from './routes/menu.routes';
 import contactRoutes from './routes/contact.routes';
 import orderRoutes from './routes/order.routes';
+import ordersRoutes from './routes/orders.routes';
 import authRoutes from './routes/auth.routes';
 import searchRoutes from './routes/search.routes';
 import testimonialsRoutes from './routes/testimonials.routes';
@@ -26,9 +54,13 @@ import attendanceRoutes from './routes/attendance.routes';
 import galleryRoutes from './routes/gallery.routes';
 import videoRoutes from './routes/video.routes';
 import settingsRoutes from './routes/settings.routes';
+import deliveryRoutes from './routes/delivery.routes';
+import couponRoutes from './routes/coupon.routes';
+import userRoutes from './routes/user.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
+import { emailService } from './services/email.service';
 
 // Debugging: Check loaded environment variables
 console.log('🔍 Environment Variables Status:');
@@ -61,6 +93,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
+// Security headers (XSS, clickjacking, etc.)
+app.use(helmet());
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For handling form data, including multipart
@@ -92,6 +127,7 @@ connectDatabase().catch((err) => {
 app.use('/api/menu', menuRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/order', orderRoutes);
+app.use('/api/orders', ordersRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/testimonials', testimonialsRoutes);
@@ -103,7 +139,9 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/settings', settingsRoutes);
-console.log('✅ Settings route registered at /api/settings'); // Debug log
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/users', userRoutes);
 
 // 404 handler for undefined routes (must be after all routes)
 app.use('*', notFoundHandler);
@@ -122,6 +160,16 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
+
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    try {
+      await emailService.verifyConnection();
+    } catch (err: any) {
+      console.error('❌ SMTP connection failed on startup:', err?.message || err);
+    }
+  } else {
+    console.log('⚠️ EMAIL_USER/EMAIL_PASS not set – order email endpoint will return 503 until configured');
+  }
 });

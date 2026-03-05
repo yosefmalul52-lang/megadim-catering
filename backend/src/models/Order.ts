@@ -7,6 +7,7 @@ export interface IOrder extends Document {
   items: any[];
   totalPrice: number;
   status: string;
+  isDeleted?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -45,8 +46,13 @@ const OrderSchema: Schema<IOrder> = new Schema({
   },
   status: {
     type: String,
-    enum: ['new', 'in-progress', 'ready', 'delivered', 'cancelled'],
-    default: 'new'
+    enum: ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'],
+    default: 'pending'
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
   }
 }, {
   timestamps: true,

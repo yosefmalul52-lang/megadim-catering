@@ -1,17 +1,22 @@
 import { Router } from 'express';
 import { SettingsController } from '../controllers/settings.controller';
-// TODO: Import and use authentication middleware for admin routes
-// import { authenticateToken } from '../middleware/auth';
+import { asyncHandler } from '../middleware/errorHandler';
 
 const router = Router();
+const { authenticate, authorize } = require('../middleware/auth');
 const settingsController = new SettingsController();
 
-// Public route - Get settings
+// Public – site settings (contact, menus, announcements)
 router.get('/', settingsController.getSettings);
+router.put('/', authenticate, authorize('admin'), asyncHandler(settingsController.updateSettings as any));
 
-// Admin route - Update settings (should be protected by authentication middleware)
-// TODO: Add authentication middleware: router.put('/', authenticateToken, settingsController.updateSettings);
-router.put('/', settingsController.updateSettings);
+// Public – global store settings (freeShippingThreshold, baseDeliveryFee, pricePerKm) for shipping dashboard
+router.get('/store', settingsController.getStoreSettings);
+router.put('/store', authenticate, authorize('admin'), asyncHandler(settingsController.updateStoreSettings as any));
+
+// Public – delivery / free-shipping store settings (allowed days, minimum lead, etc.)
+router.get('/delivery', settingsController.getDeliverySettings);
+router.put('/delivery', authenticate, authorize('admin'), asyncHandler(settingsController.updateDeliverySettings as any));
 
 export default router;
 

@@ -53,6 +53,14 @@ export const connectDatabase = async (): Promise<void> => {
       console.error('⚠️ Test document insertion failed:', testError.message);
       // Don't exit on test failure, connection is still successful
     }
+
+    // One-time Cholent Bar menu seed (runs only if items not already present)
+    const { runCholentBarSeed } = await import('../seed/cholentBarSeed');
+    await runCholentBarSeed();
+
+    // Seed delivery pricing (wipe + insert default tiers – for development/testing)
+    const { seedDeliveryPrices } = await import('../seed/deliveryPricingSeed');
+    await seedDeliveryPrices();
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {

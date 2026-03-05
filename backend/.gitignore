@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+
+# Build (uncomment if you no longer commit dist for deployment)
+# dist/
+
+# Logs & debug
+*.log
+npm-debug.log*
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo

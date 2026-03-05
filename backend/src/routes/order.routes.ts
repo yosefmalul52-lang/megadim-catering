@@ -19,7 +19,7 @@ const checkoutLimiter = rateLimit({
 });
 
 // Import authenticate middleware (using require for JS file)
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // Optional authentication middleware - doesn't fail if no token (for guest orders)
 const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction) => {
@@ -89,6 +89,7 @@ const optionalAuthenticate = async (req: Request, res: Response, next: NextFunct
 
 // Public routes - checkout is rate-limited and optionally authenticated
 router.post('/checkout', checkoutLimiter, optionalAuthenticate, orderController.submitOrder);
+router.post('/send', checkoutLimiter, orderController.sendOrder);
 
 // Customer routes (Protected with JWT authentication)
 router.get('/my-orders', authenticate, orderController.getMyOrders);
@@ -101,7 +102,10 @@ router.get('/kitchen-report', authenticate, orderController.getKitchenReport);
 router.get('/delivery-report', authenticate, orderController.getDeliveryReport);
 router.get('/recent', authenticate, orderController.getRecentOrders);
 router.get('/search', authenticate, orderController.searchOrders);
+router.get('/dashboard-stats', authenticate, orderController.getDashboardStats);
 router.get('/:id', authenticate, orderController.getOrderById);
+router.put('/:id/restore', authenticate, orderController.restoreOrder);
+router.delete('/:id/permanent', authenticate, authorize('admin'), orderController.permanentDeleteOrder);
 router.put('/:id/status', authenticate, orderController.updateOrderStatus);
 router.patch('/:id/status', authenticate, orderController.updateOrderStatus);
 router.delete('/:id', authenticate, orderController.deleteOrder);
