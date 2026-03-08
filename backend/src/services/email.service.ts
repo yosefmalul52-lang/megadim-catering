@@ -1,6 +1,29 @@
 import nodemailer from 'nodemailer';
+import path from 'path';
 import { IOrder } from '../models/Order';
-import { generateAdminEmailHtml, generateCustomerEmailHtml, OrderTemplateData } from './email-templates';
+
+/** Same shape as in email-templates.ts (used for sendOrderEmails). */
+interface OrderTemplateData {
+  customerName: string;
+  customerPhone: string;
+  orderType: 'pickup' | 'delivery';
+  eventDate?: string;
+  address?: string;
+  notes?: string;
+  cartItems: Array<{ name: string; price: number; quantity: number }>;
+  totalPrice: number;
+}
+
+// Load email templates from same dir as this file (avoids "Cannot find module" on Render when cwd differs)
+const emailTemplates = (function (): { generateAdminEmailHtml: (d: OrderTemplateData) => string; generateCustomerEmailHtml: (d: OrderTemplateData) => string } {
+  try {
+    return require(path.join(__dirname, 'email-templates'));
+  } catch (err: any) {
+    console.error('Failed to load email-templates module:', err?.message || err);
+    throw new Error('Missing email-templates. Ensure backend/src/services/email-templates.ts exists and backend build produced dist/services/email-templates.js.');
+  }
+})();
+const { generateAdminEmailHtml, generateCustomerEmailHtml } = emailTemplates;
 
 /** Single source of truth: EMAIL_HOST, EMAIL_PORT (default 587), EMAIL_USER, EMAIL_PASS */
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
