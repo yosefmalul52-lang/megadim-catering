@@ -125,10 +125,10 @@ class MenuService {
     // Create new menu item
     createMenuItem(menuItemData) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
+            var _j, _k;
             // Always reload from file to get latest data before creating
             yield this.loadMenuItems();
-            const newMenuItem = Object.assign(Object.assign({ id: (0, uuid_1.v4)() }, menuItemData), { createdAt: new Date(), updatedAt: new Date(), isAvailable: (_a = menuItemData.isAvailable) !== null && _a !== void 0 ? _a : true, isPopular: (_b = menuItemData.isPopular) !== null && _b !== void 0 ? _b : false });
+            const newMenuItem = Object.assign(Object.assign({ id: (0, uuid_1.v4)() }, menuItemData), { createdAt: new Date(), updatedAt: new Date(), isAvailable: (_j = menuItemData.isAvailable) !== null && _j !== void 0 ? _j : true, isPopular: (_k = menuItemData.isPopular) !== null && _k !== void 0 ? _k : false });
             this.menuItems.push(newMenuItem);
             yield this.saveMenuItems();
             return newMenuItem;

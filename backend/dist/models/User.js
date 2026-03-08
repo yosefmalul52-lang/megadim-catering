@@ -38,6 +38,18 @@ const UserSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    tags: {
+        type: [String],
+        default: []
+    },
+    adminNotes: {
+        type: String,
+        default: ''
+    },
+    dietaryInfo: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true,

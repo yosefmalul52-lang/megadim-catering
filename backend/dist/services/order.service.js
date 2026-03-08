@@ -14,12 +14,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrderService = void 0;
 const Order_1 = __importDefault(require("../models/Order"));
+const menuItem_1 = __importDefault(require("../models/menuItem"));
 const email_service_1 = require("./email.service");
 class OrderService {
     constructor() {
         // Categories that should only show units, not calculated weight
         this.UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
-        this.emailService = new email_service_1.EmailService();
     }
     // Submit a new order
     submitOrder(orderData_1) {
@@ -27,9 +27,8 @@ class OrderService {
             try {
                 console.log('📝 OrderService: Creating order for user:', userId || 'Guest');
                 console.log('📝 OrderService: Order data:', JSON.stringify(orderData, null, 2));
-                // Map items to include category if missing
+                // Map items to include category and imageUrl if missing
                 const orderItems = orderData.items.map(item => {
-                    // If category is missing, try to detect it from the item name
                     let category = item.category;
                     if (!category || category.trim() === '') {
                         category = this.detectCategoryFromName(item.name);
@@ -39,7 +38,8 @@ class OrderService {
                         name: item.name,
                         price: item.price,
                         quantity: item.quantity,
-                        category: category // Include category for kitchen report
+                        category,
+                        imageUrl: item.imageUrl || item.image || undefined
                     };
                 });
                 // Calculate total price
@@ -68,7 +68,7 @@ class OrderService {
                 console.log('✅ OrderService: Saved order userId:', savedOrder.userId);
                 // Send order email to owner immediately after save
                 try {
-                    yield this.emailService.sendOrderEmail(savedOrder);
+                    yield email_service_1.emailService.sendOrderEmail(savedOrder);
                     console.log('✅ OrderService: Order email sent successfully');
                 }
                 catch (emailError) {
@@ -91,6 +91,52 @@ class OrderService {
             }
         });
     }
+    /** Create order from checkout payload (POST /api/orders). Saves to DB, sends admin email, returns saved order. */
+    createOrderFromCheckout(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            const addressStr = typeof payload.address === 'string'
+                ? payload.address
+                : payload.address && typeof payload.address === 'object'
+                    ? [payload.address.city, payload.address.street, payload.address.apartment].filter(Boolean).join(', ')
+                    : '';
+            const orderItems = payload.items.map(item => ({
+                productId: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                category: item.category || this.detectCategoryFromName(item.name),
+                imageUrl: item.imageUrl || item.image || undefined
+            }));
+            const isManual = payload.manualOrder === true;
+            const status = isManual ? 'processing' : 'pending';
+            const customerDetails = {
+                fullName: payload.customerName,
+                phone: payload.phone,
+                email: payload.email,
+                address: addressStr,
+                deliveryMethod: payload.deliveryMethod,
+                eventDate: payload.eventDate,
+                deliveryFee: payload.deliveryFee,
+                subtotal: payload.subtotal,
+                notes: payload.notes
+            };
+            if (isManual && payload.paymentStatus) {
+                customerDetails.isPaid = payload.paymentStatus === 'paid';
+            }
+            const order = new Order_1.default({
+                userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null,
+                customerDetails,
+                items: orderItems,
+                totalPrice: payload.totalAmount,
+                status
+            });
+            const savedOrder = yield order.save();
+            console.log('✅ OrderService: Checkout order saved:', savedOrder._id);
+            // Admin email is sent from order.controller createOrder (nodemailer) so failures don't affect response
+            return savedOrder;
+        });
+    }
     // Get orders by user ID
     getOrdersByUserId(userId) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -106,11 +152,17 @@ class OrderService {
             }
         });
     }
-    // Get all orders with filters (Admin)
+    // Get all orders with filters (Admin). archive=true => isDeleted or cancelled; otherwise active only (isDeleted false).
     getAllOrders(filters) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const query = {};
+                if (filters.archive === true) {
+                    query.$or = [{ isDeleted: true }, { status: 'cancelled' }];
+                }
+                else {
+                    query.isDeleted = { $ne: true };
+                }
                 if (filters.status) {
                     query.status = filters.status;
                 }
@@ -125,8 +177,8 @@ class OrderService {
                 }
                 const total = yield Order_1.default.countDocuments(query);
                 const orders = yield Order_1.default.find(query)
-                    .sort({ createdAt: -1 })
-                    .limit(filters.limit || 50)
+                    .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
+                    .limit(filters.limit || 100)
                     .skip(filters.offset || 0)
                     .lean();
                 return {
@@ -140,19 +192,48 @@ class OrderService {
             }
         });
     }
-    // Get order by ID (with user verification)
+    // Get order by ID (with user verification). Enriches items with imageUrl from menu when missing.
     getOrderById(orderId, userId) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _j;
             try {
                 const order = yield Order_1.default.findOne({
                     _id: orderId,
                     userId: userId
                 }).lean();
+                if (!order || !((_j = order.items) === null || _j === void 0 ? void 0 : _j.length))
+                    return order;
+                yield this.enrichOrderItemsImageUrlPublic(order.items);
                 return order;
             }
             catch (error) {
                 console.error('Error fetching order by ID:', error);
                 throw error;
+            }
+        });
+    }
+    /** Fills imageUrl on each item from MenuItem when missing. Accepts productId as string or ObjectId. */
+    enrichOrderItemsImageUrlPublic(items) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!(items === null || items === void 0 ? void 0 : items.length))
+                return;
+            for (const item of items) {
+                if (item.imageUrl && String(item.imageUrl).trim())
+                    continue;
+                const productId = item.productId;
+                if (!productId)
+                    continue;
+                try {
+                    let product = yield menuItem_1.default.findById(productId).select('imageUrl').lean();
+                    if (!(product === null || product === void 0 ? void 0 : product.imageUrl) && typeof productId === 'string') {
+                        product = yield menuItem_1.default.findOne({ _id: productId }).select('imageUrl').lean();
+                    }
+                    if (product === null || product === void 0 ? void 0 : product.imageUrl)
+                        item.imageUrl = String(product.imageUrl).trim();
+                }
+                catch (_j) {
+                    // ignore single lookup failure
+                }
             }
         });
     }
@@ -176,10 +257,37 @@ class OrderService {
             }
         });
     }
+    /** Dashboard stats: pending count, events today count, monthly revenue. */
+    getDashboardStats() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _j, _k;
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+            const activeQuery = { isDeleted: { $ne: true } };
+            const [pendingCount, eventsTodayCount, monthlyRevenueResult] = yield Promise.all([
+                Order_1.default.countDocuments(Object.assign(Object.assign({}, activeQuery), { status: { $in: ['pending', 'new'] } })),
+                Order_1.default.countDocuments(Object.assign(Object.assign({}, activeQuery), { 'customerDetails.eventDate': todayStr })),
+                Order_1.default.aggregate([
+                    {
+                        $match: {
+                            isDeleted: { $ne: true },
+                            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+                            status: { $ne: 'cancelled' }
+                        }
+                    },
+                    { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+                ])
+            ]);
+            const monthlyRevenue = (_k = (_j = monthlyRevenueResult[0]) === null || _j === void 0 ? void 0 : _j.total) !== null && _k !== void 0 ? _k : 0;
+            return { pendingCount, eventsTodayCount, monthlyRevenue };
+        });
+    }
     // Get order statistics
     getOrderStatistics() {
         return __awaiter(this, arguments, void 0, function* (period = 'month') {
-            var _a;
+            var _j;
             try {
                 const now = new Date();
                 let startDate;
@@ -229,7 +337,7 @@ class OrderService {
                 return {
                     period,
                     totalOrders,
-                    totalRevenue: ((_a = totalRevenue[0]) === null || _a === void 0 ? void 0 : _a.total) || 0,
+                    totalRevenue: ((_j = totalRevenue[0]) === null || _j === void 0 ? void 0 : _j.total) || 0,
                     ordersByStatus: ordersByStatus.reduce((acc, item) => {
                         acc[item._id] = item.count;
                         return acc;
@@ -259,14 +367,41 @@ class OrderService {
         });
     }
     // Delete order
+    // Soft delete: set isDeleted = true
     deleteOrder(orderId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const result = yield Order_1.default.findByIdAndDelete(orderId);
-                return !!result;
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: true } }, { new: true }).lean();
+                return order;
             }
             catch (error) {
                 console.error('Error deleting order:', error);
+                throw error;
+            }
+        });
+    }
+    // Restore order: set isDeleted = false and status = 'pending'
+    restoreOrder(orderId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: false, status: 'pending' } }, { new: true }).lean();
+                return order;
+            }
+            catch (error) {
+                console.error('Error restoring order:', error);
+                throw error;
+            }
+        });
+    }
+    // Permanent delete: remove document from DB (irreversible)
+    permanentDeleteOrder(orderId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const result = yield Order_1.default.findByIdAndDelete(orderId);
+                return result != null;
+            }
+            catch (error) {
+                console.error('Error permanently deleting order:', error);
                 throw error;
             }
         });
@@ -613,102 +748,99 @@ class OrderService {
         }
         return '-';
     }
-    // Get delivery/dispatch report - group active orders by city
-    getDeliveryReport() {
+    /** Build delivery+pickup groups for a single day's orders. */
+    getDeliveryReportForOneDay(dateStr) {
         return __awaiter(this, void 0, void 0, function* () {
-            try {
-                console.log('🚚 Fetching Delivery Report...');
-                // Relax the Status Filter: Include ALL statuses except 'Cancelled'
-                // Query: { status: { $ne: 'cancelled' } } (Show everything active/completed)
-                const query = {
-                    status: { $ne: 'cancelled' }
+            const query = {
+                status: { $ne: 'cancelled' },
+                isDeleted: { $ne: true },
+                'customerDetails.eventDate': dateStr
+            };
+            const activeOrders = yield Order_1.default.find(query).lean();
+            const cityMap = {};
+            const pickupTimeMap = {};
+            for (const order of activeOrders) {
+                const customerDetails = order.customerDetails || {};
+                const deliveryDetails = customerDetails.deliveryDetails || {};
+                const deliveryMethod = customerDetails.deliveryMethod === 'pickup' ? 'pickup' : 'delivery';
+                let city = (deliveryDetails === null || deliveryDetails === void 0 ? void 0 : deliveryDetails.city) || customerDetails.city || customerDetails.deliveryCity || null;
+                if (!city && customerDetails.address) {
+                    const addressParts = customerDetails.address.split(',').map((p) => p.trim());
+                    city = addressParts[addressParts.length - 1] || null;
+                }
+                if (city)
+                    city = city.trim();
+                else
+                    city = 'כתובת לא צוינה';
+                const orderSummary = {
+                    _id: order._id.toString(),
+                    status: order.status || 'pending',
+                    customerDetails: {
+                        name: customerDetails.fullName || 'לא צוין',
+                        phone: customerDetails.phone || 'לא צוין'
+                    },
+                    deliveryDetails: {
+                        address: customerDetails.address || deliveryDetails.address || 'לא צוין',
+                        city: city,
+                        floor: deliveryDetails.floor || customerDetails.floor || null,
+                        comments: customerDetails.notes || deliveryDetails.comments || null
+                    },
+                    totalPrice: order.totalPrice || 0,
+                    isPaid: customerDetails.isPaid || deliveryDetails.isPaid || false,
+                    items: order.items || [],
+                    notes: customerDetails.notes || deliveryDetails.comments || null,
+                    deliveryMethod,
+                    eventDate: customerDetails.eventDate || null,
+                    preferredDeliveryTime: customerDetails.preferredDeliveryTime || null
                 };
-                console.log('🚚 OrderService: Starting delivery report generation');
-                console.log('🚚 OrderService: Query filter:', JSON.stringify(query));
-                // Find all orders except cancelled
-                const activeOrders = yield Order_1.default.find(query).lean();
-                console.log('Found orders:', activeOrders.length);
-                if (activeOrders.length === 0) {
-                    console.log('⚠️ No orders found (excluding cancelled)');
-                    return [];
+                if (deliveryMethod === 'pickup') {
+                    const timeSlot = orderSummary.preferredDeliveryTime || 'לא צוין';
+                    if (!pickupTimeMap[timeSlot])
+                        pickupTimeMap[timeSlot] = [];
+                    pickupTimeMap[timeSlot].push(orderSummary);
                 }
-                // Log sample order structure for debugging
-                if (activeOrders.length > 0) {
-                    console.log('🚚 Sample order structure:', JSON.stringify(activeOrders[0], null, 2));
-                }
-                // Group orders by city
-                const cityMap = {};
-                for (const order of activeOrders) {
-                    // Extract city from customerDetails or deliveryDetails
-                    // Try multiple possible locations for city
-                    // Ensure the code doesn't crash if deliveryDetails is undefined
-                    const customerDetails = order.customerDetails || {};
-                    const deliveryDetails = customerDetails.deliveryDetails || {};
-                    console.log('🚚 Processing order:', order._id);
-                    console.log('🚚 Order customerDetails:', JSON.stringify(customerDetails, null, 2));
-                    console.log('🚚 Order deliveryDetails:', JSON.stringify(deliveryDetails, null, 2));
-                    // Get city from various possible locations
-                    let city = (deliveryDetails === null || deliveryDetails === void 0 ? void 0 : deliveryDetails.city) ||
-                        customerDetails.city ||
-                        customerDetails.deliveryCity ||
-                        null;
-                    // If city is not found, try to extract from address
-                    if (!city && customerDetails.address) {
-                        // Simple extraction: try to get city from address string
-                        // This is a fallback - ideally city should be stored separately
-                        const addressParts = customerDetails.address.split(',').map((p) => p.trim());
-                        // Assume last part might be city, or look for common city patterns
-                        city = addressParts[addressParts.length - 1] || null;
-                        console.log('🚚 Extracted city from address:', city);
-                    }
-                    // Normalize city name (trim whitespace, handle case variations)
-                    if (city) {
-                        city = city.trim();
-                        // Optional: normalize common variations (e.g., "Haifa" vs "חיפה")
-                        // For now, just use as-is
-                    }
-                    else {
-                        // Handle missing cities: If order.deliveryDetails.city is missing/null, 
-                        // group it under 'כללי / איסוף עצמי' (General/Pickup)
-                        city = 'כללי / איסוף עצמי';
-                        console.log('🚚 No city found, using default:', city);
-                    }
-                    // Create order summary with only necessary info
-                    const orderSummary = {
-                        _id: order._id.toString(),
-                        customerDetails: {
-                            name: customerDetails.fullName || 'לא צוין',
-                            phone: customerDetails.phone || 'לא צוין'
-                        },
-                        deliveryDetails: {
-                            address: customerDetails.address || deliveryDetails.address || 'לא צוין',
-                            city: city,
-                            floor: deliveryDetails.floor || customerDetails.floor || null,
-                            comments: customerDetails.notes || deliveryDetails.comments || null
-                        },
-                        totalPrice: order.totalPrice || 0,
-                        isPaid: customerDetails.isPaid || deliveryDetails.isPaid || false
-                    };
-                    // Add to city group
-                    if (!cityMap[city]) {
+                else {
+                    if (!cityMap[city])
                         cityMap[city] = [];
-                    }
                     cityMap[city].push(orderSummary);
                 }
-                // Convert map to array format
-                const report = Object.keys(cityMap).map(city => ({
-                    city: city,
-                    orders: cityMap[city]
-                }));
-                // Sort by city name
-                report.sort((a, b) => a.city.localeCompare(b.city));
-                console.log('🚚 OrderService: Delivery report generated:', report.length, 'cities');
-                console.log('🚚 OrderService: Sample report:', JSON.stringify(report.slice(0, 2), null, 2));
-                return report;
+            }
+            const deliveryByCity = Object.keys(cityMap)
+                .map(city => ({ city, orders: cityMap[city] }))
+                .sort((a, b) => a.city.localeCompare(b.city));
+            const pickupByTime = Object.keys(pickupTimeMap)
+                .map(time => ({ time, orders: pickupTimeMap[time] }))
+                .sort((a, b) => a.time.localeCompare(b.time));
+            return { deliveryByCity, pickupByTime };
+        });
+    }
+    /** Get delivery report for a single day or a date range. Returns days keyed by YYYY-MM-DD. */
+    getDeliveryReport(fromDate, toDate) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const norm = (d) => (d && d.indexOf('T') >= 0 ? d.slice(0, 10) : d) || '';
+                const from = norm(fromDate || '');
+                const to = norm(toDate || '');
+                const dateStrings = [];
+                if (from && to) {
+                    const start = new Date(from);
+                    const end = new Date(to);
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                        dateStrings.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+                    }
+                }
+                else if (from) {
+                    dateStrings.push(from);
+                }
+                const days = {};
+                for (const dateStr of dateStrings) {
+                    days[dateStr] = yield this.getDeliveryReportForOneDay(dateStr);
+                }
+                console.log('🚚 Delivery report: days', Object.keys(days).length);
+                return { days };
             }
             catch (error) {
                 console.error('❌ Error generating delivery report:', error);
-                console.error('❌ Error stack:', error.stack);
                 throw new Error(`Failed to generate delivery report: ${error.message}`);
             }
         });

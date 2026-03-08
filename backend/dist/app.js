@@ -19,20 +19,26 @@ const agent_routes_1 = __importDefault(require("./routes/agent.routes"));
 const gallery_routes_1 = __importDefault(require("./routes/gallery.routes"));
 const video_routes_1 = __importDefault(require("./routes/video.routes"));
 const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
+const delivery_routes_1 = __importDefault(require("./routes/delivery.routes"));
+const user_routes_1 = __importDefault(require("./routes/user.routes"));
 // Import middleware
 const errorHandler_1 = require("./middleware/errorHandler");
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
 const app = (0, express_1.default)();
 // Force CORS Headers - MUST be first, before any other middleware
-// Allow ANY origin to ensure Vercel and other frontends work immediately
+// Allow ALL origins temporarily to rule out CORS issues
 app.use((req, res, next) => {
-    // Allow all origins for now to ensure Vercel works immediately
-    res.header("Access-Control-Allow-Origin", "*");
+    // Allow all origins - reflect the request origin
+    const origin = req.headers.origin;
+    if (origin) {
+        res.header("Access-Control-Allow-Origin", origin);
+    }
+    else {
+        res.header("Access-Control-Allow-Origin", "*");
+    }
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-    // Note: Cannot use credentials: true with origin: '*' (browser security requirement)
-    // Set to false when using wildcard origin
-    // res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Credentials", "true");
     // Handle preflight requests immediately
     if (req.method === 'OPTIONS') {
         res.sendStatus(200);
@@ -114,6 +120,8 @@ app.use('/api/agent', agent_routes_1.default);
 app.use('/api/gallery', gallery_routes_1.default);
 app.use('/api/videos', video_routes_1.default);
 app.use('/api/settings', settings_routes_1.default);
+app.use('/api/delivery', delivery_routes_1.default);
+app.use('/api/users', user_routes_1.default);
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({
@@ -134,7 +142,8 @@ app.get('/', (req, res) => {
             agent: '/api/agent',
             gallery: '/api/gallery',
             videos: '/api/videos',
-            settings: '/api/settings'
+            settings: '/api/settings',
+            delivery: '/api/delivery'
         },
         documentation: 'Visit /api for more information'
     });
@@ -156,7 +165,8 @@ app.get('/api', (req, res) => {
             agent: '/api/agent',
             gallery: '/api/gallery',
             videos: '/api/videos',
-            settings: '/api/settings'
+            settings: '/api/settings',
+            delivery: '/api/delivery'
         },
         documentation: 'Contact info@megadim-catering.com for API documentation'
     });

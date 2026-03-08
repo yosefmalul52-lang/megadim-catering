@@ -11,11 +11,11 @@ router.get('/', asyncHandler(settingsController.getSettings as any));
 router.put('/', authenticate, authorize('admin'), asyncHandler(settingsController.updateSettings as any));
 
 // Public – global store settings (freeShippingThreshold, baseDeliveryFee, pricePerKm) for shipping dashboard
-router.get('/store', settingsController.getStoreSettings);
+router.get('/store', asyncHandler(settingsController.getStoreSettings as any));
 router.put('/store', authenticate, authorize('admin'), asyncHandler(settingsController.updateStoreSettings as any));
 
-// Public – delivery / free-shipping store settings (allowed days, minimum lead, etc.)
-router.get('/delivery', settingsController.getDeliverySettings);
+// Public – delivery / free-shipping store settings (allowed days, minimum lead, etc.). GET /api/settings/delivery
+router.get('/delivery', asyncHandler(settingsController.getDeliverySettings as any));
 router.put('/delivery', authenticate, authorize('admin'), asyncHandler(settingsController.updateDeliverySettings as any));
 
 export default router;

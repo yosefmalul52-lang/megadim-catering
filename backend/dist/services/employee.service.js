@@ -30,7 +30,7 @@ class EmployeeService {
                 });
                 // Map employees with status
                 const employeesWithStatus = employees.map((emp) => {
-                    var _a;
+                    var _j;
                     const attendance = attendanceMap.get(emp._id.toString());
                     return {
                         _id: emp._id.toString(),
@@ -43,7 +43,7 @@ class EmployeeService {
                         isActive: emp.isActive,
                         pinCode: emp.pinCode,
                         isClockedIn: !!attendance,
-                        currentShiftId: (_a = attendance === null || attendance === void 0 ? void 0 : attendance._id) === null || _a === void 0 ? void 0 : _a.toString(),
+                        currentShiftId: (_j = attendance === null || attendance === void 0 ? void 0 : attendance._id) === null || _j === void 0 ? void 0 : _j.toString(),
                         createdAt: emp.createdAt,
                         updatedAt: emp.updatedAt
                     };

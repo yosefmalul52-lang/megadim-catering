@@ -126,9 +126,9 @@ class EmployeeController {
         }));
         // Get my stats (for employee self-service)
         this.getMyStats = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _j;
             try {
-                const employeeId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                const employeeId = (_j = req.user) === null || _j === void 0 ? void 0 : _j.id;
                 const month = req.query.month;
                 if (!employeeId) {
                     return res.status(401).json({

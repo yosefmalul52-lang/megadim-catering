@@ -11,12 +11,178 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrderController = void 0;
 const order_service_1 = require("../services/order.service");
+const email_service_1 = require("../services/email.service");
+const coupon_service_1 = require("../services/coupon.service");
 const errorHandler_1 = require("../middleware/errorHandler");
+const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 class OrderController {
     constructor() {
+        /** POST /send – send order summary to business email (and optionally open WhatsApp from client). */
+        this.sendOrder = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            const body = req.body;
+            if (!body.customerName || typeof body.customerName !== 'string' || !body.customerName.trim()) {
+                throw (0, errorHandler_1.createValidationError)('customerName is required');
+            }
+            if (!body.phone || typeof body.phone !== 'string' || !body.phone.trim()) {
+                throw (0, errorHandler_1.createValidationError)('phone is required');
+            }
+            if (!body.deliveryType || !['pickup', 'delivery'].includes(body.deliveryType)) {
+                throw (0, errorHandler_1.createValidationError)('deliveryType must be "pickup" or "delivery"');
+            }
+            if (body.deliveryType === 'delivery' && (!body.address || typeof body.address !== 'string' || !body.address.trim())) {
+                throw (0, errorHandler_1.createValidationError)('address is required when deliveryType is "delivery"');
+            }
+            if (!Array.isArray(body.items) || body.items.length === 0) {
+                throw (0, errorHandler_1.createValidationError)('items array is required and must not be empty');
+            }
+            for (let i = 0; i < body.items.length; i++) {
+                const item = body.items[i];
+                if (!item.name || item.quantity == null || item.price == null) {
+                    throw (0, errorHandler_1.createValidationError)(`items[${i}] must have name, quantity, and price`);
+                }
+            }
+            if (typeof body.total !== 'number' || body.total < 0) {
+                throw (0, errorHandler_1.createValidationError)('total must be a non-negative number');
+            }
+            if (body.customerEmail !== undefined && body.customerEmail !== null && typeof body.customerEmail === 'string' && body.customerEmail.trim() !== '' && !isValidEmail(body.customerEmail.trim())) {
+                throw (0, errorHandler_1.createValidationError)('customerEmail must be a valid email address');
+            }
+            const emailUser = (process.env.EMAIL_USER || '').trim();
+            const emailPass = process.env.EMAIL_PASS;
+            const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+            if (!emailUser || !emailPass) {
+                console.error('EMAIL_USER or EMAIL_PASS not set – cannot send order email');
+                return res.status(503).json({
+                    success: false,
+                    message: 'Email service is not configured',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            if (!ownerEmail) {
+                console.error('OWNER_EMAIL not set – cannot send order email');
+                return res.status(503).json({
+                    success: false,
+                    message: 'Owner email is not configured (OWNER_EMAIL)',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            try {
+                // Pass customerEmail from frontend req.body so receipt is sent when provided
+                const customerEmailFromBody = typeof body.customerEmail === 'string' ? body.customerEmail.trim() : undefined;
+                yield email_service_1.emailService.sendOrderEmails(body, ownerEmail, customerEmailFromBody || undefined);
+                res.status(200).json({
+                    success: true,
+                    message: 'Order sent to owner and customer (if email provided)',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            catch (sendErr) {
+                console.error('Error sending order email:', (sendErr === null || sendErr === void 0 ? void 0 : sendErr.message) || sendErr);
+                const isConfigError = (_j = sendErr === null || sendErr === void 0 ? void 0 : sendErr.message) === null || _j === void 0 ? void 0 : _j.includes('not configured');
+                res.status(isConfigError ? 503 : 500).json({
+                    success: false,
+                    message: isConfigError ? 'Email service is not configured' : 'Error sending email',
+                    error: (sendErr === null || sendErr === void 0 ? void 0 : sendErr.message) || String(sendErr),
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }));
+        /** POST /api/orders – create order from checkout (place order). Saves to DB, sends admin email, returns created order. */
+        this.createOrder = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k;
+            const body = req.body;
+            if (!body.customerName || typeof body.customerName !== 'string' || !body.customerName.trim()) {
+                throw (0, errorHandler_1.createValidationError)('customerName is required');
+            }
+            if (!body.phone || typeof body.phone !== 'string' || !body.phone.trim()) {
+                throw (0, errorHandler_1.createValidationError)('phone is required');
+            }
+            if (!body.deliveryMethod || !['delivery', 'pickup'].includes(body.deliveryMethod)) {
+                throw (0, errorHandler_1.createValidationError)('deliveryMethod must be "delivery" or "pickup"');
+            }
+            if (body.deliveryMethod === 'delivery') {
+                const addr = body.address;
+                const hasAddress = typeof addr === 'string' ? !!(addr === null || addr === void 0 ? void 0 : addr.trim()) : (addr && (!!((_j = addr.city) === null || _j === void 0 ? void 0 : _j.trim()) || !!((_k = addr.street) === null || _k === void 0 ? void 0 : _k.trim())));
+                if (!hasAddress) {
+                    throw (0, errorHandler_1.createValidationError)('address (city and/or street) is required when deliveryMethod is "delivery"');
+                }
+            }
+            if (!Array.isArray(body.items) || body.items.length === 0) {
+                throw (0, errorHandler_1.createValidationError)('items array is required and must not be empty');
+            }
+            if (typeof body.subtotal !== 'number' || body.subtotal < 0) {
+                throw (0, errorHandler_1.createValidationError)('subtotal must be a non-negative number');
+            }
+            if (typeof body.deliveryFee !== 'number' || body.deliveryFee < 0) {
+                throw (0, errorHandler_1.createValidationError)('deliveryFee must be a non-negative number');
+            }
+            if (typeof body.totalAmount !== 'number' || body.totalAmount < 0) {
+                throw (0, errorHandler_1.createValidationError)('totalAmount must be a non-negative number');
+            }
+            if (body.email && !isValidEmail(body.email)) {
+                throw (0, errorHandler_1.createValidationError)('email must be a valid email address');
+            }
+            let couponIdToIncrement = null;
+            if (body.couponCode && typeof body.couponCode === 'string' && body.couponCode.trim()) {
+                const cartTotal = (Number(body.subtotal) || 0) + (Number(body.deliveryFee) || 0);
+                const couponResult = yield (0, coupon_service_1.validateAndApplyCoupon)(body.couponCode.trim(), cartTotal);
+                if (!couponResult.valid) {
+                    throw (0, errorHandler_1.createValidationError)(COUPON_VAGUE_ERROR);
+                }
+                body.totalAmount = couponResult.newTotal;
+                couponIdToIncrement = couponResult.couponId;
+            }
+            const user = req.user;
+            const userId = user ? (user._id || user.id) : null;
+            body.userId = userId;
+            const savedOrder = yield this.orderService.createOrderFromCheckout(body);
+            if (couponIdToIncrement) {
+                yield (0, coupon_service_1.incrementCouponUsage)(couponIdToIncrement);
+            }
+            // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
+            try {
+                const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+                if (ownerEmail) {
+                    const addressStr = typeof body.address === 'string'
+                        ? body.address
+                        : body.address && typeof body.address === 'object'
+                            ? [body.address.city, body.address.street, body.address.apartment].filter(Boolean).join(', ')
+                            : undefined;
+                    const orderDataForEmail = {
+                        customerName: body.customerName,
+                        phone: body.phone,
+                        customerEmail: body.email,
+                        eventDate: body.eventDate,
+                        deliveryType: body.deliveryMethod,
+                        address: addressStr,
+                        notes: body.notes,
+                        items: body.items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price })),
+                        total: body.totalAmount
+                    };
+                    yield email_service_1.emailService.sendOrderEmails(orderDataForEmail, ownerEmail, body.email);
+                    console.log('Order emails sent: admin + customer receipt');
+                }
+                else {
+                    console.warn('OWNER_EMAIL not set – skipping order emails');
+                }
+            }
+            catch (emailErr) {
+                console.error('Email failed to send, but order was saved:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
+            }
+            res.status(201).json({
+                success: true,
+                orderId: savedOrder._id.toString(),
+                order: savedOrder.toObject ? savedOrder.toObject() : savedOrder,
+                message: 'Order created successfully'
+            });
+        }));
         // Submit new order (checkout)
         this.submitOrder = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            var _a;
+            var _j;
             // Log the incoming request for debugging
             console.log('📥 Received order request:', JSON.stringify(req.body, null, 2));
             console.log('📥 Request headers:', req.headers);
@@ -48,7 +214,7 @@ class OrderController {
                     hasCustomerName: !!orderData.customerName,
                     hasPhone: !!orderData.phone,
                     hasItems: !!orderData.items,
-                    itemsLength: ((_a = orderData.items) === null || _a === void 0 ? void 0 : _a.length) || 0,
+                    itemsLength: ((_j = orderData.items) === null || _j === void 0 ? void 0 : _j.length) || 0,
                     orderData: JSON.stringify(orderData, null, 2)
                 });
                 throw (0, errorHandler_1.createValidationError)('Customer name, phone, and items are required');
@@ -136,15 +302,16 @@ class OrderController {
                 timestamp: new Date().toISOString()
             });
         }));
-        // Get all orders (Admin only)
+        // Get all orders (Admin only). ?archive=1 returns archived/cancelled orders.
         this.getAllOrders = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            const { status, limit, offset, startDate, endDate } = req.query;
+            const { status, limit, offset, startDate, endDate, archive } = req.query;
             const filters = {
                 status: status,
-                limit: limit ? parseInt(limit, 10) : 50,
+                limit: limit ? parseInt(limit, 10) : 100,
                 offset: offset ? parseInt(offset, 10) : 0,
                 startDate: startDate ? new Date(startDate) : undefined,
-                endDate: endDate ? new Date(endDate) : undefined
+                endDate: endDate ? new Date(endDate) : undefined,
+                archive: archive === '1' || archive === 'true'
             };
             const { orders, total } = yield this.orderService.getAllOrders(filters);
             res.status(200).json({
@@ -161,9 +328,9 @@ class OrderController {
         }));
         // Get order by ID (protected - user can only access their own orders)
         this.getOrderById = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
+            var _j, _k;
             const { id } = req.params;
-            const userId = ((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.user) === null || _b === void 0 ? void 0 : _b._id);
+            const userId = ((_j = req.user) === null || _j === void 0 ? void 0 : _j.id) || ((_k = req.user) === null || _k === void 0 ? void 0 : _k._id);
             if (!id) {
                 throw (0, errorHandler_1.createValidationError)('Order ID is required');
             }
@@ -194,7 +361,7 @@ class OrderController {
             if (!status) {
                 throw (0, errorHandler_1.createValidationError)('Status is required');
             }
-            const validStatuses = ['new', 'in-progress', 'ready', 'delivered', 'cancelled'];
+            const validStatuses = ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'];
             if (!validStatuses.includes(status)) {
                 throw (0, errorHandler_1.createValidationError)('Invalid status value');
             }
@@ -206,10 +373,27 @@ class OrderController {
             if (!updatedOrder) {
                 throw (0, errorHandler_1.createNotFoundError)('Order');
             }
+            if (status === 'processing') {
+                try {
+                    yield email_service_1.emailService.sendOrderApprovedToCustomer(updatedOrder);
+                }
+                catch (emailErr) {
+                    console.error('Order status updated to processing but approval email failed:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
+                }
+            }
             res.status(200).json({
                 success: true,
                 data: updatedOrder,
-                message: 'Order status updated successfully',
+                message: status === 'processing' ? 'Order approved and customer notified' : 'Order status updated successfully',
+                timestamp: new Date().toISOString()
+            });
+        }));
+        /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
+        this.getDashboardStats = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const stats = yield this.orderService.getDashboardStats();
+            res.status(200).json({
+                success: true,
+                data: stats,
                 timestamp: new Date().toISOString()
             });
         }));
@@ -234,7 +418,7 @@ class OrderController {
                 timestamp: new Date().toISOString()
             });
         }));
-        // Delete order (Admin only)
+        // Delete order (Admin only) – soft delete
         this.deleteOrder = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             const { id } = req.params;
             if (!id) {
@@ -247,6 +431,39 @@ class OrderController {
             res.status(200).json({
                 success: true,
                 message: 'Order deleted successfully',
+                timestamp: new Date().toISOString()
+            });
+        }));
+        // Restore order (Admin only) – set isDeleted: false, status: 'pending'
+        this.restoreOrder = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const { id } = req.params;
+            if (!id) {
+                throw (0, errorHandler_1.createValidationError)('Order ID is required');
+            }
+            const order = yield this.orderService.restoreOrder(id);
+            if (!order) {
+                throw (0, errorHandler_1.createNotFoundError)('Order');
+            }
+            res.status(200).json({
+                success: true,
+                data: order,
+                message: 'Order restored successfully',
+                timestamp: new Date().toISOString()
+            });
+        }));
+        // Permanent delete (Admin only) – remove document from DB, irreversible
+        this.permanentDeleteOrder = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const { id } = req.params;
+            if (!id) {
+                throw (0, errorHandler_1.createValidationError)('Order ID is required');
+            }
+            const deleted = yield this.orderService.permanentDeleteOrder(id);
+            if (!deleted) {
+                throw (0, errorHandler_1.createNotFoundError)('Order');
+            }
+            res.status(200).json({
+                success: true,
+                message: 'Order permanently deleted',
                 timestamp: new Date().toISOString()
             });
         }));
@@ -313,10 +530,15 @@ class OrderController {
                 });
             }
         }));
-        // Get delivery/dispatch report - group active orders by city
+        // Get delivery/dispatch report - ?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD (range) or ?date=YYYY-MM-DD (single)
         this.getDeliveryReport = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const report = yield this.orderService.getDeliveryReport();
+                const from = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
+                const to = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
+                const single = typeof req.query.date === 'string' ? req.query.date : undefined;
+                const fromDate = from || (single && !to ? single : undefined);
+                const toDate = to || (single && !from ? single : undefined);
+                const report = yield this.orderService.getDeliveryReport(fromDate, toDate);
                 res.status(200).json({
                     success: true,
                     data: report

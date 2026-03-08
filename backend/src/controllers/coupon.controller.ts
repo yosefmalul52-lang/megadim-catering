@@ -123,15 +123,18 @@ export async function applyCoupon(req: Request, res: Response): Promise<void> {
     const codeStr = typeof code === 'string' ? code.trim() : '';
     const total = Number(cartTotal);
     if (!codeStr) {
-      return res.status(400).json({ success: false, message: 'Code is required' });
+      res.status(400).json({ success: false, message: 'Code is required' });
+      return;
     }
     if (typeof total !== 'number' || isNaN(total) || total < 0) {
-      return res.status(400).json({ success: false, message: 'cartTotal must be a non-negative number' });
+      res.status(400).json({ success: false, message: 'cartTotal must be a non-negative number' });
+      return;
     }
 
     const result = await validateAndApplyCoupon(codeStr, total);
     if (!result.valid) {
-      return res.status(404).json({ success: false, message: (result as any).message });
+      res.status(404).json({ success: false, message: (result as any).message });
+      return;
     }
 
     res.json({

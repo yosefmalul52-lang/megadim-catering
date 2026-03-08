@@ -68,8 +68,13 @@ const OrderSchema = new mongoose_1.Schema({
     },
     status: {
         type: String,
-        enum: ['new', 'in-progress', 'ready', 'delivered', 'cancelled'],
-        default: 'new'
+        enum: ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'],
+        default: 'pending'
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false,
+        index: true
     }
 }, {
     timestamps: true,

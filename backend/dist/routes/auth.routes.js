@@ -64,24 +64,24 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 message: 'פרטי התחברות שגויים'
             });
         }
-        // Create Token
+        // Create Token (7 days – balance of security and e‑commerce UX)
         const payload = { id: user._id, role: user.role };
         console.log('🔍 Creating JWT token with payload:', {
             id: payload.id,
             idString: String(payload.id),
             role: payload.role
         });
-        const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+        const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: '2h' });
         console.log('✅ JWT token created successfully');
+        // Return user without password (sanitized)
+        const userResponse = yield User.findById(user._id).select('-password').lean();
+        const safeUser = userResponse
+            ? { id: userResponse._id, fullName: userResponse.fullName, username: userResponse.username, role: userResponse.role }
+            : { id: user._id, fullName: user.fullName, username: user.username, role: user.role };
         return res.json({
             success: true,
             token,
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                username: user.username,
-                role: user.role
-            }
+            user: safeUser
         });
     }
     catch (err) {
@@ -120,18 +120,18 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
             role: 'user' // Default role
         });
         yield user.save();
-        // Create Token
+        // Create Token (7 days)
         const payload = { id: user._id, role: user.role };
-        const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+        const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: '2h' });
+        // Return user without password (sanitized)
+        const userResponse = yield User.findById(user._id).select('-password').lean();
+        const safeUser = userResponse
+            ? { id: userResponse._id, fullName: userResponse.fullName, username: userResponse.username, role: userResponse.role }
+            : { id: user._id, fullName, username: user.username, role: 'user' };
         return res.json({
             success: true,
             token,
-            user: {
-                id: user._id,
-                fullName,
-                username: user.username,
-                role: 'user'
-            }
+            user: safeUser
         });
     }
     catch (err) {

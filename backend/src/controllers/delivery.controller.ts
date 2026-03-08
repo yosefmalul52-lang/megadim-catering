@@ -35,9 +35,11 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
       const isFreeShippingActive = !!storeSettings?.isFreeShippingActive;
       const flatFee = typeof (storeSettings as any)?.baseDeliveryFee === 'number' ? (storeSettings as any).baseDeliveryFee : 50;
       if (isFreeShippingActive && cartTotalNum >= freeShippingThreshold) {
-        return res.status(200).json({ distance: 0, price: 0, originalPrice: flatFee, isFree: true });
+        res.status(200).json({ distance: 0, price: 0, originalPrice: flatFee, isFree: true });
+        return;
       }
-      return res.status(200).json({ distance: 0, price: flatFee, isFree: false });
+      res.status(200).json({ distance: 0, price: flatFee, isFree: false });
+      return;
     }
 
     const result = await calculateDeliveryFee(destinationCity);
@@ -52,12 +54,13 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
 
     // Priority 1: Free shipping above threshold (only when in delivery area)
     if (isFreeShippingActive && cartTotalNum >= freeShippingThreshold) {
-      return res.status(200).json({
+      res.status(200).json({
         distance: result.distance,
         price: 0,
         originalPrice: result.price,
         isFree: true
       });
+      return;
     }
 
     res.status(200).json({
@@ -65,6 +68,7 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
       price: result.price,
       isFree: false
     });
+    return;
   } catch (err: any) {
     console.error('❌ [Delivery Controller Error] Crash occurred in calculateFee:');
     if (err?.response) {
@@ -82,6 +86,7 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
       error: 'שגיאת שרת פנימית בחישוב המשלוח',
       ...(details && { details })
     });
+    return;
   }
 }
 
@@ -102,7 +107,8 @@ export async function createPricing(req: Request, res: Response): Promise<void> 
     const { minDistanceKm, maxDistanceKm, price } = req.body ?? {};
 
     if (minDistanceKm === undefined || maxDistanceKm === undefined || price === undefined) {
-      return res.status(400).json({ error: 'נא למלא את כל השדות: ממרחק, עד מרחק, ומחיר.' });
+      res.status(400).json({ error: 'נא למלא את כל השדות: ממרחק, עד מרחק, ומחיר.' });
+      return;
     }
 
     const min = Number(minDistanceKm);
@@ -110,19 +116,22 @@ export async function createPricing(req: Request, res: Response): Promise<void> 
     const prc = Number(price);
 
     if (Number.isNaN(min) || Number.isNaN(max) || Number.isNaN(prc)) {
-      return res.status(400).json({ error: 'הערכים חייבים להיות מספרים תקינים.' });
+      res.status(400).json({ error: 'הערכים חייבים להיות מספרים תקינים.' });
+      return;
     }
 
     const newTier = new DeliveryPricing({ minDistanceKm: min, maxDistanceKm: max, price: prc, isActive: true });
     const savedTier = await newTier.save();
 
-    return res.status(201).json(savedTier);
+    res.status(201).json(savedTier);
+    return;
   } catch (error: any) {
     console.error('❌ [Create Pricing Tier Error]:', error);
-    return res.status(500).json({
+    res.status(500).json({
       error: 'שגיאת שרת פנימית בעת שמירת אזור החלוקה',
       details: error?.message
     });
+    return;
   }
 }
 
