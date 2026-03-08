@@ -14,18 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailService = exports.EmailService = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const path_1 = __importDefault(require("path"));
-// Load email templates from same dir as this file (avoids "Cannot find module" on Render when cwd differs)
-const emailTemplates = (function () {
-    try {
-        return require(path_1.default.join(__dirname, 'email-templates'));
-    }
-    catch (err) {
-        console.error('Failed to load email-templates module:', (err === null || err === void 0 ? void 0 : err.message) || err);
-        throw new Error('Missing email-templates. Ensure backend/src/services/email-templates.ts exists and backend build produced dist/services/email-templates.js.');
-    }
-})();
-const { generateAdminEmailHtml, generateCustomerEmailHtml } = emailTemplates;
+const email_templates_1 = require("./email-templates");
 /** Single source of truth: EMAIL_HOST, EMAIL_PORT (default 587), EMAIL_USER, EMAIL_PASS */
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
 const EMAIL_PASS = process.env.EMAIL_PASS;
@@ -91,8 +80,8 @@ class EmailService {
                 })),
                 totalPrice: orderData.total
             };
-            const ownerHtml = generateAdminEmailHtml(templateData);
-            const customerHtml = generateCustomerEmailHtml(templateData);
+            const ownerHtml = (0, email_templates_1.generateAdminEmailHtml)(templateData);
+            const customerHtml = (0, email_templates_1.generateCustomerEmailHtml)(templateData);
             // 1. Send Order Details to the Business Owner (Office)
             try {
                 yield this.transporter.sendMail({
