@@ -138,12 +138,12 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/videos', videoRoutes);
-app.use('/api/settings', settingsRoutes);
+app.use('/api/settings', settingsRoutes); // Must be before wildcard/404 handler
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/users', userRoutes);
 
-// 404 handler for undefined routes (must be after all routes)
+// 404 handler for undefined routes (must be after all API routes above)
 app.use('*', notFoundHandler);
 
 // Global Error Handler (must be last)
