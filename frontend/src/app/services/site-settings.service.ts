@@ -136,12 +136,17 @@ export class SiteSettingsService {
         this.settingsSubject.next(settings);
         this.isLoadingSubject.next(false);
       }),
-      catchError(() => {
+      catchError((err) => {
         this.isLoadingSubject.next(false);
+        console.warn(
+          'Backend /api/settings unavailable (e.g. 404 or network error). Using default fallback settings.',
+          err?.status ?? err?.message ?? err
+        );
         const defaultSettings: SiteSettings = {
           shabbatMenuUrl: '',
           eventsMenuUrl: '',
-          contactPhone: '',
+          contactPhone: '052-8240230',
+          orderEmail: '',
           whatsappLink: '',
           cholentForceOpen: false,
           cholentCustomMessage: '',
