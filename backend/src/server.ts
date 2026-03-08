@@ -123,7 +123,7 @@ connectDatabase().catch((err) => {
   process.exit(1);
 });
 
-// API routes
+// API routes – ALL must be registered BEFORE the wildcard 404 handler below
 app.use('/api/menu', menuRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/order', orderRoutes);
@@ -138,12 +138,12 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/videos', videoRoutes);
-app.use('/api/settings', settingsRoutes); // Must be before wildcard/404 handler
+app.use('/api/settings', settingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/users', userRoutes);
 
-// 404 handler for undefined routes (must be after all API routes above)
+// 404 handler – must come AFTER all API routes above (otherwise /api/settings etc. would 404)
 app.use('*', notFoundHandler);
 
 // Global Error Handler (must be last)
@@ -162,6 +162,7 @@ app.use((err: any, req: any, res: any, next: any) => {
 // Start Server
 app.listen(PORT, async () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log('📡 API routes registered: /api/health, /api/settings, /api/menu, /api/order, ...');
 
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     try {
