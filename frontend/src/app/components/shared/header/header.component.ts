@@ -62,8 +62,8 @@ export class HeaderComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Set default language for TranslateService
-    this.translateService.setDefaultLang('he');
+    // Set fallback language (replaces deprecated setDefaultLang)
+    this.translateService.setFallbackLang('he');
     this.translateService.use('he');
     
     // Subscribe to language changes

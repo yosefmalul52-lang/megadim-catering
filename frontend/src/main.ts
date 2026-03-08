@@ -59,10 +59,10 @@ bootstrapApplication(AppComponent, {
       maxOpened: 3,
       autoDismiss: true
     }),
-    // Configure ngx-translate
+    // Configure ngx-translate (fallbackLang replaces deprecated defaultLanguage / useDefaultLang)
     importProvidersFrom(
       TranslateModule.forRoot({
-        defaultLanguage: 'he',
+        fallbackLang: 'he',
         loader: {
           provide: TranslateLoader,
           useFactory: HttpLoaderFactory,
