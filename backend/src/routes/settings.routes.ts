@@ -6,8 +6,8 @@ const router = Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const settingsController = new SettingsController();
 
-// Public – site settings (contact, menus, announcements)
-router.get('/', settingsController.getSettings);
+// Public – site settings (contact, menus, announcements). GET /api/settings
+router.get('/', asyncHandler(settingsController.getSettings as any));
 router.put('/', authenticate, authorize('admin'), asyncHandler(settingsController.updateSettings as any));
 
 // Public – global store settings (freeShippingThreshold, baseDeliveryFee, pricePerKm) for shipping dashboard
