@@ -10,19 +10,25 @@ import {
   updateCityOverride,
   deleteCityOverride
 } from '../controllers/delivery.controller';
+import { asyncHandler } from '../middleware/errorHandler';
 
 const router = Router();
 
-router.post('/calculate-fee', postCalculateFee);
+/** GET /api/delivery – delivery options / health; ensures GET /api/delivery does not 404 */
+router.get('/', (req, res) => {
+  res.status(200).json({ success: true, message: 'Delivery API', calculateFee: 'POST /calculate-fee' });
+});
 
-router.get('/pricing', getPricing);
-router.post('/pricing', createPricing);
-router.put('/pricing/:id', updatePricing);
-router.delete('/pricing/:id', deletePricing);
+router.post('/calculate-fee', asyncHandler(postCalculateFee as any));
 
-router.get('/cities', getCityOverrides);
-router.post('/cities', createCityOverride);
-router.put('/cities/:id', updateCityOverride);
-router.delete('/cities/:id', deleteCityOverride);
+router.get('/pricing', asyncHandler(getPricing as any));
+router.post('/pricing', asyncHandler(createPricing as any));
+router.put('/pricing/:id', asyncHandler(updatePricing as any));
+router.delete('/pricing/:id', asyncHandler(deletePricing as any));
+
+router.get('/cities', asyncHandler(getCityOverrides as any));
+router.post('/cities', asyncHandler(createCityOverride as any));
+router.put('/cities/:id', asyncHandler(updateCityOverride as any));
+router.delete('/cities/:id', asyncHandler(deleteCityOverride as any));
 
 export default router;

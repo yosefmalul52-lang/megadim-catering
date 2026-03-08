@@ -123,7 +123,10 @@ connectDatabase().catch((err) => {
   process.exit(1);
 });
 
-// API routes – ALL must be registered BEFORE the wildcard 404 handler below
+// API routes – ALL must be registered BEFORE the wildcard 404 handler below.
+// CRITICAL: /api/settings and /api/delivery are registered FIRST so checkout never gets 404.
+app.use('/api/settings', settingsRoutes);
+app.use('/api/delivery', deliveryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/order', orderRoutes);
@@ -138,12 +141,10 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/videos', videoRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/delivery', deliveryRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/users', userRoutes);
 
-// 404 handler – must come AFTER all API routes above (otherwise /api/settings etc. would 404)
+// 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler);
 
 // Global Error Handler (must be last)

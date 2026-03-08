@@ -29,9 +29,15 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
 
     const mapsKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
     if (!mapsKey) {
-      console.error('CRITICAL: GOOGLE_MAPS_API_KEY is missing or empty in .env. Check backend/.env has: GOOGLE_MAPS_API_KEY=your_key');
-      res.status(500).json({ error: 'שגיאת שרת: חסר מפתח התחברות למפות' });
-      return;
+      console.warn('[Delivery API] GOOGLE_MAPS_API_KEY missing – using flat-rate fallback so checkout does not break.');
+      const storeSettings = await StoreSettings.findOne().lean();
+      const freeShippingThreshold = storeSettings?.freeShippingThreshold ?? 500;
+      const isFreeShippingActive = !!storeSettings?.isFreeShippingActive;
+      const flatFee = typeof (storeSettings as any)?.baseDeliveryFee === 'number' ? (storeSettings as any).baseDeliveryFee : 50;
+      if (isFreeShippingActive && cartTotalNum >= freeShippingThreshold) {
+        return res.status(200).json({ distance: 0, price: 0, originalPrice: flatFee, isFree: true });
+      }
+      return res.status(200).json({ distance: 0, price: flatFee, isFree: false });
     }
 
     const result = await calculateDeliveryFee(destinationCity);
