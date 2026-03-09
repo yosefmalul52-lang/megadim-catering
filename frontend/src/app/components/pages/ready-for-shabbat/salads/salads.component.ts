@@ -839,8 +839,8 @@ export class SaladsComponent implements OnInit {
 
     let itemName = item.name;
     let price = this.getSelectedPrice(item);
-    
-    // Build item name with selected option/variant
+    let cartLineId = itemId;
+
     if (this.hasPricingOptions(item)) {
       const optionIndex = this.getSelectedOptionIndex(itemId);
       const options = this.getPricingOptions(item);
@@ -848,6 +848,7 @@ export class SaladsComponent implements OnInit {
         const option = options[optionIndex];
         itemName = `${item.name} (${option.label} - ${option.amount})`;
         price = option.price;
+        cartLineId = `${itemId}-size-${optionIndex}`;
       }
     } else if (this.hasPricingVariants(item)) {
       const variantIndex = this.getSelectedVariantIndex(itemId);
@@ -856,19 +857,21 @@ export class SaladsComponent implements OnInit {
         const variant = variants[variantIndex];
         itemName = `${item.name} (${variant.label})`;
         price = variant.price;
+        cartLineId = `${itemId}-size-${variantIndex}`;
       }
     }
 
-    this.cartService.addItem({
-      id: `${itemId}-${Date.now()}`,
-      name: itemName,
-      price: price,
-      imageUrl: item.imageUrl,
-      description: item.description,
-      category: item.category
-    });
-
-    // Open cart modal automatically
+    this.cartService.addToCart(
+      {
+        id: cartLineId,
+        name: itemName,
+        price,
+        imageUrl: item.imageUrl ?? '',
+        description: item.description,
+        category: item.category
+      },
+      1
+    );
     this.cartService.openCart();
   }
 

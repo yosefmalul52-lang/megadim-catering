@@ -147,38 +147,13 @@ import { CartService } from '../../../../services/cart.service';
             </div>
           </div>
         </div>
-
-        <!-- Related Products Section -->
-        <div class="related-section" *ngIf="!isLoading && product && relatedProducts.length > 0">
-          <h2 class="related-title">עוד {{ getCategoryName() }} מומלצים</h2>
-          <div class="related-grid">
-            <div 
-              *ngFor="let relatedProduct of relatedProducts" 
-              class="related-card"
-              (click)="navigateToProduct(relatedProduct.id || relatedProduct._id || '')"
-            >
-              <div class="card-image">
-                <img 
-                  [src]="relatedProduct.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                  [alt]="relatedProduct.name"
-                  loading="lazy"
-                >
-              </div>
-              <div class="card-content">
-                <h3 class="card-name">{{ relatedProduct.name }}</h3>
-                <p class="card-description">{{ relatedProduct.description }}</p>
-                <div class="card-price">₪{{ getRelatedPrice(relatedProduct) }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   `,
   styles: [`
     .product-details-page {
       min-height: 100vh;
-      background-color: #fdf5f0;
+      background-color: #ffffff;
       padding: 1.5rem 0;
     }
 
@@ -238,10 +213,10 @@ import { CartService } from '../../../../services/cart.service';
 
     .product-name {
       font-size: 2rem;
-      font-weight: bold;
+      font-weight: 700;
       color: #1f3540;
       margin: 0 0 0.25rem 0;
-      line-height: 1.2;
+      line-height: 1.3;
       padding-bottom: 0.75rem;
       border-bottom: 2px solid var(--primary-gold);
     }
@@ -260,16 +235,14 @@ import { CartService } from '../../../../services/cart.service';
 
     .product-description p {
       font-size: 1rem;
-      line-height: 1.6;
-      color: #6c757d;
+      line-height: 1.85;
+      color: #555;
       margin: 0;
     }
 
-    /* Price and Size Section */
+    /* Price and Size Section - seamless with page, no gray box */
     .price-size-section {
-      background: #f8f9fa;
-      padding: 1rem;
-      border-radius: 0.75rem;
+      padding: 0.5rem 0;
       margin-bottom: 1rem;
     }
 
@@ -365,51 +338,52 @@ import { CartService } from '../../../../services/cart.service';
     }
 
     .quantity-controls {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      border: 2px solid #ddd;
-      border-radius: 0.5rem;
+      gap: 0;
+      border: 1px solid rgba(224, 192, 117, 0.6);
+      border-radius: 8px;
       overflow: hidden;
-      background: white;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
     }
 
     .quantity-btn {
       width: 40px;
       height: 40px;
-      background: #f8f9fa;
+      background: #ffffff;
       color: #1f3540;
       border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
-      font-size: 0.875rem;
+      transition: color 0.2s ease, background 0.2s ease;
+      font-size: 0.75rem;
     }
 
     .quantity-btn:hover:not(:disabled) {
-      background: var(--primary-gold);
-      color: white;
+      background: rgba(224, 192, 117, 0.12);
+      color: #1f3540;
     }
 
     .quantity-btn:disabled {
-      background: #e0e0e0;
-      color: #999;
+      background: #fafafa;
+      color: #bbb;
       cursor: not-allowed;
     }
 
     .quantity-input {
-      width: 60px;
+      width: 52px;
       height: 40px;
       text-align: center;
       border: none;
-      border-left: 1px solid #ddd;
-      border-right: 1px solid #ddd;
+      border-left: 1px solid rgba(0,0,0,0.08);
+      border-right: 1px solid rgba(0,0,0,0.08);
       font-size: 1rem;
       font-weight: 600;
       color: #1f3540;
-      background: white;
+      background: #ffffff;
       -moz-appearance: textfield;
     }
 
@@ -421,17 +395,16 @@ import { CartService } from '../../../../services/cart.service';
 
     .quantity-input:focus {
       outline: none;
-      background: #f8f9fa;
     }
 
-    /* Add to Cart Button - Dark Blue Background */
+    /* Add to Cart Button - Premium Navy */
     .btn-add-to-cart {
       width: 100%;
       padding: 1rem 1.5rem;
-      background: #1f3540;
-      color: white;
+      background: #1a2b4c;
+      color: #ffffff;
       border: none;
-      border-radius: 0.5rem;
+      border-radius: 8px;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
@@ -439,14 +412,13 @@ import { CartService } from '../../../../services/cart.service';
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      transition: all 0.3s ease;
+      transition: opacity 0.25s ease, box-shadow 0.25s ease;
       margin-top: 0.5rem;
     }
 
     .btn-add-to-cart:hover:not(:disabled) {
-      background: #2a4754;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(31, 53, 64, 0.3);
+      opacity: 0.92;
+      box-shadow: 0 6px 20px rgba(26, 43, 76, 0.35);
     }
 
     .btn-add-to-cart:disabled {
@@ -508,8 +480,8 @@ import { CartService } from '../../../../services/cart.service';
       aspect-ratio: 1;
       border-radius: 12px;
       overflow: hidden;
-      background: white;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     }
 
     .product-img {
@@ -556,106 +528,6 @@ import { CartService } from '../../../../services/cart.service';
     .btn-back:hover {
       background: rgba(224, 192, 117, 0.9);
       transform: translateY(-2px);
-    }
-
-    /* Related Products Section */
-    .related-section {
-      margin-top: 4rem;
-      padding-top: 2rem;
-      border-top: 1px solid #e0e0e0;
-    }
-
-    .related-title {
-      font-size: 1.75rem;
-      font-weight: bold;
-      color: #1f3540;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-
-    .related-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      width: 100%;
-
-      @media (max-width: 992px) {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      @media (max-width: 600px) {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .related-card {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      transition: all 0.2s ease;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-
-    .related-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-    }
-
-    .card-image {
-      width: 100%;
-      height: 220px;
-      overflow: hidden;
-      background: #f5f5f5;
-    }
-
-    .card-image img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-
-    .related-card:hover .card-image img {
-      transform: scale(1.05);
-    }
-
-    .card-content {
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      flex-grow: 1;
-    }
-
-    .card-name {
-      font-size: 1.1rem;
-      font-weight: bold;
-      color: #1f3540;
-      margin: 0;
-    }
-
-    .card-description {
-      font-size: 0.9rem;
-      color: #6c757d;
-      line-height: 1.5;
-      margin: 0;
-      flex-grow: 1;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .card-price {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: var(--primary-gold);
-      margin-top: 0.5rem;
     }
 
     /* Responsive */
@@ -709,7 +581,6 @@ export class ProductDetailsComponent implements OnInit {
   product: MenuItem | null = null;
   isLoading = true;
   quantity = 1;
-  relatedProducts: MenuItem[] = [];
   category: string = '';
   selectedSizeIndex: number = 0;
 
@@ -772,8 +643,6 @@ export class ProductDetailsComponent implements OnInit {
             // Use getCategoryRoute to map to SHORT route paths
             this.category = this.getCategoryRoute(this.product.category);
           }
-          
-          this.loadRelatedProducts();
         }
         
         this.isLoading = false;
@@ -782,25 +651,6 @@ export class ProductDetailsComponent implements OnInit {
         console.error('Error loading product:', error);
         this.product = null;
         this.isLoading = false;
-      }
-    });
-  }
-
-  private loadRelatedProducts(): void {
-    if (!this.product) return;
-    
-    this.menuService.getMenuItems().subscribe({
-      next: (items) => {
-        // Get products from the same category, excluding current product
-        this.relatedProducts = items
-          .filter(item => 
-            item.category === this.product?.category &&
-            (item.id !== this.product?.id && item._id !== this.product?._id)
-          )
-          .slice(0, 4);
-      },
-      error: (error) => {
-        console.error('Error loading related products:', error);
       }
     });
   }
@@ -860,16 +710,6 @@ export class ProductDetailsComponent implements OnInit {
     return this.product.price || 0;
   }
 
-  getRelatedPrice(product: MenuItem): number {
-    if (product.pricingOptions && product.pricingOptions.length > 0) {
-      return product.pricingOptions[0].price;
-    }
-    if (product.pricingVariants && product.pricingVariants.length > 0) {
-      return product.pricingVariants[0].price;
-    }
-    return product.price || 0;
-  }
-
   increaseQuantity(): void {
     if (this.quantity < 10) {
       this.quantity++;
@@ -890,10 +730,14 @@ export class ProductDetailsComponent implements OnInit {
   addToCart(): void {
     if (!this.product || !this.product.isAvailable) return;
 
+    const baseId = String(this.product.id ?? this.product._id ?? '');
+    if (!baseId) return;
+
     let itemName = this.product.name;
     let price = this.getCurrentPrice();
-    
-    // Add size info to item name if size is selected
+    // Stable cart line id: same product + same size = same line (quantity merged)
+    let cartLineId = baseId;
+
     if (this.hasSizeOptions()) {
       const options = this.getSizeOptions();
       if (options[this.selectedSizeIndex]) {
@@ -901,20 +745,21 @@ export class ProductDetailsComponent implements OnInit {
         const label = this.getSizeLabel(option);
         itemName = `${this.product.name} (${label})`;
         price = this.getSizePrice(option);
+        cartLineId = `${baseId}-size-${this.selectedSizeIndex}`;
       }
     }
 
-    for (let i = 0; i < this.quantity; i++) {
-      this.cartService.addItem({
-        id: `${this.product.id || this.product._id}-${Date.now()}-${i}`,
+    this.cartService.addToCart(
+      {
+        id: cartLineId,
         name: itemName,
-        price: price,
-        imageUrl: this.product.imageUrl,
+        price,
+        imageUrl: this.product.imageUrl ?? '',
         description: this.product.description,
         category: this.product.category
-      });
-    }
-
+      },
+      this.quantity
+    );
     this.cartService.openCart();
   }
 
@@ -941,35 +786,6 @@ export class ProductDetailsComponent implements OnInit {
       'sides': 'sides'
     };
     return mapping[category] || 'main'; // Default fallback to 'main'
-  }
-
-  navigateToProduct(productId: string): void {
-    if (!productId) {
-      console.warn('Cannot navigate: product ID is missing');
-      return;
-    }
-    
-    // Try to determine category from the product if available
-    if (this.relatedProducts.length > 0) {
-      const relatedProduct = this.relatedProducts.find(p => 
-        (p.id === productId || p._id === productId)
-      );
-      
-      if (relatedProduct && relatedProduct.category) {
-        const routeCategory = this.getCategoryRoute(relatedProduct.category);
-        this.router.navigate(['/ready-for-shabbat', routeCategory, productId]);
-        return;
-      }
-    }
-    
-    // Fallback to category-specific route if category is known
-    if (this.category) {
-      const routeCategory = this.getCategoryRoute(this.category);
-      this.router.navigate(['/ready-for-shabbat', routeCategory, productId]);
-    } else {
-      // Universal product route as last resort
-      this.router.navigate(['/ready-for-shabbat/product', productId]);
-    }
   }
 
   getCategoryLink(): string {

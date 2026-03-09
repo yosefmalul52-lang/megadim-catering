@@ -1,155 +1,260 @@
+// Brand palette
+$navy: #1f3540;
+$gold: var(--primary-gold);
+$off-white: #f7f6f4;
+$soft-gray: #e8e6e3;
+
 .about-page-container {
-  font-family: 'Heebo', sans-serif;
-  color: #333;
+  font-family: 'Heebo', 'Assistant', sans-serif;
+  color: $navy;
   overflow-x: hidden;
+  direction: rtl;
 }
 
-/* Hero Section */
+// ----- Hero: editorial grid -----
 .about-hero {
+  padding: clamp(3rem, 8vw, 6rem) clamp(5%, 10vw, 12%);
+  background: #fafaf9;
+}
+
+.about-hero-grid {
+  max-width: 1200px;
+  margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 50px;
-  padding: 80px 10%;
+  gap: 60px;
   align-items: center;
-  background: #fff;
 }
 
-.about-content {
-  text-align: right;
+.about-hero-image {
+  animation: fadeIn 0.8s ease-out;
+
+  img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    display: block;
+    object-fit: cover;
+  }
 }
 
-.about-content h1 {
-  font-size: 3.5rem;
+.about-hero-text {
+  animation: fadeIn 0.8s ease-out 0.15s both;
+}
+
+.about-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  color: $navy;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.gold-accent-bar {
+  flex-shrink: 0;
+  width: 3px;
+  height: 40px;
+  background: $gold;
+  border-radius: 2px;
+}
+
+.about-hero-text .gold-text {
+  color: $gold;
   font-weight: 800;
-  margin-bottom: 20px;
-  color: #1a252f;
 }
 
-.gold-text { color: var(--primary-gold); }
-.gold-subtitle {
-  color: var(--primary-gold);
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-  letter-spacing: 1px;
-}
-
-.gold-line {
-  width: 60px;
-  height: 4px;
-  background: var(--primary-gold);
-  margin-bottom: 30px;
-}
-
-.about-content p {
-  font-size: 1.2rem;
+.about-hero-text p {
+  font-size: clamp(1rem, 1.15vw, 1.15rem);
   line-height: 1.8;
-  color: #555;
+  color: #444;
+  margin: 0 0 1rem 0;
+
+  &:last-of-type {
+    margin-bottom: 0;
+  }
 }
 
-.about-image img {
-  width: 100%;
-  border-radius: 20px;
+@media (max-width: 992px) {
+  .about-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+
+  .about-hero-image {
+    order: 1;
+  }
+
+  .about-hero-image img {
+    aspect-ratio: 16 / 10;
+  }
+
+  .about-hero-text {
+    order: 2;
+  }
 }
 
-/* Services Section */
+@media (max-width: 480px) {
+  .about-hero-title {
+    white-space: normal;
+  }
+}
+
+// ----- Features: luxurious cards + FA icons -----
 .about-services {
-  background: #f8f9fa;
-  padding: 80px 10%;
+  background: $off-white;
+  padding: clamp(4rem, 10vw, 6rem) clamp(5%, 10vw, 12%);
   text-align: center;
 }
 
-.about-services h2 {
-  font-size: 2.5rem;
-  margin-bottom: 60px;
-  color: #1a252f;
+.services-title {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 700;
+  color: $navy;
+  margin: 0 0 clamp(2.5rem, 5vw, 4rem) 0;
+  animation: fadeIn 0.6s ease-out;
 }
 
 .services-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 30px;
+  gap: clamp(1.5rem, 3vw, 2.5rem);
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .service-card {
-  background: white;
-  padding: 40px 20px;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-  transition: transform 0.3s ease;
-  border-top: 5px solid var(--primary-gold);
+  background: #fff;
+  padding: clamp(2rem, 3vw, 2.5rem);
+  border-radius: 12px;
+  border: 1px solid rgba(31, 53, 64, 0.06);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  text-align: center;
+  animation: fadeIn 0.6s ease-out both;
+
+  &:nth-child(1) { animation-delay: 0.1s; }
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.3s; }
+
+  &:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  .icon-circle {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 1.5rem auto;
+    border-radius: 50%;
+    background: rgba(224, 192, 117, 0.15);
+    color: $gold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $navy;
+    margin: 0 0 0.75rem 0;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #555;
+    margin: 0;
+  }
 }
 
-.service-card:hover {
-  transform: translateY(-10px);
-}
-
-.icon {
-  font-size: 3rem;
-  margin-bottom: 20px;
-}
-
-/* Vision Section */
+// ----- Vision: chef quote + signature badge -----
 .about-vision {
-  background-color: #ffffff; /* White background */
-  color: #1a252f; /* Dark Brand Blue text */
-  padding: 100px 20%;
+  background: #fff;
+  color: $navy;
+  padding: clamp(4rem, 10vw, 7rem) clamp(5%, 15%, 20%);
   text-align: center;
   position: relative;
+  overflow: hidden;
 }
 
-.quote-mark {
-  font-size: 6rem;
-  color: var(--primary-gold);
+.quote-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(100px, 20vw, 150px);
+  color: $gold;
+  opacity: 0.05;
+  font-family: Georgia, serif;
   line-height: 1;
-  margin-bottom: -20px;
-  opacity: 0.8;
+  pointer-events: none;
 }
 
-.vision-content h2 {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  color: #1a252f;
+.vision-content {
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.8s ease-out;
+
+  h2 {
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 600;
+    margin: 0 0 1.5rem 0;
+    color: $navy;
+  }
+
+  .vision-quote {
+    font-size: clamp(1.1rem, 1.5vw, 1.35rem);
+    font-weight: 300;
+    line-height: 1.9;
+    color: #555;
+    margin: 0 auto 2.5rem auto;
+    max-width: 720px;
+  }
+
+  .vision-signature {
+    display: inline-block;
+    padding: 0.9rem 2rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: $gold;
+    background: transparent;
+    border: 2px solid $gold;
+    border-radius: 50px;
+    box-shadow: 0 4px 20px rgba(224, 192, 117, 0.2);
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .vision-signature:hover {
+    background: $gold;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(224, 192, 117, 0.35);
+  }
 }
 
-.vision-content p {
-  font-size: 1.3rem;
-  margin-bottom: 40px;
-  font-weight: 300;
-  color: #555;
+// ----- Animations -----
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.gold-btn {
-  background: transparent;
-  border: 1px solid var(--primary-gold);
-  color: var(--primary-gold);
-  padding: 15px 40px;
-  font-size: 1.1rem;
-  border-radius: 50px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.gold-btn:hover {
-  background: var(--primary-gold);
-  color: #fff;
-}
-
-/* Responsive */
+// ----- Mobile: stack in one column -----
 @media (max-width: 968px) {
-  .about-hero {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-
-  .about-content {
-    text-align: center;
-  }
-
-  .gold-line {
-    margin: 0 auto 30px auto;
-  }
-
   .services-grid {
     grid-template-columns: 1fr;
   }
@@ -157,38 +262,19 @@
 
 @media (max-width: 768px) {
   .about-hero {
-    padding: 60px 5%;
-  }
-
-  .about-content h1 {
-    font-size: 2.5rem;
-  }
-
-  .about-content p {
-    font-size: 1rem;
+    padding: 2.5rem 5%;
   }
 
   .about-services {
-    padding: 60px 5%;
-  }
-
-  .about-services h2 {
-    font-size: 2rem;
+    padding: 3.5rem 5%;
   }
 
   .about-vision {
-    padding: 60px 10%;
+    padding: 3.5rem 8%;
   }
 
-  .quote-mark {
-    font-size: 4rem;
-  }
-
-  .vision-content h2 {
-    font-size: 2rem;
-  }
-
-  .vision-content p {
-    font-size: 1.1rem;
+  .vision-signature {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
   }
 }

@@ -737,122 +737,145 @@ $text-gray: #4b5563;
 }
 
 @media (max-width: 768px) {
+  .events-page .container {
+    padding: 0 15px;
+  }
+
   .hero-section {
     padding: 3rem 0;
-    
+
+    .hero-content {
+      padding: 0 15px;
+    }
+
     .title-wrapper {
       gap: 1rem;
       flex-wrap: wrap;
-      
+
       .main-title {
         font-size: 2.2rem;
         white-space: normal;
       }
-      
+
       .side-line {
         max-width: 100px;
         flex-grow: 0;
         flex-basis: 100px;
       }
     }
-    
+
     .hero-subtitle {
       font-size: 1.1rem;
     }
-    
+
     .hero-desc {
       font-size: 1rem;
     }
   }
-  
+
   .packages-section {
     .section-title-wrapper {
       gap: 1rem;
-      
-      .section-title {
-        font-size: 2rem;
-        white-space: normal;
-      }
-      
-      .side-line {
-        max-width: 100px;
-        flex-grow: 0;
-        flex-basis: 100px;
+      .section-title { font-size: 2rem; white-space: normal; }
+      .side-line { max-width: 100px; flex-grow: 0; flex-basis: 100px; }
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      width: 100%;
+      .pricing-card {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
     }
   }
-  
+
   .courses-section {
     .section-title-wrapper {
       gap: 1rem;
-      
-      .section-title {
-        font-size: 2rem;
-        white-space: normal;
-      }
-      
-      .side-line {
-        max-width: 100px;
-        flex-grow: 0;
-        flex-basis: 100px;
+      .section-title { font-size: 2rem; white-space: normal; }
+      .side-line { max-width: 100px; flex-grow: 0; flex-basis: 100px; }
+    }
+    .courses-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      width: 100%;
+      .course-card {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
     }
+    .kosher-banner {
+      flex-direction: column;
+      width: 100%;
+      box-sizing: border-box;
+    }
   }
-  
+
   .conditions-section {
     .section-title-wrapper {
       gap: 1rem;
-      
-      .section-title {
-        font-size: 2rem;
-        white-space: normal;
-      }
-      
-      .side-line {
-        max-width: 100px;
-        flex-grow: 0;
-        flex-basis: 100px;
+      .section-title { font-size: 2rem; white-space: normal; }
+      .side-line { max-width: 100px; flex-grow: 0; flex-basis: 100px; }
+    }
+    .conditions-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      width: 100%;
+      .condition-item {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
     }
   }
-  
+
   .packages-section,
   .courses-section,
   .conditions-section {
-    padding: 4rem 0;
+    padding: 3rem 0;
   }
-  
+
   .cta-section {
-    padding: 40px 20px;
-    
+    padding: 40px 15px;
     .cta-buttons {
+      display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-      
+      gap: 20px;
+      width: 100%;
       .cta-btn {
+        display: flex;
         width: 100%;
-        max-width: none; // Full width on mobile
+        max-width: none;
+        margin-bottom: 15px;
+        box-sizing: border-box;
+        &:last-child {
+          margin-bottom: 0;
+        }
       }
     }
   }
-  
+
   .cta-footer {
     padding: 4rem 20px;
-    
-    h2 {
-      font-size: 2rem;
-    }
-    
-    p {
-      font-size: 1.1rem;
-    }
+    h2 { font-size: 2rem; }
+    p { font-size: 1.1rem; }
   }
-  
+
   .section-title {
     font-size: 2rem !important;
   }
-  
+
   .features-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    gap: 20px;
+    .feature-box {
+      width: 100%;
+    }
   }
 }

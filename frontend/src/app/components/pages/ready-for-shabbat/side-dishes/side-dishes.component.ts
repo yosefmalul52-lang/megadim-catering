@@ -13,7 +13,10 @@ import { CartService } from '../../../../services/cart.service';
 })
 export class SideDishesComponent implements OnInit {
   sideDishes: MenuItem[] = [];
-  isLoading: boolean = true;
+  isLoading = true;
+  selectedOptions: { [key: string]: number } = {};
+  selectedVariants: { [key: string]: number } = {};
+  validationErrors: { [key: string]: boolean } = {};
 
   constructor(
     private menuService: MenuService,
@@ -22,7 +25,6 @@ export class SideDishesComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Fetch 'sides' category
     this.menuService.getProductsByCategory('sides').subscribe({
       next: (items) => {
         this.sideDishes = items;
@@ -35,21 +37,121 @@ export class SideDishesComponent implements OnInit {
     });
   }
 
+  hasPricingOptions(item: MenuItem): boolean {
+    return !!(item.pricingOptions && item.pricingOptions.length > 0);
+  }
+
+  getPricingOptions(item: MenuItem): any[] {
+    return item.pricingOptions || [];
+  }
+
+  selectPricingOption(itemId: string, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const optionIndex = parseInt(select.value, 10);
+    if (!isNaN(optionIndex)) {
+      this.selectedOptions[itemId] = optionIndex;
+      this.validationErrors[itemId] = false;
+    }
+  }
+
+  getSelectedOptionIndex(itemId: string): number {
+    return this.selectedOptions[itemId] ?? -1;
+  }
+
+  hasPricingVariants(item: MenuItem): boolean {
+    return !!(item.pricingVariants && item.pricingVariants.length > 0);
+  }
+
+  getPricingVariants(item: MenuItem): any[] {
+    return item.pricingVariants || [];
+  }
+
+  selectVariant(itemId: string, variantIndex: number): void {
+    this.selectedVariants[itemId] = variantIndex;
+    this.validationErrors[itemId] = false;
+  }
+
+  getSelectedVariantIndex(itemId: string): number {
+    return this.selectedVariants[itemId] ?? -1;
+  }
+
+  hasSelectedOption(item: MenuItem): boolean {
+    const itemId = item.id || item._id || '';
+    if (this.hasPricingOptions(item)) return this.getSelectedOptionIndex(itemId) >= 0;
+    if (this.hasPricingVariants(item)) return this.getSelectedVariantIndex(itemId) >= 0;
+    return item.price != null || item.pricePer100g != null;
+  }
+
+  getSelectedPrice(item: MenuItem): number {
+    const itemId = item.id || item._id || '';
+    if (this.hasPricingOptions(item)) {
+      const idx = this.getSelectedOptionIndex(itemId);
+      if (idx >= 0) return this.getPricingOptions(item)[idx]?.price ?? 0;
+    }
+    if (this.hasPricingVariants(item)) {
+      const idx = this.getSelectedVariantIndex(itemId);
+      if (idx >= 0) return this.getPricingVariants(item)[idx]?.price ?? 0;
+    }
+    return this.getPrice(item);
+  }
+
+  hasValidationError(itemId: string): boolean {
+    return this.validationErrors[itemId] === true;
+  }
+
+  isAvailable(item: MenuItem): boolean {
+    return item.isAvailable !== false;
+  }
+
   addToCart(item: MenuItem): void {
-    const price = this.getPrice(item);
-    if (price <= 0) {
-      console.error(`Cannot add ${item.name} to cart: no price available`);
+    if (!this.isAvailable(item)) return;
+
+    const itemId = (item.id || item._id || '').toString();
+    if (!itemId) return;
+
+    const requiresSelection = this.hasPricingOptions(item) || this.hasPricingVariants(item);
+    if (requiresSelection && !this.hasSelectedOption(item)) {
+      this.validationErrors[itemId] = true;
       return;
     }
+    this.validationErrors[itemId] = false;
 
-    this.cartService.addItem({
-      id: item.id || item._id || '',
-      name: item.name,
-      price: price,
-      imageUrl: item.imageUrl,
-      description: item.description,
-      category: item.category || 'sides'
-    });
+    let itemName = item.name;
+    let price = this.getSelectedPrice(item);
+    let cartLineId = itemId;
+
+    if (this.hasPricingOptions(item)) {
+      const optionIndex = this.getSelectedOptionIndex(itemId);
+      const options = this.getPricingOptions(item);
+      if (optionIndex >= 0 && options[optionIndex]) {
+        const opt = options[optionIndex];
+        itemName = `${item.name} (${opt.label} - ${opt.amount})`;
+        price = opt.price;
+        cartLineId = `${itemId}-size-${optionIndex}`;
+      }
+    } else if (this.hasPricingVariants(item)) {
+      const variantIndex = this.getSelectedVariantIndex(itemId);
+      const variants = this.getPricingVariants(item);
+      if (variantIndex >= 0 && variants[variantIndex]) {
+        const v = variants[variantIndex];
+        itemName = `${item.name} (${v.label})`;
+        price = v.price;
+        cartLineId = `${itemId}-size-${variantIndex}`;
+      }
+    }
+
+    this.cartService.addToCart(
+      {
+        id: cartLineId,
+        name: itemName,
+        price,
+        imageUrl: item.imageUrl ?? '',
+        description: item.description,
+        category: item.category || 'sides'
+      },
+      1
+    );
+    this.cartService.openCart();
   }
 
   viewDetails(item: MenuItem): void {
@@ -58,6 +160,6 @@ export class SideDishesComponent implements OnInit {
   }
 
   getPrice(item: MenuItem): number {
-    return item.price || item.pricePer100g || (item.pricingOptions?.[0]?.price) || 0;
+    return item.price ?? item.pricePer100g ?? (item.pricingOptions?.[0]?.price) ?? 0;
   }
 }

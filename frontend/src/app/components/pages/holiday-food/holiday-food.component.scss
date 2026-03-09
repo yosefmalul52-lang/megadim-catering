@@ -427,70 +427,109 @@ $text-gray: #4b5563;
 }
 
 @media (max-width: 768px) {
+  .holiday-page .container {
+    padding: 0 15px;
+  }
+
   .hero-section {
     padding: 3rem 0;
-    
+
+    .hero-content {
+      padding: 0 15px;
+    }
+
     .title-wrapper {
       gap: 1rem;
       flex-wrap: wrap;
-      
+
       .main-title {
         font-size: 2.2rem;
         white-space: normal;
       }
-      
+
       .side-line {
         max-width: 100px;
         flex-grow: 0;
         flex-basis: 100px;
       }
     }
-    
+
     .hero-subtitle {
       font-size: 1.1rem;
     }
-    
+
     .hero-desc {
       font-size: 1rem;
     }
   }
-  
+
+  .packages-section {
+    .packages-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      width: 100%;
+
+      .package-card {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+    }
+  }
+
+  .info-section {
+    .info-box {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+  }
+
+  .upgrades-section {
+    .section-title-wrapper {
+      gap: 1rem;
+      .section-title { font-size: 2rem; white-space: normal; }
+      .side-line { max-width: 100px; flex-grow: 0; flex-basis: 100px; }
+    }
+
+    .upgrades-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      width: 100%;
+
+      .upgrade-card {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+    }
+  }
+
   .packages-section,
   .upgrades-section {
     padding: 3rem 0;
   }
-  
-  .upgrades-section {
-    .section-title-wrapper {
-      gap: 1rem;
-      
-      .section-title {
-        font-size: 2rem;
-        white-space: normal;
-      }
-      
-      .side-line {
-        max-width: 100px;
-        flex-grow: 0;
-        flex-basis: 100px;
-      }
-    }
-  }
-  
-  .upgrades-grid {
-    grid-template-columns: 1fr;
-  }
-  
+
   .cta-section {
-    padding: 40px 20px;
-    
+    padding: 40px 15px;
+
     .cta-buttons {
+      display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-      
+      gap: 20px;
+      width: 100%;
+
       .cta-btn {
         width: 100%;
         max-width: none;
+        margin-bottom: 15px;
+        box-sizing: border-box;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
       }
     }
   }

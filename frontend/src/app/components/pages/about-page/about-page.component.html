@@ -1,46 +1,62 @@
 <div class="about-page-container">
-  <section class="about-hero">
-    <div class="about-content">
-      <h1>נעים להכיר <span class="gold-text">מגדים</span></h1>
-      <div class="gold-line"></div>
-      <p>
-        קייטרינג "מגדים" נולד מתוך תשוקה עמוקה לאמנות הבישול ומתוך אהבה לאוכל שעושה טוב בלב.
-        <br><br>
-        עבורנו, אוכל הוא לא רק טעם — הוא ניחוחות מעוררי זיכרון, הוא תחושה של בית והוא הדרך הכי טובה לחגוג את הרגעים היפים של החיים.
-      </p>
-    </div>
-    <div class="about-image">
-      <img src="https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png" alt="הסיפור של מגדים">
+  <!-- Hero: editorial grid -->
+  <section class="about-hero" aria-label="נעים להכיר מגדים">
+    <div class="about-hero-grid">
+      <div class="about-hero-image">
+        <img src="https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png" alt="הסיפור של מגדים" loading="lazy" />
+      </div>
+      <div class="about-hero-text">
+        <h1 class="about-hero-title">
+          <span class="gold-accent-bar" aria-hidden="true"></span>
+          נעים להכיר קייטרינג <span class="gold-text">מגדים</span>
+        </h1>
+        <p>
+          קייטרינג "מגדים" נולד מתוך תשוקה עמוקה לאמנות הבישול ומתוך אהבה לאוכל שעושה טוב בלב.
+        </p>
+        <p>
+          עבורנו, אוכל הוא לא רק טעם — הוא ניחוחות מעוררי זיכרון, הוא תחושה של בית והוא הדרך הכי טובה לחגוג את הרגעים היפים של החיים.
+        </p>
+      </div>
     </div>
   </section>
 
-  <section class="about-services">
-    <h2>מה אנחנו מציעים?</h2>
+  <!-- Features: FontAwesome icons, luxurious cards -->
+  <section class="about-services" aria-label="מה אנחנו מציעים">
+    <h2 class="services-title">מה אנחנו מציעים?</h2>
     <div class="services-grid">
       <div class="service-card">
-        <div class="icon">♨️</div>
+        <div class="icon-circle">
+          <i class="fa-solid fa-utensils" aria-hidden="true"></i>
+        </div>
         <h3>השבת של מגדים</h3>
         <p>אוכל מוכן לשבת ברמה אחרת. קחו הביתה את הטעמים שלנו.</p>
       </div>
       <div class="service-card">
-        <div class="icon">💼</div>
+        <div class="icon-circle">
+          <i class="fa-solid fa-briefcase" aria-hidden="true"></i>
+        </div>
         <h3>מענה למוסדות</h3>
         <p>ארוחות מזינות, טריות ובריאות למוסדות כל השבוע.</p>
       </div>
       <div class="service-card">
-        <div class="icon">🎉</div>
+        <div class="icon-circle">
+          <i class="fa-solid fa-glass-cheers" aria-hidden="true"></i>
+        </div>
         <h3>אירועים עם נשמה</h3>
         <p>אירועי בוטיק או חגיגות גדולות, עם תפריט שמשלב טעמים ביתיים.</p>
       </div>
     </div>
   </section>
 
-  <section class="about-vision">
+  <!-- Vision: chef quote + signature badge -->
+  <section class="about-vision" aria-label="החזון שלנו">
+    <span class="quote-watermark" aria-hidden="true">"</span>
     <div class="vision-content">
-      <div class="quote-mark">❝</div>
       <h2>החזון שלנו</h2>
-      <p>בכל מנה שיוצאת מהמטבח שלנו מושקעת מחשבה על האורח שיטעם אותה. אנחנו כאן כדי להפוך את האירוע שלכם לחוויה קולינרית שתישאר עוד זמן רב.</p>
-      <button class="gold-btn">מגדים — מביאים את הבית לאירוע</button>
+      <p class="vision-quote">
+        בכל מנה שיוצאת מהמטבח שלנו מושקעת מחשבה על האורח שיטעם אותה. אנחנו כאן כדי להפוך את האירוע שלכם לחוויה קולינרית שתישאר עוד זמן רב.
+      </p>
+      <div class="vision-signature">מגדים — מביאים את הבית לאירוע</div>
     </div>
   </section>
 </div>

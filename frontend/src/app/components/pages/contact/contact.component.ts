@@ -1,24 +1,59 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ContactService } from '../../../services/contact.service';
 
 @Component({
   selector: 'app-contact',
   standalone: true,
-  imports: [CommonModule],
-  template: `
-    <div class="page">
-      <div class="container">
-        <h1>צור קשר</h1>
-        <p>טלפון: 052-824-0230</p>
-        <p>להזמנות ופרטים נוספים</p>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .page { padding: 2rem 0; min-height: 60vh; }
-    .container { max-width: 800px; margin: 0 auto; padding: 0 2rem; }
-    h1 { color: #0E1A24; margin-bottom: 2rem; }
-    p { line-height: 1.8; color: #6c757d; margin-bottom: 1rem; }
-  `]
+  imports: [CommonModule, FormsModule],
+  templateUrl: './contact.component.html',
+  styleUrls: ['./contact.component.scss'],
 })
-export class ContactComponent {}
+export class ContactComponent implements OnInit {
+  form = {
+    name: '',
+    phone: '',
+    email: '',
+    message: '',
+  };
+  isSubmitting = false;
+  successMessage = '';
+  contactInfo: { phone: string; email: string } = { phone: '', email: '' };
+
+  constructor(private contactService: ContactService) {}
+
+  ngOnInit(): void {
+    const info = this.contactService.getContactInfo();
+    this.contactInfo = { phone: info.phone, email: info.email };
+  }
+
+  get displayPhone(): string {
+    const p = this.contactInfo.phone || '';
+    if (p.length === 10 && p.startsWith('05')) return `${p.slice(0, 3)}-${p.slice(3)}`;
+    return p;
+  }
+
+  onSubmit(form: { valid: boolean | null }): void {
+    if (form.valid !== true || this.isSubmitting) return;
+    this.successMessage = '';
+    this.isSubmitting = true;
+    this.contactService
+      .submitContactForm({
+        name: this.form.name,
+        phone: this.form.phone,
+        email: this.form.email,
+        message: this.form.message,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isSubmitting = false;
+          this.successMessage = res.message || 'תודה על פנייתך! נחזור אליך בהקדם.';
+          this.form = { name: '', phone: '', email: '', message: '' };
+        },
+        error: () => {
+          this.isSubmitting = false;
+        },
+      });
+  }
+}

@@ -1,0 +1,87 @@
+<div class="contact-page" dir="rtl">
+  <div class="contact-wrapper">
+    <div class="contact-grid">
+      <!-- Right in RTL: Contact Form (1st grid item) -->
+      <div class="contact-form-panel">
+        <h2 class="contact-form-title">נשמח לשמוע מכם</h2>
+        <form (ngSubmit)="onSubmit(contactForm)" #contactForm="ngForm" class="contact-form">
+          <div class="form-group">
+            <label for="contact-name" class="form-label">שם מלא</label>
+            <input
+              type="text"
+              id="contact-name"
+              name="name"
+              class="form-input"
+              [(ngModel)]="form.name"
+              required
+              placeholder="הזן את שמך"
+            />
+          </div>
+          <div class="form-group">
+            <label for="contact-phone" class="form-label">טלפון</label>
+            <input
+              type="tel"
+              id="contact-phone"
+              name="phone"
+              class="form-input"
+              [(ngModel)]="form.phone"
+              required
+              placeholder="052-0000000"
+            />
+          </div>
+          <div class="form-group">
+            <label for="contact-email" class="form-label">אימייל</label>
+            <input
+              type="email"
+              id="contact-email"
+              name="email"
+              class="form-input"
+              [(ngModel)]="form.email"
+              required
+              email
+              placeholder="your@email.com"
+            />
+          </div>
+          <div class="form-group">
+            <label for="contact-message" class="form-label">הודעה</label>
+            <textarea
+              id="contact-message"
+              name="message"
+              class="form-input form-textarea"
+              [(ngModel)]="form.message"
+              required
+              rows="5"
+              placeholder="כתוב את הודעתך..."
+            ></textarea>
+          </div>
+          <button type="submit" class="submit-btn" [disabled]="contactForm.invalid || isSubmitting">
+            {{ isSubmitting ? 'שולח...' : 'שליחה' }}
+          </button>
+        </form>
+        <p class="form-success" *ngIf="successMessage">
+          <i class="fa-solid fa-check-circle" aria-hidden="true"></i>
+          {{ successMessage }}
+        </p>
+      </div>
+
+      <!-- Left in RTL: Contact Info (2nd grid item) -->
+      <div class="contact-info-panel">
+        <h2 class="contact-info-title">פרטי התקשרות</h2>
+        <ul class="contact-info-list">
+          <li>
+            <i class="fa-solid fa-phone" aria-hidden="true"></i>
+            <a [href]="'tel:' + contactInfo.phone">{{ displayPhone }}</a>
+          </li>
+          <li>
+            <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+            <a [href]="'mailto:' + contactInfo.email">{{ contactInfo.email }}</a>
+          </li>
+          <li>
+            <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+            <span>אזור שירות: כל הארץ</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

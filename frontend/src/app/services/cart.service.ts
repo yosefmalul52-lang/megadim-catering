@@ -54,56 +54,50 @@ export class CartService {
 
   /**
    * Add a specific quantity of an item to the cart.
-   * Used by features like "Reorder" where quantity is known in advance.
+   * If an item with the same id already exists, its quantity is increased (no duplicate lines).
    */
-  addToCart(item: CartItem, quantity: number = 1): void {
-    if (!item.id || item.id === null || item.id === undefined || item.id.trim() === '') {
-      console.error('❌ Cannot add item to cart: Invalid or missing ID', {
-        item,
-        id: item.id,
-        name: item.name
-      });
+  addToCart(item: Omit<CartItem, 'quantity'> & { _id?: string }, quantity: number = 1): void {
+    const id = (item.id ?? (item as any)._id ?? '').toString().trim();
+    if (!id) {
+      console.error('❌ Cannot add item to cart: Invalid or missing ID', { item, name: item.name });
       throw new Error('Cannot add item to cart: Item must have a valid ID');
     }
 
     const safeQuantity = quantity > 0 ? quantity : 1;
     const currentItems = [...this.currentCart];
-    const existingIndex = currentItems.findIndex(cartItem => cartItem.id === item.id);
+    const existingIndex = currentItems.findIndex(cartItem => cartItem.id === id);
 
-    if (existingIndex > -1) {
+    const normalizedItem: CartItem = {
+      ...item,
+      id,
+      quantity: safeQuantity
+    };
+
+    if (existingIndex !== -1) {
       currentItems[existingIndex].quantity += safeQuantity;
     } else {
-      currentItems.push({
-        ...item,
-        quantity: safeQuantity
-      });
+      currentItems.push(normalizedItem);
     }
 
     this.updateCart(currentItems);
   }
 
-  addItem(item: Omit<CartItem, 'quantity'>): void {
-    // Validate item has a valid ID
-    if (!item.id || item.id === null || item.id === undefined || item.id.trim() === '') {
-      console.error('❌ Cannot add item to cart: Invalid or missing ID', {
-        item,
-        id: item.id,
-        name: item.name
-      });
+  addItem(item: Omit<CartItem, 'quantity'> & { _id?: string }): void {
+    const id = (item.id ?? item._id ?? '').toString().trim();
+    if (!id) {
+      console.error('❌ Cannot add item to cart: Invalid or missing ID', { item, name: item.name });
       throw new Error('Cannot add item to cart: Item must have a valid ID');
     }
 
-    const currentItems = this.currentCart;
-    const existingItemIndex = currentItems.findIndex(cartItem => cartItem.id === item.id);
-    
-    if (existingItemIndex > -1) {
-      // Item already exists, increase quantity
+    const currentItems = [...this.currentCart];
+    const existingItemIndex = currentItems.findIndex(cartItem => cartItem.id === id);
+
+    if (existingItemIndex !== -1) {
       currentItems[existingItemIndex].quantity += 1;
     } else {
-      // New item, add to cart
-      currentItems.push({ ...item, quantity: 1 });
+      currentItems.push({ ...item, id, quantity: 1 });
     }
-    
+
     this.updateCart(currentItems);
     this.openCart();
   }

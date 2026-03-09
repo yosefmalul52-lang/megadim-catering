@@ -47,21 +47,21 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
       <section class="category-cards-section">
         <div class="category-cards-container">
           <div class="category-card" routerLink="/catering">
-            <div class="card-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png');">
+            <div class="card-image card-image--quality" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg');">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועים</h3>
               </div>
             </div>
           </div>
           <div class="category-card" routerLink="/shabbat-events">
-            <div class="card-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png');">
+            <div class="card-image card-image--quality" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773063136/sj-objio-py3ddhtev50-unsplash_a1ojam.jpg');">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועי שבת וחג</h3>
               </div>
             </div>
           </div>
           <div class="category-card" routerLink="/ready-for-shabbat">
-            <div class="card-image" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768297872/Saturday-tab_dit4ng.png');">
+            <div class="card-image card-image--quality" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg');">
               <div class="card-overlay">
                 <h3 class="gold-text">אוכל מוכן לשבת וחג</h3>
               </div>
@@ -519,13 +519,21 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
             left: 0;
             width: 100%;
             height: 100%;
-            background-size: cover;
+            background-size: cover; // Equivalent to object-fit: cover for background-image
             background-position: center;
             background-repeat: no-repeat;
             filter: brightness(1); // Full brightness
             transition: all 0.4s ease-in-out;
             transform: scale(1);
             transform-origin: center;
+            // High-quality scaling to reduce blurriness
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: high-quality;
+
+            // Preserve image brightness (e.g. Shabbat & Events cards)
+            &.card-image--quality {
+              filter: brightness(1.05);
+            }
             
             // Blue gradient overlay - matches navbar theme
             &::before {
