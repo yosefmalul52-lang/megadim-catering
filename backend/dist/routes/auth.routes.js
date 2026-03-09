@@ -92,33 +92,32 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         });
     }
 }));
-// Register Route
+// Register Route – requires only fullName, email (username), password; phone/address optional
 router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { fullName, username, password, phone } = req.body;
-        // Validate input
-        if (!fullName || !username || !password || !phone) {
+        if (!fullName || !username || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'שם מלא, שם משתמש (אימייל), סיסמה וטלפון נדרשים'
+                message: 'שם מלא, אימייל וסיסמה נדרשים'
             });
         }
-        // Check if user exists (username is used as email in this system)
         let user = yield User.findOne({ username: username.toLowerCase() });
         if (user) {
             return res.status(400).json({
                 success: false,
-                message: 'משתמש עם שם משתמש זה כבר קיים'
+                message: 'משתמש עם אימייל זה כבר קיים'
             });
         }
-        // Create user (password will be hashed by pre-save hook in User model)
-        user = new User({
-            fullName,
+        const userData = {
+            fullName: fullName.trim(),
             username: username.toLowerCase(),
             password,
-            phone,
-            role: 'user' // Default role
-        });
+            role: 'user'
+        };
+        if (phone != null && String(phone).trim() !== '')
+            userData.phone = String(phone).trim();
+        user = new User(userData);
         yield user.save();
         // Create Token (7 days)
         const payload = { id: user._id, role: user.role };
