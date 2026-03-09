@@ -1,41 +1,22 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService, LoginCredentials, RegisterCredentials } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="login-container">
       <div class="login-card">
+        <a routerLink="/" class="back-home-link"><i class="fa-solid fa-arrow-right"></i> חזרה לדף הבית</a>
         <div class="login-header">
           <div class="logo-container">
-            <h1 class="login-title">ברוכים הבאים למגדים</h1>
-            <p class="login-subtitle">{{ isLoginMode ? 'התחבר לחשבון שלך' : 'צור חשבון חדש' }}</p>
+            <h1 class="login-title">התחברות</h1>
+            <p class="login-subtitle">התחבר לחשבון שלך</p>
           </div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="auth-tabs">
-          <button 
-            class="tab-btn" 
-            [class.active]="isLoginMode"
-            (click)="switchToLogin()"
-            type="button"
-          >
-            התחברות
-          </button>
-          <button 
-            class="tab-btn" 
-            [class.active]="!isLoginMode"
-            (click)="switchToSignUp()"
-            type="button"
-          >
-            הרשמה
-          </button>
         </div>
 
         <!-- Success Message -->
@@ -71,7 +52,7 @@ import { AuthService, LoginCredentials, RegisterCredentials } from '../../servic
         </div>
 
         <!-- Login Form -->
-        <form *ngIf="isLoginMode" (ngSubmit)="onLogin(loginForm)" #loginForm="ngForm" class="login-form">
+        <form (ngSubmit)="onLogin(loginForm)" #loginForm="ngForm" class="login-form">
           <div class="form-group" [class.error]="errors.username || errorMessage">
             <label for="login-username" class="form-label">
               <i class="fas fa-envelope" aria-hidden="true"></i>
@@ -132,135 +113,9 @@ import { AuthService, LoginCredentials, RegisterCredentials } from '../../servic
               מתחבר...
             </span>
           </button>
-        </form>
-
-        <!-- Sign Up Form -->
-        <form *ngIf="!isLoginMode" (ngSubmit)="onSignUp()" #signUpForm="ngForm" class="login-form">
-          <div class="form-group" [class.error]="errors.fullName || errorMessage">
-            <label for="signup-fullName" class="form-label">
-              <i class="fas fa-user" aria-hidden="true"></i>
-              שם מלא
-            </label>
-            <div class="input-wrapper">
-              <i class="fas fa-user input-icon" aria-hidden="true"></i>
-              <input
-                type="text"
-                id="signup-fullName"
-                name="fullName"
-                class="form-input"
-                [(ngModel)]="registerCredentials.fullName"
-                required
-                autocomplete="name"
-                placeholder="הזן שם מלא"
-                [disabled]="isLoading"
-              >
-            </div>
-            <span class="error-message" *ngIf="errors.fullName">{{ errors.fullName }}</span>
-          </div>
-
-          <div class="form-group" [class.error]="errors.username || errorMessage">
-            <label for="signup-username" class="form-label">
-              <i class="fas fa-envelope" aria-hidden="true"></i>
-              אימייל
-            </label>
-            <div class="input-wrapper">
-              <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
-              <input
-                type="email"
-                id="signup-username"
-                name="username"
-                class="form-input"
-                [(ngModel)]="registerCredentials.username"
-                required
-                email
-                autocomplete="username"
-                placeholder="your@email.com"
-                [disabled]="isLoading"
-              >
-            </div>
-            <span class="error-message" *ngIf="errors.username">{{ errors.username }}</span>
-          </div>
-
-          <div class="form-group" [class.error]="errors.phone || errorMessage">
-            <label for="signup-phone" class="form-label">
-              <i class="fas fa-phone" aria-hidden="true"></i>
-              טלפון
-            </label>
-            <div class="input-wrapper">
-              <i class="fas fa-phone input-icon" aria-hidden="true"></i>
-              <input
-                type="tel"
-                id="signup-phone"
-                name="phone"
-                class="form-input"
-                [(ngModel)]="registerCredentials.phone"
-                required
-                autocomplete="tel"
-                placeholder="052-824-0230"
-                [disabled]="isLoading"
-              >
-            </div>
-            <span class="error-message" *ngIf="errors.phone">{{ errors.phone }}</span>
-          </div>
-
-          <div class="form-group" [class.error]="errors.password || errorMessage">
-            <label for="signup-password" class="form-label">
-              <i class="fas fa-lock" aria-hidden="true"></i>
-              סיסמה
-            </label>
-            <div class="input-wrapper">
-              <i class="fas fa-lock input-icon" aria-hidden="true"></i>
-              <input
-                type="password"
-                id="signup-password"
-                name="password"
-                class="form-input"
-                [(ngModel)]="registerCredentials.password"
-                required
-                minlength="3"
-                autocomplete="new-password"
-                placeholder="הזן סיסמה (לפחות 3 תווים)"
-                [disabled]="isLoading"
-              >
-            </div>
-            <span class="error-message" *ngIf="errors.password">{{ errors.password }}</span>
-          </div>
-
-          <div class="form-group">
-            <label for="signup-address" class="form-label">
-              <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-              כתובת (אופציונלי)
-            </label>
-            <div class="input-wrapper">
-              <i class="fas fa-map-marker-alt input-icon" aria-hidden="true"></i>
-              <input
-                type="text"
-                id="signup-address"
-                name="address"
-                class="form-input"
-                [(ngModel)]="registerCredentials.address"
-                autocomplete="street-address"
-                placeholder="הזן כתובת למשלוח"
-                [disabled]="isLoading"
-              >
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            class="btn-login"
-            [disabled]="isLoading"
-            [class.loading]="isLoading"
-          >
-            <span *ngIf="!isLoading">
-              <i class="fas fa-user-plus" aria-hidden="true"></i>
-              הירשם
-            </span>
-            <span *ngIf="isLoading">
-              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-              נרשם...
-            </span>
-          </button>
+          <p class="auth-footer">
+            אין לך חשבון? <a routerLink="/register" class="auth-footer-link">להרשמה</a>
+          </p>
         </form>
       </div>
     </div>

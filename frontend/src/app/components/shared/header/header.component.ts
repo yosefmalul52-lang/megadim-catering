@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -15,8 +16,9 @@ import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
-import { AuthModalService } from '../../../services/auth-modal.service';
+import { ToastService } from '../../../services/toast.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { MAIN_NAV_LINKS } from '../../../nav-links';
 
 @Component({
   selector: 'app-header',
@@ -24,6 +26,7 @@ import { SiteSettingsService, SiteSettings } from '../../../services/site-settin
   imports: [
     CommonModule,
     RouterModule,
+    ReactiveFormsModule,
     MatToolbarModule,
     MatButtonModule,
     MatIconModule,
@@ -43,16 +46,21 @@ export class HeaderComponent implements OnInit {
   cartService = inject(CartService);
   searchService = inject(SearchService);
   authService = inject(AuthService);
-  authModalService = inject(AuthModalService);
+  toastService = inject(ToastService);
   settingsService = inject(SiteSettingsService);
+  private fb = inject(FormBuilder);
   private router = inject(Router);
   
+  navLinks = MAIN_NAV_LINKS;
   settings: SiteSettings | null = null;
   isUserMenuOpen = false;
+  private userMenuCloseTimeout: ReturnType<typeof setTimeout> | null = null;
   isSearchOpen = false;
   currentUser = this.authService.currentUser;
   cartSummary = this.cartService.cartSummary;
-  currentLanguage = 'he';
+  loginForm!: FormGroup;
+  loginError = '';
+  isLoadingLogin = false;
   isLoggedIn$: Observable<boolean> = this.authService.currentUser$.pipe(
     map(user => !!user)
   );
@@ -61,20 +69,18 @@ export class HeaderComponent implements OnInit {
     return this.authService.isLoggedIn();
   }
 
+  get profileLink(): string {
+    return this.currentUser?.role === 'admin' ? '/admin' : '/profile';
+  }
+
   ngOnInit(): void {
+    this.loginForm = this.fb.group({
+      username: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(3)]]
+    });
     // Set fallback language (replaces deprecated setDefaultLang)
     this.translateService.setFallbackLang('he');
-    this.translateService.use('he');
-    
-    // Subscribe to language changes
-    this.languageService.currentLanguage$.subscribe(lang => {
-      this.currentLanguage = lang;
-      this.translateService.use(lang);
-    });
-    
-    // Initial language check
-    this.currentLanguage = this.languageService.currentLanguage;
-    this.translateService.use(this.currentLanguage);
+    this.translateService.use(this.languageService.currentLanguage);
     
     // Subscribe to search state
     this.searchService.isSearchOpen$.subscribe(isOpen => {
@@ -109,41 +115,57 @@ export class HeaderComponent implements OnInit {
     this.cartService.toggleCart();
   }
 
-  onUserClick(): void {
-    if (this.isLoggedIn) {
-      const user = this.currentUser;
-      if (user?.role === 'admin') {
-        this.router.navigate(['/admin']);
-      } else {
-        this.router.navigate(['/my-orders']);
-      }
-    } else {
-      this.authModalService.openModal();
+  onDropdownLogin(): void {
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
+      return;
     }
+    this.loginError = '';
+    this.isLoadingLogin = true;
+    this.authService.login({
+      username: this.loginForm.value.username,
+      password: this.loginForm.value.password
+    }).subscribe({
+      next: (res) => {
+        if (res.success) {
+          const name = res.user?.fullName || res.user?.username || 'משתמש';
+          this.toastService.success(`ברוך הבא ${name}`);
+          this.loginForm.reset();
+          this.isUserMenuOpen = false;
+        } else {
+          this.loginError = res.message || 'שגיאה בהתחברות';
+        }
+        this.isLoadingLogin = false;
+      },
+      error: (err) => {
+        this.loginError = err.error?.message || (err.status === 401 ? 'אימייל או סיסמה שגויים' : 'שגיאה בהתחברות');
+        this.isLoadingLogin = false;
+      }
+    });
   }
 
-  onLanguageToggle(): void {
-    this.languageService.toggleLanguage();
+  onUserMenuEnter(): void {
+    if (this.userMenuCloseTimeout) {
+      clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = null;
+    }
+    this.isUserMenuOpen = true;
   }
 
-  toggleLanguage(): void {
-    const current = this.translateService.currentLang || 'he';
-    const target = current === 'he' ? 'en' : 'he';
-    
-    // Update TranslateService
-    this.translateService.use(target);
-    
-    // Update LanguageService (for direction and other logic)
-    this.languageService.setLanguage(target as 'he' | 'en');
-    
-    // Update currentLanguage immediately for UI
-    this.currentLanguage = target;
-    
-    // Update lang attribute only, NOT dir (html stays ltr for scrollbar)
-    document.documentElement.lang = target;
-    
-    // Save preference to localStorage
-    localStorage.setItem('preferredLanguage', target);
+  onUserMenuLeave(): void {
+    this.userMenuCloseTimeout = setTimeout(() => {
+      this.isUserMenuOpen = false;
+      this.userMenuCloseTimeout = null;
+    }, 200);
+  }
+
+  closeUserMenu(): void {
+    this.isUserMenuOpen = false;
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.closeUserMenu();
   }
 }
 

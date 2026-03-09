@@ -80,6 +80,11 @@ export const routes: Routes = [
     loadComponent: () => import('@app/components/pages/user-profile/user-profile.component').then(m => m.UserProfileComponent),
     canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
   },
+  {
+    path: 'profile',
+    redirectTo: 'my-account',
+    pathMatch: 'full'
+  },
   
   // Auth Pages
   {

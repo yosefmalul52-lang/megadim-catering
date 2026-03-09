@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -8,12 +9,12 @@ import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
-import { AuthModalService } from '../../../services/auth-modal.service';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-header-top-bar',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule],
   template: `
     <div class="header-top-bar">
       <div class="container">
@@ -65,11 +66,9 @@ import { AuthModalService } from '../../../services/auth-modal.service';
             </div>
           </div>
           
-          <!-- Right side: Action Icons only -->
+          <!-- Right side: Action Icons -->
           <div class="right-section">
-            <!-- Action Icons -->
             <div class="action-icons">
-              <!-- Search Icon -->
               <button 
                 class="icon-btn search-btn"
                 (click)="searchService.toggleSearch()"
@@ -79,7 +78,6 @@ import { AuthModalService } from '../../../services/auth-modal.service';
                 <i class="fas fa-search" aria-hidden="true"></i>
               </button>
               
-              <!-- Cart Icon -->
               <button 
                 class="icon-btn cart-btn"
                 (click)="cartService.toggleCart()"
@@ -89,68 +87,87 @@ import { AuthModalService } from '../../../services/auth-modal.service';
                 <span 
                   class="cart-badge" 
                   *ngIf="cartSummary.totalItems > 0"
-                  [attr.aria-label]="'סה כ פריטים בעגלה: ' + cartSummary.totalItems"
+                  [attr.aria-label]="'סה״כ פריטים בעגלה: ' + cartSummary.totalItems"
                 >
                   {{ cartSummary.totalItems }}
                 </span>
               </button>
               
-              <!-- User Menu -->
-              <div class="user-menu" [class.open]="isUserMenuOpen">
-                <button 
-                  class="icon-btn user-btn"
-                  (click)="onUserIconClick()"
-                  [title]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'עבור ללוח בקרה' : 'האזור האישי שלי') : 'התחבר/הירשם'"
-                  [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'עבור ללוח בקרה' : 'האזור האישי שלי') : 'התחבר או הירשם'"
-                  style="cursor: pointer"
-                >
-                  <i class="fas fa-user" aria-hidden="true" [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''"></i>
-                </button>
-                <span style="font-size: 10px; color: red; margin-left: 2px;" [title]="'Auth: ' + ((isLoggedIn$ | async) ? 'ON' : 'OFF')">{{ (isLoggedIn$ | async) ? 'ON' : 'OFF' }}</span>
+              <!-- User Menu: hover dropdown + icon link (wrapper contains both for no hover gap) -->
+              <div 
+                class="user-menu user-menu-wrapper" 
+                [class.user-menu-closed]="!isUserMenuOpen"
+                (mouseenter)="onUserMenuEnter()" 
+                (mouseleave)="onUserMenuLeave()"
+                [class.open]="isUserMenuOpen"
+              >
+                @if (isLoggedIn$ | async; as loggedIn) {
+                  <a 
+                    [routerLink]="profileLink" 
+                    class="icon-btn user-btn user-icon-link"
+                    [attr.aria-label]="currentUser?.role === 'admin' ? 'לוח בקרה' : 'האזור האישי'"
+                  >
+                    <i class="fas fa-user" aria-hidden="true" style="color: #c5a059;"></i>
+                  </a>
+                } @else {
+                  <a 
+                    routerLink="/login" 
+                    class="icon-btn user-btn user-icon-link"
+                    aria-label="התחבר"
+                  >
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                  </a>
+                }
                 
-                <!-- User Dropdown -->
-                <div class="user-dropdown" *ngIf="isUserMenuOpen">
-                  <div *ngIf="!currentUser; else loggedInMenu">
-                    <button class="dropdown-item" (click)="openAuthModal('login')">
-                      <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
-                      {{ languageService.strings.login }}
-                    </button>
-                    <button class="dropdown-item" (click)="openAuthModal('register')">
-                      <i class="fas fa-user-plus" aria-hidden="true"></i>
-                      {{ languageService.strings.register }}
-                    </button>
-                  </div>
-                  
-                  <ng-template #loggedInMenu>
-                    <div class="user-info">
-                      <span class="user-name">{{ currentUser?.fullName || currentUser?.name || currentUser?.username }}</span>
-                      <span class="user-role" *ngIf="currentUser?.role === 'admin'">מנהל</span>
-                      <span class="user-role" *ngIf="currentUser?.role === 'user'">לקוח</span>
+                <div class="user-dropdown">
+                  @if (!currentUser) {
+                    <div class="dropdown-login">
+                      <form [formGroup]="loginForm" (ngSubmit)="onDropdownLogin()" class="dropdown-login-form">
+                        <input
+                          type="email"
+                          formControlName="username"
+                          class="dropdown-input"
+                          placeholder="אימייל"
+                          autocomplete="username"
+                        >
+                        <input
+                          [type]="showPassword ? 'text' : 'password'"
+                          formControlName="password"
+                          class="dropdown-input"
+                          placeholder="סיסמה"
+                          autocomplete="current-password"
+                        >
+                        <p class="dropdown-login-error" *ngIf="loginError">{{ loginError }}</p>
+                        <button type="submit" class="dropdown-btn dropdown-btn-primary" [disabled]="loginForm.invalid || isLoadingLogin">
+                          {{ isLoadingLogin ? 'מתחבר...' : 'התחבר' }}
+                        </button>
+                        <a routerLink="/login" class="dropdown-link forgot-link">שכחת סיסמה?</a>
+                      </form>
+                      <div class="dropdown-register">
+                        <a routerLink="/register" class="dropdown-link register-link">הרשמה</a>
+                      </div>
                     </div>
-                    <hr>
-                    <a 
-                      routerLink="/admin" 
-                      class="dropdown-item" 
-                      *ngIf="currentUser?.role === 'admin'"
-                      (click)="closeUserMenu()"
-                    >
-                      <i class="fas fa-cog" aria-hidden="true"></i>
-                      לוח בקרה
-                    </a>
-                    <a 
-                      routerLink="/my-account" 
-                      class="dropdown-item" 
-                      *ngIf="currentUser?.role === 'user'"
-                      (click)="closeUserMenu()"
-                    >
-                      <i class="fas fa-shopping-bag" aria-hidden="true"></i>
-                      האזור האישי שלי
-                    </a>
-                    <button class="dropdown-item logout-btn" (click)="logout()">
-                      <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
-                      התנתקות
-                    </button>
-                  </ng-template>
+                  } @else {
+                    <div class="dropdown-logged-in">
+                      <p class="dropdown-greeting">שלום, {{ currentUser?.fullName || currentUser?.name || currentUser?.username || 'משתמש' }}</p>
+                      <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
+                        <i class="fas fa-user" aria-hidden="true"></i>
+                        הפרופיל שלי
+                      </a>
+                      <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
+                        <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+                        ההזמנות שלי
+                      </a>
+                      <a routerLink="/admin" class="dropdown-item" *ngIf="currentUser?.role === 'admin'" (click)="closeUserMenu()">
+                        <i class="fas fa-cog" aria-hidden="true"></i>
+                        לוח בקרה
+                      </a>
+                      <button type="button" class="dropdown-item logout-btn" (click)="logout()">
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+                        התנתק
+                      </button>
+                    </div>
+                  }
                 </div>
               </div>
             </div>
@@ -167,15 +184,21 @@ export class HeaderTopBarComponent implements OnInit {
   cartService = inject(CartService);
   searchService = inject(SearchService);
   authService = inject(AuthService);
-  authModalService = inject(AuthModalService);
+  toastService = inject(ToastService);
+  private fb = inject(FormBuilder);
   private router = inject(Router);
   
   isUserMenuOpen = false;
+  private userMenuCloseTimeout: ReturnType<typeof setTimeout> | null = null;
   isSearchOpen = false;
   currentLanguage = 'he';
   currentUser = this.authService.currentUser;
   cartSummary = this.cartService.cartSummary;
-  /** Reactive auth state – BehaviorSubject in AuthService emits immediately on subscribe. */
+  loginForm!: FormGroup;
+  loginError = '';
+  isLoadingLogin = false;
+  showPassword = false;
+
   isLoggedIn$: Observable<boolean> = this.authService.currentUser$.pipe(
     map(user => !!user)
   );
@@ -184,54 +207,71 @@ export class HeaderTopBarComponent implements OnInit {
     return this.authService.isLoggedIn();
   }
 
+  get profileLink(): string {
+    return this.currentUser?.role === 'admin' ? '/admin' : '/profile';
+  }
+
   ngOnInit(): void {
-    // Subscribe to language changes
+    this.loginForm = this.fb.group({
+      username: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(3)]]
+    });
     this.languageService.currentLanguage$.subscribe(lang => {
       this.currentLanguage = lang;
     });
-    
-    // Subscribe to search state
     this.searchService.isSearchOpen$.subscribe(isOpen => {
       this.isSearchOpen = isOpen;
     });
-    
-    // Subscribe to auth state
     this.authService.currentUser$.subscribe((user: any) => {
       this.currentUser = user;
     });
-    
-    // Subscribe to cart changes
     this.cartService.cartItems$.subscribe(() => {
       this.cartSummary = this.cartService.cartSummary;
     });
   }
 
-  onUserIconClick(): void {
-    if (this.isLoggedIn) {
-      // Check user role
-      const user = this.currentUser;
-      if (user?.role === 'admin') {
-        // Admin -> go to admin dashboard
-        this.router.navigate(['/admin']);
-      } else {
-        // Regular user -> go to personal account area
-        this.router.navigate(['/my-account']);
-      }
-    } else {
-      // Guest -> open auth modal
-      this.openAuthModal('login');
+  onDropdownLogin(): void {
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
+      return;
     }
+    this.loginError = '';
+    this.isLoadingLogin = true;
+    this.authService.login({
+      username: this.loginForm.value.username,
+      password: this.loginForm.value.password
+    }).subscribe({
+      next: (res) => {
+        if (res.success) {
+          const name = res.user?.fullName || res.user?.username || 'משתמש';
+          this.toastService.success(`ברוך הבא ${name}`);
+          this.loginForm.reset();
+          this.isUserMenuOpen = false;
+        } else {
+          this.loginError = res.message || 'שגיאה בהתחברות';
+        }
+        this.isLoadingLogin = false;
+      },
+      error: (err) => {
+        this.loginError = err.error?.message || (err.status === 401 ? 'אימייל או סיסמה שגויים' : 'שגיאה בהתחברות');
+        this.isLoadingLogin = false;
+      }
+    });
   }
 
-  openAuthModal(mode: 'login' | 'register' = 'login'): void {
-    this.closeUserMenu();
-    this.authModalService.openModal();
-    // Note: The modal component will handle the mode switching internally
-    // If you want to set initial mode, you can extend AuthModalService
+  onUserMenuEnter(): void {
+    if (this.userMenuCloseTimeout) {
+      clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = null;
+    }
+    this.isUserMenuOpen = true;
   }
 
-  toggleUserMenu(): void {
-    this.isUserMenuOpen = !this.isUserMenuOpen;
+  onUserMenuLeave(): void {
+    this.userMenuCloseTimeout = setTimeout(() => {
+      this.isUserMenuOpen = false;
+      this.userMenuCloseTimeout = null;
+    }, 200);
   }
 
   closeUserMenu(): void {

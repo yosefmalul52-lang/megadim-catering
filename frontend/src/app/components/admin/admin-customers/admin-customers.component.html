@@ -70,7 +70,7 @@
                 (click)="openPanel(user)"
               >
                 <td class="name-cell">{{ user.fullName || '—' }}</td>
-                <td class="phone-cell">{{ user.phone || '—' }}</td>
+                <td class="phone-cell">{{ user.phone || 'לא הוזן' }}</td>
                 <td class="email-cell">{{ user.username || '—' }}</td>
                 <td class="date-cell">{{ user.createdAt | date:'dd/MM/yyyy' }}</td>
                 <td class="date-cell">
@@ -127,7 +127,8 @@
         </button>
       </div>
       <div class="panel-body">
-        <p class="panel-meta">{{ selectedUser.phone || '—' }} · {{ selectedUser.username || '—' }}</p>
+        <p class="panel-meta">{{ selectedUser.phone || 'לא הוזן' }} · {{ selectedUser.username || '—' }}</p>
+        <p class="panel-meta">כתובת: {{ selectedUser?.address || 'לא הוזן' }}</p>
         <div class="panel-actions-inline">
           <a [href]="getWhatsAppLink(selectedUser)" target="_blank" rel="noopener noreferrer" class="btn-panel btn-whatsapp">
             <i class="fab fa-whatsapp"></i> וואטסאפ

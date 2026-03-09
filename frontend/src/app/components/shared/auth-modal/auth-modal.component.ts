@@ -2,10 +2,11 @@ import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
-import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
+import { trigger, transition, style, animate } from '@angular/animations';
 
-import { AuthService, LoginCredentials, RegisterCredentials } from '../../../services/auth.service';
+import { AuthService, LoginCredentials } from '../../../services/auth.service';
 import { AuthModalService } from '../../../services/auth-modal.service';
 import { ToastService } from '../../../services/toast.service';
 
@@ -43,35 +44,13 @@ import { ToastService } from '../../../services/toast.service';
           <i class="fas fa-times" aria-hidden="true"></i>
         </button>
 
-        <!-- Modal Content -->
+        <!-- Modal Content - Login only -->
         <div class="modal-content">
-          <!-- Header -->
           <div class="modal-header">
             <div class="logo-container">
               <h2 class="modal-title">ברוכים הבאים למגדים</h2>
-              <p class="modal-subtitle">{{ isLoginMode ? 'התחבר לחשבון שלך' : 'צור חשבון חדש' }}</p>
+              <p class="modal-subtitle">התחבר לחשבון שלך</p>
             </div>
-          </div>
-
-          <!-- Tabs -->
-          <div class="auth-tabs">
-            <div class="tab-indicator" [class.login-active]="isLoginMode" [class.register-active]="!isLoginMode"></div>
-            <button 
-              class="tab-btn" 
-              [class.active]="isLoginMode"
-              (click)="switchToLogin()"
-              type="button"
-            >
-              התחברות
-            </button>
-            <button 
-              class="tab-btn" 
-              [class.active]="!isLoginMode"
-              (click)="switchToSignUp()"
-              type="button"
-            >
-              הרשמה
-            </button>
           </div>
 
           <!-- Error Message -->
@@ -90,7 +69,6 @@ import { ToastService } from '../../../services/toast.service';
 
           <!-- Login Form -->
           <form 
-            *ngIf="isLoginMode" 
             [formGroup]="loginForm" 
             (ngSubmit)="onLogin()" 
             class="auth-form"
@@ -174,127 +152,10 @@ import { ToastService } from '../../../services/toast.service';
                 מתחבר...
               </span>
             </button>
-          </form>
 
-          <!-- Register Form -->
-          <form 
-            *ngIf="!isLoginMode" 
-            [formGroup]="registerForm" 
-            (ngSubmit)="onSignUp()" 
-            class="auth-form"
-            [@fadeInOut]
-          >
-            <div class="form-group" [class.error]="registerForm.get('fullName')?.invalid && registerForm.get('fullName')?.touched">
-              <label for="signup-fullName" class="form-label">
-                שם מלא
-              </label>
-              <div class="input-wrapper">
-                <input
-                  type="text"
-                  id="signup-fullName"
-                  formControlName="fullName"
-                  class="form-input"
-                  autocomplete="name"
-                  placeholder="הזן שם מלא"
-                  [disabled]="isLoading"
-                >
-              </div>
-              <span class="error-message" *ngIf="registerForm.get('fullName')?.invalid && registerForm.get('fullName')?.touched">
-                שם מלא נדרש
-              </span>
-            </div>
-
-            <div class="form-group" [class.error]="registerForm.get('username')?.invalid && registerForm.get('username')?.touched">
-              <label for="signup-username" class="form-label">
-                אימייל
-              </label>
-              <div class="input-wrapper">
-                <input
-                  type="email"
-                  id="signup-username"
-                  formControlName="username"
-                  class="form-input"
-                  autocomplete="username"
-                  placeholder="your@email.com"
-                  [disabled]="isLoading"
-                >
-              </div>
-              <span class="error-message" *ngIf="registerForm.get('username')?.invalid && registerForm.get('username')?.touched">
-                <span *ngIf="registerForm.get('username')?.errors?.['required']">אימייל נדרש</span>
-                <span *ngIf="registerForm.get('username')?.errors?.['email']">אימייל לא תקין</span>
-              </span>
-            </div>
-
-            <div class="form-group" [class.error]="registerForm.get('phone')?.invalid && registerForm.get('phone')?.touched">
-              <label for="signup-phone" class="form-label">
-                טלפון
-              </label>
-              <div class="input-wrapper">
-                <input
-                  type="tel"
-                  id="signup-phone"
-                  formControlName="phone"
-                  class="form-input"
-                  autocomplete="tel"
-                  placeholder="052-824-0230"
-                  [disabled]="isLoading"
-                >
-              </div>
-              <span class="error-message" *ngIf="registerForm.get('phone')?.invalid && registerForm.get('phone')?.touched">
-                טלפון נדרש
-              </span>
-            </div>
-
-            <div class="form-group" [class.error]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
-              <label for="signup-password" class="form-label">
-                סיסמה
-              </label>
-              <div class="input-wrapper">
-                <input
-                  type="password"
-                  id="signup-password"
-                  formControlName="password"
-                  class="form-input"
-                  autocomplete="new-password"
-                  placeholder="הזן סיסמה (לפחות 3 תווים)"
-                  [disabled]="isLoading"
-                >
-              </div>
-              <span class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
-                <span *ngIf="registerForm.get('password')?.errors?.['required']">סיסמה נדרשת</span>
-                <span *ngIf="registerForm.get('password')?.errors?.['minlength']">סיסמה חייבת להכיל לפחות 3 תווים</span>
-              </span>
-            </div>
-
-            <div class="form-group">
-              <label for="signup-address" class="form-label">
-                כתובת (אופציונלי)
-              </label>
-              <div class="input-wrapper">
-                <input
-                  type="text"
-                  id="signup-address"
-                  formControlName="address"
-                  class="form-input"
-                  autocomplete="street-address"
-                  placeholder="הזן כתובת למשלוח"
-                  [disabled]="isLoading"
-                >
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              class="btn-submit"
-              [disabled]="isLoading || registerForm.invalid"
-              [class.loading]="isLoading"
-            >
-              <span *ngIf="!isLoading">הירשם</span>
-              <span *ngIf="isLoading">
-                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-                נרשם...
-              </span>
-            </button>
+            <p class="auth-footer-link">
+              עדיין אין לך חשבון? <button type="button" class="link-btn" (click)="goToRegister()">להרשמה</button>
+            </p>
           </form>
         </div>
       </div>
@@ -306,33 +167,32 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private authModalService = inject(AuthModalService);
   private toastService = inject(ToastService);
+  private router = inject(Router);
   private fb = inject(FormBuilder);
   private destroy$ = new Subject<void>();
 
   isModalOpen = false;
-  isLoginMode = true;
   isLoading = false;
   errorMessage = '';
   showPassword = false;
   rememberMe = false;
 
   loginForm!: FormGroup;
-  registerForm!: FormGroup;
 
   ngOnInit(): void {
-    // Subscribe to modal state
     this.authModalService.isModalOpen$
       .pipe(takeUntil(this.destroy$))
       .subscribe(isOpen => {
         this.isModalOpen = isOpen;
-        if (isOpen) {
-          // Reset forms when modal opens
-          this.resetForms();
-        }
+        if (isOpen) this.resetForms();
       });
-
-    // Initialize forms
     this.initForms();
+  }
+
+  /** Close modal and navigate to standalone registration page */
+  goToRegister(): void {
+    this.closeModal();
+    this.router.navigate(['/register']);
   }
 
   ngOnDestroy(): void {
@@ -341,43 +201,16 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   }
 
   initForms(): void {
-    // Login Form - username can be email or username, so we don't require email validation
     this.loginForm = this.fb.group({
       username: ['', [Validators.required]],
       password: ['', [Validators.required, Validators.minLength(3)]]
-    });
-
-    // Register Form
-    this.registerForm = this.fb.group({
-      fullName: ['', [Validators.required]],
-      username: ['', [Validators.required, Validators.email]],
-      phone: ['', [Validators.required]],
-      password: ['', [Validators.required, Validators.minLength(3)]],
-      address: ['']
     });
   }
 
   resetForms(): void {
     this.loginForm?.reset();
-    this.registerForm?.reset();
     this.errorMessage = '';
     this.isLoading = false;
-  }
-
-  switchToLogin(): void {
-    if (this.isLoginMode) return; // Already in login mode
-    this.isLoginMode = true;
-    this.errorMessage = '';
-    // Reset login form errors
-    this.loginForm.markAsUntouched();
-  }
-
-  switchToSignUp(): void {
-    if (!this.isLoginMode) return; // Already in register mode
-    this.isLoginMode = false;
-    this.errorMessage = '';
-    // Reset register form errors
-    this.registerForm.markAsUntouched();
   }
 
   closeModal(): void {
@@ -440,64 +273,5 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     });
   }
 
-  onSignUp(): void {
-    if (this.registerForm.invalid) {
-      // Mark all fields as touched to show errors
-      Object.keys(this.registerForm.controls).forEach(key => {
-        this.registerForm.get(key)?.markAsTouched();
-      });
-      return;
-    }
-
-    this.isLoading = true;
-    this.errorMessage = '';
-
-    const credentials: RegisterCredentials = {
-      fullName: this.registerForm.value.fullName,
-      username: this.registerForm.value.username,
-      phone: this.registerForm.value.phone,
-      password: this.registerForm.value.password,
-      address: this.registerForm.value.address || ''
-    };
-
-    this.authService.register(credentials).subscribe({
-      next: (response) => {
-        if (response.success) {
-          // User is automatically logged in after registration (token is returned)
-          const userName = response.user?.fullName || response.user?.username || 'משתמש';
-          this.toastService.success(`הרשמה בוצעה בהצלחה! ברוך הבא ${userName}`);
-          
-          // Clear form and close modal after short delay
-          this.registerForm.reset();
-          this.errorMessage = '';
-          
-          setTimeout(() => {
-            this.closeModal();
-          }, 500);
-        } else {
-          // Show error but keep modal open
-          this.errorMessage = response.message || 'שגיאה בהרשמה';
-          this.isLoading = false;
-        }
-      },
-      error: (error) => {
-        console.error('Registration error:', error);
-        
-        // Show error but keep modal open
-        if (error.error?.message) {
-          this.errorMessage = error.error.message;
-        } else if (error.status === 400) {
-          this.errorMessage = 'פרטים שגויים. אנא בדוק את הטופס.';
-        } else if (error.status === 0) {
-          this.errorMessage = 'לא ניתן להתחבר לשרת. אנא בדוק את החיבור.';
-        } else {
-          this.errorMessage = 'שגיאה בהרשמה. אנא נסה שוב.';
-        }
-        
-        this.isLoading = false;
-        // Modal stays open so user can retry
-      }
-    });
-  }
 }
 

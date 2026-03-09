@@ -12,9 +12,10 @@
   direction: rtl;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
   
-  // Soft background - light gray with subtle gradient
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #f0f4f8 100%);
+  /* Premium: subtle off-white / light gray so card pops */
+  background: #f4f5f7;
   
   // Optional: Blurred catering image background (uncomment if you have an image)
   // background-image: url('../../../assets/images/hero-bg.jpg');
@@ -52,26 +53,42 @@
 // ============================================
 // Login Card - White Card with Shadow
 // ============================================
+/* Back to Home - above title */
+.back-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #5a6570;
+  font-size: 0.875rem;
+  text-decoration: none;
+  margin-bottom: 1.25rem;
+  transition: color 0.2s ease;
+  font-weight: 500;
+
+  &:hover {
+    color: $color-gold;
+  }
+
+  i {
+    font-size: 0.8rem;
+  }
+}
+
+/* Card: pure white, generous padding, soft modern shadow */
 .login-card {
-  background: $color-white;
-  border-radius: 20px;
-  box-shadow: 
-    0 10px 40px rgba(0, 0, 0, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   width: 100%;
   max-width: 500px;
-  padding: $spacing-xl * 2;
+  padding: 40px;
   animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 1;
   transition: box-shadow 0.3s ease;
 
   &:hover {
-    box-shadow: 
-      0 15px 50px rgba(0, 0, 0, 0.12),
-      0 4px 12px rgba(0, 0, 0, 0.06),
-      0 0 0 1px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -102,13 +119,14 @@
 }
 
 .login-title {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   color: $color-navy;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   letter-spacing: -0.5px;
   line-height: 1.2;
   font-family: $font-family-primary;
+  text-align: center;
 }
 
 .login-subtitle {
@@ -117,6 +135,7 @@
   margin: 0;
   font-weight: 400;
   line-height: 1.5;
+  text-align: center;
 }
 
 // ============================================
@@ -263,8 +282,10 @@
 
 .input-icon {
   position: absolute;
-  right: $spacing-md;
-  color: $color-gray;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 15px;
+  color: #888;
   font-size: $font-size-base;
   pointer-events: none;
   z-index: 1;
@@ -273,38 +294,34 @@
 
 .form-input {
   width: 100%;
-  padding: $spacing-md + 0.25rem $spacing-md + 0.5rem $spacing-md + 0.25rem 3.5rem;
-  border: 2px solid #e0e4e8;
-  border-radius: 12px;
+  padding: 12px 40px 12px 12px; // RTL: padding-right so text doesn't overlap icon
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   font-size: $font-size-base;
   font-family: $font-family-primary;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
   text-align: right;
-  background-color: $color-white;
+  background-color: #ffffff;
+  -webkit-appearance: none;
+  appearance: none;
   color: $color-navy;
   line-height: 1.5;
 
-  // Focus effect - Gold border with glow
   &:focus {
     outline: none;
     border-color: $color-gold;
-    box-shadow: 
-      0 0 0 4px rgba($color-gold, 0.15),
-      0 2px 8px rgba(0, 0, 0, 0.08);
-    background-color: #fefefe;
+    box-shadow: 0 0 0 3px rgba($color-gold, 0.2);
+    background-color: #ffffff;
   }
 
-  // Icon color change on focus
   &:focus ~ .input-icon,
   &:focus + .input-icon {
     color: $color-gold;
   }
 
-  // Hover state
   &:hover:not(:disabled) {
     border-color: #d0d6db;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
   }
 
   &:disabled {
@@ -336,46 +353,32 @@
 // ============================================
 .btn-login {
   width: 100%;
-  padding: $spacing-md + 0.5rem $spacing-xl;
-  font-size: $font-size-lg;
-  font-weight: 700;
+  padding: 0.875rem 1.5rem;
+  font-size: 1.0625rem;
+  font-weight: bold;
   margin-top: $spacing-xl;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  // Primary brand color - Navy with gold accent
-  background: linear-gradient(135deg, $color-navy 0%, $color-navy-light 100%);
-  color: $color-white;
-  
+  transition: all 0.25s ease;
+  background: $color-gold;
+  color: $color-navy;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: $spacing-sm;
-  box-shadow: 
-    0 4px 12px rgba(14, 26, 36, 0.25),
-    0 2px 4px rgba(14, 26, 36, 0.15);
-  
+  box-shadow: 0 4px 14px rgba($color-gold, 0.35);
   font-family: $font-family-primary;
-  letter-spacing: 0.3px;
   text-transform: none;
 
-  // Hover effect - Lift and brighten
   &:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 
-      0 8px 20px rgba(14, 26, 36, 0.35),
-      0 4px 8px rgba(14, 26, 36, 0.2);
-    background: linear-gradient(135deg, $color-navy-light 0%, $color-navy 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba($color-gold, 0.45);
+    background: color-mix(in srgb, $color-gold, black 10%);
   }
 
-  // Active state
   &:active:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 
-      0 4px 12px rgba(14, 26, 36, 0.25),
-      0 2px 4px rgba(14, 26, 36, 0.15);
+    transform: translateY(0);
   }
 
   &:disabled {
@@ -392,6 +395,35 @@
 
   i {
     font-size: 1.1rem;
+  }
+}
+
+/* Footer link - elegant, clickable part in brand color */
+.auth-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #eee;
+  color: #5a6570;
+  font-size: 0.9375rem;
+  margin-bottom: 0;
+}
+
+.auth-footer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: $color-gold;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  text-decoration: none;
+  transition: text-decoration 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    text-decoration: underline;
+    color: darken($color-gold, 8%);
   }
 }
 

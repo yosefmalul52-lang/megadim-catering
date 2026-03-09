@@ -204,3 +204,14 @@ body {
   justify-content: flex-start; // RTL: flex-start = right side
   direction: rtl;
 }
+
+// EqualWeb accessibility widget: middle of the page on the right
+#INDmenu-btn,
+[id*='equalweb'],
+[class*='equalweb'] {
+  right: 20px !important;
+  left: auto !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+}

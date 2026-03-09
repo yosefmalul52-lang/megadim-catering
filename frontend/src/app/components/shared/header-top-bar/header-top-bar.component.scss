@@ -79,19 +79,25 @@
 .action-icons {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: $spacing-sm;
 }
 
 .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: $spacing-sm;
   background: none;
   border: none;
   color: $color-white;
   cursor: pointer;
-  padding: $spacing-sm;
   border-radius: $border-radius-md;
   transition: all $transition-normal;
   position: relative;
-  font-size: 1.375rem; // 22px - adjusted for 70px height
+  font-size: 1.375rem;
 
   &.user-btn {
     color: $color-white; /* Default: visible on dark bar */
@@ -155,22 +161,50 @@
   }
 }
 
-// User Menu
+// User Menu - parent wrapper contains BOTH icon and dropdown so hover stays active
 .user-menu {
   position: relative;
+  display: inline-flex;
 }
 
-.user-dropdown {
+.user-icon-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: inherit;
+}
+
+/* Dropdown: hidden by default; shown on hover OR focus-within (keeps open during browser autocomplete) */
+.user-menu-wrapper .user-dropdown,
+.user-menu .user-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
+  margin-top: 4px;
   background-color: $color-white;
   border-radius: $border-radius-md;
-  box-shadow: $shadow-lg;
-  padding: $spacing-sm 0;
-  min-width: 200px;
-  z-index: $z-index-dropdown;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 0, 0, 0.08);
+  padding: $spacing-md;
+  min-width: 280px;
+  z-index: 1000;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+
+  /* Invisible bridge: no dead zone between icon and dropdown */
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 15px;
+  }
   
   [dir="rtl"] & {
     right: 0;
@@ -181,6 +215,114 @@
     right: auto;
     left: 0;
   }
+}
+
+.user-menu-wrapper:hover .user-dropdown,
+.user-menu-wrapper:focus-within .user-dropdown,
+.user-menu:hover .user-dropdown,
+.user-menu:focus-within .user-dropdown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.2s ease, visibility 0s ease 0s;
+}
+
+/* Programmatic close (e.g. after login or link click) overrides hover/focus-within */
+.user-menu-wrapper.user-menu-closed .user-dropdown,
+.user-menu.user-menu-closed .user-dropdown {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.dropdown-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.dropdown-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: $font-size-sm;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  &:focus {
+    outline: none;
+    border-color: $color-gold;
+  }
+}
+
+.dropdown-login-error {
+  color: #c62828;
+  font-size: $font-size-xs;
+  margin: 0;
+}
+
+.dropdown-btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.dropdown-btn-primary {
+  background-color: $color-navy;
+  color: $color-white;
+  &:hover:not(:disabled) {
+    background-color: $color-navy-light;
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.dropdown-link {
+  font-size: $font-size-sm;
+  color: $color-gold;
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.forgot-link {
+  text-align: center;
+  margin-top: 2px;
+}
+
+.dropdown-register {
+  margin-top: $spacing-md;
+  padding-top: $spacing-sm;
+  border-top: 1px solid $color-gray-light;
+  text-align: center;
+}
+
+.register-link {
+  font-weight: 600;
+}
+
+.dropdown-logged-in {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-greeting {
+  padding: 0 $spacing-sm $spacing-sm;
+  margin: 0;
+  font-weight: 600;
+  color: $color-navy;
+  font-size: $font-size-base;
+  border-bottom: 1px solid $color-gray-light;
+  margin-bottom: $spacing-xs;
 }
 
 .dropdown-item {

@@ -10,10 +10,10 @@ import { HeaderComponent } from './components/shared/header/header.component';
 import { SearchBarComponent } from './components/shared/search-bar/search-bar.component';
 import { CartModalComponent } from './components/shared/cart-modal/cart-modal.component';
 import { FooterComponent } from './components/shared/footer/footer.component';
-import { AuthModalComponent } from './components/shared/auth-modal/auth-modal.component';
 import { ToastComponent } from './components/shared/toast/toast.component';
 
 import { LanguageService } from './services/language.service';
+import { MAIN_NAV_LINKS } from './nav-links';
 
 @Component({
   selector: 'app-root',
@@ -29,7 +29,6 @@ import { LanguageService } from './services/language.service';
     SearchBarComponent,
     CartModalComponent,
     FooterComponent,
-    AuthModalComponent,
     ToastComponent
   ],
   template: `
@@ -37,36 +36,26 @@ import { LanguageService } from './services/language.service';
     <mat-sidenav-container class="mat-sidenav-wrapper" autosize>
       <mat-sidenav #sidenav mode="over" position="start" class="mobile-sidenav">
         <div class="sidenav-content">
-          <button mat-button routerLink="/" (click)="sidenav.close()">{{ 'NAV.HOME' | translate }}</button>
-          <button mat-button routerLink="/about" (click)="sidenav.close()">{{ 'NAV.ABOUT' | translate }}</button>
-          <button mat-button routerLink="/events-catering" (click)="sidenav.close()">{{ 'NAV.CATERING' | translate }}</button>
-          <button mat-button routerLink="/ready-for-shabbat" (click)="sidenav.close()">{{ 'NAV.READY_FOOD' | translate }}</button>
-          <button mat-button routerLink="/cholent-bar" (click)="sidenav.close()">{{ 'NAV.CHOLENT' | translate }}</button>
-          <button mat-button routerLink="/holiday-food" (click)="sidenav.close()">{{ 'NAV.KOSHER' | translate }}</button>
-          <button mat-button routerLink="/kosher" (click)="sidenav.close()">{{ 'NAV.KOSHER' | translate }}</button>
-          <button mat-button routerLink="/contact" (click)="sidenav.close()">{{ 'NAV.CONTACT' | translate }}</button>
+          <button mat-button *ngFor="let link of navLinks" [routerLink]="link.path" (click)="sidenav.close()">{{ link.labelKey | translate }}</button>
         </div>
       </mat-sidenav>
       
-      <!-- Header (3-Row Layout) (hidden on login/admin pages) -->
+      <!-- Header (hidden only on admin / time-clock / employee / my-zone) -->
       <app-header *ngIf="!isLoginOrAdminPage" [sidenav]="sidenav"></app-header>
       
-      <!-- Search Bar (shown conditionally, hidden on login/admin pages) -->
+      <!-- Search Bar -->
       <app-search-bar *ngIf="!isLoginOrAdminPage"></app-search-bar>
       
-      <!-- Main Content -->
+      <!-- Main Content (full-screen class only when header/footer hidden) -->
       <main class="main-content" [class.full-screen]="isLoginOrAdminPage">
         <router-outlet></router-outlet>
       </main>
       
-      <!-- Footer (hidden on login/admin pages) -->
+      <!-- Footer (hidden only on admin / time-clock / employee / my-zone) -->
       <app-footer *ngIf="!isLoginOrAdminPage"></app-footer>
       
-      <!-- Cart Modal (hidden on login/admin pages) -->
+      <!-- Cart Modal -->
       <app-cart-modal *ngIf="!isLoginOrAdminPage"></app-cart-modal>
-      
-      <!-- Auth Modal (available on all pages) -->
-      <app-auth-modal></app-auth-modal>
       
       <!-- Toast Notifications (available on all pages) -->
       <app-toast></app-toast>
@@ -80,6 +69,17 @@ import { LanguageService } from './services/language.service';
         <button type="button" class="btn-primary-gold" (click)="acceptCookies()">הבנתי ואישרתי</button>
       </div>
     </div>
+
+    <!-- Floating WhatsApp Button (bottom-left so it doesn't overlap accessibility on the right) -->
+    <a
+      href="https://wa.me/972528240230"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="fab-whatsapp"
+      aria-label="צרו קשר בוואטסאפ"
+    >
+      <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+    </a>
     </div>
   `,
   styleUrls: ['./app.component.scss']
@@ -92,6 +92,7 @@ export class AppComponent implements OnInit {
   textDir: 'rtl' | 'ltr' = 'rtl';
   isLoginOrAdminPage = false;
   showCookieBanner = false;
+  navLinks = MAIN_NAV_LINKS;
 
   ngOnInit(): void {
     if (typeof localStorage !== 'undefined' && !localStorage.getItem('cookieConsent')) {
@@ -117,7 +118,8 @@ export class AppComponent implements OnInit {
 
   private updatePageVisibility(): void {
     const url = this.router.url;
-    this.isLoginOrAdminPage = url.startsWith('/login') || url.startsWith('/admin') || url.startsWith('/time-clock') || url.startsWith('/employee-login') || url.startsWith('/my-zone');
+    // Hide header/footer only on admin and special app pages; show on login and register
+    this.isLoginOrAdminPage = url.startsWith('/admin') || url.startsWith('/time-clock') || url.startsWith('/employee-login') || url.startsWith('/my-zone');
   }
 
   acceptCookies(): void {

@@ -38,7 +38,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           </div>
           
           <div class="action-btn-wrapper">
-            <button class="gold-btn" routerLink="/ready-for-shabbat">לתפריט המלא לחצו >></button>
+            <a class="hero-menu-btn" routerLink="/ready-for-shabbat">לצפייה בתפריט</a>
           </div>
         </div>
       </section>
@@ -309,10 +309,12 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         gap: 0; // We'll use custom gaps for each section
       }
       
-      // Premium Main Title
+      // Premium Main Title (gold like rest of site) – Rubik for a professional look
       .main-title {
+        font-family: 'Secular One', sans-serif;
+        color: $gold;
         font-size: 4rem; // Significantly larger for impact
-        font-weight: 800;
+        font-weight: 700;
         text-shadow: 0 2px 10px rgba(0,0,0,0.5); // Subtle elegant shadow
         line-height: 1.1;
         margin: 0 0 15px 0; // 15px gap to subtitle
@@ -329,64 +331,64 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         margin: 0 0 25px 0; // 25px gap to kosher badge
         
         .subtitle-line {
-          font-size: 1.3rem;
-          font-weight: 300; // Lighter font weight for premium feel
-          line-height: 1.6; // More line-height for readability
+          font-size: 1.5rem;
+          font-weight: 300;
+          line-height: 1.6;
           margin: 12px 0;
           text-shadow: 0 2px 8px rgba(0,0,0,0.7);
         }
       }
       
-      // Elegant Kosher Badge
+      // Elegant Kosher Badge (doubled size) – white
       .kosher-badge {
         font-family: 'Heebo', sans-serif;
-        color: #e0c075; // Gold text
+        color: $white;
         background-color: transparent;
-        font-size: 0.9rem; // Slightly smaller for elegance
+        font-size: 1.8rem;
         font-weight: 700;
-        letter-spacing: 2px; // Increased letter spacing for elegance
-        text-transform: uppercase; // All caps for premium badge look
+        letter-spacing: 4px;
+        text-transform: uppercase;
         text-shadow: 0 2px 4px rgba(0,0,0,0.9);
-        border-top: 1px solid #e0c075;
-        border-bottom: 1px solid #e0c075;
+        border-top: 2px solid $white;
+        border-bottom: 2px solid $white;
         border-left: none;
         border-right: none;
         display: inline-block;
-        padding: 5px 0;
+        padding: 10px 0;
         width: fit-content;
-        margin: 0 0 35px 0; // 35px gap to button
+        margin: 0 0 40px 0;
       }
       
       .action-btn-wrapper {
-        margin: 0; // No extra margin, using spacing from kosher badge
+        margin: 0;
       }
       
-      // Polished Button Styling
-      .gold-btn {
-        background-color: #e0c075; // Gold background
-        color: #000000; // Black text
+      // Hero CTA – professional, drives order action
+      .hero-menu-btn {
+        font-family: 'Heebo', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: #1f3540;
+        background: $gold;
         border: none;
-        font-size: 1.2rem;
-        font-weight: 700; // Bold font
-        letter-spacing: 0.5px; // Slight letter spacing
-        padding: 12px 40px; // Substantial horizontal padding
-        border-radius: 8px; // Rounded corners (8px)
-        cursor: pointer;
-        transition: all 0.3s ease;
+        padding: 16px 42px;
+        border-radius: 8px;
         text-decoration: none;
         display: inline-block;
-        font-family: 'Heebo', sans-serif;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); // Subtle shadow
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.2);
         
         &:hover {
-          transform: scale(1.05) translateY(-2px); // Scale + lift effect
-          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); // Enhanced shadow on hover
-          background-color: darken(#e0c075, 5%); // Slightly darker on hover
+          background: #d4b35c;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.25);
         }
         
         &:active {
-          transform: scale(1.02) translateY(0); // Subtle press effect
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+          transform: translateY(0);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
       }
       
@@ -412,7 +414,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           margin: 0 0 22px 0;
           
           .subtitle-line {
-            font-size: 1.1rem;
+            font-size: 1.3rem;
             font-weight: 300;
             line-height: 1.6;
             margin: 10px 0;
@@ -420,16 +422,15 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         }
         
         .kosher-badge {
-          font-size: 0.85rem;
-          padding: 5px 0;
-          letter-spacing: 2px;
-          margin: 0 0 30px 0;
+          font-size: 1.7rem;
+          padding: 10px 0;
+          letter-spacing: 4px;
+          margin: 0 0 38px 0;
         }
         
-        .gold-btn {
-          font-size: 1.1rem;
-          padding: 11px 35px;
-          border-radius: 8px;
+        .hero-menu-btn {
+          font-size: 1.05rem;
+          padding: 12px 32px;
         }
       }
       
@@ -454,7 +455,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           margin: 0 0 20px 0;
           
           .subtitle-line {
-            font-size: 1rem;
+            font-size: 1.2rem;
             font-weight: 300;
             line-height: 1.6;
             margin: 8px 0;
@@ -462,17 +463,15 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         }
         
         .kosher-badge {
-          font-size: 0.8rem;
-          padding: 4px 0;
-          letter-spacing: 2px;
-          margin: 0 0 28px 0;
+          font-size: 1.6rem;
+          padding: 8px 0;
+          letter-spacing: 4px;
+          margin: 0 0 32px 0;
         }
         
-        .gold-btn {
+        .hero-menu-btn {
           font-size: 1rem;
-          padding: 11px 32px;
-          border-radius: 8px;
-          letter-spacing: 0.3px;
+          padding: 12px 28px;
         }
       }
     }

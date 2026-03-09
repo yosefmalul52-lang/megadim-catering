@@ -117,15 +117,12 @@ export class CheckoutPageComponent implements OnInit {
       termsAccepted: [false, [Validators.requiredTrue]]
     });
 
-    // Auto-fill checkout form with logged-in user details
+    // Auto-fill checkout form when user has saved profile (phone/address optional at registration)
     this.authService.currentUser$.subscribe((user) => {
-      if (!user || !this.orderForm) {
-        return;
-      }
-
+      if (!user || !this.orderForm) return;
       this.orderForm.patchValue({
         fullName: user.fullName || user.name || user.username || '',
-        phone: user.phone || this.orderForm.get('phone')?.value || '',
+        phone: user.phone ?? this.orderForm.get('phone')?.value ?? '',
         customerEmail: this.orderForm.get('customerEmail')?.value || user.username || ''
       });
     });

@@ -29,8 +29,8 @@ export interface User {
 export interface RegisterCredentials {
   fullName: string;
   username: string; // Email
-  phone: string;
   password: string;
+  phone?: string;
   address?: string;
 }
 

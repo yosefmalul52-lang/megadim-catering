@@ -8,6 +8,7 @@ export interface AdminUser {
   fullName: string;
   username: string;
   phone?: string;
+  address?: string;
   role: string;
   isActive?: boolean;
   createdAt: string;

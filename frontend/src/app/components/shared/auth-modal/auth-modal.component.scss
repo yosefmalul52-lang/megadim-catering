@@ -478,6 +478,24 @@
   }
 }
 
+.auth-footer-link {
+  text-align: center;
+  margin-top: $spacing-lg;
+  font-size: $font-size-sm;
+  color: #555;
+  .link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: $color-gold;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: inherit;
+    &:hover { color: $color-gold-dark; }
+  }
+}
+
 // ============================================
 // Responsive Design
 // ============================================

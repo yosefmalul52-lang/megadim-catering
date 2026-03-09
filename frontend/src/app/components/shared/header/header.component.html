@@ -1,15 +1,11 @@
 <header class="main-header">
-  <!-- Row 1: Top Bar (Navy) -->
+  <!-- Row 1: Top Bar (minimal - phone only) -->
   <div class="top-bar">
     <div class="top-bar-content">
       <a [href]="'tel:' + contactPhone" class="mobile-phone-icon" aria-label="Call us">
         <mat-icon>phone</mat-icon>
       </a>
       <span class="desktop-phone-text">{{ 'NAV.ORDER_TEL' | translate }}</span>
-      <div class="lang-switcher" (click)="toggleLanguage()">
-        <span class="lang-text">{{ currentLanguage === 'he' ? 'EN' : 'עברית' }}</span>
-        <mat-icon class="lang-icon">language</mat-icon>
-      </div>
     </div>
   </div>
   
@@ -26,18 +22,80 @@
         <img src="assets/images/logo1.png" alt="כשרות מהודרת" class="kosher-stamp">
         <div class="separator"></div>
         <div class="user-actions">
-          <button mat-icon-button aria-label="חיפוש" (click)="onSearchClick()">
+          <button mat-icon-button class="header-action-icon" aria-label="חיפוש" (click)="onSearchClick()">
             <mat-icon>search</mat-icon>
           </button>
           
-          <button mat-icon-button aria-label="עגלת קניות" (click)="onCartClick()" class="cart-btn">
+          <button mat-icon-button class="header-action-icon cart-btn" aria-label="עגלת קניות" (click)="onCartClick()">
             <mat-icon>shopping_cart</mat-icon>
             <span class="cart-badge" *ngIf="cartSummary.totalItems > 0">{{ cartSummary.totalItems }}</span>
           </button>
           
-          <button mat-icon-button aria-label="אזור אישי" (click)="onUserClick()" class="user-icon-btn" [class.user-icon-gold]="isLoggedIn$ | async">
-            <mat-icon [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''">person</mat-icon>
-          </button>
+          <!-- User/Profile icon only: same row, hover = dropdown; click = /login or /profile -->
+          <div
+            class="user-menu-wrapper"
+            [class.user-menu-closed]="!isUserMenuOpen"
+            (mouseenter)="onUserMenuEnter()"
+            (mouseleave)="onUserMenuLeave()"
+          >
+            <a
+              [routerLink]="(isLoggedIn$ | async) ? profileLink : '/login'"
+              class="header-action-icon user-icon-trigger"
+              [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'לוח בקרה' : 'הפרופיל שלי') : 'התחבר'"
+            >
+              <mat-icon [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''">person</mat-icon>
+            </a>
+            <div class="user-dropdown">
+              <ng-container *ngIf="!currentUser; else loggedInDropdown">
+                <div class="dropdown-login">
+                  <form [formGroup]="loginForm" (ngSubmit)="onDropdownLogin()" class="dropdown-login-form">
+                    <input
+                      type="email"
+                      formControlName="username"
+                      class="dropdown-input"
+                      placeholder="אימייל"
+                      autocomplete="username"
+                    >
+                    <input
+                      type="password"
+                      formControlName="password"
+                      class="dropdown-input"
+                      placeholder="סיסמה"
+                      autocomplete="current-password"
+                    >
+                    <p class="dropdown-login-error" *ngIf="loginError">{{ loginError }}</p>
+                    <button type="submit" class="dropdown-btn dropdown-btn-primary" [disabled]="loginForm.invalid || isLoadingLogin">
+                      {{ isLoadingLogin ? 'מתחבר...' : 'התחבר' }}
+                    </button>
+                  </form>
+                  <div class="dropdown-register">
+                    <a routerLink="/register" class="dropdown-link register-link">הרשמה</a>
+                  </div>
+                </div>
+              </ng-container>
+              <ng-template #loggedInDropdown>
+                <div class="dropdown-logged-in">
+                  <p class="dropdown-greeting">שלום, {{ currentUser?.fullName || currentUser?.name || currentUser?.username || 'משתמש' }}</p>
+                  <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
+                    <mat-icon>person</mat-icon>
+                    הפרופיל שלי
+                  </a>
+                  <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
+                    <mat-icon>shopping_bag</mat-icon>
+                    ההזמנות שלי
+                  </a>
+                  <a routerLink="/admin" class="dropdown-item" *ngIf="currentUser?.role === 'admin'" (click)="closeUserMenu()">
+                    <mat-icon>settings</mat-icon>
+                    לוח בקרה
+                  </a>
+                  <button type="button" class="dropdown-item logout-btn" (click)="logout()">
+                    <mat-icon>logout</mat-icon>
+                    התנתק
+                  </button>
+                </div>
+              </ng-template>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -46,14 +104,7 @@
   <!-- Row 3: Navigation Bar (Navy) -->
   <div class="nav-bar">
     <nav class="desktop-nav">
-      <a routerLink="/" routerLinkActive="active-link" [routerLinkActiveOptions]="{exact: true}">דף הבית</a>
-      <a routerLink="/about" routerLinkActive="active-link">אודות</a>
-      <a routerLink="/catering" routerLinkActive="active-link">קייטרינג לאירועים</a>
-      <a routerLink="/holiday-food" routerLinkActive="active-link">קייטרינג לאירועי שבת וחג </a>
-      <a routerLink="/ready-for-shabbat" routerLinkActive="active-link">אוכל מוכן לשבת וחג</a>
-      <a routerLink="/cholent" routerLinkActive="active-link">צ'ולנט בר</a>
-      <a routerLink="/kosher" routerLinkActive="active-link">תעודת כשרות</a>
-      <a routerLink="/contact" routerLinkActive="active-link">צור קשר</a>
+      <a *ngFor="let link of navLinks" [routerLink]="link.path" routerLinkActive="active-link" [routerLinkActiveOptions]="link.path === '/' ? { exact: true } : { exact: false }">{{ link.labelKey | translate }}</a>
     </nav>
     
     <button mat-icon-button class="mobile-menu-btn" (click)="sidenav?.toggle()">

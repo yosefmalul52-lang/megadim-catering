@@ -26,17 +26,19 @@
   width: 90%;
   max-width: 800px;
   background-color: $color-white;
-  border-radius: $border-radius-lg;
-  box-shadow: $shadow-xl;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  padding: 40px;
   
   @media (max-width: $breakpoint-sm - 1px) {
     top: 5%;
     width: 95%;
     max-height: 90vh;
+    padding: 24px;
   }
 }
 
@@ -44,10 +46,10 @@
   display: flex;
   align-items: center;
   gap: $spacing-md;
-  padding: $spacing-lg;
-  border-bottom: 1px solid $color-gray-light;
-  background-color: $color-white;
+  padding: 0 0 24px 0;
+  border-bottom: 1px solid #eee;
   flex-shrink: 0;
+  margin-bottom: 24px;
 }
 
 .search-input-wrapper {
@@ -59,36 +61,55 @@
 
 .search-icon {
   position: absolute;
-  color: $color-gray;
-  font-size: $font-size-base;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  font-size: 1.25rem;
   z-index: 1;
+  pointer-events: none;
+  transition: color 0.2s ease;
   
   [dir="rtl"] & {
-    right: $spacing-md;
+    right: 0;
   }
   
   [dir="ltr"] & {
-    left: $spacing-md;
+    left: 0;
   }
+}
+
+.search-input-wrapper:focus-within .search-icon {
+  color: $color-gold;
 }
 
 .search-input {
   width: 100%;
-  padding: $spacing-md;
-  border: 2px solid $color-gray-light;
-  border-radius: $border-radius-md;
-  font-size: $font-size-base;
+  padding: 15px 40px 15px 0;
+  border: none;
+  border-bottom: 2px solid #eee;
+  border-radius: 0;
+  font-size: 22px;
+  font-weight: 500;
   font-family: inherit;
-  transition: all $transition-normal;
-  background-color: $color-white;
+  background: transparent;
+  transition: border-bottom-color 0.2s ease;
+  outline: none;
   
-  @include rtl-padding-right($spacing-xl);
-  @include rtl-padding-left($spacing-xl);
+  [dir="rtl"] & {
+    padding-right: 40px;
+    padding-left: 0;
+    text-align: right;
+  }
+  
+  [dir="ltr"] & {
+    padding-left: 40px;
+    padding-right: 0;
+    text-align: left;
+  }
   
   &:focus {
     outline: none;
-    border-color: $color-gold;
-    box-shadow: 0 0 0 3px rgba($color-gold, 0.1);
+    border-bottom-color: $color-gold;
   }
   
   &::placeholder {
@@ -104,53 +125,59 @@
   cursor: pointer;
   padding: $spacing-xs;
   border-radius: $border-radius-sm;
-  transition: all $transition-normal;
+  transition: all 0.2s ease;
+  outline: none;
   
   [dir="rtl"] & {
-    left: $spacing-md;
+    left: 0;
   }
   
   [dir="ltr"] & {
-    right: $spacing-md;
+    right: 0;
   }
   
   &:hover, &:focus {
     color: $color-navy;
-    background-color: $color-gray-light;
+    background-color: transparent;
   }
   
   &:focus-visible {
-    outline: 2px solid $color-gold;
-    outline-offset: 2px;
+    outline: none;
   }
 }
 
 .close-search-btn {
-  background: none;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  color: #555;
   border: none;
-  color: $color-gray;
   cursor: pointer;
-  padding: $spacing-sm;
-  border-radius: $border-radius-md;
-  transition: all $transition-normal;
-  font-size: $font-size-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s ease;
+  font-size: 1rem;
   flex-shrink: 0;
+  outline: none;
   
   &:hover, &:focus {
+    background: #e0e0e0;
     color: $color-navy;
-    background-color: $color-gray-light;
   }
   
   &:focus-visible {
-    outline: 2px solid $color-gold;
-    outline-offset: 2px;
+    outline: none;
   }
 }
 
 .search-content {
   flex: 1;
   overflow-y: auto;
-  padding: $spacing-lg;
+  padding: 0;
 }
 
 // Loading State
@@ -185,24 +212,27 @@
 }
 
 .popular-tag {
-  background-color: $color-gray-light;
-  border: none;
-  padding: $spacing-sm $spacing-md;
-  border-radius: $border-radius-full;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 30px;
+  padding: 10px 24px;
+  color: #444;
+  font-weight: 500;
   font-size: $font-size-sm;
-  color: $color-navy;
   cursor: pointer;
-  transition: all $transition-normal;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  outline: none;
   
   &:hover, &:focus {
-    background-color: $color-gold;
-    color: $color-white;
-    transform: translateY(-1px);
+    border-color: $color-gold;
+    color: $color-gold;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
   }
   
   &:focus-visible {
-    outline: 2px solid $color-gold;
-    outline-offset: 2px;
+    outline: none;
   }
 }
 

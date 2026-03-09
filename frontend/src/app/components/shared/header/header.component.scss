@@ -73,58 +73,15 @@ $white: #FFFFFF;
         align-items: center;
       }
     }
-    
-    // 2. Button on the Right
-    .lang-switcher {
-      grid-column: 3; // Right column
-      justify-self: end; // Align to the far edge
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      cursor: pointer;
-      font-weight: bold;
-      color: $white;
-      transition: all 0.3s;
-      
-      // Optional: Separator line if needed
-      border-right: 1px solid rgba(224, 192, 117, 0.3);
-      padding-right: 15px;
-      margin-right: 5px;
-      
-      .lang-text {
-        font-size: 0.8rem;
-        font-weight: 500;
-      }
-      
-      .lang-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        color: $gold;
-      }
-      
-      &:hover {
-        color: $gold;
-        
-        .lang-icon {
-          color: $gold;
-        }
-      }
-      
-      // On mobile, remove border/padding if space is tight
-      @media (max-width: 600px) {
-        border: none;
-        padding: 0;
-        margin-right: 0;
-      }
-    }
   }
 }
 
 // Row 2: Brand Bar - Main Logo Right, Kosher + Icons Left
 .brand-bar {
+  position: relative;
+  overflow: visible;
   background-color: $white;
-  height: 160px; // הגדלנו את גובה הבאר כדי לאפשר לוגו גדול יותר
+  height: 160px;
   border-bottom: none !important;
   
   .container {
@@ -160,7 +117,8 @@ $white: #FFFFFF;
   .left-section {
     display: flex;
     align-items: center;
-    gap: 25px; // Space between Kosher stamp and Icons
+    gap: 25px;
+    overflow: visible;
     
     .kosher-stamp {
       height: 70px; // Slightly smaller than main logo
@@ -179,66 +137,69 @@ $white: #FFFFFF;
       background-color: #ddd;
     }
     
+    /* All three icons: same size, same row, flex alignment */
     .user-actions {
       display: flex;
-      gap: 10px;
-      
-      button {
-        color: $navy; // The new Navy color
-        transition: color 0.3s, transform 0.3s;
-        
-        // Remove default Material backgrounds
+      align-items: center;
+      gap: 15px;
+    }
+
+    /* Shared class for Search, Cart, and User icons – same size and alignment */
+    .header-action-icon {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      min-width: 56px;
+      min-height: 56px;
+      width: 56px;
+      height: 56px;
+      padding: 0;
+      box-sizing: border-box;
+      color: $navy;
+      background: transparent !important;
+      background-color: transparent !important;
+      border: none;
+      outline: none;
+      border-radius: 50%;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.3s, transform 0.3s;
+
+      &::after {
+        display: none !important;
+      }
+
+      ::ng-deep .mat-mdc-button-persistent-ripple,
+      ::ng-deep .mat-mdc-focus-indicator,
+      ::ng-deep .mat-ripple {
+        display: none !important;
+      }
+
+      mat-icon {
+        color: inherit;
+        font-size: 1.875rem;
+        width: 1.875rem;
+        height: 1.875rem;
+        line-height: 1.875rem;
+      }
+
+      &:hover {
         background: transparent !important;
         background-color: transparent !important;
-        border: none;
-        outline: none;
-        
-        &::after {
-          display: none !important;
-        }
-        
-        ::ng-deep .mat-mdc-button-persistent-ripple {
-          display: none !important;
-        }
-        
-        ::ng-deep .mat-mdc-focus-indicator {
-          display: none !important;
-        }
-        
-        ::ng-deep .mat-ripple {
-          display: none !important;
-        }
-        
+        color: $gold;
+        transform: scale(1.05);
         mat-icon {
-          color: $navy; // The new Navy color
-          font-size: 26px;
-          width: 26px;
-          height: 26px;
-          line-height: 26px;
-        }
-        
-        &:hover {
-          background: transparent !important;
-          background-color: transparent !important;
           color: $gold;
-          transform: scale(1.05);
-          
-          mat-icon {
-            color: $gold;
-          }
-        }
-
-        /* User icon – gold when logged in (inline style + class for robustness) */
-        &.user-icon-gold mat-icon {
-          color: #c5a059 !important;
         }
       }
-      
+    }
+
+    .user-actions {
       // Cart Badge Style
       .cart-btn {
         position: relative;
       }
-      
+
       .cart-badge {
         position: absolute;
         top: -4px;
@@ -255,6 +216,174 @@ $white: #FFFFFF;
         font-weight: bold;
         border: 2px solid $white;
       }
+
+      .user-menu-wrapper {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .user-icon-trigger {
+        &:hover mat-icon {
+          color: $gold;
+        }
+      }
+    }
+  }
+
+  /* Dropdown: hidden by default; shown on hover OR focus-within (keeps open during browser autocomplete) */
+  .user-menu-wrapper .user-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    background: $white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 1rem;
+    min-width: 280px;
+    z-index: 1000;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+
+    /* Invisible bridge: hover area extends up so no dead zone between icon and dropdown */
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 100%;
+      height: 15px;
+    }
+  }
+
+  .user-menu-wrapper:hover .user-dropdown,
+  .user-menu-wrapper:focus-within .user-dropdown {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.2s ease, visibility 0s ease 0s;
+  }
+
+  /* Programmatic close (e.g. after login or link click) overrides hover/focus-within */
+  .user-menu-wrapper.user-menu-closed .user-dropdown {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  
+  .dropdown-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .dropdown-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    box-sizing: border-box;
+    &:focus {
+      outline: none;
+      border-color: $gold;
+    }
+  }
+  
+  .dropdown-login-error {
+    color: #c62828;
+    font-size: 0.8rem;
+    margin: 0;
+  }
+  
+  .dropdown-btn {
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+    transition: all 0.2s;
+  }
+  
+  .dropdown-btn-primary {
+    background: $navy;
+    color: $white;
+    &:hover:not(:disabled) {
+      background: darken($navy, 5%);
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+  
+  .dropdown-link {
+    font-size: 0.875rem;
+    color: $gold;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+  
+  .forgot-link { text-align: center; margin-top: 2px; }
+  
+  .dropdown-register {
+    margin-top: 1rem;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    text-align: center;
+  }
+  
+  .register-link { font-weight: 600; }
+  
+  .dropdown-logged-in {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .dropdown-greeting {
+    padding: 0 10px 10px;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+    color: $navy;
+    font-size: 1rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    color: $navy;
+    text-decoration: none;
+    font-size: 0.875rem;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: right;
+    cursor: pointer;
+    transition: background 0.2s;
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+    &:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+  }
+  
+  .logout-btn {
+    color: #c62828 !important;
+    &:hover {
+      background: rgba(198, 40, 40, 0.1) !important;
     }
   }
   
@@ -282,11 +411,19 @@ $white: #FFFFFF;
         height: 35px;
       }
       
-      .user-actions mat-icon {
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
+      .header-action-icon mat-icon {
+        font-size: 1.6875rem;
+        width: 1.6875rem;
+        height: 1.6875rem;
+        line-height: 1.6875rem;
       }
+    }
+  }
+
+  // Hide Kosher stamp on small mobile to save header space (separator stays)
+  @media (max-width: 768px) {
+    .left-section .kosher-stamp {
+      display: none !important;
     }
   }
 }
