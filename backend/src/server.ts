@@ -36,6 +36,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { connectDatabase } from './config/database';
 
 // Import routes
@@ -80,14 +81,27 @@ console.log('☁️ Cloudinary Config:', {
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// CORS middleware - MUST be first, before any other middleware or routes
-// Allow Vercel and Localhost to access the server
+// Trust proxy so X-Forwarded-For is used (Render / reverse proxy)
+app.set('trust proxy', 1);
+
+// Allowed origins: production Vercel URL only (+ optional custom domain from env, + localhost in dev)
+const allowedOrigins: string[] = [
+  'https://megadim-catering.vercel.app'
+];
+if (process.env.CORS_ORIGIN) {
+  allowedOrigins.push(process.env.CORS_ORIGIN.trim());
+}
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:4200');
+}
+
+// CORS – strict: only allowed origins, credentials enabled
 app.use(cors({
-  origin: [
-    'http://localhost:4200', // Local development
-    'https://magadim-backend.onrender.com', // Render backend (if needed)
-    /\.vercel\.app$/ // All Vercel preview and production deployments (matches *.vercel.app)
-  ],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // same-origin or non-browser (e.g. Postman)
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(null, false); // disallow: no Access-Control-Allow-Origin sent
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
@@ -96,7 +110,16 @@ app.use(cors({
 // Security headers (XSS, clickjacking, etc.)
 app.use(helmet());
 
-// Middleware
+// Rate limit: 100 requests per 15 minutes per IP (brute-force protection)
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+}));
+
+// Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For handling form data, including multipart
 
@@ -115,6 +138,11 @@ app.get('/api/health', (req, res) => {
 // Test Route
 app.get('/', (req, res) => {
   res.send('✅ API is running on Port ' + PORT);
+});
+
+// robots.txt for crawlers
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send('User-agent: *\nAllow: /');
 });
 
 // MongoDB Connection - Use centralized database config
