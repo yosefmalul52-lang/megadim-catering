@@ -10,6 +10,7 @@ import { CartService } from '../../../services/cart.service';
 import { MenuService } from '../../../services/menu.service';
 import { TestimonialsService } from '../../../services/testimonials.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { SeoService } from '../../../services/seo.service';
 import { FeaturedMenuComponent } from '../../featured-menu/featured-menu.component';
 import { AboutComponent } from '../../about/about.component';
 import { VideoSectionComponent } from '../../video-section/video-section.component';
@@ -826,6 +827,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   testimonialsService = inject(TestimonialsService);
   settingsService = inject(SiteSettingsService);
   router = inject(Router);
+  seoService = inject(SeoService);
 
   @ViewChild('carouselTrack') carouselTrack!: ElementRef;
   
@@ -842,6 +844,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   menuCategories: any[] = [];
 
   ngOnInit(): void {
+    this.seoService.updatePage('home');
     this.settingsService.getSettings(true).subscribe(s => {
       this.settings = s;
       const home = this.settings?.pageAnnouncements?.['home'];

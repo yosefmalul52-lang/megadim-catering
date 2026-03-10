@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { RouterModule } from '@angular/router';
 import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
+import { SeoService } from '../../../../services/seo.service';
 
 @Component({
   selector: 'app-shabbat-menu',
@@ -18,7 +19,8 @@ import { SiteSettingsService, SiteSettings } from '../../../../services/site-set
 export class ShabbatMenuComponent implements OnInit {
   translateService = inject(TranslateService);
   settingsService = inject(SiteSettingsService);
-  
+  seoService = inject(SeoService);
+
   settings: SiteSettings | null = null;
   shabbatMenuPdfUrl: string = '';
   
@@ -63,6 +65,7 @@ export class ShabbatMenuComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    this.seoService.updatePage('menu');
     // Fetch site settings
     this.settingsService.getSettings(true).subscribe(s => {
       if (s && s.shabbatMenuUrl) {

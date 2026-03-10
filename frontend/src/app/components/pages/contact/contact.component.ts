@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContactService } from '../../../services/contact.service';
+import { SeoService } from '../../../services/seo.service';
 
 @Component({
   selector: 'app-contact',
@@ -11,6 +12,9 @@ import { ContactService } from '../../../services/contact.service';
   styleUrls: ['./contact.component.scss'],
 })
 export class ContactComponent implements OnInit {
+  private contactService = inject(ContactService);
+  private seoService = inject(SeoService);
+
   form = {
     name: '',
     phone: '',
@@ -21,9 +25,8 @@ export class ContactComponent implements OnInit {
   successMessage = '';
   contactInfo: { phone: string; email: string } = { phone: '', email: '' };
 
-  constructor(private contactService: ContactService) {}
-
   ngOnInit(): void {
+    this.seoService.updatePage('contact');
     const info = this.contactService.getContactInfo();
     this.contactInfo = { phone: info.phone, email: info.email };
   }
