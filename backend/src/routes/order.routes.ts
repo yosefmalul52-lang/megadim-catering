@@ -108,6 +108,8 @@ router.put('/:id/restore', authenticate, orderController.restoreOrder);
 router.delete('/:id/permanent', authenticate, authorize('admin'), orderController.permanentDeleteOrder);
 router.put('/:id/status', authenticate, orderController.updateOrderStatus);
 router.patch('/:id/status', authenticate, orderController.updateOrderStatus);
+router.patch('/:id/date', authenticate, orderController.updateOrderDate);
+router.put('/:id/date', authenticate, orderController.updateOrderDate);
 router.delete('/:id', authenticate, orderController.deleteOrder);
 
 export default router;

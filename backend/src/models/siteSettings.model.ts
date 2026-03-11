@@ -4,6 +4,8 @@ export interface IPageAnnouncement {
   bannerText?: string;
   popupTitle?: string;
   popupText?: string;
+  popupLinkText?: string;
+  popupLinkUrl?: string;
 }
 
 export type PageId = 'home' | 'events' | 'holiday' | 'cholent' | 'salads' | 'fish' | 'desserts';
@@ -13,7 +15,7 @@ export const PAGE_IDS: PageId[] = ['home', 'events', 'holiday', 'cholent', 'sala
 function defaultPageAnnouncements(): Record<string, IPageAnnouncement> {
   const out: Record<string, IPageAnnouncement> = {};
   for (const id of PAGE_IDS) {
-    out[id] = { bannerText: '', popupTitle: '', popupText: '' };
+    out[id] = { bannerText: '', popupTitle: '', popupText: '', popupLinkText: '', popupLinkUrl: '' };
   }
   return out;
 }
@@ -81,8 +83,9 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
     }
   },
   {
+    collection: 'site_settings',
     timestamps: true,
-    collection: 'site_settings'
+    strict: false // MUST BE FALSE – allows new fields (e.g. popupLinkText) to be saved without being stripped
   }
 );
 

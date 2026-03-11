@@ -7,7 +7,7 @@ import { asyncHandler, createValidationError } from '../middleware/errorHandler'
 function defaultPageAnnouncements(): Record<string, IPageAnnouncement> {
   const out: Record<string, IPageAnnouncement> = {};
   for (const id of PAGE_IDS) {
-    out[id] = { bannerText: '', popupTitle: '', popupText: '' };
+    out[id] = { bannerText: '', popupTitle: '', popupText: '', popupLinkText: '', popupLinkUrl: '' };
   }
   return out;
 }
@@ -16,30 +16,34 @@ function defaultPageAnnouncements(): Record<string, IPageAnnouncement> {
 function normalizePageAnnouncements(doc: any): Record<string, IPageAnnouncement> {
   const out = defaultPageAnnouncements();
   const pa = doc?.pageAnnouncements && typeof doc.pageAnnouncements === 'object' ? doc.pageAnnouncements : {};
+  const emptyPage = (): IPageAnnouncement => ({ bannerText: '', popupTitle: '', popupText: '', popupLinkText: '', popupLinkUrl: '' });
   for (const id of PAGE_IDS) {
     if (pa[id] && typeof pa[id] === 'object') {
+      const v = pa[id];
       out[id] = {
-        bannerText: typeof pa[id].bannerText === 'string' ? pa[id].bannerText : '',
-        popupTitle: typeof pa[id].popupTitle === 'string' ? pa[id].popupTitle : '',
-        popupText: typeof pa[id].popupText === 'string' ? pa[id].popupText : ''
+        bannerText: typeof v.bannerText === 'string' ? v.bannerText : '',
+        popupTitle: typeof v.popupTitle === 'string' ? v.popupTitle : '',
+        popupText: typeof v.popupText === 'string' ? v.popupText : '',
+        popupLinkText: typeof v.popupLinkText === 'string' ? v.popupLinkText : '',
+        popupLinkUrl: typeof v.popupLinkUrl === 'string' ? v.popupLinkUrl : ''
       };
     }
   }
-  // Legacy: map old flat fields into pageAnnouncements
+  // Legacy: use root fields only when pageAnnouncements has no value (new data wins)
   const raw = doc?.toObject ? doc.toObject() : doc;
   if (raw) {
     if (typeof raw.homeAnnouncementTitle === 'string' || typeof raw.homeAnnouncement === 'string') {
-      out.home = out.home || { bannerText: '', popupTitle: '', popupText: '' };
-      if (typeof raw.homeAnnouncementTitle === 'string') out.home.popupTitle = raw.homeAnnouncementTitle;
-      if (typeof raw.homeAnnouncement === 'string') out.home.popupText = raw.homeAnnouncement;
+      out.home = out.home || emptyPage();
+      if (typeof raw.homeAnnouncementTitle === 'string' && !(out.home!.popupTitle?.trim())) out.home!.popupTitle = raw.homeAnnouncementTitle;
+      if (typeof raw.homeAnnouncement === 'string' && !(out.home!.popupText?.trim())) out.home!.popupText = raw.homeAnnouncement;
     }
     if (typeof raw.cateringAnnouncement === 'string') {
-      out.events = out.events || { bannerText: '', popupTitle: '', popupText: '' };
-      out.events.bannerText = raw.cateringAnnouncement;
+      out.events = out.events || emptyPage();
+      if (!(out.events!.bannerText?.trim())) out.events!.bannerText = raw.cateringAnnouncement;
     }
     if (typeof raw.holidayAnnouncement === 'string') {
-      out.holiday = out.holiday || { bannerText: '', popupTitle: '', popupText: '' };
-      out.holiday.bannerText = raw.holidayAnnouncement;
+      out.holiday = out.holiday || emptyPage();
+      if (!(out.holiday!.bannerText?.trim())) out.holiday!.bannerText = raw.holidayAnnouncement;
     }
   }
   return out;
@@ -141,6 +145,12 @@ export class SettingsController {
             if (v.popupText !== undefined && typeof v.popupText !== 'string') {
               throw createValidationError(`pageAnnouncements.${key}.popupText must be a string`);
             }
+            if (v.popupLinkText !== undefined && typeof v.popupLinkText !== 'string') {
+              throw createValidationError(`pageAnnouncements.${key}.popupLinkText must be a string`);
+            }
+            if (v.popupLinkUrl !== undefined && typeof v.popupLinkUrl !== 'string') {
+              throw createValidationError(`pageAnnouncements.${key}.popupLinkUrl must be a string`);
+            }
           }
         }
       }
@@ -167,56 +177,51 @@ export class SettingsController {
         }
       }
 
-      let settings = await SiteSettings.findOne();
+      console.log('SERVER RECEIVED DATA:', JSON.stringify(updateData.pageAnnouncements?.home, null, 2));
 
-      if (!settings) {
-        console.log('No settings found during update. Creating new settings document...');
-        settings = new SiteSettings({
-          shabbatMenuUrl: updateData.shabbatMenuUrl || '',
-          eventsMenuUrl: updateData.eventsMenuUrl || '',
-          contactPhone: updateData.contactPhone || '0528240230',
-          orderEmail: updateData.orderEmail || 'yosefmalul52@gmail.com',
-          whatsappLink: updateData.whatsappLink || '',
-          cholentForceOpen: !!updateData.cholentForceOpen,
-          cholentCustomMessage: updateData.cholentCustomMessage || '',
-          cholentClosedMessage: updateData.cholentClosedMessage !== undefined ? updateData.cholentClosedMessage : 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
-          pageAnnouncements: normalizePageAnnouncements(updateData)
-        });
-      } else {
-        if (updateData.shabbatMenuUrl !== undefined) settings.shabbatMenuUrl = updateData.shabbatMenuUrl;
-        if (updateData.eventsMenuUrl !== undefined) settings.eventsMenuUrl = updateData.eventsMenuUrl;
-        if (updateData.contactPhone !== undefined) settings.contactPhone = updateData.contactPhone;
-        if (updateData.orderEmail !== undefined) settings.orderEmail = updateData.orderEmail;
-        if (updateData.whatsappLink !== undefined) settings.whatsappLink = updateData.whatsappLink;
-        if (updateData.cholentForceOpen !== undefined) settings.cholentForceOpen = updateData.cholentForceOpen;
-        if (updateData.cholentCustomMessage !== undefined) settings.cholentCustomMessage = updateData.cholentCustomMessage;
-        if (updateData.cholentClosedMessage !== undefined) settings.cholentClosedMessage = updateData.cholentClosedMessage;
-        if (updateData.pageAnnouncements !== undefined) {
-          settings.pageAnnouncements = normalizePageAnnouncements({ pageAnnouncements: updateData.pageAnnouncements });
-        }
+      // Sync legacy root fields for backward compatibility (so old clients reading homeAnnouncement etc. see current data)
+      if (updateData.pageAnnouncements?.home) {
+        updateData.homeAnnouncement = updateData.pageAnnouncements.home.popupText ?? '';
+        updateData.homeAnnouncementTitle = updateData.pageAnnouncements.home.popupTitle ?? '';
+      }
+      if (updateData.pageAnnouncements?.events) {
+        updateData.cateringAnnouncement = updateData.pageAnnouncements.events.bannerText ?? '';
+      }
+      if (updateData.pageAnnouncements?.holiday) {
+        updateData.holidayAnnouncement = updateData.pageAnnouncements.holiday.bannerText ?? '';
       }
 
-      const updatedSettings = await settings.save();
-      const pageAnnouncements = normalizePageAnnouncements(updatedSettings);
+      const result = await SiteSettings.findOneAndUpdate(
+        {},
+        { $set: updateData },
+        { upsert: true, new: true, runValidators: false, strict: false }
+      );
+
+      if (!result) {
+        throw new Error('findOneAndUpdate returned null');
+      }
+
+      console.log('✅ DB UPDATED SUCCESSFULLY');
+      const pageAnnouncements = normalizePageAnnouncements(result);
 
       res.status(200).json({
         success: true,
         data: {
-          shabbatMenuUrl: updatedSettings.shabbatMenuUrl || '',
-          eventsMenuUrl: updatedSettings.eventsMenuUrl || '',
-          contactPhone: updatedSettings.contactPhone || '0528240230',
-          orderEmail: updatedSettings.orderEmail || 'yosefmalul52@gmail.com',
-          whatsappLink: updatedSettings.whatsappLink || '',
-          cholentForceOpen: !!updatedSettings.cholentForceOpen,
-          cholentCustomMessage: updatedSettings.cholentCustomMessage || '',
-          cholentClosedMessage: updatedSettings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          shabbatMenuUrl: result.shabbatMenuUrl || '',
+          eventsMenuUrl: result.eventsMenuUrl || '',
+          contactPhone: result.contactPhone || '0528240230',
+          orderEmail: result.orderEmail || 'yosefmalul52@gmail.com',
+          whatsappLink: result.whatsappLink || '',
+          cholentForceOpen: !!result.cholentForceOpen,
+          cholentCustomMessage: result.cholentCustomMessage || '',
+          cholentClosedMessage: result.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
           pageAnnouncements
         },
         message: 'Site settings updated successfully',
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {
-      console.error('Error updating settings:', error);
+      console.error('❌ DB UPDATE FAILED:', error);
       if (error.name === 'ValidationError' || error.message?.includes('must be')) {
         res.status(400).json({
           success: false,

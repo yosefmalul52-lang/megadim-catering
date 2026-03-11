@@ -254,6 +254,29 @@ export class OrderService {
     }
   }
 
+  /** Update order event/delivery date (Admin). Sets customerDetails.eventDate (stored as YYYY-MM-DD). */
+  async updateOrderEventDate(orderId: string, eventDate: string | Date): Promise<IOrder | null> {
+    try {
+      const dateValue = typeof eventDate === 'string' ? new Date(eventDate + 'T12:00:00.000Z') : eventDate;
+      if (isNaN(dateValue.getTime())) {
+        throw new Error('Invalid date');
+      }
+      const dateStr = dateValue.toISOString().slice(0, 10);
+
+      const updateResult = await Order.updateOne(
+        { _id: orderId },
+        { $set: { 'customerDetails.eventDate': dateStr } }
+      );
+      if (updateResult.matchedCount === 0) return null;
+
+      const updated = await Order.findById(orderId).lean();
+      return updated as IOrder | null;
+    } catch (error: any) {
+      console.error('Error updating order event date:', error);
+      throw error;
+    }
+  }
+
   /** Dashboard stats: pending count, events today count, monthly revenue. */
   async getDashboardStats(): Promise<{ pendingCount: number; eventsTodayCount: number; monthlyRevenue: number }> {
     const now = new Date();

@@ -3,11 +3,15 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 // Order Interface - userId is optional (for guest orders)
 export interface IOrder extends Document {
   userId?: mongoose.Types.ObjectId | null; // Optional - null for guest orders
+  orderType?: 'shabbat' | 'catering'; // Distinguishes cart orders from catering/events
   customerDetails: any;
   items: any[];
   totalPrice: number;
   status: string;
   isDeleted?: boolean;
+  numberOfPortions?: number | string;
+  mealTime?: string;
+  mealTypes?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -53,7 +57,16 @@ const OrderSchema: Schema<IOrder> = new Schema({
     type: Boolean,
     default: false,
     index: true
-  }
+  },
+  orderType: {
+    type: String,
+    enum: ['shabbat', 'catering'],
+    required: false,
+    index: true
+  },
+  numberOfPortions: { type: Schema.Types.Mixed, required: false },
+  mealTime: { type: String, required: false },
+  mealTypes: { type: String, required: false }
 }, {
   timestamps: true,
   collection: 'orders',
@@ -64,6 +77,7 @@ const OrderSchema: Schema<IOrder> = new Schema({
 OrderSchema.index({ userId: 1 });
 OrderSchema.index({ status: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ orderType: 1 });
 
 // Create and export the model
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', OrderSchema);

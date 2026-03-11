@@ -448,6 +448,38 @@ export class OrderController {
     });
   });
 
+  /** PATCH/PUT /api/order/:id/date – update order event/delivery date (Admin). */
+  updateOrderDate = asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const newDate = req.body?.eventDate ?? req.body?.newDate;
+
+      if (!id) {
+        throw createValidationError('Order ID is required');
+      }
+      if (newDate === undefined || newDate === null || String(newDate).trim() === '') {
+        throw createValidationError('eventDate or newDate is required');
+      }
+
+      const dateStr = String(newDate).trim();
+      const updatedOrder = await this.orderService.updateOrderEventDate(id, dateStr);
+
+      if (!updatedOrder) {
+        throw createNotFoundError('Order');
+      }
+
+      res.status(200).json({
+        success: true,
+        data: updatedOrder,
+        message: 'Order event date updated successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error('Error updating order date:', err);
+      throw err;
+    }
+  });
+
   /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
   getDashboardStats = asyncHandler(async (req: Request, res: Response) => {
     const stats = await this.orderService.getDashboardStats();

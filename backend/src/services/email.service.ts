@@ -45,6 +45,37 @@ export class EmailService {
 
   constructor() {
     this.transporter = createTransporter();
+    console.log('📧 EmailService: transporter created with host/port/user summary:', {
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: Number(process.env.EMAIL_PORT) || 587,
+      hasUser: !!EMAIL_USER,
+      hasPass: !!EMAIL_PASS
+    });
+  }
+
+  /**
+   * Internal helper to wrap transporter.sendMail with strong logging & normalized errors.
+   */
+  private async sendMailWithLogging(
+    context: string,
+    options: nodemailer.SendMailOptions
+  ): Promise<void> {
+    try {
+      await this.transporter.sendMail(options);
+    } catch (error: any) {
+      console.error('🚨 CRITICAL EMAIL ERROR in context:', context);
+      console.error('🚨 Email error message:', error?.message || error);
+      console.error('🚨 Email error details:', {
+        name: error?.name,
+        code: error?.code,
+        command: error?.command,
+        response: error?.response,
+        responseCode: error?.responseCode
+      });
+      throw new Error(
+        `Failed to send email (${context}). Please check server logs for SMTP credentials or connection issues.`
+      );
+    }
   }
 
   /**
@@ -52,8 +83,23 @@ export class EmailService {
    * @throws Error if connection fails
    */
   async verifyConnection(): Promise<void> {
-    await this.transporter.verify();
-    console.log('✅ SMTP connection ready – server can send order emails');
+    try {
+      await this.transporter.verify();
+      console.log('✅ SMTP connection ready – server can send emails');
+    } catch (error: any) {
+      console.error('🚨 CRITICAL EMAIL ERROR during SMTP verifyConnection');
+      console.error('🚨 Email verify error message:', error?.message || error);
+      console.error('🚨 Email verify error details:', {
+        name: error?.name,
+        code: error?.code,
+        command: error?.command,
+        response: error?.response,
+        responseCode: error?.responseCode
+      });
+      throw new Error(
+        'Failed to verify SMTP connection. Please check EMAIL_HOST/PORT/USER/PASS environment variables and provider status.'
+      );
+    }
   }
 
   /**
@@ -96,33 +142,23 @@ export class EmailService {
     const customerHtml = generateCustomerEmailHtml(templateData);
 
     // 1. Send Order Details to the Business Owner (Office)
-    try {
-      await this.transporter.sendMail({
-        from: `"${businessName} - אתר" <${senderEmail}>`,
-        to: ownerEmail,
-        subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
-        html: ownerHtml
-      });
-    } catch (err: any) {
-      console.error('Order email: failed to send to business owner (OWNER_EMAIL):', err?.message || err);
-      throw err;
-    }
+    await this.sendMailWithLogging('order:owner', {
+      from: `"${businessName} - אתר" <${senderEmail}>`,
+      to: ownerEmail,
+      subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
+      html: ownerHtml
+    });
 
     // 2. Send Receipt to the Customer (if customerEmail provided from frontend)
     const customerEmailTrimmed = typeof customerEmail === 'string' ? customerEmail.trim() : '';
     if (customerEmailTrimmed) {
-      try {
-        await this.transporter.sendMail({
-          from: `"${businessName}" <${senderEmail}>`,
-          replyTo: ownerEmail,
-          to: customerEmailTrimmed,
-          subject: `אישור הזמנה - ${businessName}`,
-          html: customerHtml
-        });
-      } catch (err: any) {
-        console.error('Order email: failed to send receipt to customer:', err?.message || err);
-        throw err;
-      }
+      await this.sendMailWithLogging('order:customer-receipt', {
+        from: `"${businessName}" <${senderEmail}>`,
+        replyTo: ownerEmail,
+        to: customerEmailTrimmed,
+        subject: `אישור הזמנה - ${businessName}`,
+        html: customerHtml
+      });
     }
   }
 
@@ -151,7 +187,7 @@ export class EmailService {
 הערות: ${order.customerDetails?.notes || 'אין הערות'}
       `.trim();
 
-      await this.transporter.sendMail({
+      await this.sendMailWithLogging('order:legacy-admin', {
         from: `"${businessName} - אתר" <${senderEmail}>`,
         to: clientEmail,
         subject: `הזמנה חדשה #${order._id?.toString().substring(0, 8) || 'N/A'} - ${businessName}`,
@@ -179,8 +215,12 @@ export class EmailService {
       });
       console.log('✅ Order confirmation email sent:', order._id);
     } catch (error: any) {
-      console.error('❌ Error sending order email:', error?.message || error);
-      console.error('❌ Email error details:', { message: error?.message, code: error?.code, response: error?.response });
+      console.error('❌ Error sending order email (legacy admin):', error?.message || error);
+      console.error('❌ Email error details (legacy admin):', {
+        message: error?.message,
+        code: error?.code,
+        response: error?.response
+      });
     }
   }
 
@@ -231,19 +271,74 @@ export class EmailService {
         <p style="color: #0E1A24; font-weight: 600;">בתיאבון,<br/>צוות מגדים</p>
       </div>`;
 
-    try {
-      await this.transporter.sendMail({
-        from: `"${businessName}" <${senderEmail}>`,
-        replyTo: ownerEmail || undefined,
-        to: toEmail,
-        subject: `הזמנתך אושרה – ${businessName}`,
-        html
-      });
-      console.log('✅ Order approved email sent to customer:', toEmail);
-    } catch (err: any) {
-      console.error('❌ Failed to send order approved email to customer:', err?.message || err);
-      throw err;
-    }
+    await this.sendMailWithLogging('order:approved-customer', {
+      from: `"${businessName}" <${senderEmail}>`,
+      replyTo: ownerEmail || undefined,
+      to: toEmail,
+      subject: `הזמנתך אושרה – ${businessName}`,
+      html
+    });
+    console.log('✅ Order approved email sent to customer:', toEmail);
+  }
+
+  /**
+   * Send catering order (שבת וחג) using the same email flow as "אוכל מוכן" – same templates, same recipient logic.
+   * Converts catering payload to OrderEmailData and calls sendOrderEmails.
+   */
+  async sendCateringOrderEmails(
+    data: {
+      fullName: string;
+      phone: string;
+      email: string;
+      numberOfPortions: string;
+      eventDate: string;
+      mealTime: string;
+      salads: string[];
+      firstCourses: string[];
+      mainCourses: string[];
+      sidesEvening: string[];
+      sidesMorning: string[];
+      seudaShlishit: string;
+      deliveryType: 'pickup' | 'delivery';
+      address: string;
+      remarks: string;
+    },
+    ownerEmail: string,
+    customerEmail?: string
+  ): Promise<void> {
+    const mealTimeLabel =
+      data.mealTime === 'evening'
+        ? 'ערב שבת'
+        : data.mealTime === 'morning'
+          ? 'שבת בבוקר'
+          : 'שתי ארוחות שבת';
+    const notesParts = [
+      `קייטרינג שבת וחג. מספר מנות: ${data.numberOfPortions}`,
+      `סוג ארוחה: ${mealTimeLabel}`,
+      `סעודה שלישית: ${data.seudaShlishit === 'yes' ? 'כן' : 'לא'}`
+    ];
+    if (data.remarks && data.remarks.trim()) notesParts.push(`הערות: ${data.remarks.trim()}`);
+    const notes = notesParts.join(' | ');
+
+    const items: Array<{ id: string; name: string; quantity: number; price: number }> = [];
+    (data.salads || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `סלט: ${String(s).trim()}`, quantity: 1, price: 0 }));
+    (data.firstCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `מנה ראשונה: ${String(s).trim()}`, quantity: 1, price: 0 }));
+    (data.mainCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `מנה עיקרית: ${String(s).trim()}`, quantity: 1, price: 0 }));
+    (data.sidesEvening || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `תוספת ערב: ${String(s).trim()}`, quantity: 1, price: 0 }));
+    (data.sidesMorning || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `תוספת בוקר: ${String(s).trim()}`, quantity: 1, price: 0 }));
+
+    const orderData: OrderEmailData = {
+      customerName: data.fullName,
+      phone: data.phone,
+      customerEmail: data.email,
+      eventDate: data.eventDate,
+      deliveryType: data.deliveryType,
+      address: data.address || undefined,
+      notes,
+      items,
+      total: 0
+    };
+    await this.sendOrderEmails(orderData, ownerEmail, customerEmail ?? data.email);
   }
 }
 

@@ -42,6 +42,7 @@ import { connectDatabase } from './config/database';
 // Import routes
 import menuRoutes from './routes/menu.routes';
 import contactRoutes from './routes/contact.routes';
+import cateringRoutes from './routes/catering.routes';
 import orderRoutes from './routes/order.routes';
 import ordersRoutes from './routes/orders.routes';
 import authRoutes from './routes/auth.routes';
@@ -157,6 +158,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/catering', cateringRoutes);
 app.use('/api/order', orderRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/auth', authRoutes);
@@ -198,6 +200,11 @@ app.listen(PORT, async () => {
       await emailService.verifyConnection();
     } catch (err: any) {
       console.error('❌ SMTP connection failed on startup:', err?.message || err);
+      console.error('❌ Full SMTP startup error:', {
+        message: err?.message,
+        code: err?.code,
+        response: err?.response
+      });
     }
   } else {
     console.log('⚠️ EMAIL_USER/EMAIL_PASS not set – order email endpoint will return 503 until configured');
