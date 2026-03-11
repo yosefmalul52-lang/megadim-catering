@@ -33,6 +33,7 @@ export interface MenuItem {
   isPopular?: boolean;
   popular?: boolean;
   isFeatured?: boolean; // Optional: Show in Featured section on homepage
+  order?: number; // Display order (drag & drop in admin)
   servingSize?: string;
   ingredients?: string[];
   allergens?: string[];
@@ -338,31 +339,33 @@ export class MenuService {
     this.loadMenuItems();
   }
 
-  getMenuItems(): Observable<MenuItem[]> {
-    // Always reload from backend to get latest data
-    return this.loadMenuItems();
+  getMenuItems(menuType?: 'shabbat' | 'cholent'): Observable<MenuItem[]> {
+    return this.loadMenuItems(menuType);
   }
 
   /**
    * Get all menu items from the API (same as getMenuItems).
-   * Use this for public menu pages so they reflect real-time database values from Admin.
+   * Use this for public menu pages. Pass menuType to get only Shabbat or Cholent items.
    */
-  getAllItems(): Observable<MenuItem[]> {
-    return this.getMenuItems();
+  getAllItems(menuType?: 'shabbat' | 'cholent'): Observable<MenuItem[]> {
+    return this.getMenuItems(menuType);
   }
 
-  loadMenuItems(): Observable<MenuItem[]> {
+  loadMenuItems(menuType?: 'shabbat' | 'cholent'): Observable<MenuItem[]> {
     this.loadingSubject.next(true);
     
     const apiUrl = `${environment.apiUrl}/menu`;
-    console.log('🔄 Loading menu items from:', apiUrl);
+    const params: { type?: string } = {};
+    if (menuType === 'shabbat' || menuType === 'cholent') {
+      params['type'] = menuType;
+    }
+    console.log('🔄 Loading menu items from:', apiUrl, Object.keys(params).length ? params : '(all)');
     
-    // Call the backend API - ensure we get ALL items without any filters
     return this.http.get<{success: boolean, data: MenuItem[], count: number}>(apiUrl, {
       headers: {
         'Content-Type': 'application/json'
       },
-      params: {} // Explicitly no filters to get all items
+      params
     }).pipe(
       map(response => {
         console.log('📦 Raw API response:', {
@@ -653,6 +656,26 @@ export class MenuService {
   }
 
   /**
+   * Update menu item order (drag & drop). Sends [{ id, order }] to PUT /api/menu/reorder.
+   */
+  updateMenuOrder(items: { id: string; order: number }[]): Observable<{ success: boolean }> {
+    return this.http.put<{ success: boolean; message?: string }>(
+      `${environment.apiUrl}/menu/reorder`,
+      items,
+      { headers: { 'Content-Type': 'application/json' } }
+    ).pipe(
+      map(() => {
+        this.loadMenuItems().subscribe();
+        return { success: true };
+      }),
+      catchError(error => {
+        console.error('❌ Error updating menu order:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
    * Universal method to get a product by ID from ALL categories
    * Searches through all menu items regardless of category
    * First searches in backend data, then falls back to master product list
@@ -773,7 +796,7 @@ export class MenuService {
    * Get products by category from master list
    * Maps category names (Hebrew or English) to filter products
    */
-  getProductsByCategory(category: string): Observable<MenuItem[]> {
+  getProductsByCategory(category: string, menuType?: 'shabbat' | 'cholent'): Observable<MenuItem[]> {
     // Map category strings to Hebrew category names
     const categoryMap: { [key: string]: string } = {
       'main-dishes': 'מנות עיקריות',
@@ -788,46 +811,21 @@ export class MenuService {
 
     const hebrewCategory = categoryMap[category.toLowerCase()] || category;
     
-    console.log('🔍 getProductsByCategory - Requested:', category, 'Mapped to:', hebrewCategory);
+    console.log('🔍 getProductsByCategory - Requested:', category, 'Mapped to:', hebrewCategory, menuType ? `(menu=${menuType})` : '');
     
-    // First try to get from backend
-    return this.getMenuItems().pipe(
+    return this.getMenuItems(menuType).pipe(
       map(backendItems => {
-        // Filter backend items by category
-        const backendFiltered = backendItems.filter(item => 
-          item.category === hebrewCategory || 
+        const backendFiltered = backendItems.filter(item =>
+          item.category === hebrewCategory ||
           item.category === category ||
           item.category?.toLowerCase() === category.toLowerCase()
         );
-
-        // Also get from master list
-        const masterFiltered = this._allProducts.filter(item => 
-          item.category === hebrewCategory || 
-          item.category === category ||
-          item.category?.toLowerCase() === category.toLowerCase()
-        );
-
-        // Merge and deduplicate by ID
-        const allProducts = [...backendFiltered, ...masterFiltered];
-        const uniqueProducts = Array.from(
-          new Map(allProducts.map(item => [item.id || item._id || '', item])).values()
-        );
-
-        console.log(`✅ getProductsByCategory - Found ${uniqueProducts.length} products for category: ${category}`);
-        return uniqueProducts;
+        console.log(`✅ getProductsByCategory - Found ${backendFiltered.length} products for category: ${category} (API only)`);
+        return backendFiltered;
       }),
       catchError(error => {
-        console.error('❌ Error in getProductsByCategory, using master list only:', error);
-        // Fallback to master list only
-        const masterFiltered = this._allProducts.filter(item => 
-          item.category === hebrewCategory || 
-          item.category === category ||
-          item.category?.toLowerCase() === category.toLowerCase()
-        );
-        return new Observable<MenuItem[]>(observer => {
-          observer.next([...masterFiltered]);
-          observer.complete();
-        });
+        console.error('❌ Error in getProductsByCategory:', error);
+        return of([]);
       })
     );
   }

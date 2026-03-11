@@ -125,15 +125,22 @@ $gray-bg: #f8f8f8;
       }
 
       .card-image-wrapper {
-        position: relative;
-        height: 220px;
+        height: 200px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         overflow: hidden;
+        border-bottom: 1px solid #eaeaea;
+        position: relative;
         background-color: #ffffff;
 
         img {
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
+          object-position: center;
+          display: block;
           transition: transform 0.5s ease;
         }
 

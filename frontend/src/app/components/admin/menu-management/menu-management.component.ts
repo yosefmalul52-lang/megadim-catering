@@ -1,8 +1,10 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MenuService, MenuItem, PriceVariant } from '../../../services/menu.service';
 import { UploadService } from '../../../services/upload.service';
+import { ToastrService } from 'ngx-toastr';
 
 /** Default category options when no menu items exist yet (so admin can add first item). */
 const DEFAULT_CATEGORIES = [
@@ -12,13 +14,14 @@ const DEFAULT_CATEGORIES = [
   { id: 'cholent', name: 'צ\'ולנט', description: 'צ\'ולנט בר' },
   { id: 'sides', name: 'תוספות', description: 'תוספות' },
   { id: 'desserts', name: 'קינוחים', description: 'קינוחים' },
+  { id: 'desserts-cholent', name: 'קינוחים צ\'ולנט', description: 'קינוחים צ\'ולנט' },
   { id: 'stuffed', name: 'ממולאים', description: 'ממולאים' }
 ];
 
 @Component({
   selector: 'app-menu-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, DragDropModule],
   template: `
     <div class="menu-management">
       <div class="container">
@@ -44,8 +47,14 @@ const DEFAULT_CATEGORIES = [
             <span>
               <i class="fas fa-list"></i>
               סה"כ כרטיסיות: {{ filteredItems.length }}
-              <span class="info-note">(לחץ על "ערוך" כדי לערוך כל כרטיסייה)</span>
+              <span class="info-note">(גרור לשינוי סדר • לחץ על "ערוך" כדי לערוך כל כרטיסייה)</span>
             </span>
+          </div>
+          
+          <!-- Saving order indicator -->
+          <div *ngIf="isSavingOrder" class="saving-order-indicator">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>שומר סדר...</span>
           </div>
           
           <!-- Grouped by Category -->
@@ -59,9 +68,13 @@ const DEFAULT_CATEGORIES = [
                 </h2>
               </div>
               
-              <!-- Modern List Layout -->
-              <div class="items-list">
-                <div *ngFor="let item of categoryGroup.items; trackBy: trackByItemId" class="item-row">
+              <!-- Draggable List -->
+              <div class="items-list" cdkDropList (cdkDropListDropped)="onDrop($event, categoryGroup)">
+                <div *ngFor="let item of categoryGroup.items; trackBy: trackByItemId" class="item-row" cdkDrag>
+                  <!-- Drag Handle -->
+                  <div class="drag-handle" cdkDragHandle title="גרור לשינוי סדר">
+                    <i class="fas fa-grip-vertical" aria-hidden="true"></i>
+                  </div>
                   <!-- Image Thumbnail -->
                   <div class="item-image">
                     <img [src]="item.imageUrl || '/assets/images/placeholder-dish.jpg'" 
@@ -580,6 +593,42 @@ const DEFAULT_CATEGORIES = [
     .item-row:hover {
       transform: translateY(-2px); // Lift slightly on hover
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); // Increase shadow on hover
+    }
+
+    .drag-handle {
+      cursor: grab;
+      color: #94a3b8;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .saving-order-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    /* CDK Drag & Drop */
+    .cdk-drag-placeholder {
+      opacity: 0.4;
+      background: #f1f5f9;
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+    }
+    .cdk-drag-animating {
+      transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+    }
+    .items-list.cdk-drop-list-dragging .item-row:not(.cdk-drag-placeholder) {
+      transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
     }
 
     .item-image {
@@ -1643,20 +1692,24 @@ export class MenuManagementComponent implements OnInit {
   menuService = inject(MenuService);
   uploadService = inject(UploadService);
   fb = inject(FormBuilder);
+  private toastr = inject(ToastrService);
 
   menuItems: MenuItem[] = [];
   filteredItems: MenuItem[] = [];
   itemsByCategory: { category: string; items: MenuItem[] }[] = [];
   categories: any[] = [];
-  /** Categories for dropdowns: from API when available, else defaults so admin can add first item. */
+  /** Categories for dropdowns: always include DEFAULT_CATEGORIES (e.g. קינוחים צ'ולנט), plus any from API. */
   get displayCategories(): any[] {
-    return this.categories?.length ? this.categories : DEFAULT_CATEGORIES;
+    const defaultNames = new Set(DEFAULT_CATEGORIES.map(c => c.name));
+    const fromApi = (this.categories || []).filter((c: any) => c.name && !defaultNames.has(c.name));
+    return [...DEFAULT_CATEGORIES, ...fromApi];
   }
   selectedCategory: string = '';
   
   showModal = false;
   editingItem: MenuItem | null = null;
   isLoading = false;
+  isSavingOrder = false;
   errorMessage = '';
   successMessage = '';
   
@@ -1793,6 +1846,46 @@ export class MenuManagementComponent implements OnInit {
       .sort((a, b) => a.category.localeCompare(b.category));
     
     console.log('📊 Dashboard: Grouped items by category:', this.itemsByCategory.length, 'categories');
+  }
+
+  /** Build full list in display order (for reorder payload). When a category is filtered, pass the reordered group. */
+  private getFullOrderedItems(reorderedGroup?: { category: string; items: MenuItem[] }): MenuItem[] {
+    if (!reorderedGroup) return this.itemsByCategory.flatMap(g => g.items);
+    const catOrder = [...new Set(this.menuItems.map(i => i.category || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b));
+    const list: MenuItem[] = [];
+    for (const cat of catOrder) {
+      if (cat === reorderedGroup.category) list.push(...reorderedGroup.items);
+      else list.push(...this.menuItems.filter(i => (i.category || '') === cat));
+    }
+    return list;
+  }
+
+  onDrop(event: CdkDragDrop<MenuItem[]>, categoryGroup: { category: string; items: MenuItem[] }): void {
+    if (event.previousIndex === event.currentIndex) return;
+    moveItemInArray(categoryGroup.items, event.previousIndex, event.currentIndex);
+    const ordered = this.getFullOrderedItems(categoryGroup);
+    const payload = ordered.map((item, index) => ({
+      id: (item.id || item._id || '').toString(),
+      order: index
+    }));
+    this.isSavingOrder = true;
+    this.toastr.info('שומר סדר...', '', { timeOut: 0, positionClass: 'toast-top-left' });
+    this.menuService.updateMenuOrder(payload).subscribe({
+      next: () => {
+        this.isSavingOrder = false;
+        this.toastr.clear();
+        this.toastr.success('הסדר נשמר בהצלחה', 'שמירה', { timeOut: 2500, positionClass: 'toast-top-left' });
+        // Sync menuItems/filteredItems from current itemsByCategory so UI stays in sync
+        this.menuItems = this.getFullOrderedItems();
+        this.filteredItems = this.menuItems;
+      },
+      error: (err) => {
+        this.isSavingOrder = false;
+        this.toastr.clear();
+        this.toastr.error(err?.error?.message || 'שגיאה בשמירת הסדר', 'שגיאה', { timeOut: 4000, positionClass: 'toast-top-left' });
+        this.loadMenuItems();
+      }
+    });
   }
 
   filterByCategory(): void {

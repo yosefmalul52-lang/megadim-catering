@@ -71,12 +71,12 @@ export class CholentBarComponent implements OnInit {
   private static readonly CHOLENT_BAR_CATEGORIES: { id: string; label: string }[] = [
     { id: 'צ\'ולנט', label: 'הצ\'ולנט שלנו' },
     { id: 'משקאות', label: 'משקאות' },
-    { id: 'קינוחים', label: 'קינוחים' }
+    { id: 'קינוחים צ\'ולנט', label: 'קינוחים' }
   ];
 
   private loadCholentItems(): void {
     const allowed = new Set(CholentBarComponent.CHOLENT_BAR_CATEGORIES.map(c => c.id));
-    this.menuService.getAllItems().subscribe({
+    this.menuService.getAllItems('cholent').subscribe({
       next: (items) => {
         const filtered = (items || []).filter((i) => i.category && allowed.has(i.category));
         if (filtered.length > 0) {

@@ -33,7 +33,7 @@ export class DessertsComponent implements OnInit {
         this.showPopup = true;
       }
     });
-    this.menuService.getProductsByCategory('desserts').subscribe({
+    this.menuService.getProductsByCategory('desserts', 'shabbat').subscribe({
       next: (items) => {
         this.desserts = items;
         this.isLoading = false;
@@ -50,6 +50,7 @@ export class DessertsComponent implements OnInit {
   }
 
   addToCart(item: MenuItem): void {
+    if (!this.isAvailable(item)) return;
     const price = this.getPrice(item);
     if (price <= 0) {
       console.error(`Cannot add ${item.name} to cart: no price available`);
@@ -73,5 +74,9 @@ export class DessertsComponent implements OnInit {
 
   getPrice(item: MenuItem): number {
     return item.price || item.pricePer100g || (item.pricingOptions?.[0]?.price) || 0;
+  }
+
+  isAvailable(item: MenuItem): boolean {
+    return item.isAvailable !== false;
   }
 }

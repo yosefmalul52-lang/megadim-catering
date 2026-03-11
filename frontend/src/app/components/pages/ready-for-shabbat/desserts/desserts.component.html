@@ -32,6 +32,7 @@
       <div *ngFor="let dish of desserts" class="product-card">
         <div class="image-container">
           <img [src]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="dish.name" (click)="viewDetails(dish)">
+          <span class="badge badge-unavailable" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
         </div>
 
         <div class="card-content">
@@ -47,7 +48,7 @@
             <button class="btn-outline" (click)="viewDetails(dish)">
               פרטים
             </button>
-            <button class="btn-solid" (click)="addToCart(dish)">
+            <button class="btn-solid" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
               <i class="fas fa-shopping-cart"></i> הוסף לסל
             </button>
           </div>

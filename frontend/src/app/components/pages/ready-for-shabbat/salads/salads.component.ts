@@ -45,12 +45,11 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
           <span>טוען מנות...</span>
         </div>
 
-        <!-- Salads Grid -->
-        <div class="menu-grid grid-4-cols" *ngIf="!isLoading">
+        <!-- Salads Grid (only API data — no static cards) -->
+        <div class="menu-grid grid-4-cols" *ngIf="!isLoading && salads.length > 0">
           <div 
             *ngFor="let salad of salads; trackBy: trackByItemId" 
             class="product-card"
-            [class.is-unavailable]="!isAvailable(salad)"
           >
             <div class="image-container">
               <img 
@@ -61,7 +60,7 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
               <!-- Popular Badge -->
               <span class="badge badge-popular" *ngIf="salad.isPopular === true">מומלץ</span>
               <!-- Out of Stock Badge -->
-              <span class="badge badge-out-of-stock" *ngIf="!isAvailable(salad)">לא קיים זמנית</span>
+              <span class="badge badge-out-of-stock" *ngIf="!isAvailable(salad)">לא זמין כרגע</span>
             </div>
             
             <div class="card-body">
@@ -262,21 +261,23 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
       }
 
-      // 1. Image Area
+      // 1. Image Area — uniform height, no distortion
       .image-container {
-        position: relative;
+        height: 200px;
         width: 100%;
-        height: 220px;
-        background-color: #ffffff;
-        overflow: hidden;
         display: flex;
-        align-items: center;
         justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        border-bottom: 1px solid #eaeaea;
+        position: relative;
+        background-color: #ffffff;
 
         img {
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
+          object-position: center;
           display: block;
         }
 
@@ -296,18 +297,18 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         }
 
         .badge-out-of-stock {
-          background: #7a7a7a;
+          background: #6b2d2d;
           color: white;
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 0.8rem;
+          font-weight: 700;
         }
       }
 
       // Zoom effect
       &:hover .image-container img {
         transform: scale(1.02);
-      }
-
-      &.is-unavailable:hover .image-container img {
-        transform: scale(1);
       }
 
       // 2. Content Area
@@ -536,19 +537,6 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
               color: #1f3540;
             }
           }
-        }
-      }
-
-      // Unavailable State
-      &.is-unavailable {
-        opacity: 0.6;
-
-        .image-container {
-          filter: grayscale(80%);
-        }
-
-        .actions button {
-          pointer-events: none;
         }
       }
 

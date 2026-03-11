@@ -41,7 +41,6 @@ import { LanguageService } from '../../../../services/language.service';
           <div 
             *ngFor="let dish of mainDishes; trackBy: trackByItemId" 
             class="product-card"
-            [class.is-unavailable]="!isAvailable(dish)"
           >
             <!-- Image Container -->
             <div class="card-image-container">
@@ -51,6 +50,7 @@ import { LanguageService } from '../../../../services/language.service';
                 class="card-img"
                 loading="lazy"
               >
+              <span class="badge badge-unavailable" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
             </div>
             
             <!-- Card Body -->
@@ -225,21 +225,17 @@ import { LanguageService } from '../../../../services/language.service';
       }
     }
 
-    // Unavailable State
-    .product-card.is-unavailable {
-      opacity: 0.6;
-      .card-img {
-        filter: grayscale(80%);
-      }
-    }
-
-    // Image Container
+    // Image Container — uniform height, no distortion
     .card-image-container {
+      height: 200px;
       width: 100%;
-      height: 220px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       overflow: hidden;
+      border-bottom: 1px solid #eaeaea;
       background-color: #ffffff;
-      border-radius: 0; // Sharp corners
+      border-radius: 0;
       padding: 0;
       margin: 0;
       position: relative;
@@ -250,7 +246,20 @@ import { LanguageService } from '../../../../services/language.service';
         object-fit: cover;
         object-position: center;
         display: block;
-        border-radius: 0; // Sharp corners
+        border-radius: 0;
+      }
+
+      .badge-unavailable {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #6b2d2d;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        z-index: 2;
       }
     }
 

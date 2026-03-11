@@ -1,4 +1,4 @@
-<div class="luxury-popup-overlay" *ngIf="show" (click)="onOverlayClick()">
+<div class="luxury-popup-overlay" *ngIf="effectiveShow" (click)="onOverlayClick()">
   <div class="luxury-popup-box" (click)="onBoxClick($event)">
     <button class="close-btn" (click)="closePopup()" type="button">&times;</button>
     <div class="popup-content">
