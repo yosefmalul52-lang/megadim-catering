@@ -90,6 +90,7 @@ export interface IMenuItem extends Document {
   isAvailable: boolean;
   isPopular: boolean;
   isFeatured: boolean;
+  order?: number;
   servingSize?: string;
   recipe?: Array<{
     name: string;
@@ -162,6 +163,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   isFeatured: {
     type: Boolean,
     default: false
+  },
+  order: {
+    type: Number,
+    default: 0
   },
   servingSize: {
     type: String,

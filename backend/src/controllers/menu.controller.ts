@@ -349,7 +349,7 @@ export class MenuController {
       query.isPopular = popular === 'true';
     }
     
-    const menuItems = await MenuItem.find(query);
+    const menuItems = await MenuItem.find(query).sort({ order: 1 });
 
     res.status(200).json({
       success: true,
@@ -391,7 +391,7 @@ export class MenuController {
     const menuItems = await MenuItem.find({ 
       category: category,
       isAvailable: true 
-    });
+    }).sort({ order: 1 });
 
     res.status(200).json({
       success: true,
@@ -613,6 +613,26 @@ export class MenuController {
     });
   });
 
+  /** PUT /api/menu/reorder — bulk update order field. Body: [{ id: string, order: number }] */
+  reorderMenuItems = asyncHandler(async (req: Request, res: Response) => {
+    const items = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      throw createValidationError('Body must be a non-empty array of { id, order }');
+    }
+    const ops = items.map((entry: { id: string; order: number }) => ({
+      updateOne: {
+        filter: { _id: entry.id },
+        update: { $set: { order: entry.order } }
+      }
+    }));
+    await MenuItem.bulkWrite(ops);
+    res.status(200).json({
+      success: true,
+      message: 'Order updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Get menu statistics (for admin dashboard)
   getMenuStatistics = asyncHandler(async (req: Request, res: Response) => {
     const totalItems = await MenuItem.countDocuments();
@@ -660,6 +680,26 @@ export class MenuController {
     res.status(200).json({
       success: true,
       data: stats,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  /**
+   * POST /api/menu/migrate-cholent-desserts-category
+   * One-time migration: set category to "קינוחים צ'ולנט" for items that have
+   * category "קינוחים" and are intended for the Cholent menu only (menuTypes is ['cholent']).
+   */
+  migrateCholentDessertsCategory = asyncHandler(async (req: Request, res: Response) => {
+    const result = await MenuItem.updateMany(
+      { category: 'קינוחים', menuTypes: ['cholent'] },
+      { $set: { category: "קינוחים צ'ולנט" } }
+    );
+    const updated = result.modifiedCount ?? 0;
+    console.log(`[Menu Migration] Set category to קינוחים צ'ולנט for ${updated} cholent-only dessert item(s)`);
+    res.status(200).json({
+      success: true,
+      message: `Updated ${updated} item(s) to category "קינוחים צ'ולנט".`,
+      modifiedCount: updated,
       timestamp: new Date().toISOString()
     });
   });

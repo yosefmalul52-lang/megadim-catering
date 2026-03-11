@@ -24,6 +24,8 @@ router.get('/:id', menuController.getMenuItemById);
 
 // Admin routes (protected with JWT authenticate middleware)
 router.post('/', authenticate, menuController.createMenuItem);
+router.post('/migrate-cholent-desserts-category', authenticate, menuController.migrateCholentDessertsCategory);
+router.put('/reorder', authenticate, menuController.reorderMenuItems);
 router.put('/:id', authenticate, menuController.updateMenuItem);
 router.delete('/:id', authenticate, menuController.deleteMenuItem);
 
