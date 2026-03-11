@@ -8,6 +8,8 @@ export interface PageAnnouncement {
   bannerText?: string;
   popupTitle?: string;
   popupText?: string;
+  popupLinkText?: string;
+  popupLinkUrl?: string;
 }
 
 export type PageId = 'home' | 'events' | 'holiday' | 'cholent' | 'salads' | 'fish' | 'desserts';
@@ -17,7 +19,7 @@ export const PAGE_IDS: PageId[] = ['home', 'events', 'holiday', 'cholent', 'sala
 function defaultPageAnnouncements(): Record<string, PageAnnouncement> {
   const out: Record<string, PageAnnouncement> = {};
   for (const id of PAGE_IDS) {
-    out[id] = { bannerText: '', popupTitle: '', popupText: '' };
+    out[id] = { bannerText: '', popupTitle: '', popupText: '', popupLinkText: '', popupLinkUrl: '' };
   }
   return out;
 }
@@ -30,7 +32,9 @@ function normalizePageAnnouncements(pa: Record<string, PageAnnouncement> | null 
         out[id] = {
           bannerText: typeof pa[id].bannerText === 'string' ? pa[id].bannerText! : '',
           popupTitle: typeof pa[id].popupTitle === 'string' ? pa[id].popupTitle! : '',
-          popupText: typeof pa[id].popupText === 'string' ? pa[id].popupText! : ''
+          popupText: typeof pa[id].popupText === 'string' ? pa[id].popupText! : '',
+          popupLinkText: typeof pa[id].popupLinkText === 'string' ? pa[id].popupLinkText! : '',
+          popupLinkUrl: typeof pa[id].popupLinkUrl === 'string' ? pa[id].popupLinkUrl! : ''
         };
       }
     }
@@ -72,7 +76,7 @@ export class SiteSettingsService {
   /** Get page announcement for a given page id (always returns an object with bannerText, popupTitle, popupText). */
   getPageAnnouncement(settings: SiteSettings | null, pageId: PageId): PageAnnouncement {
     const pa = settings?.pageAnnouncements ? normalizePageAnnouncements(settings.pageAnnouncements) : defaultPageAnnouncements();
-    return pa[pageId] || { bannerText: '', popupTitle: '', popupText: '' };
+    return pa[pageId] || { bannerText: '', popupTitle: '', popupText: '', popupLinkText: '', popupLinkUrl: '' };
   }
 
   getSettings(forceRefresh = false): Observable<SiteSettings> {

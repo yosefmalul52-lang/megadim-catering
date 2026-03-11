@@ -279,34 +279,34 @@ import { CartService } from '../../../../services/cart.service';
 
     .size-buttons {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
 
     .size-btn {
       flex: 1;
-      padding: 0.75rem 0.5rem;
-      border: 2px solid #ddd;
-      border-radius: 0.5rem;
-      background: white;
+      padding: 0.85rem 0.75rem;
+      border: 1px solid var(--primary-gold);
+      border-radius: 8px;
+      background: #ffffff;
       color: #1f3540;
       cursor: pointer;
       transition: all 0.3s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.25rem;
     }
 
     .size-btn:hover {
       border-color: var(--primary-gold);
-      background: #f8f9fa;
+      background: #faf7ef;
     }
 
     .size-btn.active {
       border-color: var(--primary-gold);
       background: var(--primary-gold);
       color: #1f3540;
-      box-shadow: 0 2px 8px rgba(224, 192, 117, 0.3);
+      box-shadow: 0 4px 14px rgba(224, 192, 117, 0.35);
     }
 
     .size-weight {
@@ -477,11 +477,12 @@ import { CartService } from '../../../../services/cart.service';
     .image-container {
       position: relative;
       width: 100%;
-      aspect-ratio: 1;
+      aspect-ratio: 1 / 1;
       border-radius: 12px;
       overflow: hidden;
       background: #ffffff;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+      cursor: crosshair;
     }
 
     .product-img {
@@ -489,6 +490,13 @@ import { CartService } from '../../../../services/cart.service';
       height: 100%;
       object-fit: cover;
       display: block;
+      transition: transform 0.4s ease;
+      transform-origin: center center;
+      transform: scale(1);
+    }
+
+    .image-container:hover .product-img {
+      transform: scale(1.08); /* כמו בדף הסלטים – זום עדין בריחוף */
     }
 
     /* Loading & Not Found */

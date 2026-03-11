@@ -94,42 +94,49 @@ $white: #FFFFFF;
     align-items: center; // מוודא שהכל מיושר אנכית לאמצע
   }
   
-  // Right Side: Main Logo
+  // Right Side: Main Logo – larger, sharp rendering (no border/line on this side)
   .logo-container {
     display: flex;
-    align-items: center; // מיישר את הלוגו לאמצע אנכית
-    
+    align-items: center;
+    padding: 8px 20px;
+    min-height: 140px;
+    border: none !important;
+    border-right: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+
+    /* Target the logo image – anti-blur & hardware acceleration */
     .main-logo {
-      height: auto;
-      max-height: 140px; // הגדלנו משמעותית את הגובה המקסימלי
+      max-height: 130px;
       width: auto;
-      margin: 0 15px; // הוספת מרווח בין הלוגו לאלמנטים אחרים
-      object-fit: contain; // מוודא שהתמונה לא תיחתך או תתעוות
-      
-      // Background removal fix
-      background-color: $white;
-      filter: contrast(200%) brightness(105%);
-      mix-blend-mode: multiply;
+      display: block;
+      object-fit: contain;
+
+      /* Anti-blur & hardware acceleration */
+      image-rendering: auto;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      perspective: 1000px;
+      -webkit-transform-style: preserve-3d;
+      transform-style: preserve-3d;
+
+      /* Prevent fractional pixel placement */
+      margin: 0;
+      padding: 0;
+      -webkit-user-drag: none;
+      user-drag: none;
     }
   }
   
-  // Left Side: Kosher Stamp + Separator + User Actions (Grouped)
+  // Left Side: Separator + User Actions
   .left-section {
     display: flex;
     align-items: center;
     gap: 25px;
     overflow: visible;
-    
-    .kosher-stamp {
-      height: 70px; // Slightly smaller than main logo
-      width: auto;
-      object-fit: contain;
-      
-      // Background removal fix
-      background-color: #fff;
-      filter: grayscale(100%) brightness(350%) contrast(300%);
-      mix-blend-mode: multiply;
-    }
+    border: none !important;
+    border-left: none !important;
+    border-right: none !important;
     
     .separator {
       height: 40px;
@@ -137,7 +144,6 @@ $white: #FFFFFF;
       background-color: #ddd;
     }
     
-    /* All three icons: same size, same row, flex alignment */
     .user-actions {
       display: flex;
       align-items: center;
@@ -396,16 +402,13 @@ $white: #FFFFFF;
     }
     
     .logo-container .main-logo {
-      max-height: 90px; // הגדלנו את הלוגו במובייל
+      max-height: 100px;
       margin: 0 10px;
+      image-rendering: high-quality;
     }
-    
+
     .left-section {
       gap: 15px;
-      
-      .kosher-stamp {
-        height: 60px; // הגדלנו גם את חותמת הכשרות
-      }
       
       .separator {
         height: 35px;
@@ -420,12 +423,6 @@ $white: #FFFFFF;
     }
   }
 
-  // Hide Kosher stamp on small mobile to save header space (separator stays)
-  @media (max-width: 768px) {
-    .left-section .kosher-stamp {
-      display: none !important;
-    }
-  }
 }
 
 // Row 3: Nav
@@ -498,10 +495,11 @@ $white: #FFFFFF;
     padding: 0 2rem;
     
     .logo-container .main-logo {
-      max-height: 90px; // הגדלנו את הלוגו
+      max-height: 105px;
       margin: 0 10px;
+      image-rendering: high-quality;
     }
-    
+
     .utils-container {
       gap: 8px;
       
@@ -541,10 +539,11 @@ $white: #FFFFFF;
     padding: 0 1rem;
     
     .logo-container .main-logo {
-      max-height: 75px; // הגדלנו את הלוגו
+      max-height: 95px;
       margin: 0 8px;
+      image-rendering: high-quality;
     }
-    
+
     .utils-container {
       gap: 5px;
       

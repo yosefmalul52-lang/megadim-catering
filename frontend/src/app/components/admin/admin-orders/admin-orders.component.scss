@@ -46,6 +46,47 @@ $border: #e2e8f0;
   }
 }
 
+/* Source tabs: Shabbat vs Catering – brand navy active */
+.source-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 1rem;
+  padding: 0;
+  border-bottom: 2px solid $border;
+}
+
+.source-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  background: transparent;
+  color: $slate;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+
+  i {
+    opacity: 0.85;
+  }
+}
+
+.source-tab-btn:hover {
+  color: $brand-dark;
+  background: rgba($brand-dark, 0.04);
+}
+
+.source-tab-btn.active {
+  color: $brand-dark;
+  border-bottom-color: $brand-dark;
+  background: rgba($brand-dark, 0.06);
+}
+
 .tabs-nav {
   display: flex;
   flex-wrap: wrap;
@@ -308,6 +349,28 @@ $border: #e2e8f0;
   font-weight: 700;
   color: #1f3444;
   font-size: 1.1rem;
+}
+
+.id-cell {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: $slate;
+}
+
+.portions-cell {
+  font-weight: 600;
+  color: $brand-dark;
+}
+
+.meal-types-cell {
+  font-size: 0.9rem;
+  color: #555;
+  max-width: 140px;
+}
+
+/* Catering table uses same base; optional overrides */
+.orders-table-catering .meal-types-cell {
+  white-space: normal;
 }
 
 .status-cell {
@@ -596,10 +659,15 @@ $border: #e2e8f0;
   border-bottom: 1px solid $border;
 }
 
-.order-card-total {
+.order-card-total,
+.order-card-id {
   font-weight: 700;
   font-size: 1.1rem;
   color: $brand-dark;
+}
+
+.order-card-id {
+  font-family: monospace;
 }
 
 .order-card-body {
@@ -739,6 +807,104 @@ $border: #e2e8f0;
 .detail-value {
   color: $brand-dark;
   text-align: left;
+}
+
+.detail-row-event-date {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  .detail-value {
+    margin-left: auto;
+  }
+}
+
+.btn-edit-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid $border;
+  border-radius: 6px;
+  background: #fff;
+  color: $slate;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+
+  &:hover {
+    color: $brand-dark;
+    background: rgba($brand-gold, 0.12);
+    border-color: rgba($brand-gold, 0.5);
+  }
+
+  i {
+    font-size: 0.85rem;
+  }
+}
+
+.date-edit-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-right: auto;
+}
+
+.input-date {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid $border;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: $brand-dark;
+
+  &:focus {
+    outline: none;
+    border-color: $brand-dark;
+    box-shadow: 0 0 0 2px rgba($brand-dark, 0.15);
+  }
+}
+
+.btn-save-date,
+.btn-cancel-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.btn-save-date {
+  border: 1px solid $brand-dark;
+  background: $brand-dark;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: darken($brand-dark, 6%);
+    border-color: darken($brand-dark, 6%);
+  }
+}
+
+.btn-cancel-date {
+  border: 1px solid $border;
+  background: #fff;
+  color: $slate;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+    color: $brand-dark;
+  }
 }
 
 .items-list {

@@ -36,9 +36,20 @@ export class AdminSettingsComponent implements OnInit {
   readonly PAGE_IDS = PAGE_IDS;
   readonly PAGE_LABELS = PAGE_LABELS;
 
+  /** Available pages for CTA link dropdown (name + route) */
+  readonly availablePages = [
+    { name: 'דף הבית', route: '/' },
+    { name: 'תפריט אירועים', route: '/events' },
+    { name: 'תפריט מוכן לשבת', route: '/ready-for-shabbat' },
+    { name: 'סלטים', route: '/salads' },
+    { name: 'דגים', route: '/fish' },
+    { name: 'צ\'ולנט', route: '/cholent' },
+    { name: 'קינוחים', route: '/desserts' }
+  ] as const;
+
   /** Allowed days for checkout (0=Sun … 6=Sat); loaded from store settings */
   allowedDays: number[] = [0, 1, 2, 3];
-  /** Minimum days from today until earliest selectable order date */
+  /** Minimum days from today until earliest selectable order date (standalone ngModel, not in form) */
   minimumLeadDays = 2;
   isSavingDays = false;
   readonly DAY_LABELS: { value: number; label: string }[] = [
@@ -66,7 +77,9 @@ export class AdminSettingsComponent implements OnInit {
           acc[id] = this.fb.group({
             bannerText: [''],
             popupTitle: [''],
-            popupText: ['']
+            popupText: [''],
+            popupLinkText: [''],
+            popupLinkUrl: ['']
           });
           return acc;
         }, {} as Record<string, FormGroup>)
@@ -155,14 +168,16 @@ export class AdminSettingsComponent implements OnInit {
     });
   }
 
-  private normalizePageAnnouncementsForForm(pa: Record<string, { bannerText?: string; popupTitle?: string; popupText?: string }> | null | undefined): Record<string, { bannerText: string; popupTitle: string; popupText: string }> {
-    const out: Record<string, { bannerText: string; popupTitle: string; popupText: string }> = {};
+  private normalizePageAnnouncementsForForm(pa: Record<string, { bannerText?: string; popupTitle?: string; popupText?: string; popupLinkText?: string; popupLinkUrl?: string }> | null | undefined): Record<string, { bannerText: string; popupTitle: string; popupText: string; popupLinkText: string; popupLinkUrl: string }> {
+    const out: Record<string, { bannerText: string; popupTitle: string; popupText: string; popupLinkText: string; popupLinkUrl: string }> = {};
     for (const id of PAGE_IDS) {
       const p = pa?.[id];
       out[id] = {
         bannerText: (p?.bannerText != null && typeof p.bannerText === 'string') ? p.bannerText : '',
         popupTitle: (p?.popupTitle != null && typeof p.popupTitle === 'string') ? p.popupTitle : '',
-        popupText: (p?.popupText != null && typeof p.popupText === 'string') ? p.popupText : ''
+        popupText: (p?.popupText != null && typeof p.popupText === 'string') ? p.popupText : '',
+        popupLinkText: (p?.popupLinkText != null && typeof p.popupLinkText === 'string') ? p.popupLinkText : '',
+        popupLinkUrl: (p?.popupLinkUrl != null && typeof p.popupLinkUrl === 'string') ? p.popupLinkUrl : ''
       };
     }
     return out;
@@ -182,22 +197,27 @@ export class AdminSettingsComponent implements OnInit {
     });
   }
 
-  onSubmit(): void {
+  onSubmit(event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (this.settingsForm.invalid) {
       Object.keys(this.settingsForm.controls).forEach(key => this.settingsForm.get(key)?.markAsTouched());
       return;
     }
+    const payload = this.settingsForm.getRawValue();
     this.isSaving = true;
-    const formData = this.settingsForm.value;
-    this.settingsService.updateSettings(formData).subscribe({
+    this.settingsService.updateSettings(payload).subscribe({
       next: () => {
         this.isSaving = false;
+        alert('השינויים נשמרו ב-Cloud בהצלחה!');
         this.settingsForm.markAsPristine();
-        this.toastr.success('ההגדרות נשמרו בהצלחה!', 'הצלחה', { timeOut: 3000, positionClass: 'toast-top-left' });
       },
-      error: (error) => {
+      error: (err) => {
         this.isSaving = false;
-        this.toastr.error(error.message || 'שגיאה בשמירת ההגדרות', 'שגיאה', { timeOut: 5000, positionClass: 'toast-top-left' });
+        console.error('Save failed:', err);
+        this.toastr.error(err?.error?.message || err?.message || 'שגיאה בשמירת ההגדרות', 'שגיאה', { timeOut: 5000, positionClass: 'toast-top-left' });
       }
     });
   }

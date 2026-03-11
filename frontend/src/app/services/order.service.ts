@@ -48,6 +48,8 @@ export interface OrderItem {
 export interface Order {
   _id?: string;
   id?: string;
+  /** When 'catering', order appears in Catering/Events tab; otherwise Shabbat. */
+  orderType?: 'shabbat' | 'catering';
   customerDetails: {
     fullName: string;
     phone: string;
@@ -62,6 +64,12 @@ export interface Order {
   createdAt: string | Date;
   updatedAt?: string | Date;
   isDeleted?: boolean;
+  /** Catering-specific: number of portions. */
+  numberOfPortions?: number | string;
+  /** Catering-specific: e.g. evening, morning, both. */
+  mealTime?: string;
+  /** Catering-specific: human-readable meal types summary. */
+  mealTypes?: string;
 }
 
 export interface DashboardStats {
@@ -206,6 +214,25 @@ export class OrderService {
       })),
       catchError((error: any) => {
         console.error('Error updating order status:', error);
+        throw error;
+      })
+    );
+  }
+
+  /** Update order event/delivery date (Admin). */
+  updateOrderDate(orderId: string, newDate: string | Date): Observable<Order> {
+    const dateStr = typeof newDate === 'string' ? newDate : new Date(newDate).toISOString().slice(0, 10);
+    const payload = { eventDate: dateStr, newDate: dateStr };
+    const id = String(orderId).trim();
+    const url = `${environment.apiUrl}/order/${id}/date`;
+    return this.http.put<{ success: boolean; data: Order }>(url, payload).pipe(
+      map((response) => {
+        const order = response?.data;
+        if (!order) throw new Error('No order in response');
+        return { ...order, id: order._id || order.id };
+      }),
+      catchError((error: any) => {
+        console.error('Error updating order date:', error);
         throw error;
       })
     );

@@ -5,5 +5,10 @@
       <h2 class="popup-title" *ngIf="title">{{ title }}</h2>
       <p class="popup-text" *ngIf="text">{{ text }}</p>
     </div>
+    <div class="popup-cta-wrapper" *ngIf="linkText && linkUrl">
+      <a [routerLink]="linkUrl" (click)="closePopup()" class="gold-cta-button">
+        {{ linkText }}
+      </a>
+    </div>
   </div>
 </div>

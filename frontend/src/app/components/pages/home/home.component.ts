@@ -201,6 +201,8 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         [show]="showPopup"
         [title]="(settings?.pageAnnouncements?.['home']?.popupTitle) ?? ''"
         [text]="(settings?.pageAnnouncements?.['home']?.popupText) ?? ''"
+        [linkText]="(settings?.pageAnnouncements?.['home']?.popupLinkText) ?? ''"
+        [linkUrl]="(settings?.pageAnnouncements?.['home']?.popupLinkUrl) ?? ''"
         (close)="closePopup()"
       ></app-page-popup>
     </div>

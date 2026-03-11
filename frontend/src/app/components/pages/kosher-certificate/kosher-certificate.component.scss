@@ -7,7 +7,7 @@ $gray-bg: #eeeff0;
   direction: rtl;
   font-family: 'Segoe UI', sans-serif;
   color: $navy;
-  background-color: $gray-bg;
+  background-color: $white;
   min-height: 100vh;
 }
 
@@ -67,6 +67,19 @@ $gray-bg: #eeeff0;
     }
   }
   
+  .kosher-logo-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 24px 0 28px;
+  }
+
+  .kosher-logo {
+    max-width: 210px;
+    height: auto;
+    display: block;
+    object-fit: contain;
+  }
+
   .description {
     font-size: 1.2rem;
     line-height: 1.8;

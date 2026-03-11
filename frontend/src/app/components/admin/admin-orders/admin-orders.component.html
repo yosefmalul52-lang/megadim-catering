@@ -62,7 +62,31 @@
       }
     </div>
 
-    <!-- Tab bar -->
+    <!-- Source tabs: Shabbat vs Catering -->
+    <nav class="source-tabs" role="tablist" aria-label="סוג הזמנות">
+      <button
+        type="button"
+        class="source-tab-btn"
+        [class.active]="orderSourceTab === 'shabbat'"
+        (click)="orderSourceTab = 'shabbat'"
+        role="tab"
+      >
+        <i class="fas fa-calendar-week" aria-hidden="true"></i>
+        הזמנות לשבת וחג
+      </button>
+      <button
+        type="button"
+        class="source-tab-btn"
+        [class.active]="orderSourceTab === 'catering'"
+        (click)="orderSourceTab = 'catering'"
+        role="tab"
+      >
+        <i class="fas fa-utensils" aria-hidden="true"></i>
+        קייטרינג ואירועים
+      </button>
+    </nav>
+
+    <!-- Status tab bar -->
     <nav class="tabs-nav" role="tablist">
       <button
         type="button"
@@ -120,135 +144,250 @@
     }
 
     @if (!isLoading && (currentTab !== 'archive' || !isLoadingArchive)) {
-      <!-- Desktop: table -->
-      <div class="table-container orders-desktop">
-        <table class="orders-table">
-          <thead>
-            <tr>
-              <th>תאריך הזמנה</th>
-              <th>תאריך אירוע</th>
-              <th>לקוח</th>
-              <th>טלפון</th>
-              <th>סה"כ</th>
-              <th>סטטוס</th>
-              <th>פעולות</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (order of filteredOrders; track order._id || order.id || $index) {
+      <!-- Shabbat orders: desktop table -->
+      @if (orderSourceTab === 'shabbat') {
+        <div class="table-container orders-desktop">
+          <table class="orders-table">
+            <thead>
               <tr>
-                <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
-                <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
-                <td class="phone-cell">{{ order.customerDetails?.phone || 'לא צוין' }}</td>
-                <td class="total-cell">₪{{ order.totalPrice | number:'1.2-2' }}</td>
-                <td class="status-cell">
-                  <div class="status-action-wrapper">
-                    <span class="status-badge" [ngClass]="'status-' + order.status">
-                      {{ getStatusLabel(order.status) }}
-                    </span>
-                    <div class="action-buttons-container">
-                      @if (isPending(order.status) && !order.isDeleted) {
-                        <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')" title="אשר הזמנה ושלח מייל">
-                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
-                          אשר הזמנה
-                        </button>
-                      }
-                      @if (isProcessing(order.status) && !order.isDeleted) {
-                        <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')" title="סמן כהושלם">
-                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
-                          סמן כמוכן
-                        </button>
-                      }
-                      @if (!order.isDeleted) {
-                        <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)" title="העבר לארכיון">
-                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
-                          מחק/ארכיון
-                        </button>
-                      }
-                      @if (order.isDeleted) {
-                        <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)" title="שחזר הזמנה">
-                          @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
-                          שחזר הזמנה
-                        </button>
-                        <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)" title="מחק לצמיתות (לא ניתן לביטול)">
-                          <i class="fas fa-trash-alt"></i> מחק לצמיתות
-                        </button>
-                      }
-                    </div>
-                  </div>
-                </td>
-                <td class="actions-cell">
-                  <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ"><i class="fab fa-whatsapp"></i></a>
-                  <button type="button" class="btn-action btn-print" (click)="printOrder(order)" title="הדפס"><i class="fas fa-print"></i></button>
-                  <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)" title="פרטים"><i class="fas fa-eye"></i></button>
-                  @if (currentTab !== 'archive') {
-                    <button type="button" class="btn-action btn-edit" (click)="openStatusEdit(order)" title="עדכן סטטוס"><i class="fas fa-edit"></i></button>
-                  }
-                </td>
+                <th>מזהה</th>
+                <th>תאריך הזמנה</th>
+                <th>תאריך אירוע</th>
+                <th>לקוח</th>
+                <th>טלפון</th>
+                <th>סה"כ</th>
+                <th>סטטוס</th>
+                <th>פעולות</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (order of filteredOrders; track order._id || order.id || $index) {
+                <tr>
+                  <td class="id-cell">{{ (order._id || order.id)?.toString()?.slice(-8) ?? '—' }}</td>
+                  <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
+                  <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
+                  <td class="phone-cell">{{ order.customerDetails?.phone || 'לא צוין' }}</td>
+                  <td class="total-cell">₪{{ order.totalPrice | number:'1.2-2' }}</td>
+                  <td class="status-cell">
+                    <div class="status-action-wrapper">
+                      <span class="status-badge" [ngClass]="'status-' + order.status">
+                        {{ getStatusLabel(order.status) }}
+                      </span>
+                      <div class="action-buttons-container">
+                        @if (isPending(order.status) && !order.isDeleted) {
+                          <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')" title="אשר הזמנה ושלח מייל">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                            אשר הזמנה
+                          </button>
+                        }
+                        @if (isProcessing(order.status) && !order.isDeleted) {
+                          <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')" title="סמן כהושלם">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
+                            סמן כמוכן
+                          </button>
+                        }
+                        @if (!order.isDeleted) {
+                          <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)" title="העבר לארכיון">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
+                            מחק/ארכיון
+                          </button>
+                        }
+                        @if (order.isDeleted) {
+                          <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)" title="שחזר הזמנה">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
+                            שחזר הזמנה
+                          </button>
+                          <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)" title="מחק לצמיתות (לא ניתן לביטול)">
+                            <i class="fas fa-trash-alt"></i> מחק לצמיתות
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </td>
+                  <td class="actions-cell">
+                    <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ"><i class="fab fa-whatsapp"></i></a>
+                    <button type="button" class="btn-action btn-print" (click)="printOrder(order)" title="הדפס"><i class="fas fa-print"></i></button>
+                    <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)" title="פרטים"><i class="fas fa-eye"></i></button>
+                    @if (currentTab !== 'archive') {
+                      <button type="button" class="btn-action btn-edit" (click)="openStatusEdit(order)" title="עדכן סטטוס"><i class="fas fa-edit"></i></button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
 
-      <!-- Mobile/Tablet: cards -->
-      <div class="order-cards orders-mobile">
-        @for (order of filteredOrders; track order._id || order.id || $index) {
-          <div class="order-card">
-            <div class="order-card-header">
-              <span class="order-card-total">₪{{ order.totalPrice | number:'1.2-2' }}</span>
-            </div>
-            <div class="order-card-body">
-              <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
-              <p class="order-card-meta">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }} · {{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</p>
-            </div>
-            <div class="status-action-wrapper order-card-status-actions">
-              <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
-              <div class="action-buttons-container">
-                @if (isPending(order.status) && !order.isDeleted) {
-                  <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')">
-                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
-                    אשר הזמנה
-                  </button>
-                }
-                @if (isProcessing(order.status) && !order.isDeleted) {
-                  <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')">
-                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
-                    סמן כמוכן
-                  </button>
-                }
-                @if (!order.isDeleted) {
-                  <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)">
-                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
-                    מחק/ארכיון
-                  </button>
-                }
-                @if (order.isDeleted) {
-                  <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)">
-                    @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
-                    שחזר הזמנה
-                  </button>
-                  <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)">
-                    <i class="fas fa-trash-alt"></i> מחק לצמיתות
-                  </button>
-                }
+        <!-- Shabbat: mobile cards -->
+        <div class="order-cards orders-mobile">
+          @for (order of filteredOrders; track order._id || order.id || $index) {
+            <div class="order-card">
+              <div class="order-card-header">
+                <span class="order-card-total">₪{{ order.totalPrice | number:'1.2-2' }}</span>
+              </div>
+              <div class="order-card-body">
+                <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
+                <p class="order-card-meta">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }} · {{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</p>
+              </div>
+              <div class="status-action-wrapper order-card-status-actions">
+                <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                <div class="action-buttons-container">
+                  @if (isPending(order.status) && !order.isDeleted) {
+                    <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')">
+                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                      אשר הזמנה
+                    </button>
+                  }
+                  @if (isProcessing(order.status) && !order.isDeleted) {
+                    <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')">
+                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
+                      סמן כמוכן
+                    </button>
+                  }
+                  @if (!order.isDeleted) {
+                    <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)">
+                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
+                      מחק/ארכיון
+                    </button>
+                  }
+                  @if (order.isDeleted) {
+                    <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)">
+                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
+                      שחזר הזמנה
+                    </button>
+                    <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)">
+                      <i class="fas fa-trash-alt"></i> מחק לצמיתות
+                    </button>
+                  }
+                </div>
+              </div>
+              <div class="order-card-links">
+                <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
+                <button type="button" class="btn-action btn-print" (click)="printOrder(order)"><i class="fas fa-print"></i></button>
+                <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)"><i class="fas fa-eye"></i></button>
               </div>
             </div>
-            <div class="order-card-links">
-              <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
-              <button type="button" class="btn-action btn-print" (click)="printOrder(order)"><i class="fas fa-print"></i></button>
-              <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)"><i class="fas fa-eye"></i></button>
+          }
+        </div>
+      }
+
+      <!-- Catering orders: desktop table -->
+      @if (orderSourceTab === 'catering') {
+        <div class="table-container orders-desktop">
+          <table class="orders-table orders-table-catering">
+            <thead>
+              <tr>
+                <th>מזהה</th>
+                <th>לקוח</th>
+                <th>תאריך אירוע</th>
+                <th>מנות</th>
+                <th>סוגי ארוחות</th>
+                <th>סטטוס</th>
+                <th>פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of filteredOrders; track order._id || order.id || $index) {
+                <tr>
+                  <td class="id-cell">{{ (order._id || order.id)?.toString()?.slice(-8) ?? '—' }}</td>
+                  <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
+                  <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
+                  <td class="portions-cell">{{ order.numberOfPortions ?? '—' }}</td>
+                  <td class="meal-types-cell">{{ getMealTypesLabel(order) }}</td>
+                  <td class="status-cell">
+                    <div class="status-action-wrapper">
+                      <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                      <div class="action-buttons-container">
+                        @if (isPending(order.status) && !order.isDeleted) {
+                          <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')" title="אשר הזמנה">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                            אשר הזמנה
+                          </button>
+                        }
+                        @if (isProcessing(order.status) && !order.isDeleted) {
+                          <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')" title="סמן כמוכן">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
+                            סמן כמוכן
+                          </button>
+                        }
+                        @if (!order.isDeleted) {
+                          <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)" title="העבר לארכיון">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
+                            מחק/ארכיון
+                          </button>
+                        }
+                        @if (order.isDeleted) {
+                          <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)" title="שחזר הזמנה">
+                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
+                            שחזר הזמנה
+                          </button>
+                          <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)" title="מחק לצמיתות">
+                            <i class="fas fa-trash-alt"></i> מחק לצמיתות
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  </td>
+                  <td class="actions-cell">
+                    <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ"><i class="fab fa-whatsapp"></i></a>
+                    <button type="button" class="btn-action btn-print" (click)="printOrder(order)" title="הדפס"><i class="fas fa-print"></i></button>
+                    <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)" title="פרטים"><i class="fas fa-eye"></i></button>
+                    @if (currentTab !== 'archive') {
+                      <button type="button" class="btn-action btn-edit" (click)="openStatusEdit(order)" title="עדכן סטטוס"><i class="fas fa-edit"></i></button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Catering: mobile cards -->
+        <div class="order-cards orders-mobile">
+          @for (order of filteredOrders; track order._id || order.id || $index) {
+            <div class="order-card order-card-catering">
+              <div class="order-card-header">
+                <span class="order-card-id">#{{ (order._id || order.id)?.toString()?.slice(-8) ?? '—' }}</span>
+              </div>
+              <div class="order-card-body">
+                <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
+                <p class="order-card-meta">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }} · {{ order.numberOfPortions ?? '—' }} מנות</p>
+                <p class="order-card-meta">{{ getMealTypesLabel(order) }}</p>
+              </div>
+              <div class="status-action-wrapper order-card-status-actions">
+                <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                <div class="action-buttons-container">
+                  @if (isPending(order.status) && !order.isDeleted) {
+                    <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')">אשר</button>
+                  }
+                  @if (isProcessing(order.status) && !order.isDeleted) {
+                    <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')">מוכן</button>
+                  }
+                  @if (!order.isDeleted) {
+                    <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)">ארכיון</button>
+                  }
+                  @if (order.isDeleted) {
+                    <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)">שחזר</button>
+                    <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)">מחק לצמיתות</button>
+                  }
+                </div>
+              </div>
+              <div class="order-card-links">
+                <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
+                <button type="button" class="btn-action btn-print" (click)="printOrder(order)"><i class="fas fa-print"></i></button>
+                <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)"><i class="fas fa-eye"></i></button>
+              </div>
             </div>
-          </div>
-        }
-      </div>
+          }
+        </div>
+      }
 
       @if (filteredOrders.length === 0) {
         <div class="empty-state">
           <i class="fas fa-inbox" aria-hidden="true"></i>
           <h3>{{ emptyStateMessage }}</h3>
-          <p>@if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן } @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }</p>
+          <p>@if (orderSourceTab === 'catering') { הזמנות קייטרינג ואירועים יופיעו כאן כאשר יישמרו במערכת. } @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן } @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }</p>
         </div>
       }
     }
@@ -286,10 +425,65 @@
                   <span class="detail-value">{{ selectedOrder.customerDetails.address }}</span>
                 </div>
               }
-              @if (selectedOrder.customerDetails?.eventDate) {
+              <div class="detail-row detail-row-event-date">
+                <span class="detail-label">תאריך אירוע / אספקה:</span>
+                @if (!isEditingEventDate) {
+                  <span class="detail-value">
+                    {{ selectedOrder.customerDetails?.eventDate ? (selectedOrder.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}
+                  </span>
+                  <button
+                    type="button"
+                    class="btn-edit-date"
+                    (click)="startEditingEventDate()"
+                    title="ערוך תאריך"
+                    aria-label="ערוך תאריך אירוע"
+                  >
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                } @else {
+                  <div class="date-edit-inline">
+                    <input
+                      type="date"
+                      class="input-date"
+                      [ngModel]="editEventDateValue"
+                      (ngModelChange)="editEventDateValue = $event"
+                    />
+                    <button
+                      type="button"
+                      class="btn-save-date"
+                      (click)="saveEventDate()"
+                      [disabled]="dateUpdatingId !== null"
+                      title="שמור"
+                    >
+                      @if (dateUpdatingId) {
+                        <i class="fas fa-spinner fa-spin"></i>
+                      } @else {
+                        <i class="fas fa-check"></i>
+                      }
+                      שמור
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-cancel-date"
+                      (click)="cancelEditingEventDate()"
+                      [disabled]="dateUpdatingId !== null"
+                      title="ביטול"
+                    >
+                      <i class="fas fa-times"></i> ביטול
+                    </button>
+                  </div>
+                }
+              </div>
+              @if (selectedOrder.orderType === 'catering' && selectedOrder.numberOfPortions != null) {
                 <div class="detail-row">
-                  <span class="detail-label">תאריך אירוע:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.eventDate | date:'dd/MM/yyyy' }}</span>
+                  <span class="detail-label">מספר מנות:</span>
+                  <span class="detail-value">{{ selectedOrder.numberOfPortions }}</span>
+                </div>
+              }
+              @if (selectedOrder.orderType === 'catering' && (selectedOrder.mealTypes || selectedOrder.mealTime)) {
+                <div class="detail-row">
+                  <span class="detail-label">סוגי ארוחות:</span>
+                  <span class="detail-value">{{ getMealTypesLabel(selectedOrder) }}</span>
                 </div>
               }
               @if (selectedOrder.customerDetails?.notes) {

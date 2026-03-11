@@ -67,8 +67,9 @@ $my-theme: mat.m2-define-light-theme((
 @include mat.all-component-themes($my-theme);
 
 // 8. Global CSS Variables
+// Brand Gold – unified across all components (buttons, accents, etc.)
 :root {
-  --primary-gold: #e0c075;
+  --primary-gold: #D4AF37;
 }
 
 // 9. Global Styles & Reset

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, inject, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -154,62 +154,13 @@ import { CartService } from '../../../../../services/cart.service';
           <i class="fas fa-spinner fa-spin"></i>
           <span>טוען פרטי סלט...</span>
         </div>
-
-        <!-- Recommended Salads Slider -->
-        <div class="recommended-section" *ngIf="salad && recommendedSalads.length > 0">
-          <h2 class="recommended-title">עוד סלטים מומלצים</h2>
-          <div class="salads-slider">
-            <button 
-              class="slider-btn prev" 
-              (click)="scrollSlider(1)"
-              aria-label="גלול ימינה"
-            >
-              <i class="fas fa-chevron-right"></i>
-            </button>
-            <div class="slider-container">
-              <div class="slider-track" #sliderTrack>
-                <div 
-                  *ngFor="let recommendedSalad of recommendedSalads" 
-                  class="salad-card"
-                >
-                  <div class="card-image">
-                    <img 
-                      [src]="recommendedSalad.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                      [alt]="recommendedSalad.name"
-                      loading="lazy"
-                    >
-                  </div>
-                  <div class="card-content">
-                    <h3 class="card-name">{{ recommendedSalad.name }}</h3>
-                    <p class="card-description">{{ recommendedSalad.description }}</p>
-                    <button 
-                      class="card-details-btn"
-                      (click)="navigateToSalad(recommendedSalad.id)"
-                      [attr.aria-label]="'פרטים על ' + recommendedSalad.name"
-                    >
-                      <i class="fas fa-info-circle"></i>
-                      פרטים
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button 
-              class="slider-btn next" 
-              (click)="scrollSlider(-1)"
-              aria-label="גלול שמאלה"
-            >
-              <i class="fas fa-chevron-left"></i>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   `,
   styles: [`
     .salad-detail-page {
       min-height: 100vh;
-      background-color: #fdf5f0;
+      background-color: #ffffff;
       padding: 1.5rem 0;
     }
 
@@ -269,20 +220,21 @@ import { CartService } from '../../../../../services/cart.service';
 
     .product-name {
       font-size: 2rem;
-      font-weight: bold;
-      color: #0E1A24;
-      margin: 0 0 0.25rem 0;
+      font-weight: 700;
+      color: #1f3540;
+      margin: 0 0 0.5rem 0;
       line-height: 1.2;
       padding-bottom: 0.75rem;
-      border-bottom: 2px solid #cbb69e;
+      border-bottom: 2px solid #E0C075;
     }
 
-    /* Price and Size Section */
+    /* Price and Size Section – seamless on white */
     .price-size-section {
-      background: #f8f9fa;
-      padding: 1rem;
-      border-radius: 0.75rem;
-      margin-bottom: 1rem;
+      padding: 0 0 1.25rem 0;
+      margin-bottom: 1.25rem;
+      background: #ffffff;
+      border-radius: 0;
+      border: none;
     }
 
     .price-section {
@@ -318,34 +270,34 @@ import { CartService } from '../../../../../services/cart.service';
 
     .size-buttons {
       display: flex;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
 
     .size-btn {
       flex: 1;
-      padding: 0.75rem 0.5rem;
-      border: 2px solid #ddd;
-      border-radius: 0.5rem;
-      background: white;
-      color: #0E1A24;
+      padding: 0.85rem 0.75rem;
+      border: 1px solid var(--primary-gold);
+      border-radius: 8px;
+      background: #ffffff;
+      color: #1f3540;
       cursor: pointer;
       transition: all 0.3s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.25rem;
     }
 
     .size-btn:hover {
-      border-color: #cbb69e;
-      background: #f8f9fa;
+      border-color: var(--primary-gold);
+      background: #faf7ef;
     }
 
     .size-btn.active {
-      border-color: #cbb69e;
-      background: #cbb69e;
-      color: #0E1A24;
-      box-shadow: 0 2px 8px rgba(224, 192, 117, 0.3);
+      border-color: var(--primary-gold);
+      background: var(--primary-gold);
+      color: #1f3540;
+      box-shadow: 0 4px 14px rgba(224, 192, 117, 0.35);
     }
 
     .size-weight {
@@ -359,7 +311,7 @@ import { CartService } from '../../../../../services/cart.service';
     }
 
     .size-btn.active .size-price {
-      color: #0E1A24;
+      color: #1f3540;
     }
 
     /* Quantity Section */
@@ -376,37 +328,37 @@ import { CartService } from '../../../../../services/cart.service';
     }
 
     .quantity-controls {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      border: 2px solid #ddd;
-      border-radius: 0.5rem;
+      gap: 0;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
       overflow: hidden;
-      background: white;
+      background: #ffffff;
     }
 
     .quantity-btn {
       width: 40px;
       height: 40px;
-      background: #f8f9fa;
-      color: #0E1A24;
+      background: #ffffff;
+      color: #1f3540;
       border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
-      font-size: 0.875rem;
+      transition: background 0.2s ease, color 0.2s ease;
+      font-size: 0.75rem;
     }
 
     .quantity-btn:hover:not(:disabled) {
-      background: #cbb69e;
-      color: white;
+      background: #faf7ef;
+      color: #1f3540;
     }
 
     .quantity-btn:disabled {
-      background: #e0e0e0;
-      color: #999;
+      background: #fafafa;
+      color: #bbb;
       cursor: not-allowed;
     }
 
@@ -415,12 +367,12 @@ import { CartService } from '../../../../../services/cart.service';
       height: 40px;
       text-align: center;
       border: none;
-      border-left: 1px solid #ddd;
-      border-right: 1px solid #ddd;
+      border-left: 1px solid rgba(0,0,0,0.08);
+      border-right: 1px solid rgba(0,0,0,0.08);
       font-size: 1rem;
       font-weight: 600;
-      color: #0E1A24;
-      background: white;
+      color: #1f3540;
+      background: #ffffff;
       -moz-appearance: textfield;
     }
 
@@ -432,17 +384,17 @@ import { CartService } from '../../../../../services/cart.service';
 
     .quantity-input:focus {
       outline: none;
-      background: #f8f9fa;
+      background: #ffffff;
     }
 
     /* Add to Cart Button */
     .btn-add-to-cart {
       width: 100%;
       padding: 1rem 1.5rem;
-      background: #0E1A24;
-      color: white;
+      background: #1a2b4c;
+      color: #ffffff;
       border: none;
-      border-radius: 0.5rem;
+      border-radius: 8px;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
@@ -450,14 +402,14 @@ import { CartService } from '../../../../../services/cart.service';
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      transition: all 0.3s ease;
+      transition: opacity 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
       margin-top: 0.5rem;
     }
 
     .btn-add-to-cart:hover:not(:disabled) {
-      background: #1a2d3d;
+      opacity: 0.92;
+      box-shadow: 0 6px 20px rgba(26, 43, 76, 0.35);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(14, 26, 36, 0.3);
     }
 
     .btn-add-to-cart:disabled {
@@ -486,7 +438,7 @@ import { CartService } from '../../../../../services/cart.service';
     .product-description p {
       font-size: 1rem;
       line-height: 1.6;
-      color: #6c757d;
+      color: #555555;
       margin: 0;
     }
 
@@ -536,22 +488,26 @@ import { CartService } from '../../../../../services/cart.service';
     .image-container {
       position: relative;
       width: 100%;
-      aspect-ratio: 1;
-      border-radius: 1rem;
+      aspect-ratio: 1 / 1;
+      border-radius: 12px;
       overflow: hidden;
-      background: white;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      background: #ffffff;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
       cursor: crosshair;
     }
 
     .product-img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: cover; /* Fill the square uniformly */
       display: block;
-      transition: transform 0.3s ease;
+      transition: transform 0.4s ease;
       transform-origin: center center;
       transform: scale(1);
+    }
+
+    .image-container:hover .product-img {
+      transform: scale(1.08); /* Premium subtle zoom on hover */
     }
 
 
@@ -815,7 +771,7 @@ import { CartService } from '../../../../../services/cart.service';
     }
   `]
 })
-export class SaladDetailComponent implements OnInit, AfterViewInit {
+export class SaladDetailComponent implements OnInit {
   @ViewChild('sliderTrack') sliderTrack!: ElementRef<HTMLDivElement>;
   @ViewChild('productImage') productImage!: ElementRef<HTMLImageElement>;
 
@@ -829,8 +785,6 @@ export class SaladDetailComponent implements OnInit, AfterViewInit {
   selectedSize: 'small' | 'large' = 'small';
   quantity = 1;
   currentPrice = 0;
-  recommendedSalads: Array<{id: string, name: string, description: string, imageUrl: string}> = [];
-
   ngOnInit(): void {
     // Scroll to top when component initializes
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -845,11 +799,6 @@ export class SaladDetailComponent implements OnInit, AfterViewInit {
         this.isLoading = false;
       }
     });
-  }
-
-  ngAfterViewInit(): void {
-    // Load recommended salads after view init
-    this.loadRecommendedSalads();
   }
 
   loadSalad(id: string): void {
@@ -873,7 +822,6 @@ export class SaladDetailComponent implements OnInit, AfterViewInit {
         if (found) {
           this.salad = found;
           this.updatePrice();
-          this.loadRecommendedSalads();
         } else {
           // If still not found, show not found message
           console.warn(`Salad with id ${id} not found`);
@@ -897,68 +845,10 @@ export class SaladDetailComponent implements OnInit, AfterViewInit {
   }
 
   private getFeaturedSaladById(id: string): MenuItem | undefined {
-    // This matches the featuredSalads from SaladsComponent
-    const featuredSalads = this.getAllFeaturedSalads();
-    const found = featuredSalads.find(s => s.id === id);
-    if (found) {
-      return {
-        id: found.id,
-        name: found.name,
-        description: found.description,
-        price: found.pricePer100g,
-        imageUrl: found.imageUrl,
-        category: 'סלטים',
-        tags: found.tags,
-        isAvailable: true,
-        pricePer100g: found.pricePer100g
-      } as MenuItem & { pricePer100g: number };
-    }
+    // Featured fallback is no longer used – return undefined to avoid TS errors.
     return undefined;
   }
 
-  private getAllFeaturedSalads(): Array<{id: string, name: string, description: string, pricePer100g: number, imageUrl: string, tags: string[]}> {
-    // Complete list matching SaladsComponent.featuredSalads
-    return [
-      { id: 'hummus', name: 'סלט חומוס', description: 'חומוס קלאסי ביתי עשוי מגרגרי חומוס איכותיים, טחינה משובחת, לימון טרי ושום. מרקם קרמי ועדין עם טעם עשיר ומאוזן.', pricePer100g: 8.5, imageUrl: '/assets/images/salads/hummus.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'tahini', name: 'סלט טחינה', description: 'טחינה קרמית ומרוכזת עשויה משומשום איכותי, מתובלת בלימון טרי ושום. מרקם חלק ועשיר שמביא טעם מזרח תיכוני אותנטי.', pricePer100g: 9.0, imageUrl: '/assets/images/salads/grinding.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'tahini-red', name: 'טחינה פיקנטית אדומה', description: 'טחינה קרמית משובחת מעורבת עם סחוג אדום חריף ופלפלים חריפים טריים. שילוב מושלם בין הקרמיות לחריפות המתובלת.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/Red-tahini.jpg', tags: ['טבעוני', 'ללא גלוטן', 'חריף'] },
-      { id: 'tahini-green', name: 'טחינה פיקנטית ירוקה', description: 'טחינה קרמית מעורבת עם סחוג ירוק חריף ועשבי תיבול טריים. טעם מרענן וחריף שמביא איזון מושלם בין הקרמיות לחריפות.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/Green-tahini.jpg', tags: ['טבעוני', 'ללא גלוטן', 'חריף'] },
-      { id: 'matbucha', name: 'מטבוחה', description: 'מטבוחה מסורתית ביתית עשויה מעגבניות טריות ופלפלים מתוקים, מבושלת לאט על אש נמוכה. טעם עשיר ומתובל שמביא את הטעמים האותנטיים של המטבח המזרח תיכוני.', pricePer100g: 8.8, imageUrl: '/assets/images/salads/Matbuchah-salad.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'eggplant-spicy', name: 'חציל פיקנטי', description: 'חציל צלוי איכותי מתובל בתבלינים חריפים ועשבי תיבול. מרקם רך ועשיר עם טעם חריף ומעניין.', pricePer100g: 10.0, imageUrl: '/assets/images/salads/Spicy-eggplant.jpg', tags: ['טבעוני', 'בריא', 'חריף'] },
-      { id: 'eggplant-mayo', name: 'חציל במיונז', description: 'חציל צלוי איכותי מעורבב עם מיונז קרמי ביתי. שילוב מושלם בין הטעם העשיר של החציל הצלוי לקרמיות של המיונז.', pricePer100g: 9.8, imageUrl: '/assets/images/salads/Eggplant-mayonnaise.jpg', tags: ['טבעוני'] },
-      { id: 'eggplant-tahini', name: 'חציל בטחינה', description: 'חציל צלוי איכותי מעורבב בטחינה קרמית משובחת, מתובל בפטרוזיליה טרייה ולימון. שילוב קלאסי ומעודן שמביא את הטעמים הטובים ביותר של המטבח המזרח תיכוני.', pricePer100g: 10.0, imageUrl: '/assets/images/salads/Tahini-eggplant.jpg', tags: ['טבעוני', 'בריא'] },
-      { id: 'zhug-green', name: 'סחוג ירוק', description: 'סחוג ירוק חריף מסורתי עשוי מעשבי תיבול טריים ופלפלים חריפים. טעם מרענן וחריף שמביא אנרגיה וטעם ייחודי לכל מנה.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/green-sahug.jpg', tags: ['טבעוני', 'ללא גלוטן', 'חריף'] },
-      { id: 'zhug-red', name: 'סחוג אדום', description: 'סחוג אדום חריף עשוי מפלפלים חריפים טריים ותבלינים איכותיים. טעם עשיר וחריף שמביא חום וטעם ייחודי.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/Sahug-red.jpg', tags: ['טבעוני', 'ללא גלוטן', 'חריף'] },
-      { id: 'amba-mango', name: 'עמבה מנגו', description: 'עמבה מסורתית עשויה ממנגו בשל ואיכותי, מתובלת בתבלינים מיוחדים. שילוב מושלם בין המתיקות הטבעית לחריפות המתובלת.', pricePer100g: 9.2, imageUrl: '/assets/images/salads/mango-mango.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'amba-lemon', name: 'עמבה לימון', description: 'עמבה מסורתית מעורבת עם לימון טרי וחמוץ. שילוב מרענן בין החריפות המתובלת לחמיצות הלימון, יוצר טעם ייחודי ומעניין.', pricePer100g: 9.2, imageUrl: '/assets/images/salads/Amba-lemon.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'eggplant-tahmis', name: 'חצילים בתחמיץ', description: 'חצילים איכותיים בתחמיץ ביתי מתוק וחמוץ, מבושלים לאט עם תבלינים מיוחדים. שילוב מושלם בין הטעם העשיר למתיקות והחמיצות של התחמיץ.', pricePer100g: 9.8, imageUrl: '/assets/images/salads/Eggplant-in-pickle.jpg', tags: ['טבעוני', 'בריא'] },
-      { id: 'peppers-pickle', name: 'פלפלים חריפים בתחמיץ', description: 'פלפלים חריפים טריים בתחמיץ ביתי מתוק וחמוץ, מבושלים לאט עם תבלינים. שילוב מושלם בין החריפות הטבעית למתיקות והחמיצות של התחמיץ.', pricePer100g: 9.8, imageUrl: '/assets/images/salads/Hot-peppers.jpg', tags: ['טבעוני', 'בריא', 'חריף'] },
-      { id: 'hilbe', name: 'חילבה', description: 'חילבה מסורתית ביתית עשויה מזרעי חילבה איכותיים, מתובלת בתבלינים מיוחדים. מרקם חלק ועשיר עם טעם ייחודי שמביא את הטעמים האותנטיים של המטבח התימני.', pricePer100g: 9.0, imageUrl: '/assets/images/salads/fenugreek.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'tabbouleh', name: 'טאבולה', description: 'טאבולה טרייה ומרעננת עשויה מפטרוזיליה טרייה, עגבניות מתוקות, נענע ולימון. שילוב מושלם של טעמים טריים ומרעננים שמביא אנרגיה וטעם ייחודי.', pricePer100g: 9.8, imageUrl: '/assets/images/salads/tabula.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'hum-fried-sweet-potato', name: 'הום פרייד בטטה', description: 'בטטה טרייה מטוגנת בסגנון ביתי מעורבת עם חומוס קרמי. שילוב מושלם בין המתיקות הטבעית של הבטטה לטעם העשיר של החומוס.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/Home-fries.jpg', tags: ['טבעוני', 'בריא'] },
-      { id: 'coleslaw', name: 'קולסלאו', description: 'קולסלאו קלאסי טרי עשוי מכרוב לבן טרי וגזר, מתובל ברוטב מיוחד. מרקם פריך וטעם מרענן שמביא טעם קלאסי ומשביע.', pricePer100g: 7.5, imageUrl: '/assets/images/salads/Coleslaw.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'carrot-moroccan', name: 'גזר מרוקאי', description: 'גזר טרי מתובל בסגנון מרוקאי אותנטי עם תבלינים מיוחדים. טעם עשיר ומתובל שמביא את הטעמים האותנטיים של המטבח המרוקאי.', pricePer100g: 8.5, imageUrl: '/assets/images/salads/Moroccan-carrots.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'carrot-lemon', name: 'גזר בלימון', description: 'גזר טרי ופריך מתובל ברוטב לימון טרי וחמוץ. שילוב מושלם בין המתיקות הטבעית לחמיצות המרעננת, יוצר טעם קליל ומרענן.', pricePer100g: 8.5, imageUrl: '/assets/images/salads/Carrots-in-lemon.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'carrot-lemon-pineapple', name: 'גזר בלימון ואננס', description: 'גזר טרי מעורבב עם לימון טרי ואננס מתוק וטרופי. שילוב ייחודי בין המתיקות הטבעית לחמיצות הלימון, יוצר טעם מרענן ומיוחד.', pricePer100g: 9.0, imageUrl: '/assets/images/salads/Pineapple-carrot.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'waldorf', name: 'סלט וולדורף', description: 'סלט וולדורף קלאסי עשוי מתפוחים מתוקים, אגוזים קלויים וסלרי טרי. שילוב מושלם של טעמים מתוקים ופריכים עם מרקם עשיר.', pricePer100g: 10.5, imageUrl: '/assets/images/salads/Waldorf.jpg', tags: ['טבעוני', 'בריא'] },
-      { id: 'cabbage-purple-asian', name: 'כרוב סגול בסגנון אסיאתי', description: 'כרוב סגול טרי מתובל בסגנון אסיאתי עם תבלינים מיוחדים ורוטב ייחודי. טעם עשיר ומעניין שמביא את הטעמים האותנטיים של המטבח האסיאתי.', pricePer100g: 8.8, imageUrl: '/assets/images/salads/Asian-cabbage.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'cabbage-white-cranberry', name: 'כרוב לבן חמוציות', description: 'כרוב לבן טרי ופריך מעורבב עם חמוציות מתוקות ואיכותיות. שילוב מושלם בין הפריכות למתיקות החמוציות, יוצר טעם מרענן ומעניין.', pricePer100g: 9.0, imageUrl: '/assets/images/salads/Cranberry-cabbage.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'egg-salad', name: 'סלט ביצים', description: 'סלט ביצים קלאסי ביתי עשוי מביצים טריות, מיונז קרמי ביתי ותבלינים. מרקם עשיר וטעם קלאסי שמביא את הטעמים המוכרים והאהובים.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/Egg-salad.jpg', tags: ['צמחוני'] },
-      { id: 'beet-eastern', name: 'סלק מזרחי', description: 'סלק טרי מתובל בסגנון מזרחי אותנטי עם תבלינים מיוחדים. טעם עשיר ומתובל שמביא את הטעמים האותנטיים של המטבח המזרחי.', pricePer100g: 9.2, imageUrl: '/assets/images/salads/beet-salad.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'corn-salad', name: 'סלט תירס', description: 'סלט תירס טרי ופריך מעורבב עם ירקות טריים ורוטב מיוחד. שילוב מושלם של טעמים מתוקים וטעימים עם מרקם פריך.', pricePer100g: 8.0, imageUrl: '/assets/images/salads/Corn-salad.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'pickles-magadim', name: 'חמוצי מגדים (טירשי)', description: 'חמוצים ביתיים מסורתיים עשויים מירקות טריים בתחמיץ מיוחד. טעם חמוץ ומרענן שמביא את הטעמים האותנטיים של המטבח המסורתי.', pricePer100g: 8.5, imageUrl: '/assets/images/salads/Pickles-in-brine.jpg', tags: ['טבעוני', 'ללא גלוטן'] },
-      { id: 'eggplant-liver-taste', name: 'חציל בטעם כבד', description: 'חציל צלוי איכותי מתובל בתבלינים מיוחדים שיוצרים טעם עשיר ומעניין הדומה לכבד. שילוב מושלם בין הטעם העשיר של החציל לטעם המיוחד.', pricePer100g: 10.2, imageUrl: '/assets/images/salads/Heavy-eggplant.jpg', tags: ['טבעוני', 'בריא'] },
-      { id: 'zucchini-liver-taste', name: 'קישוא בטעם כבד', description: 'קישוא טרי מתובל בתבלינים מיוחדים שיוצרים טעם עשיר ומעניין הדומה לכבד. שילוב מושלם בין הטעם העדין של הקישוא לטעם המיוחד.', pricePer100g: 10.2, imageUrl: '/assets/images/salads/Liver-flavored-zucchini.jpg', tags: ['טבעוני', 'בריא'] },
-      { id: 'root-vegetables', name: 'סלט ירקות שורש', description: 'סלט ירקות שורש טריים ומתובלים עשוי ממגוון ירקות שורש איכותיים. שילוב מושלם של טעמים עשירים ומתובלים עם מרקם פריך.', pricePer100g: 9.5, imageUrl: '/assets/images/salads/root-vegetables.jpg', tags: ['טבעוני', 'בריא', 'ללא גלוטן'] },
-      { id: 'chopped-liver', name: 'כבד קצוץ', description: 'כבד קצוץ מסורתי ביתי עשוי מכבד איכותי, בצל מטוגן ותבלינים מיוחדים. מרקם עשיר וטעם קלאסי שמביא את הטעמים המוכרים והאהובים.', pricePer100g: 12.0, imageUrl: '/assets/images/salads/Chopped-liver.jpg', tags: ['בשרי'] },
-      { id: 'herring-white', name: 'הרינג לבן', description: 'הרינג לבן מסורתי איכותי עשוי מדג הרינג טרי, מתובל בתבלינים מיוחדים. טעם עשיר ומעניין שמביא את הטעמים האותנטיים של המטבח המסורתי.', pricePer100g: 11.5, imageUrl: '/assets/images/salads/Herring-white.jpg', tags: ['דגים'] },
-      { id: 'herring-red', name: 'הרינג אדום', description: 'הרינג אדום איכותי עשוי מדג הרינג טרי מעורבב עם עגבניות מתוקות ותבלינים מיוחדים. שילוב מושלם בין הטעם העשיר של הדג למתיקות העגבניות.', pricePer100g: 11.5, imageUrl: '/assets/images/salads/red-herring.jpg', tags: ['דגים'] },
-      { id: 'herring-herbs', name: 'הרינג בעשבי תיבול', description: 'הרינג איכותי מתובל בעשבי תיבול טריים. שילוב מושלם בין הטעם העשיר של הדג לטעמים המרעננים של עשבי התיבול.', pricePer100g: 11.8, imageUrl: '/assets/images/salads/Herring-with-herbs.jpg', tags: ['דגים'] },
-      { id: 'herring-spicy', name: 'הרינג חריף', description: 'הרינג איכותי מתובל בתבלינים חריפים ומיוחדים. טעם עשיר וחריף שמביא חום וטעם ייחודי, מושלם לחובבי החריפות והטעמים החזקים.', pricePer100g: 11.8, imageUrl: '/assets/images/salads/Spicy-herring.jpg', tags: ['דגים', 'חריף'] },
-      { id: 'herring-mustard-mayo', name: 'הרינג בחרדל ומיונז', description: 'הרינג איכותי מעורבב עם חרדל איכותי ומיונז קרמי ביתי. שילוב מושלם בין הטעם העשיר של הדג לחריפות החרדל ולקרמיות המיונז.', pricePer100g: 11.8, imageUrl: '/assets/images/salads/Herring-mustard.jpg', tags: ['דגים'] },
-      { id: 'herring-piquant', name: 'הרינג פיקנטי', description: 'הרינג איכותי מתובל בתבלינים חריפים ופיקנטיים מיוחדים. טעם עשיר וחריף שמביא חום וטעם ייחודי, מושלם לחובבי החריפות והטעמים החזקים.', pricePer100g: 11.8, imageUrl: '/assets/images/salads/Spicy-herring1.jpg', tags: ['דגים', 'חריף'] }
-    ];
-  }
 
   getPriceForSize(size: 'small' | 'large'): number {
     if (size === 'small') return 17;
@@ -1048,45 +938,6 @@ export class SaladDetailComponent implements OnInit, AfterViewInit {
     return this.salad.tags.filter(tag => tag !== 'דגים');
   }
 
-  loadRecommendedSalads(): void {
-    const allSalads = this.getAllFeaturedSalads();
-    const currentSaladId = this.salad?.id;
-    
-    // Filter out current salad and get 10 random salads
-    const filteredSalads = allSalads
-      .filter(s => s.id !== currentSaladId)
-      .map(s => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        imageUrl: s.imageUrl
-      }));
-    
-    // Shuffle and take first 10
-    const shuffled = filteredSalads.sort(() => 0.5 - Math.random());
-    this.recommendedSalads = shuffled.slice(0, 10);
-  }
-
-  scrollSlider(direction: number): void {
-    if (!this.sliderTrack) return;
-    
-    const track = this.sliderTrack.nativeElement;
-    const scrollAmount = 300; // pixels to scroll
-    const currentScroll = track.scrollLeft;
-    const newScroll = currentScroll + (scrollAmount * direction);
-    
-    track.scrollTo({
-      left: newScroll,
-      behavior: 'smooth'
-    });
-  }
-
-  navigateToSalad(saladId: string): void {
-    this.router.navigate(['/ready-for-shabbat/salads', saladId]).then(() => {
-      // Scroll to top of the page after navigation
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
 
   goBack(): void {
     this.router.navigate(['/ready-for-shabbat/salads']);

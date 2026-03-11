@@ -110,13 +110,16 @@
   <section class="cta-section">
     <div class="container">
       <div class="cta-buttons">
-        <button 
-          (click)="openMenu()" 
+        <a
+          href="assets/docs/shabbat-menu.pdf"
+          download="תפריט-שבת-מגדים.pdf"
           class="cta-btn cta-btn-secondary"
-          style="cursor: pointer; z-index: 10; position: relative;">
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <mat-icon>download</mat-icon>
-          <span>להורדת התפריט{{ !hasMenuUrl() ? ' (טרם עודכן)' : '' }}</span>
-        </button>
+          <span>להורדת התפריט</span>
+        </a>
         <button class="cta-btn cta-btn-primary" (click)="toggleOrderForm()">
           <mat-icon>event</mat-icon>
           <span>טופס הזמנה</span>
@@ -163,8 +166,24 @@
                 <input type="number" [(ngModel)]="orderForm.numberOfPortions" name="numberOfPortions" required>
               </div>
               <div class="form-group">
-                <label>תאריך האירוע *</label>
-                <input type="date" [(ngModel)]="orderForm.eventDate" name="eventDate" required>
+                <label>תאריך הספקה *</label>
+                <mat-form-field appearance="outline" class="full-width">
+                  <input
+                    matInput
+                    [matDatepicker]="picker"
+                    [(ngModel)]="eventDateControl"
+                    name="eventDate"
+                    [matDatepickerFilter]="dateFilter"
+                    [min]="minEventDateObj"
+                    (ngModelChange)="onEventDateChange($event)"
+                    required
+                  >
+                  <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+                  <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+                @if (eventDateError) {
+                  <p class="field-error">{{ eventDateError }}</p>
+                }
               </div>
             </div>
           </div>
@@ -174,15 +193,15 @@
             <h3 class="section-title">זמן הארוחה</h3>
             <div class="radio-group">
               <label class="radio-label">
-                <input type="radio" name="mealTime" value="evening" [(ngModel)]="orderForm.mealTime">
+                <input type="radio" name="mealTime" value="evening" [(ngModel)]="orderForm.mealTime" (ngModelChange)="onMealTimeChange($event)">
                 <span>ערב שבת</span>
               </label>
               <label class="radio-label">
-                <input type="radio" name="mealTime" value="morning" [(ngModel)]="orderForm.mealTime">
+                <input type="radio" name="mealTime" value="morning" [(ngModel)]="orderForm.mealTime" (ngModelChange)="onMealTimeChange($event)">
                 <span>שבת בבוקר</span>
               </label>
               <label class="radio-label">
-                <input type="radio" name="mealTime" value="both" [(ngModel)]="orderForm.mealTime">
+                <input type="radio" name="mealTime" value="both" [(ngModel)]="orderForm.mealTime" (ngModelChange)="onMealTimeChange($event)">
                 <span>שתי ארוחות שבת</span>
               </label>
             </div>
@@ -208,12 +227,16 @@
           
           <!-- Section 4: First Course -->
           <div class="form-section">
-            <h3 class="section-title">מנה ראשונה (2-4 לבחירה)</h3>
+            <h3 class="section-title">מנה ראשונה ({{ maxFirstCourses === 2 ? 'עד 2' : '2-4' }} לבחירה)</h3>
             <div class="selects-grid">
-              @for (index of firstCourseIndexes; track index) {
+              @for (index of getFirstCourseIndexes(); track index) {
                 <div class="form-group">
                   <label>מנה ראשונה - בחירה {{ index }}</label>
-                  <select [(ngModel)]="orderForm.firstCourses[index - 1]" [name]="'firstCourse' + index">
+                  <select 
+                    [(ngModel)]="orderForm.firstCourses[index - 1]" 
+                    [name]="'firstCourse' + index"
+                    (ngModelChange)="onFirstCourseChange(index - 1)"
+                  >
                     <option value="" disabled selected>בחר מנה ראשונה...</option>
                     @for (dish of firstCourseOptions; track dish) {
                       <option [value]="dish">{{ dish }}</option>
@@ -226,12 +249,16 @@
           
           <!-- Section 5: Main Course -->
           <div class="form-section">
-            <h3 class="section-title">מנה עיקרית (2-4 לבחירה)</h3>
+            <h3 class="section-title">מנה עיקרית ({{ maxMainCourses === 2 ? 'עד 2' : '2-4' }} לבחירה)</h3>
             <div class="selects-grid">
-              @for (index of mainCourseIndexes; track index) {
+              @for (index of getMainCourseIndexes(); track index) {
                 <div class="form-group">
                   <label>מנה עיקרית - בחירה {{ index }}</label>
-                  <select [(ngModel)]="orderForm.mainCourses[index - 1]" [name]="'mainCourse' + index">
+                  <select 
+                    [(ngModel)]="orderForm.mainCourses[index - 1]" 
+                    [name]="'mainCourse' + index"
+                    (ngModelChange)="onMainCourseChange(index - 1)"
+                  >
                     <option value="" disabled selected>בחר מנה עיקרית...</option>
                     @for (dish of mainCourseOptions; track dish) {
                       <option [value]="dish">{{ dish }}</option>
@@ -240,18 +267,25 @@
                 </div>
               }
             </div>
+            @if (mainCoursesError) {
+              <p class="field-error">{{ mainCoursesError }}</p>
+            }
           </div>
           
           <!-- Section 6: Sides -->
           <div class="form-section">
             <h3 class="section-title">תוספות (3-5 לבחירה)</h3>
             <div class="selects-grid">
-              <div class="sides-group">
+              <div class="sides-group" [class.disabled-group]="!isEveningSidesEnabled">
                 <h4>תוספות לערב</h4>
                 @for (index of sidesEveningIndexes; track index) {
-                  <div class="form-group">
+                  <div class="form-group" [class.disabled-select]="!isEveningSidesEnabled">
                     <label>תוספת ערב - בחירה {{ index }}</label>
-                    <select [(ngModel)]="orderForm.sidesEvening[index - 1]" [name]="'sideEvening' + index">
+                    <select 
+                      [(ngModel)]="orderForm.sidesEvening[index - 1]" 
+                      [name]="'sideEvening' + index"
+                      [disabled]="!isEveningSidesEnabled"
+                    >
                       <option value="" disabled selected>בחר תוספת...</option>
                       @for (side of sideDishOptions; track side) {
                         <option [value]="side">{{ side }}</option>
@@ -260,12 +294,16 @@
                   </div>
                 }
               </div>
-              <div class="sides-group">
+              <div class="sides-group" [class.disabled-group]="!isMorningSidesEnabled">
                 <h4>תוספות לבוקר</h4>
                 @for (index of sidesMorningIndexes; track index) {
-                  <div class="form-group">
+                  <div class="form-group" [class.disabled-select]="!isMorningSidesEnabled">
                     <label>תוספת בוקר - בחירה {{ index }}</label>
-                    <select [(ngModel)]="orderForm.sidesMorning[index - 1]" [name]="'sideMorning' + index">
+                    <select 
+                      [(ngModel)]="orderForm.sidesMorning[index - 1]" 
+                      [name]="'sideMorning' + index"
+                      [disabled]="!isMorningSidesEnabled"
+                    >
                       <option value="" disabled selected>בחר תוספת...</option>
                       @for (side of sideDishOptions; track side) {
                         <option [value]="side">{{ side }}</option>
@@ -320,7 +358,9 @@
           
           <!-- Submit Button -->
           <div class="form-footer">
-            <button type="submit" class="submit-btn">שלח הזמנה</button>
+            <button type="submit" class="submit-btn" [disabled]="isSubmitting">
+              {{ isSubmitting ? 'שולח...' : 'שלח הזמנה' }}
+            </button>
           </div>
         </form>
       </div>

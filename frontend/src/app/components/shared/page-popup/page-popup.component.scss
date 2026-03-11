@@ -77,3 +77,30 @@
   from { opacity: 0; transform: translateY(60px) scale(0.95) rotateX(-10deg); }
   to { opacity: 1; transform: translateY(0) scale(1) rotateX(0); }
 }
+
+.popup-cta-wrapper {
+  margin-top: 16px;
+}
+
+.gold-cta-button {
+  display: inline-block;
+  padding: 12px 30px;
+  margin-top: 20px;
+  background: linear-gradient(45deg, #d4af37, #f9f295, #d4af37);
+  color: #1a1a1a;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 50px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: none;
+  cursor: pointer;
+}
+
+.gold-cta-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+  filter: brightness(1.1);
+}

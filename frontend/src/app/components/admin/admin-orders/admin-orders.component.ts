@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
@@ -11,7 +12,7 @@ import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-orde
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
-  imports: [CommonModule, DatePipe, KitchenReportModalComponent, ManualOrderBuilderComponent],
+  imports: [CommonModule, FormsModule, DatePipe, KitchenReportModalComponent, ManualOrderBuilderComponent],
   templateUrl: './admin-orders.component.html',
   styleUrls: ['./admin-orders.component.scss']
 })
@@ -28,6 +29,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   orders: Order[] = [];
   archiveOrders: Order[] = [];
   stats: DashboardStats = { pendingCount: 0, eventsTodayCount: 0, monthlyRevenue: 0 };
+  /** Top-level tab: Shabbat (e-commerce) vs Catering/Events. */
+  orderSourceTab: 'shabbat' | 'catering' = 'shabbat';
   currentTab: 'pending' | 'processing' | 'ready' | 'archive' = 'pending';
   isLoading = true;
   isRefreshing = false;
@@ -38,6 +41,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   showKitchenReport = false;
   successMessage = '';
   errorMessage = '';
+  /** When true, show date picker in order details modal for event/delivery date. */
+  isEditingEventDate = false;
+  /** Current value of the date input (YYYY-MM-DD). */
+  editEventDateValue = '';
+  dateUpdatingId: string | null = null;
 
   readonly statusOptions = [
     { value: 'pending', label: 'ממתין' },
@@ -178,11 +186,40 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return Boolean(emailMatch && phoneMatch);
   }
 
+  /** True if order is from catering/events (saved with orderType or catering-specific fields). */
+  private isCateringOrder(order: Order): boolean {
+    if (order.orderType === 'catering') return true;
+    if (order.numberOfPortions !== undefined && order.numberOfPortions !== null && order.numberOfPortions !== '') return true;
+    if (order.mealTime != null && String(order.mealTime).trim() !== '') return true;
+    return false;
+  }
+
+  /** Orders from cart/checkout (Ready for Shabbat). */
+  get shabbatOrders(): Order[] {
+    return this.orders.filter((o) => !this.isCateringOrder(o));
+  }
+
+  /** Orders from catering/events form (same collection, differentiated by orderType / numberOfPortions / mealTime). */
+  get cateringOrders(): Order[] {
+    return this.orders.filter((o) => this.isCateringOrder(o));
+  }
+
+  private getArchiveBySource(): Order[] {
+    return this.archiveOrders.filter((o) =>
+      this.orderSourceTab === 'catering' ? this.isCateringOrder(o) : !this.isCateringOrder(o)
+    );
+  }
+
+  private getActiveOrdersBySource(): Order[] {
+    return this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+  }
+
   get filteredOrders(): Order[] {
     let list: Order[];
-    if (this.currentTab === 'archive') list = this.archiveOrders;
+    if (this.currentTab === 'archive') list = this.getArchiveBySource();
     else {
-      list = this.orders.filter((o) => {
+      const sourceList = this.getActiveOrdersBySource();
+      list = sourceList.filter((o) => {
         if (this.currentTab === 'pending') return this.isPending(o.status);
         if (this.currentTab === 'processing') return this.isProcessing(o.status);
         if (this.currentTab === 'ready') return o.status === 'ready' || o.status === 'delivered';
@@ -193,16 +230,19 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   get countPending(): number {
-    return this.orders.filter((o) => this.isPending(o.status)).length;
+    const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    return list.filter((o) => this.isPending(o.status)).length;
   }
   get countProcessing(): number {
-    return this.orders.filter((o) => this.isProcessing(o.status)).length;
+    const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    return list.filter((o) => this.isProcessing(o.status)).length;
   }
   get countReady(): number {
-    return this.orders.filter((o) => o.status === 'ready' || o.status === 'delivered').length;
+    const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    return list.filter((o) => o.status === 'ready' || o.status === 'delivered').length;
   }
   get countArchive(): number {
-    return this.archiveOrders.length;
+    return this.getArchiveBySource().length;
   }
 
   get emptyStateMessage(): string {
@@ -432,6 +472,67 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   closeModal(): void {
     this.selectedOrder = null;
+    this.isEditingEventDate = false;
+  }
+
+  /** Return event date as YYYY-MM-DD for <input type="date">. */
+  getEventDateForInput(order: Order | null): string {
+    if (!order?.customerDetails?.eventDate) return '';
+    const d = order.customerDetails.eventDate;
+    const date = typeof d === 'string' ? new Date(d) : new Date(d);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  }
+
+  startEditingEventDate(): void {
+    if (!this.selectedOrder) return;
+    this.editEventDateValue = this.getEventDateForInput(this.selectedOrder) || new Date().toISOString().slice(0, 10);
+    this.isEditingEventDate = true;
+  }
+
+  cancelEditingEventDate(): void {
+    this.isEditingEventDate = false;
+    this.dateUpdatingId = null;
+  }
+
+  saveEventDate(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.editEventDateValue.trim()) return;
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+
+    this.dateUpdatingId = orderId;
+    this.orderService.updateOrderDate(orderId, this.editEventDateValue.trim()).subscribe({
+      next: (response) => {
+        console.log('Update Success:', response);
+        const updated = response;
+        const newEventDate =
+          updated.customerDetails?.eventDate != null
+            ? (typeof updated.customerDetails.eventDate === 'string'
+                ? updated.customerDetails.eventDate
+                : new Date(updated.customerDetails.eventDate).toISOString().slice(0, 10))
+            : this.editEventDateValue.trim();
+        this.selectedOrder = { ...updated, id: (updated._id || updated.id)?.toString(), customerDetails: { ...(updated.customerDetails || {}), eventDate: newEventDate } };
+        const updateInList = (list: Order[]) => {
+          const idx = list.findIndex((o) => (o._id || o.id)?.toString() === orderId);
+          if (idx !== -1) {
+            list[idx] = { ...list[idx], customerDetails: { ...list[idx].customerDetails, eventDate: newEventDate } };
+          }
+        };
+        updateInList(this.orders);
+        updateInList(this.archiveOrders);
+        this.dateUpdatingId = null;
+        this.isEditingEventDate = false;
+        this.successMessage = 'תאריך האספקה עודכן בהצלחה';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        console.error('Update Failed:', err);
+        this.dateUpdatingId = null;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון התאריך';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
   }
 
   openManualOrderBuilder(): void {
@@ -480,6 +581,15 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       cancelled: 'בוטל'
     };
     return labels[status] || status;
+  }
+
+  /** Human-readable meal types for catering orders (e.g. evening/morning/both). */
+  getMealTypesLabel(order: Order): string {
+    if (order.mealTypes) return order.mealTypes;
+    const m = order.mealTime;
+    if (!m) return '—';
+    const map: Record<string, string> = { evening: 'ערב שבת', morning: 'שבת בבוקר', both: 'ערב + בוקר' };
+    return map[m] || m;
   }
 
   trackByOrderId(index: number, order: Order): string {
