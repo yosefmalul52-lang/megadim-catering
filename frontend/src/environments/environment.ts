@@ -1,6 +1,8 @@
 export const environment = {
   production: false,
   apiUrl: 'http://localhost:4000/api',
+  /** Optional key for admin chat summaries/stream (prefer cookie auth in production). */
+  adminSummariesKey: '' as string,
   appName: 'Megadim Catering',
   version: '1.0.0',
   assistant: {

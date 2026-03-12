@@ -26,8 +26,8 @@ interface ChatSummaryRecord {
   updatedAt?: string;
 }
 
-// Development-only key; replace with proper auth for production
-const ADMIN_KEY = 'dev_admin_key_change_me';
+/** Admin chat summaries: use env key if set (prefer backend cookie/session auth for production). */
+const getAdminKey = (): string => (environment as { adminSummariesKey?: string }).adminSummariesKey ?? '';
 
 @Component({
   selector: 'app-chat-summaries',
@@ -105,7 +105,7 @@ export class ChatSummariesComponent implements OnInit, OnDestroy {
   }
 
   private fetch(): void {
-    this.http.get<{ ok: boolean; data: ChatSummaryRecord[] }>(`${environment.apiUrl}/admin/summaries?key=${encodeURIComponent(ADMIN_KEY)}`)
+    this.http.get<{ ok: boolean; data: ChatSummaryRecord[] }>(`${environment.apiUrl}/admin/summaries?key=${encodeURIComponent(getAdminKey())}`)
       .subscribe({
         next: (r) => {
           if (r.ok) this.items = r.data || [];
@@ -118,7 +118,7 @@ export class ChatSummariesComponent implements OnInit, OnDestroy {
   }
 
   private listen(): void {
-    const url = `${environment.apiUrl}/admin/stream?key=${encodeURIComponent(ADMIN_KEY)}`;
+    const url = `${environment.apiUrl}/admin/stream?key=${encodeURIComponent(getAdminKey())}`;
     this.es = new EventSource(url);
     this.es.addEventListener('summary', (ev: MessageEvent) => {
       try {
