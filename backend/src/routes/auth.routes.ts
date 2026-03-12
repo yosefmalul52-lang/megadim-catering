@@ -18,13 +18,18 @@ const loginLimiter = rateLimit({
 const COOKIE_NAME = 'token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-const cookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
-  maxAge: COOKIE_MAX_AGE_MS,
-  path: '/'
-});
+/** Cookie options: production uses sameSite: 'none' + secure so cookies work across Vercel (frontend) and Render (backend). */
+const cookieOptions = (): { httpOnly: boolean; secure: boolean; sameSite: 'strict' | 'lax' | 'none'; maxAge: number; path: string } => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction, // required for HTTPS on Render; required when sameSite is 'none'
+    sameSite: isProduction ? ('none' as const) : ('lax' as const), // 'none' required for cross-domain (e.g. .vercel.app → .onrender.com)
+    maxAge: COOKIE_MAX_AGE_MS,
+    path: '/'
+    // Do not set domain: let the browser use the response origin (Render) so the cookie is sent on same-site requests to the API
+  };
+};
 
 // Import User model
 const User = require('../models/User');
