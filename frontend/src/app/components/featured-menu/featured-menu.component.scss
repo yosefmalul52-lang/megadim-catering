@@ -134,6 +134,7 @@ $gray-bg: #f8f8f8;
         border-bottom: 1px solid #eaeaea;
         position: relative;
         background-color: #ffffff;
+        cursor: pointer;
 
         img {
           width: 100%;
@@ -210,7 +211,8 @@ $gray-bg: #f8f8f8;
             transition: 0.3s;
 
             &:hover {
-              background: #f4f4f4;
+              background: rgba($gold, 0.08);
+              color: $navy;
             }
           }
 

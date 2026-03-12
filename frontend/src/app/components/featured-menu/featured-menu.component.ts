@@ -122,6 +122,10 @@ export class FeaturedMenuComponent implements OnInit {
     return 0;
   }
 
+  getItemId(item: MenuItem): string {
+    return (item.id || item._id || '').toString();
+  }
+
   navigateToCategory(category: Category): void {
     // Navigates to the category detail page
     this.router.navigate(['/ready-for-shabbat', category.id]);

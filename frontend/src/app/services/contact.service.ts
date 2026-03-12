@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { CONTACT_PHONE_DISPLAY, CONTACT_TEL_HREF, CONTACT_WHATSAPP_HREF } from '../constants/contact.constants';
 
@@ -26,17 +27,18 @@ export class ContactService {
   private http = inject(HttpClient);
 
   submitContactForm(request: ContactRequest): Observable<ContactResponse> {
-    // In production, this would call the backend API
-    // return this.http.post<ContactResponse>(`${environment.apiUrl}/contact`, request);
-    
-    // Mock response for development
-    console.log('Contact form submitted:', request);
-    
-    return of({
-      success: true,
-      message: 'תודה על פנייתך! נחזור אליך בהקדם.',
-      contactId: `CONTACT_${Date.now()}`
-    });
+    return this.http
+      .post<{ success: boolean; data: ContactResponse; message?: string }>(
+        `${environment.apiUrl}/contact`,
+        { name: request.name, phone: request.phone, email: request.email, message: request.message }
+      )
+      .pipe(
+        map((res) => ({
+          success: res.success,
+          message: res.data?.message || res.message || 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.',
+          contactId: res.data?.contactId
+        }))
+      );
   }
 
   // Method for quick WhatsApp contact

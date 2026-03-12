@@ -92,19 +92,47 @@ $darker-navy: #082030;
   // Col 2: Links
   .links-col {
     .footer-nav {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .link-bullet {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba($gold, 0.8);
+        box-shadow: 0 0 0 1px rgba($gold, 0.4);
+        flex-shrink: 0;
+        transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      }
       
       a {
         color: $text-silver;
         text-decoration: none;
-        transition: color 0.3s;
+        font-size: 0.95rem;
+        transition: color 0.25s ease, transform 0.25s ease;
         
         &:hover {
           color: $gold;
-          padding-right: 5px; // Slide effect
+          transform: translateX(-3px);
         }
+      }
+
+      li:hover .link-bullet {
+        background: $gold;
+        box-shadow: 0 0 8px rgba($gold, 0.8);
+        transform: scale(1.15);
       }
     }
   }

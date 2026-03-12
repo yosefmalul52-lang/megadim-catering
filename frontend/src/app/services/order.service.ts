@@ -27,6 +27,7 @@ export interface OrderRequest {
 export interface OrderResponse {
   success: boolean;
   orderId: string;
+  orderNumber?: string;
   message: string;
   estimatedDelivery?: string;
   totalAmount: number;
@@ -48,6 +49,7 @@ export interface OrderItem {
 export interface Order {
   _id?: string;
   id?: string;
+  orderNumber?: string;
   /** When 'catering', order appears in Catering/Events tab; otherwise Shabbat. */
   orderType?: 'shabbat' | 'catering';
   customerDetails: {

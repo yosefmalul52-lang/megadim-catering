@@ -413,7 +413,10 @@ export class CheckoutPageComponent implements OnInit {
             horizontalPosition: 'start',
             verticalPosition: 'top'
           });
-          this.router.navigate(['/order-confirmation', res.orderId]);
+          this.router.navigate(
+            ['/order-confirmation', res.orderId],
+            { state: { order: (res as any).order } }
+          );
         },
         error: (err) => {
           console.error('Error placing order:', err);

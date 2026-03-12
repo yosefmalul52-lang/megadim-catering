@@ -329,8 +329,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   getWhatsAppLink(order: Order): string {
     const phone = (order.customerDetails?.phone || '').replace(/\D/g, '');
     const num = phone.startsWith('0') ? '972' + phone.slice(1) : phone.startsWith('972') ? phone : '972' + phone;
+    const orderCode = order.orderNumber || (order._id || order.id)?.toString().slice(-8) || '';
     const text = encodeURIComponent(
-      `שלום, הזמנה #${(order._id || order.id)?.toString().slice(-8)}\nלקוח: ${order.customerDetails?.fullName || ''}`
+      `שלום, הזמנה #${orderCode}\nלקוח: ${order.customerDetails?.fullName || ''}`
     );
     return `https://wa.me/${num}?text=${text}`;
   }
@@ -342,13 +343,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₪${(i.price * i.quantity).toFixed(2)}</td></tr>`
       )
       .join('');
+    const orderCode = order.orderNumber || (order._id || order.id)?.toString().slice(-8) || '';
     const html = `
-      <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${order._id || order.id}</title>
+      <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${orderCode}</title>
       <style>body{font-family:Heebo,Arial;padding:20px;max-width:600px;margin:0 auto}
       table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px;text-align:right}
       th{background:#f5f5f5} h1{color:#0E1A24} .total{font-weight:bold;font-size:1.2em}</style></head>
       <body>
-        <h1>הזמנה #${(order._id || order.id)?.toString().slice(-8)}</h1>
+        <h1>הזמנה #${orderCode}</h1>
         <p><strong>לקוח:</strong> ${order.customerDetails?.fullName || 'לא צוין'}</p>
         <p><strong>טלפון:</strong> ${order.customerDetails?.phone || 'לא צוין'}</p>
         <p><strong>תאריך אירוע:</strong> ${order.customerDetails?.eventDate || 'לא צוין'}</p>

@@ -150,7 +150,7 @@
           <table class="orders-table">
             <thead>
               <tr>
-                <th>מזהה</th>
+                <th>מספר הזמנה</th>
                 <th>תאריך הזמנה</th>
                 <th>תאריך אירוע</th>
                 <th>לקוח</th>
@@ -163,7 +163,7 @@
             <tbody>
               @for (order of filteredOrders; track order._id || order.id || $index) {
                 <tr>
-                  <td class="id-cell">{{ (order._id || order.id)?.toString()?.slice(-8) ?? '—' }}</td>
+                  <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
@@ -278,7 +278,7 @@
           <table class="orders-table orders-table-catering">
             <thead>
               <tr>
-                <th>מזהה</th>
+                <th>מספר הזמנה</th>
                 <th>לקוח</th>
                 <th>תאריך אירוע</th>
                 <th>מנות</th>
@@ -290,7 +290,7 @@
             <tbody>
               @for (order of filteredOrders; track order._id || order.id || $index) {
                 <tr>
-                  <td class="id-cell">{{ (order._id || order.id)?.toString()?.slice(-8) ?? '—' }}</td>
+                  <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="portions-cell">{{ order.numberOfPortions ?? '—' }}</td>
@@ -348,7 +348,7 @@
           @for (order of filteredOrders; track order._id || order.id || $index) {
             <div class="order-card order-card-catering">
               <div class="order-card-header">
-                <span class="order-card-id">#{{ (order._id || order.id)?.toString()?.slice(-8) ?? '—' }}</span>
+                <span class="order-card-id">#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</span>
               </div>
               <div class="order-card-body">
                 <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>

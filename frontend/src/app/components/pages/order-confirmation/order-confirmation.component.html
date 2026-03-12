@@ -1,25 +1,73 @@
 <div class="confirmation-page" dir="rtl">
   <div class="container">
-    <div class="card">
+    <article class="card">
       <div class="icon-wrap">
-        <span class="icon" aria-hidden="true">✓</span>
+        <span class="icon" aria-hidden="true">
+          <svg class="checkmark" viewBox="0 0 52 52" aria-hidden="true">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+          </svg>
+        </span>
       </div>
       <h1 class="title">תודה שהזמנתם!</h1>
       <p class="subtitle">ההזמנה התקבלה בהצלחה</p>
 
-      @if (orderId) {
-        <p class="order-number">
-          <span class="label">מספר הזמנה:</span>
-          <span class="value">{{ orderId }}</span>
-        </p>
+      @if (displayOrderNumber) {
+        <div class="order-receipt">
+          <div class="order-receipt-inner">
+            <span class="order-label">מספר הזמנה</span>
+            <div class="order-value-row">
+              <span class="order-value">{{ displayOrderNumber }}</span>
+              <button type="button"
+                      class="copy-btn"
+                      (click)="copyOrderId()"
+                      [class.copied]="copied"
+                      [attr.aria-label]="copied ? 'הועתק' : 'העתק מספר הזמנה'"
+                      title="{{ copied ? 'הועתק!' : 'העתק' }}">
+                @if (copied) {
+                  <span class="copy-icon copied-icon"><i class="fas fa-check"></i></span>
+                } @else {
+                  <span class="copy-icon"><i class="far fa-copy"></i></span>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
       }
 
-      <div class="next-steps">
-        <p class="next-steps-title">מה קורה עכשיו?</p>
-        <p class="next-steps-text">אנחנו כבר מתחילים לעבוד על ההזמנה שלכם! תקבלו עדכון בהתאם. לכל שאלה – צרו איתנו קשר.</p>
-      </div>
+      <section class="next-steps" aria-label="מה קורה עכשיו">
+        <h2 class="next-steps-title">מה קורה עכשיו?</h2>
+        <ul class="next-steps-list">
+          <li class="next-step">
+            <span class="next-step-icon" aria-hidden="true"><i class="fas fa-file-check"></i></span>
+            <span>הזמנתכם התקבלה בהצלחה במערכת.</span>
+          </li>
+          <li class="next-step">
+            <span class="next-step-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
+            <span>אישור הזמנה מפורט יישלח אליכם בקרוב למייל.</span>
+          </li>
+          <li class="next-step">
+            <span class="next-step-icon" aria-hidden="true"><i class="fas fa-headset"></i></span>
+            <span>נציג מטעמנו ייצור עמכם קשר בהקדם להשלמת תהליך התשלום.</span>
+          </li>
+        </ul>
+        <p class="next-steps-closing">
+          <i class="fas fa-heart" aria-hidden="true"></i>
+          <span>נשמח לעמוד לשירותכם לכל שאלה או בקשה.</span>
+        </p>
+      </section>
 
-      <a routerLink="/" class="btn-home">חזרה לדף הבית</a>
-    </div>
+      <div class="actions">
+        <a routerLink="/" class="btn btn-primary">חזרה לדף הבית</a>
+        <a [href]="whatsappHref"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="btn btn-whatsapp"
+           aria-label="שלח לנו הודעה בוואטסאפ">
+          <i class="fab fa-whatsapp" aria-hidden="true"></i>
+          <span>יש לך שאלה? שלח לנו הודעה</span>
+        </a>
+      </div>
+    </article>
   </div>
 </div>

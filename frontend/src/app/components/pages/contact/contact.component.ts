@@ -23,6 +23,7 @@ export class ContactComponent implements OnInit {
   };
   isSubmitting = false;
   successMessage = '';
+  errorMessage = '';
   contactInfo: { phone: string; email: string } = { phone: '', email: '' };
 
   ngOnInit(): void {
@@ -40,6 +41,7 @@ export class ContactComponent implements OnInit {
   onSubmit(form: { valid: boolean | null }): void {
     if (form.valid !== true || this.isSubmitting) return;
     this.successMessage = '';
+    this.errorMessage = '';
     this.isSubmitting = true;
     this.contactService
       .submitContactForm({
@@ -51,11 +53,12 @@ export class ContactComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.isSubmitting = false;
-          this.successMessage = res.message || 'תודה על פנייתך! נחזור אליך בהקדם.';
+          this.successMessage = res.message || 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.';
           this.form = { name: '', phone: '', email: '', message: '' };
         },
-        error: () => {
+        error: (err) => {
           this.isSubmitting = false;
+          this.errorMessage = err?.error?.message || 'שליחת ההודעה נכשלה. נסו שוב או צרו קשר בטלפון.';
         },
       });
   }
