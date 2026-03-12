@@ -203,27 +203,19 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
- * Optional: Role-based authorization middleware
- * Use after authenticate middleware
+ * Role-based authorization middleware. Use after authenticate middleware.
+ * Returns 403 with serverSeesRole for debugging production role mismatch.
  */
 export const authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as any).user;
-    
-    if (!user) {
-      res.status(401).json({
-        success: false,
-        message: 'אין הרשאה'
-      });
-      return;
-    }
 
-    if (!roles.includes(user.role)) {
-      res.status(403).json({
+    if (!user || !roles.includes(user.role)) {
+      return res.status(403).json({
         success: false,
-        message: 'אין הרשאה גישה לפעולה זו'
+        message: 'Forbidden: Admin access required',
+        serverSeesRole: user ? user.role : 'User object missing'
       });
-      return;
     }
 
     next();

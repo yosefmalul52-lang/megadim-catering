@@ -91,8 +91,9 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
       });
     }
 
-    // Create Token (7 days – balance of security and e‑commerce UX)
-    const payload = { id: user._id, role: user.role };
+    // Create Token (7 days – balance of security and e‑commerce UX). Role must be in payload for authorize().
+    const role = user.role != null ? String(user.role) : 'customer';
+    const payload = { id: user._id, role };
     console.log('🔍 Creating JWT token with payload:', {
       id: payload.id,
       idString: String(payload.id),
