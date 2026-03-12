@@ -103,6 +103,45 @@ export class EmailService {
   }
 
   /**
+   * Send contact form submission to the business.
+   * Uses OWNER_EMAIL so the business receives the inquiry; falls back to EMAIL_USER only if OWNER_EMAIL is missing.
+   */
+  async sendContactFormToBusiness(payload: {
+    name: string;
+    phone: string;
+    email?: string;
+    message: string;
+  }): Promise<void> {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+      throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
+    }
+    const toEmail = EMAIL_USER;
+    console.log('📧 Contact form: sending to', toEmail);
+    const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
+    const senderEmail = process.env.EMAIL_USER;
+    const subject = `פנייה חדשה מאתר מגדים: ${escapeHtml(payload.name)}`;
+    const html = `
+      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 560px; padding: 24px;">
+        <h2 style="color: #0E1A24; margin: 0 0 16px;">פנייה חדשה מהאתר</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>שם:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${escapeHtml(payload.name)}</td></tr>
+          <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>טלפון:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${escapeHtml(payload.phone)}</td></tr>
+          <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>אימייל:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${payload.email ? escapeHtml(payload.email) : '—'}</td></tr>
+        </table>
+        <p style="margin: 16px 0 0; color: #333;"><strong>הודעה:</strong></p>
+        <p style="margin: 8px 0 0; padding: 12px; background: #f8f9fa; border-radius: 8px; white-space: pre-wrap;">${escapeHtml(payload.message)}</p>
+      </div>`;
+    await this.sendMailWithLogging('contact-form', {
+      from: `"${businessName}" <${senderEmail}>`,
+      to: toEmail,
+      replyTo: payload.email || undefined,
+      subject,
+      html
+    });
+    console.log('✅ Contact form email sent successfully to:', toEmail);
+  }
+
+  /**
    * Send two separate emails: (1) order details to business owner, (2) receipt to customer if provided.
    * Uses EMAIL_USER to authenticate; from/replyTo use BUSINESS_NAME and OWNER_EMAIL.
    */

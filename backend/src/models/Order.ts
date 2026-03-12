@@ -3,6 +3,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 // Order Interface - userId is optional (for guest orders)
 export interface IOrder extends Document {
   userId?: mongoose.Types.ObjectId | null; // Optional - null for guest orders
+  /** Human-readable order number shown to customers and admins (e.g. MG-123456). */
+  orderNumber?: string;
   orderType?: 'shabbat' | 'catering'; // Distinguishes cart orders from catering/events
   customerDetails: any;
   items: any[];
@@ -24,6 +26,12 @@ const OrderSchema: Schema<IOrder> = new Schema({
     ref: 'User',
     required: false, // Optional - allows guest orders
     default: null,
+    index: true
+  },
+  orderNumber: {
+    type: String,
+    unique: true,
+    sparse: true,
     index: true
   },
   customerDetails: {

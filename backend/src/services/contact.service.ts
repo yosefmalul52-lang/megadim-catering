@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ContactRequest, ContactResponse, UpdateContactRequest } from '../models/contact.model';
+import { emailService } from './email.service';
 
 interface ContactFilters {
   status?: string;
@@ -71,18 +72,17 @@ export class ContactService {
     this.contacts.unshift(newContact); // Add to beginning of array for newest first
 
     console.log(`📧 New contact form submitted by ${newContact.name} (${newContact.phone})`);
-    console.log(`Event type: ${newContact.eventType || 'Not specified'}`);
-    console.log(`Message: ${newContact.message.substring(0, 100)}...`);
 
-    // In a real application, this would:
-    // 1. Save to database
-    // 2. Send email notification to admin
-    // 3. Send auto-reply to customer
-    // 4. Add to CRM system
+    await emailService.sendContactFormToBusiness({
+      name: newContact.name,
+      phone: newContact.phone,
+      email: newContact.email,
+      message: newContact.message
+    });
 
     return {
       success: true,
-      message: 'תודה על פנייתך! נחזור אליך בהקדם.',
+      message: 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.',
       contactId: newContact.id
     };
   }

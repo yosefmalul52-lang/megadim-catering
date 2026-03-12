@@ -7,6 +7,10 @@ export class OrderService {
   // Categories that should only show units, not calculated weight
   private readonly UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
 
+  private generateOrderNumber(): string {
+    return 'MG-' + Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
   // Submit a new order
   async submitOrder(orderData: CreateOrderRequest, userId: string | null = null): Promise<OrderResponse> {
     try {
@@ -35,6 +39,7 @@ export class OrderService {
       // Create order document
       const order = new Order({
         userId: userId || null, // null for guest orders
+        orderNumber: this.generateOrderNumber(),
         customerDetails: {
           fullName: orderData.customerName,
           phone: orderData.phone,
@@ -116,6 +121,7 @@ export class OrderService {
     }
     const order = new Order({
       userId: (payload as any).userId ?? null,
+      orderNumber: this.generateOrderNumber(),
       customerDetails,
       items: orderItems,
       totalPrice: payload.totalAmount,

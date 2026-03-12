@@ -192,10 +192,13 @@ export class OrderController {
       console.error('Email failed to send, but order was saved:', emailErr?.message || emailErr);
     }
 
+    const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
+
     res.status(201).json({
       success: true,
       orderId: savedOrder._id.toString(),
-      order: savedOrder.toObject ? savedOrder.toObject() : savedOrder,
+      orderNumber: (plainOrder as any).orderNumber,
+      order: plainOrder,
       message: 'Order created successfully'
     });
   });
