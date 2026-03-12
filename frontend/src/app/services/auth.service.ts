@@ -116,17 +116,31 @@ export class AuthService {
   }
 
   /**
-   * Logout: clear legacy localStorage, clear cookie on server, clear in-memory state.
+   * Logout: call backend to clear cookie, then clear local state and storage.
+   * Waits for the backend request so the cookie is cleared before we clear state.
    */
   logout(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-    }
-    this.http.post(`${this.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({ next: () => {}, error: () => {} });
-    this.isLoggedInSubject.next(false);
-    this.currentUserSubject.next(null);
-    this.router.navigate(['/login']);
+    const clearLocalState = (): void => {
+      this.currentUserSubject.next(null);
+      this.isLoggedInSubject.next(false);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        // Clear any other known auth leftovers (do not remove unrelated keys like user preferences)
+        const authKeys = ['auth_token', 'auth_user', 'token', 'authToken', 'userToken'];
+        authKeys.forEach(k => localStorage.removeItem(k));
+      }
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_user');
+      }
+      this.router.navigate(['/login']);
+    };
+
+    this.http.post<{ success: boolean; message?: string }>(`${this.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({
+      next: () => clearLocalState(),
+      error: () => clearLocalState() // Clear state even if backend fails (e.g. network) so UI is consistent
+    });
   }
 
   /** True if current user is in memory (session from HttpOnly cookie + /auth/me). */
