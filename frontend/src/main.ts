@@ -1,5 +1,5 @@
 import { bootstrapApplication } from '@angular/platform-browser';
-import { importProvidersFrom } from '@angular/core';
+import { importProvidersFrom, APP_INITIALIZER } from '@angular/core';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
@@ -7,10 +7,26 @@ import { provideToastr } from 'ngx-toastr';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { IMAGE_LOADER, ImageLoaderConfig } from '@angular/common';
 
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
 import { authInterceptor } from './app/core/interceptors/auth.interceptor';
+import { AuthService } from './app/services/auth.service';
+
+const CLOUDINARY_CLOUD_NAME = 'dioklg7lx';
+
+/** Image loader: full URLs and relative paths pass through; otherwise use Cloudinary with optional width. */
+function imageLoader(config: ImageLoaderConfig): string {
+  const src = config.src;
+  if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/') || src.startsWith('assets')) {
+    return src;
+  }
+  const base = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+  const transform = config.width ? `w_${config.width},f_auto,q_auto` : 'f_auto,q_auto';
+  const path = src.replace(/^\/+/, '');
+  return `${base}/${transform}/${path}`;
+}
 
 // Custom HttpLoader that implements TranslateLoader
 export class CustomHttpLoader implements TranslateLoader {
@@ -30,8 +46,14 @@ export function HttpLoaderFactory(http: HttpClient): TranslateLoader {
 console.log('🔧 Main.ts: Auth Interceptor imported:', typeof authInterceptor);
 console.log('🔧 Main.ts: Auth Interceptor function:', authInterceptor);
 
+function initSession(auth: AuthService) {
+  return () => auth.verifySession();
+}
+
 bootstrapApplication(AppComponent, {
   providers: [
+    { provide: APP_INITIALIZER, useFactory: initSession, deps: [AuthService], multi: true },
+    { provide: IMAGE_LOADER, useValue: imageLoader },
     provideRouter(
       routes,
       withInMemoryScrolling({

@@ -2,8 +2,8 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MenuService, MenuItem } from '../../../services/menu.service';
-import { CartService } from '../../../services/cart.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { SeoService } from '../../../services/seo.service';
 import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 
@@ -16,9 +16,9 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
 })
 export class CholentBarComponent implements OnInit {
   menuService = inject(MenuService);
-  cartService = inject(CartService);
   router = inject(Router);
   settingsService = inject(SiteSettingsService);
+  seoService = inject(SeoService);
 
   settings: SiteSettings | null = null;
   showPopup = false;
@@ -32,6 +32,12 @@ export class CholentBarComponent implements OnInit {
   cholentClosedMessage: string = '';
 
   ngOnInit(): void {
+    this.seoService.updateTags({
+      title: 'צ\'ולנט בר - קייטרינג מגדים | צ\'ולנט ומשקאות לשבת',
+      description: 'הצ\'ולנט הביתי שלנו, משקאות וקינוחי צ\'ולנט. הזמנות בימי חמישי. קייטרינג מגדים.',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      keywords: 'צ\'ולנט, צ\'ולנט בר, קייטרינג מגדים, אוכל לשבת'
+    });
     this.settingsService.getSettings(true).subscribe(settings => {
       this.settings = settings ?? null;
       this.cholentForceOpen = !!settings?.cholentForceOpen;
@@ -104,23 +110,6 @@ export class CholentBarComponent implements OnInit {
     return order
       .filter((c) => map.has(c.id))
       .map((c) => ({ category: c.id, categoryLabel: c.label, items: map.get(c.id)! }));
-  }
-
-  addToCart(item: MenuItem): void {
-    const price = item.price || 0;
-    if (price <= 0) {
-      console.error(`Cannot add ${item.name} to cart: no price available`);
-      return;
-    }
-
-    this.cartService.addItem({
-      id: item.id || item._id || '',
-      name: item.name,
-      price: price,
-      imageUrl: item.imageUrl || '',
-      description: item.description || '',
-      category: item.category || 'cholent'
-    });
   }
 
   getPrice(item: MenuItem): number {

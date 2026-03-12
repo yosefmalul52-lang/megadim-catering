@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -9,7 +9,7 @@ import { VideoModalComponent } from './video-modal.component';
 @Component({
   selector: 'app-gallery-section',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, NgOptimizedImage, MatDialogModule, MatButtonModule, MatIconModule],
   templateUrl: './gallery-section.component.html',
   styleUrls: ['./gallery-section.component.scss']
 })

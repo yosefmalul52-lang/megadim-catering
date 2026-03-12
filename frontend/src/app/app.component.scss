@@ -82,56 +82,102 @@
   transition: color 0.3s ease, background-color 0.3s ease, opacity 0.3s ease;
 }
 
-// Cookie consent banner (white, clean, brand-aligned)
+// Cookie consent banner (z-index below WhatsApp so the button stays on top)
 .cookie-banner {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 9999;
+  z-index: 900;
   background: #ffffff;
-  color: #1f2937;
-  padding: 15px 40px;
+  color: #333333;
+  padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  gap: 1.25rem;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
   direction: rtl;
   font-family: inherit;
 
-  p {
+  .cookie-text {
     margin: 0;
     font-size: 0.95rem;
-    line-height: 1.5;
+    line-height: 1.6;
+    flex: 1;
+    max-width: 720px;
+  }
+
+  .cookie-link {
+    text-decoration: underline;
+    color: #1f3540;
+    font-weight: 600;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #e0c075;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #e0c075;
+      outline-offset: 2px;
+    }
   }
 
   .cookie-actions {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
 
-    a {
-      color: #1f2937;
-      text-decoration: underline;
-      font-weight: 600;
-      transition: color 0.2s ease;
+  .accept-btn {
+    background: #e0c075;
+    color: #1f3540;
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease, transform 0.15s ease;
 
-      &:hover {
-        color: #c5a059;
-      }
+    &:hover {
+      background: #c5a059;
     }
 
-    .btn-primary-gold {
-      background: #c5a059;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.2s ease;
-      &:hover { background: #b8924a; }
+    &:active {
+      transform: scale(0.98);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #e0c075;
+      outline-offset: 2px;
+    }
+  }
+
+  .reject-btn {
+    background: transparent;
+    color: #555;
+    border: 1px solid #ccc;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      border-color: #999;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #999;
+      outline-offset: 2px;
     }
   }
 }
@@ -140,17 +186,27 @@
   .cookie-banner {
     flex-direction: column;
     text-align: center;
-    gap: 15px;
-    padding: 15px 20px;
+    gap: 1rem;
+    padding: 1rem;
+
+    .cookie-text {
+      max-width: none;
+    }
 
     .cookie-actions {
       width: 100%;
-      justify-content: center;
+      flex-direction: column;
+      justify-content: stretch;
+
+      .accept-btn,
+      .reject-btn {
+        width: 100%;
+      }
     }
   }
 }
 
-// Floating WhatsApp button (bottom-left so it doesn't overlap accessibility on the right)
+// Floating WhatsApp button – must be above cookie banner (higher z-index)
 .fab-whatsapp {
   position: fixed;
   left: 20px;

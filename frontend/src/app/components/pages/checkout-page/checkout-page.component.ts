@@ -18,6 +18,7 @@ import { SiteSettingsService, SiteSettings } from '../../../services/site-settin
 import { LocationService } from '../../../services/location.service';
 import { DeliveryService } from '../../../services/delivery.service';
 import { CouponService } from '../../../services/coupon.service';
+import { toYYYYMMDD } from '../../../utils/date.utils';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -84,8 +85,8 @@ export class CheckoutPageComponent implements OnInit {
   isSubmitting = false;
   /** Minimum date for event (today + minimumLeadDays); set after settings load */
   minDate: Date = this.getMinDateForLeadDays(2);
-  /** Allowed weekdays for event (0=Sun, 1=Mon, ..., 6=Sat); from store settings */
-  allowedDays: number[] = [0, 1, 2, 3];
+  /** Specific dates open for orders (YYYY-MM-DD); from store settings */
+  openDates: string[] = [];
   /** Minimum days from today until allowed order date (from store settings) */
   minimumLeadDays = 2;
 
@@ -94,14 +95,14 @@ export class CheckoutPageComponent implements OnInit {
     return new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
   }
 
-  /** Filter: only allow dates >= minDate and days in allowedDays */
+  /** Filter: only allow dates >= minDate and in openDates list */
   dateFilter = (d: Date | null): boolean => {
     if (!d) return false;
-    const day = d.getDay();
     const pick = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const min = new Date(this.minDate.getFullYear(), this.minDate.getMonth(), this.minDate.getDate());
     const isTooSoon = pick < min;
-    return !isTooSoon && this.allowedDays.includes(day);
+    const key = toYYYYMMDD(d);
+    return !isTooSoon && this.openDates.includes(key);
   };
 
   ngOnInit(): void {
@@ -146,11 +147,13 @@ export class CheckoutPageComponent implements OnInit {
       this.filteredCities = [...cities];
     });
     this.settingsService.getSettings(true).subscribe(s => (this.settings = s));
-    this.http.get<{ success: boolean; data: { allowedDays?: number[]; minimumLeadDays?: number } }>(`${environment.apiUrl}/settings/delivery`).subscribe({
+    this.http.get<{ success: boolean; data: { openDates?: string[]; minimumLeadDays?: number } }>(`${environment.apiUrl}/settings/delivery`).subscribe({
       next: (res) => {
         const data = res?.data;
-        if (data?.allowedDays && Array.isArray(data.allowedDays)) {
-          this.allowedDays = data.allowedDays;
+        if (data?.openDates && Array.isArray(data.openDates)) {
+          this.openDates = data.openDates.filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s));
+        } else {
+          this.openDates = [];
         }
         const lead = data?.minimumLeadDays;
         if (typeof lead === 'number' && lead >= 0) {

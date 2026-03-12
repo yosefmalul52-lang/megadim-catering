@@ -1,0 +1,48 @@
+.legal-page {
+  padding: 3rem 0;
+  background-color: #f9fafb;
+  color: #111827;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    margin-top: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  p,
+  li {
+    line-height: 1.7;
+    font-size: 0.98rem;
+  }
+
+  .last-updated {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+  }
+
+  .placeholder {
+    background-color: #fff7ed;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px dashed #f97316;
+  }
+
+  ul {
+    padding-right: 1.25rem;
+    list-style-type: disc;
+  }
+}
+

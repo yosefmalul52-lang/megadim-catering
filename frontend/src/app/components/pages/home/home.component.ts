@@ -1,9 +1,10 @@
 import { Component, OnInit, inject, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { OptimizedImageComponent } from '../../shared/optimized-image/optimized-image.component';
 
 import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
@@ -19,12 +20,14 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, FeaturedMenuComponent, AboutComponent, VideoSectionComponent, PagePopupComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, NgOptimizedImage, FeaturedMenuComponent, AboutComponent, VideoSectionComponent, PagePopupComponent, OptimizedImageComponent],
   template: `
     <div class="home-page">
-      <!-- Hero Section -->
+      <!-- Hero Section: priority img for LCP -->
       <section class="hero-section">
-        <div class="hero-bg-image"></div>
+        <div class="hero-bg-image">
+          <img ngSrc="v1768222488/hero1_ime6hz.png" alt="קייטרינג מגדים" width="1920" height="1080" priority>
+        </div>
         
         <div class="content-container">
           <h1 class="main-title">קייטרינג ברמה אחרת</h1>
@@ -48,21 +51,28 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
       <section class="category-cards-section">
         <div class="category-cards-container">
           <div class="category-card" routerLink="/catering">
-            <div class="card-image card-image--quality" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg');">
+            <div class="card-image card-image--quality">
+              <app-optimized-image
+                publicId="v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg"
+                altText="קייטרינג לאירועים"
+                cssClass="card-image__img"
+              ></app-optimized-image>
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועים</h3>
               </div>
             </div>
           </div>
           <div class="category-card" routerLink="/shabbat-events">
-            <div class="card-image card-image--quality" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773063136/sj-objio-py3ddhtev50-unsplash_a1ojam.jpg');">
+            <div class="card-image card-image--quality">
+              <img ngSrc="v1773063136/sj-objio-py3ddhtev50-unsplash_a1ojam.jpg" alt="קייטרינג לאירועי שבת וחג" width="800" height="600" class="card-image__img">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועי שבת וחג</h3>
               </div>
             </div>
           </div>
           <div class="category-card" routerLink="/ready-for-shabbat">
-            <div class="card-image card-image--quality" style="background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg');">
+            <div class="card-image card-image--quality">
+              <img ngSrc="v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg" alt="אוכל מוכן לשבת וחג" width="800" height="600" class="card-image__img">
               <div class="card-overlay">
                 <h3 class="gold-text">אוכל מוכן לשבת וחג</h3>
               </div>
@@ -268,15 +278,19 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         left: 0;
         width: 100%;
         height: 100%;
-        background-image: url('https://res.cloudinary.com/dioklg7lx/image/upload/q_auto,f_auto/v1768222488/hero1_ime6hz.png') !important;
-        background-size: cover; // Ensure full coverage
-        background-position: center; // Center the image
         z-index: 0;
         border-bottom: none !important;
         box-shadow: none !important;
-        
-        // Slow zoom in/out animation
-        animation: heroZoom 20s ease-in-out infinite;
+        overflow: hidden;
+
+        img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          animation: heroZoom 20s ease-in-out infinite;
+        }
       }
       
       // Zoom animation keyframes
@@ -522,10 +536,17 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
             left: 0;
             width: 100%;
             height: 100%;
-            background-size: cover; // Equivalent to object-fit: cover for background-image
-            background-position: center;
-            background-repeat: no-repeat;
+            overflow: hidden;
             filter: brightness(1); // Full brightness
+
+            img, .card-image__img {
+              position: absolute;
+              inset: 0;
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              object-position: center;
+            }
             transition: all 0.4s ease-in-out;
             transform: scale(1);
             transform-origin: center;

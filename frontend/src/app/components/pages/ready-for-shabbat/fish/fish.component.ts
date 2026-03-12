@@ -1,16 +1,18 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
+import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-fish',
   standalone: true,
-  imports: [CommonModule, RouterModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, NgOptimizedImage, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './fish.component.html',
   styleUrls: ['./fish.component.scss']
 })
@@ -18,6 +20,7 @@ export class FishComponent implements OnInit {
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
   private settingsService = inject(SiteSettingsService);
+  private seoService = inject(SeoService);
   private router = inject(Router);
 
   settings: SiteSettings | null = null;
@@ -26,6 +29,12 @@ export class FishComponent implements OnInit {
   isLoading: boolean = true;
 
   ngOnInit(): void {
+    this.seoService.updateTags({
+      title: 'דגים לשבת - קייטרינג מגדים | מנות דגים כשרות',
+      description: 'מנות דגים טריות לשבת: גפילטה פיש, סלמון, דגים אפויים ומבושלים. קייטרינג כשר למהדרין.',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      keywords: 'דגים לשבת, גפילטה פיש, קייטרינג מגדים, אוכל כשר'
+    });
     this.settingsService.getSettings(true).subscribe(s => {
       this.settings = s ?? null;
       const pa = s?.pageAnnouncements?.['fish'];

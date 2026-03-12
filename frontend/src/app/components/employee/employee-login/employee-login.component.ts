@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { AuthService } from '../../../services/auth.service';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -231,6 +232,7 @@ import { environment } from '../../../../environments/environment';
 export class EmployeeLoginComponent implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private authService = inject(AuthService);
 
   phone = '';
   pinCode = '';
@@ -238,9 +240,7 @@ export class EmployeeLoginComponent implements OnInit {
   errorMessage = '';
 
   ngOnInit(): void {
-    // Check if already logged in
-    const token = localStorage.getItem('employee_token');
-    if (token) {
+    if (this.authService.isLoggedIn() && this.authService.currentUser?.role === 'employee') {
       this.router.navigate(['/my-zone']);
     }
   }
@@ -269,18 +269,22 @@ export class EmployeeLoginComponent implements OnInit {
     this.errorMessage = '';
 
     const url = `${environment.apiUrl}/auth/employee-login`;
-    
-    this.http.post<{ success: boolean; token: string; employee: any }>(url, {
+    this.http.post<{ success: boolean; employee: any }>(url, {
       phone: this.phone.trim(),
       pinCode: this.pinCode.trim()
-    }).subscribe({
+    }, { withCredentials: true }).subscribe({
       next: (response) => {
-        if (response.success && response.token) {
-          // Store employee token
-          localStorage.setItem('employee_token', response.token);
-          localStorage.setItem('employee_data', JSON.stringify(response.employee));
-          
-          // Navigate to my-zone
+        if (response.success && response.employee) {
+          const e = response.employee;
+          this.authService.setCurrentUser({
+            id: e.id,
+            username: e.phone || '',
+            role: 'employee',
+            fullName: e.fullName,
+            firstName: e.firstName,
+            lastName: e.lastName,
+            phone: e.phone
+          });
           this.router.navigate(['/my-zone']);
         } else {
           this.errorMessage = 'פרטי התחברות שגויים';

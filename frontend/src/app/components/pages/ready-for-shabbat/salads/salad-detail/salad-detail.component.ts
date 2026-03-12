@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 
 import { MenuService, MenuItem } from '../../../../../services/menu.service';
 import { CartService } from '../../../../../services/cart.service';
+import { SeoService } from '../../../../../services/seo.service';
 
 @Component({
   selector: 'app-salad-detail',
@@ -779,6 +780,7 @@ export class SaladDetailComponent implements OnInit {
   private router = inject(Router);
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
+  private seoService = inject(SeoService);
 
   salad: MenuItem | null = null;
   isLoading = true;
@@ -821,9 +823,13 @@ export class SaladDetailComponent implements OnInit {
         
         if (found) {
           this.salad = found;
+          this.seoService.updateTags({
+            title: `${found.name} | קייטרינג מגדים - סלטים`,
+            description: found.description || found.name,
+            image: found.imageUrl
+          });
           this.updatePrice();
         } else {
-          // If still not found, show not found message
           console.warn(`Salad with id ${id} not found`);
           this.salad = null;
         }
@@ -835,6 +841,11 @@ export class SaladDetailComponent implements OnInit {
         const found = this.getFeaturedSaladById(id);
         if (found) {
           this.salad = found;
+          this.seoService.updateTags({
+            title: `${found.name} | קייטרינג מגדים - סלטים`,
+            description: found.description || found.name,
+            image: found.imageUrl
+          });
           this.updatePrice();
         } else {
           this.salad = null;

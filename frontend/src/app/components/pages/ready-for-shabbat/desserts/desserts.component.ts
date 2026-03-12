@@ -1,16 +1,18 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
+import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-desserts',
   standalone: true,
-  imports: [CommonModule, RouterModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, NgOptimizedImage, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './desserts.component.html',
   styleUrls: ['./desserts.component.scss']
 })
@@ -18,6 +20,7 @@ export class DessertsComponent implements OnInit {
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
   private settingsService = inject(SiteSettingsService);
+  private seoService = inject(SeoService);
   private router = inject(Router);
 
   settings: SiteSettings | null = null;
@@ -26,6 +29,12 @@ export class DessertsComponent implements OnInit {
   isLoading: boolean = true;
 
   ngOnInit(): void {
+    this.seoService.updateTags({
+      title: 'קינוחים לשבת - קייטרינג מגדים | עוגות ומתוקים',
+      description: 'קינוחים ביתיים לשבת: עוגות, עוגיות ומתוקים בעבודת יד. הזמינו קינוחים כשרים למהדרין.',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      keywords: 'קינוחים לשבת, עוגות, קייטרינג מגדים, אוכל כשר'
+    });
     this.settingsService.getSettings(true).subscribe(s => {
       this.settings = s ?? null;
       const pa = s?.pageAnnouncements?.['desserts'];

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { CONTACT_PHONE_DISPLAY, CONTACT_TEL_HREF, CONTACT_WHATSAPP_HREF } from '../constants/contact.constants';
 
 export interface ContactRequest {
   name: string;
@@ -40,18 +41,15 @@ export class ContactService {
 
   // Method for quick WhatsApp contact
   openWhatsApp(message?: string): void {
-    const phoneNumber = '0528240230';
     const defaultMessage = 'שלום, אני מעוניין/ת לקבל מידע על שירותי הקייטרינג שלכם';
     const whatsappMessage = message || defaultMessage;
-    const whatsappUrl = `https://wa.me/972${phoneNumber.substring(1)}?text=${encodeURIComponent(whatsappMessage)}`;
-    
+    const whatsappUrl = `${CONTACT_WHATSAPP_HREF}?text=${encodeURIComponent(whatsappMessage)}`;
     window.open(whatsappUrl, '_blank');
   }
 
   // Method for direct phone call
   makePhoneCall(): void {
-    const phoneNumber = '0528240230';
-    window.location.href = `tel:${phoneNumber}`;
+    window.location.href = CONTACT_TEL_HREF;
   }
 
   // Method to get business contact information
@@ -64,8 +62,8 @@ export class ContactService {
     serviceAreas: string[];
   } {
     return {
-      phone: '0528240230',
-      whatsapp: '0528240230',
+      phone: CONTACT_PHONE_DISPLAY,
+      whatsapp: CONTACT_WHATSAPP_HREF,
       email: 'info@megadim-catering.com',
       address: 'ישראל', // Replace with actual address
       businessHours: 'ראשון-חמישי: 8:00-20:00, יום שישי: 8:00-14:00',

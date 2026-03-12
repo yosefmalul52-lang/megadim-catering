@@ -21,4 +21,34 @@
     color: #333;
     margin-bottom: 1rem;
   }
+
+  .intro {
+    font-size: 1.05rem;
+    color: #444;
+  }
+
+  h2 {
+    font-size: 1.35rem;
+    color: #1f3540;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
+  }
+
+  ul {
+    margin: 0 0 1rem 1.25rem;
+    padding: 0;
+    line-height: 1.7;
+    color: #333;
+  }
+
+  li {
+    margin-bottom: 0.35rem;
+  }
+
+  .updated {
+    margin-top: 2rem;
+    font-size: 0.95rem;
+    color: #666;
+  }
 }

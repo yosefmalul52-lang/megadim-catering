@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { MatIconModule } from '@angular/material/icon';
 
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
@@ -10,7 +11,7 @@ import { LanguageService } from '../../../../services/language.service';
 @Component({
   selector: 'app-main-dishes',
   standalone: true,
-  imports: [CommonModule, TranslateModule, RouterModule],
+  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule],
   template: `
     <div class="main-dishes-page">
       <div class="category-header-actions">
@@ -35,48 +36,44 @@ import { LanguageService } from '../../../../services/language.service';
           <span>טוען מנות...</span>
         </div>
 
-        <!-- Dishes Grid -->
-        <!-- Product Cards Grid - EXACT REFERENCE DESIGN -->
-        <div class="menu-grid grid-4-cols" *ngIf="!isLoading">
+        <!-- Dishes Grid (unified card design) -->
+        <div class="menu-grid grid-4-cols unified-menu-grid" *ngIf="!isLoading">
           <div 
             *ngFor="let dish of mainDishes; trackBy: trackByItemId" 
             class="product-card"
           >
-            <!-- Image Container -->
-            <div class="card-image-container">
+            <div class="card-image-wrapper">
               <img 
                 [src]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" 
                 [alt]="dish.name"
-                class="card-img"
                 loading="lazy"
               >
-              <span class="badge badge-unavailable" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
+              <div class="badge" *ngIf="dish.isPopular === true">מומלץ</div>
+              <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
             </div>
             
-            <!-- Card Body -->
-            <div class="card-body">
-              <h3 class="card-title">{{ dish.name }}</h3>
-              <p class="card-description">{{ dish.description }}</p>
+            <div class="card-content">
+              <h4 class="card-title">{{ dish.name }}</h4>
+              <p class="card-desc">{{ dish.description }}</p>
               <div class="card-price">
                 <span class="currency">₪</span>{{ getPrice(dish) }}
               </div>
               
-              <!-- Card Actions -->
               <div class="card-actions">
                 <button 
                   (click)="viewDetails(dish)" 
-                  class="btn btn-details"
+                  class="btn-details"
                   [attr.aria-label]="'פרטים על ' + dish.name"
                 >
                   פרטים
                 </button>
                 <button 
                   (click)="addToCart(dish)" 
-                  class="btn btn-cart"
+                  class="btn-add"
                   [attr.aria-label]="'הוסף לסל ' + dish.name"
                   [disabled]="!isAvailable(dish)"
                 >
-                  <i class="fas fa-shopping-cart"></i>
+                  <mat-icon>shopping_cart</mat-icon>
                   הוספה לסל
                 </button>
               </div>
@@ -198,191 +195,9 @@ import { LanguageService } from '../../../../services/language.service';
     $white: #ffffff;
     $gray-border: #eaeaea;
 
-    // === PIXEL-PERFECT PRODUCT CARD - EXACT ASADO REFERENCE ===
     .menu-grid {
       padding: 20px 0;
       margin-bottom: 4rem;
-    }
-
-    // Product Card Container
-    .product-card {
-      display: flex;
-      flex-direction: column;
-      height: 100%; // Ensures all cards in grid are same height
-      background-color: #fff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      padding-top: 24px; // White space at the top
-      padding-left: 0;
-      padding-right: 0;
-      padding-bottom: 0;
-
-      &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-      }
-    }
-
-    // Image Container — uniform height, no distortion
-    .card-image-container {
-      height: 200px;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-      border-bottom: 1px solid #eaeaea;
-      background-color: #ffffff;
-      border-radius: 0;
-      padding: 0;
-      margin: 0;
-      position: relative;
-
-      .card-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center;
-        display: block;
-        border-radius: 0;
-      }
-
-      .badge-unavailable {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: #6b2d2d;
-        color: white;
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        z-index: 2;
-      }
-    }
-
-    // Card Body (Content Area)
-    .card-body {
-      padding: 0 16px 16px 16px; // Padding on sides and bottom, no top padding
-      text-align: center;
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      
-      // Ensure consistent width for alignment
-      > * {
-        width: 100%;
-      }
-    }
-    
-    // Description should grow to push buttons down
-    .card-description {
-      flex-grow: 1;
-    }
-
-    // Title
-    .card-title {
-      font-family: 'Heebo', sans-serif;
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #1a2b3c;
-      margin: 0 0 8px 0;
-      text-align: center;
-    }
-
-    // Description
-    .card-description {
-      font-size: 0.95rem;
-      color: #555;
-      line-height: 1.5;
-      margin-bottom: 12px;
-      max-width: 100%;
-      flex-grow: 1;
-    }
-
-    // Price (Large Gold)
-    .card-price {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: var(--primary-gold);
-      text-align: center;
-      margin-bottom: 12px;
-
-      .currency {
-        font-size: 1rem;
-        margin-left: 2px;
-      }
-    }
-
-    // Card Actions (Buttons Section)
-    .card-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      width: 100%;
-      margin-top: auto;
-      padding: 0;
-    }
-
-    // Button Base Styles
-    .btn {
-      width: 100%;
-      padding: 10px 20px;
-      font-size: 0.95rem;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-      height: 42px;
-      text-align: center;
-    }
-
-    // Details Button (Secondary - Gold Border)
-    .btn-details {
-      background: transparent;
-      border: 2px solid var(--primary-gold);
-      color: var(--primary-gold);
-      font-weight: bold;
-
-      &:hover {
-        background: rgba(224, 192, 117, 0.1);
-        box-shadow: 0 2px 8px rgba(224, 192, 117, 0.2);
-      }
-    }
-
-    // Cart Button (Primary - Solid Gold)
-    .btn-cart {
-      background: var(--primary-gold);
-      border: none;
-      color: #1f3540;
-      font-weight: bold;
-      box-shadow: 0 4px 10px rgba(224, 192, 117, 0.4);
-
-      &:hover:not(:disabled) {
-        background: rgba(224, 192, 117, 0.95);
-        box-shadow: 0 6px 15px rgba(224, 192, 117, 0.5);
-        transform: translateY(-1px);
-      }
-
-      &:disabled {
-        background: #f5f5f5;
-        border: none;
-        color: #999;
-        cursor: not-allowed;
-        box-shadow: none;
-      }
-
-      i {
-        color: #1f3540;
-      }
     }
 
     .empty-state {

@@ -3,9 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { ToastrService } from 'ngx-toastr';
 import { SiteSettingsService, SiteSettings, PAGE_IDS, PageId } from '../../../services/site-settings.service';
 import { AdminDeliveryService } from '../../../services/admin-delivery.service';
+import { toYYYYMMDD } from '../../../utils/date.utils';
 
 const PAGE_LABELS: Record<PageId, string> = {
   home: 'דף הבית',
@@ -20,7 +23,7 @@ const PAGE_LABELS: Record<PageId, string> = {
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatSlideToggleModule, MatExpansionModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatSlideToggleModule, MatExpansionModule, MatDatepickerModule, MatNativeDateModule],
   templateUrl: './admin-settings.component.html',
   styleUrls: ['./admin-settings.component.scss']
 })
@@ -47,20 +50,13 @@ export class AdminSettingsComponent implements OnInit {
     { name: 'קינוחים', route: '/desserts' }
   ] as const;
 
-  /** Allowed days for checkout (0=Sun … 6=Sat); loaded from store settings */
-  allowedDays: number[] = [0, 1, 2, 3];
+  /** Specific dates open for orders (YYYY-MM-DD); loaded from store settings */
+  openDates: string[] = [];
   /** Minimum days from today until earliest selectable order date (standalone ngModel, not in form) */
   minimumLeadDays = 2;
   isSavingDays = false;
-  readonly DAY_LABELS: { value: number; label: string }[] = [
-    { value: 0, label: 'ראשון' },
-    { value: 1, label: 'שני' },
-    { value: 2, label: 'שלישי' },
-    { value: 3, label: 'רביעי' },
-    { value: 4, label: 'חמישי' },
-    { value: 5, label: 'שישי' },
-    { value: 6, label: 'שבת' }
-  ];
+  /** Calendar month to display (for mat-calendar) */
+  calendarMonth: Date = new Date();
 
   ngOnInit(): void {
     this.settingsForm = this.fb.group({
@@ -93,8 +89,10 @@ export class AdminSettingsComponent implements OnInit {
     this.adminDelivery.getDeliverySettings().subscribe({
       next: (res) => {
         const data = res?.data;
-        if (data?.allowedDays && Array.isArray(data.allowedDays)) {
-          this.allowedDays = [...data.allowedDays];
+        if (data?.openDates && Array.isArray(data.openDates)) {
+          this.openDates = data.openDates.filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s));
+        } else {
+          this.openDates = [];
         }
         if (typeof data?.minimumLeadDays === 'number' && data.minimumLeadDays >= 0) {
           this.minimumLeadDays = data.minimumLeadDays;
@@ -103,29 +101,44 @@ export class AdminSettingsComponent implements OnInit {
     });
   }
 
-  isDayAllowed(day: number): boolean {
-    return this.allowedDays.includes(day);
+  /** Format date to YYYY-MM-DD (local date only, no timezone shift). */
+  toYYYYMMDD(date: Date): string {
+    return toYYYYMMDD(date);
   }
 
-  toggleDay(day: number): void {
-    if (this.allowedDays.includes(day)) {
-      this.allowedDays = this.allowedDays.filter((d) => d !== day);
+  /**
+   * Calendar cell CSS class based on whether the date is open.
+   * Month view: dates in openDates -> 'opened-date', others -> 'closed-date'.
+   */
+  dateClass = (cellDate: Date, view: 'month' | 'year' | 'multi-year'): string => {
+    if (view !== 'month') return '';
+    const dateString = toYYYYMMDD(cellDate);
+    const isOpen = this.openDates.includes(dateString);
+    return isOpen ? 'opened-date' : 'closed-date';
+  };
+
+  /** Toggle a date in openDates: add if missing, remove if present. */
+  onCalendarDateSelect(value: Date | null): void {
+    if (!value) return;
+    const key = toYYYYMMDD(value);
+    if (this.openDates.includes(key)) {
+      this.openDates = this.openDates.filter((d) => d !== key);
     } else {
-      this.allowedDays = [...this.allowedDays, day].sort((a, b) => a - b);
+      this.openDates = [...this.openDates, key].sort();
     }
   }
 
-  saveAllowedDays(): void {
+  saveOpenDates(): void {
     this.isSavingDays = true;
     const lead = Math.max(0, Math.floor(Number(this.minimumLeadDays)) || 2);
-    this.adminDelivery.updateDeliverySettings({ allowedDays: this.allowedDays, minimumLeadDays: lead }).subscribe({
+    this.adminDelivery.updateDeliverySettings({ openDates: [...this.openDates], minimumLeadDays: lead }).subscribe({
       next: () => {
         this.isSavingDays = false;
-        this.toastr.success('ימי ההזמנה עודכנו', 'הצלחה', { timeOut: 3000, positionClass: 'toast-top-left' });
+        this.toastr.success('תאריכי ההזמנה עודכנו', 'הצלחה', { timeOut: 3000, positionClass: 'toast-top-left' });
       },
       error: () => {
         this.isSavingDays = false;
-        this.toastr.error('שגיאה בעדכון ימי ההזמנה', 'שגיאה', { timeOut: 5000, positionClass: 'toast-top-left' });
+        this.toastr.error('שגיאה בעדכון תאריכי ההזמנה', 'שגיאה', { timeOut: 5000, positionClass: 'toast-top-left' });
       }
     });
   }

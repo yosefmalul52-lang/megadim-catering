@@ -79,7 +79,7 @@
             id="contactPhone"
             formControlName="contactPhone"
             class="form-input"
-            placeholder="052-8240230"
+            placeholder="073-367-8399"
           />
           <small class="form-hint">מספר טלפון המוצג בכותרת ובפוטר; משמש גם כיעד לוואטסאפ בהזמנות</small>
         </div>
@@ -107,7 +107,7 @@
             id="whatsappLink"
             formControlName="whatsappLink"
             class="form-input"
-            placeholder="https://wa.me/972528240230"
+            placeholder="https://wa.me/972733678399"
           />
           <small class="form-hint">קישור ישיר לוואטסאפ (אופציונלי - אם לא מוגדר, ייווצר אוטומטית מהטלפון)</small>
         </div>
@@ -244,9 +244,9 @@
         <div class="card-header">
           <h3 class="card-title">
             <i class="fas fa-calendar-day"></i>
-            ימי הזמנה
+            תאריכי הזמנה
           </h3>
-          <p class="card-description">בחר באילו ימים ניתן לבחור תאריך אירוע בדף ביצוע ההזמנה</p>
+          <p class="card-description">לחץ על תאריך בלוח השנה כדי לפתוח/לסגור אותו להזמנות. תאריכים פתוחים מסומנים בירוק.</p>
         </div>
         <div class="form-group lead-days-group">
           <label for="minimumLeadDays" class="form-label">מינימום ימים מראש</label>
@@ -262,25 +262,26 @@
           />
           <small class="form-hint">התאריך המוקדם ביותר לבחירה יהיה היום + מספר ימים זה (למשל 2 = מינימום 48 שעות)</small>
         </div>
-        <div class="days-management">
-          <label *ngFor="let day of DAY_LABELS" class="day-checkbox">
-            <input
-              type="checkbox"
-              [checked]="isDayAllowed(day.value)"
-              (change)="toggleDay(day.value)"
-            />
-            <span>{{ day.label }}</span>
-          </label>
+        <div class="calendar-management">
+          <div class="calendar-wrap">
+            <mat-calendar
+              [startAt]="calendarMonth"
+              (selectedChange)="onCalendarDateSelect($event)"
+              [dateClass]="dateClass"
+            >
+            </mat-calendar>
+          </div>
+          <p class="calendar-hint" *ngIf="openDates.length > 0">{{ openDates.length }} תאריכים פתוחים להזמנה</p>
         </div>
         <div class="form-actions-inline">
           <button
             type="button"
             class="btn-save btn-save-days"
-            (click)="saveAllowedDays()"
-            [disabled]="isSavingDays || allowedDays.length === 0"
+            (click)="saveOpenDates()"
+            [disabled]="isSavingDays"
           >
             <i class="fas fa-spinner fa-spin" *ngIf="isSavingDays"></i>
-            <span *ngIf="!isSavingDays">שמור ימים</span>
+            <span *ngIf="!isSavingDays">שמור תאריכים</span>
             <span *ngIf="isSavingDays">שומר...</span>
           </button>
         </div>

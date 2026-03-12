@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { OrderService } from '../../../services/order.service';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { ShippingService } from '../../../services/shipping.service';
 
 interface DeliveryOrder {
   _id: string;
@@ -425,12 +426,22 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
     }
     .calendar-wrap ::ng-deep .mat-calendar-body-cell-content {
       border: none !important;
+      border-radius: 999px;
     }
     .calendar-wrap ::ng-deep .mat-calendar-body-today:not(.mat-calendar-body-selected) .mat-calendar-body-cell-content {
       background-color: #1f2937 !important;
       color: #fff !important;
       border-radius: 50%;
     }
+
+    /* Dates that the admin enabled for ordering (from openDates) */
+    .calendar-wrap ::ng-deep .mat-calendar-body-cell.open-date .mat-calendar-body-cell-content {
+      background-color: $primary-blue;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Dates that have deliveries keep the small gold dot indicator */
     .calendar-wrap ::ng-deep .mat-calendar-body-cell.has-deliveries .mat-calendar-body-cell-content {
       position: relative;
       border-radius: 50%;
@@ -1256,6 +1267,7 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
 })
 export class DeliveryManagementComponent implements OnInit {
   orderService = inject(OrderService);
+  private shippingService = inject(ShippingService);
 
   daysByDate: Record<string, { deliveryByCity: CityGroup[]; pickupByTime: PickupGroup[] }> = {};
   fromDate: Date = new Date();
@@ -1266,6 +1278,8 @@ export class DeliveryManagementComponent implements OnInit {
   errorMessage = '';
   isMarkingDelivered: string | null = null;
   successMessage: string | null = null;
+  /** Dates that the admin allowed for orders (YYYY-MM-DD) – used to highlight calendar cells. */
+  openDates: Set<string> = new Set();
 
   get fromDateStr(): string { return this.toYYYYMMDD(this.fromDate); }
   get toDateStr(): string { return this.toYYYYMMDD(this.toDate); }
@@ -1352,6 +1366,28 @@ export class DeliveryManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadWeek();
+    this.loadOpenDates();
+  }
+
+  /** Load openDates from global delivery settings so the calendar shows which dates are enabled. */
+  loadOpenDates(): void {
+    this.shippingService.getGlobalSettings().subscribe({
+      next: (res) => {
+        const dates = res?.data?.openDates;
+        const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
+        if (Array.isArray(dates)) {
+          this.openDates = new Set(
+            dates.filter((s: unknown): s is string => typeof s === 'string' && YYYYMMDD.test(s))
+          );
+        } else {
+          this.openDates = new Set();
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load openDates for delivery calendar', err);
+        this.openDates = new Set();
+      }
+    });
   }
 
   loadWeek(): void {
@@ -1386,7 +1422,14 @@ export class DeliveryManagementComponent implements OnInit {
 
   dateClass = (date: Date, _view?: 'month' | 'year' | 'multi-year'): string => {
     const str = this.toYYYYMMDD(date);
-    return this.datesWithOrders.has(str) ? 'has-deliveries' : '';
+    const classes: string[] = [];
+    if (this.openDates.has(str)) {
+      classes.push('open-date');
+    }
+    if (this.datesWithOrders.has(str)) {
+      classes.push('has-deliveries');
+    }
+    return classes.join(' ');
   };
 
   onCalendarDateSelected(value: Date | null): void {

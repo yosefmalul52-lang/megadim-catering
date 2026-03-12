@@ -1,7 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { AuthService } from '../../../services/auth.service';
 import { environment } from '../../../../environments/environment';
 
 interface Shift {
@@ -361,6 +362,7 @@ interface EmployeeStats {
 export class MyZoneComponent implements OnInit {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private authService = inject(AuthService);
 
   employeeName = '';
   stats: EmployeeStats | null = null;
@@ -368,51 +370,26 @@ export class MyZoneComponent implements OnInit {
   errorMessage = '';
 
   ngOnInit(): void {
-    // Check if logged in
-    const token = localStorage.getItem('employee_token');
-    const employeeData = localStorage.getItem('employee_data');
-    
-    if (!token) {
+    const user = this.authService.currentUser;
+    if (!this.authService.isLoggedIn() || user?.role !== 'employee') {
       this.router.navigate(['/employee-login']);
       return;
     }
-
-    if (employeeData) {
-      try {
-        const employee = JSON.parse(employeeData);
-        this.employeeName = employee.firstName || 'עובד';
-      } catch (e) {
-        console.error('Error parsing employee data:', e);
-      }
-    }
-
+    this.employeeName = (user as any).firstName || user.fullName || 'עובד';
     this.loadStats();
   }
 
   loadStats(): void {
     this.isLoading = true;
     this.errorMessage = '';
-
-    const token = localStorage.getItem('employee_token');
-    if (!token) {
-      this.router.navigate(['/employee-login']);
-      return;
-    }
-
-    const headers = new HttpHeaders({
-      'Authorization': `Bearer ${token}`
-    });
-
     const url = `${environment.apiUrl}/employees/my/stats`;
-    
-    this.http.get<{ success: boolean; data: EmployeeStats }>(url, { headers }).subscribe({
+    this.http.get<{ success: boolean; data: EmployeeStats }>(url, { withCredentials: true }).subscribe({
       next: (response) => {
         if (response.success) {
           this.stats = response.data;
           if (!this.employeeName && response.data.employee) {
             this.employeeName = response.data.employee.firstName;
           }
-          console.log('📊 Employee stats loaded:', this.stats);
         } else {
           this.errorMessage = 'שגיאה בטעינת הנתונים';
         }
@@ -421,9 +398,7 @@ export class MyZoneComponent implements OnInit {
       error: (error) => {
         console.error('❌ Error loading stats:', error);
         if (error.status === 401) {
-          // Token expired or invalid
-          localStorage.removeItem('employee_token');
-          localStorage.removeItem('employee_data');
+          this.authService.logout();
           this.router.navigate(['/employee-login']);
         } else {
           this.errorMessage = 'שגיאה בטעינת הנתונים. אנא נסה שוב.';
@@ -448,9 +423,8 @@ export class MyZoneComponent implements OnInit {
   }
 
   logout(): void {
-    localStorage.removeItem('employee_token');
-    localStorage.removeItem('employee_data');
-    this.router.navigate(['/employee-login']);
+    this.authService.logout();
+    this.router.navigate(['/employee-login']); // override default /login for employee
   }
 }
 

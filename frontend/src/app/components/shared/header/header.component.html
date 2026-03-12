@@ -2,10 +2,12 @@
   <!-- Row 1: Top Bar (minimal - phone only) -->
   <div class="top-bar">
     <div class="top-bar-content">
-      <a [href]="'tel:' + contactPhone" class="mobile-phone-icon" aria-label="Call us">
+      <a [href]="contactTelHref" class="mobile-phone-icon" aria-label="Call us">
         <mat-icon>phone</mat-icon>
       </a>
-      <span class="desktop-phone-text">{{ 'NAV.ORDER_TEL' | translate }}</span>
+      <a [href]="contactTelHref" class="desktop-phone-text">
+        {{ 'NAV.ORDER_TEL' | translate }}
+      </a>
     </div>
   </div>
   
@@ -14,7 +16,7 @@
     <div class="container">
       <!-- Right Side (RTL Start): Main Logo -->
       <a routerLink="/" class="logo-container">
-        <img src="https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773160661/Gemini_Generated_Image_swmdneswmdneswmd_gvchgd.png" alt="קייטרינג מגדים" class="main-logo">
+        <img src="https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773160661/Gemini_Generated_Image_swmdneswmdneswmd_gvchgd.png" alt="קייטרינג מגדים" class="main-logo" loading="eager" fetchpriority="high">
       </a>
       
       <!-- Left Side (RTL End): Separator + User Actions -->

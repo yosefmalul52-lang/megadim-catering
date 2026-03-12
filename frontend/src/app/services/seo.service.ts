@@ -1,5 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { Title, Meta } from '@angular/platform-browser';
+import { DOCUMENT } from '@angular/common';
 
 export interface SeoTags {
   title?: string;
@@ -17,8 +19,9 @@ export const SEO_PAGES: Record<string, SeoTags> = {
     keywords: 'קייטרינג כשר, אוכל לשבת, צ\'ולנט, אירועים, כשרות מפוקחת, מגדים'
   },
   menu: {
-    title: 'Our Menu - Delicious Homemade Food | תפריט מגדים',
-    description: 'Explore our ready-for-Shabbat and holiday menu. Salads, main courses, fish, sides and desserts. אוכל מוכן לשבת וחג – סלטים, מנות עיקריות, דגים, תוספות ומנות אחרונות.'
+    title: 'תפריט מוכן לשבת - קייטרינג מגדים | סלטים, דגים, מנות עיקריות, קינוחים',
+    description: 'מגוון מנות מוכנות לשבת: סלטים טריים, דגים, מנות עיקריות, תוספות וממולאים, קינוחים. הזמינו אוכל כשר לשבת.',
+    image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg'
   },
   about: {
     title: 'About Magadim Catering | אודות מגדים',
@@ -36,36 +39,59 @@ export const SEO_PAGES: Record<string, SeoTags> = {
 export class SeoService {
   private title = inject(Title);
   private meta = inject(Meta);
+  private doc = inject(DOCUMENT);
+  private platformId = inject(PLATFORM_ID);
 
   private readonly defaultTitle = 'מגדים - קייטרינג כשר ברמה אחרת';
   private readonly defaultDescription = 'מגדים - שירותי קייטרינג כשר מפוקח ברמה אחרת. אירועים, שבתות וחגים. אוכל ביתי ברמת שף.';
 
   /**
-   * Update document title and meta tags (description, keywords, og, etc.).
-   * Call this from each page component in ngOnInit.
+   * Update document title, meta tags (description, keywords), Open Graph (og:title, og:description, og:image, og:url), and canonical link.
+   * Call from each page in ngOnInit or after dynamic data is loaded.
    */
-  updateTags(tags: SeoTags): void {
-    if (tags.title) {
-      this.title.setTitle(tags.title);
+  updateTags(config: SeoTags): void {
+    if (config.title) {
+      this.title.setTitle(config.title);
+      this.meta.updateTag({ property: 'og:title', content: config.title });
     }
-    if (tags.description) {
-      this.meta.updateTag({ name: 'description', content: tags.description });
+    if (config.description) {
+      this.meta.updateTag({ name: 'description', content: config.description });
+      this.meta.updateTag({ property: 'og:description', content: config.description });
     }
-    if (tags.keywords) {
-      this.meta.updateTag({ name: 'keywords', content: tags.keywords });
+    if (config.keywords) {
+      this.meta.updateTag({ name: 'keywords', content: config.keywords });
     }
-    if (tags.image) {
-      this.meta.updateTag({ property: 'og:image', content: tags.image });
+    const imageUrl = this.toAbsoluteUrl(config.image);
+    if (imageUrl) {
+      this.meta.updateTag({ property: 'og:image', content: imageUrl });
     }
-    if (tags.url) {
-      this.meta.updateTag({ property: 'og:url', content: tags.url });
+    const pageUrl = config.url || (isPlatformBrowser(this.platformId) ? this.doc.defaultView?.location?.href : undefined);
+    if (pageUrl) {
+      this.meta.updateTag({ property: 'og:url', content: pageUrl });
+      this.setCanonical(pageUrl);
     }
-    if (tags.title) {
-      this.meta.updateTag({ property: 'og:title', content: tags.title });
+  }
+
+  /** Set or update the canonical link to prevent duplicate content. */
+  setCanonical(url: string): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const head = this.doc.getElementsByTagName('head')[0];
+    if (!head) return;
+    let link = head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!link) {
+      link = this.doc.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      head.appendChild(link);
     }
-    if (tags.description) {
-      this.meta.updateTag({ property: 'og:description', content: tags.description });
-    }
+    link.setAttribute('href', url);
+  }
+
+  private toAbsoluteUrl(value: string | undefined): string | undefined {
+    if (!value) return undefined;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (!isPlatformBrowser(this.platformId)) return value;
+    const origin = this.doc.defaultView?.location?.origin || '';
+    return value.startsWith('/') ? `${origin}${value}` : `${origin}/${value}`;
   }
 
   /**
@@ -85,5 +111,7 @@ export class SeoService {
   resetToDefaults(): void {
     this.title.setTitle(this.defaultTitle);
     this.meta.updateTag({ name: 'description', content: this.defaultDescription });
+    this.meta.updateTag({ property: 'og:title', content: this.defaultTitle });
+    this.meta.updateTag({ property: 'og:description', content: this.defaultDescription });
   }
 }

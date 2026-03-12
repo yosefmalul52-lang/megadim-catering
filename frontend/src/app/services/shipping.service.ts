@@ -8,7 +8,8 @@ export interface ShippingGlobalSettings {
   isFreeShippingActive: boolean;
   baseDeliveryFee: number;
   pricePerKm: number;
-  allowedDays?: number[];
+  /** Specific dates open for orders; format 'YYYY-MM-DD' */
+  openDates?: string[];
   minimumLeadDays?: number;
 }
 

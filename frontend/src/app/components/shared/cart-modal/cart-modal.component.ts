@@ -368,7 +368,7 @@ export class CartModalComponent implements OnInit, OnDestroy {
     ];
     const waMessage = waLines.join('\n');
 
-    const phoneFromSettings = (this.settings?.contactPhone || '0528240230').replace(/\D/g, '');
+    const phoneFromSettings = (this.settings?.contactPhone || '073-367-8399').replace(/\D/g, '');
     const cleanPhone = phoneFromSettings.startsWith('0') ? '972' + phoneFromSettings.slice(1) : phoneFromSettings.startsWith('972') ? phoneFromSettings : '972' + phoneFromSettings;
 
     this.http.post<{ success: boolean; message?: string }>(`${environment.apiUrl}/order/send`, payload).subscribe({

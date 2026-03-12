@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
+import { tap, catchError, map, take } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 
@@ -12,8 +12,8 @@ export interface LoginCredentials {
 
 export interface LoginResponse {
   success: boolean;
-  message: string;
-  token: string;
+  message?: string;
+  token?: string; // Not sent when using HttpOnly cookie
   user: User;
 }
 
@@ -21,9 +21,11 @@ export interface User {
   id: string;
   username: string;
   role: string;
-  name?: string; // Optional name field for display (legacy)
-  fullName?: string; // Full name for customers
-  phone?: string; // Phone number
+  name?: string;
+  fullName?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface RegisterCredentials {
@@ -45,8 +47,6 @@ export interface RegisterResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly TOKEN_KEY = 'auth_token';
-  private readonly USER_KEY = 'auth_user';
   private apiUrl = environment.apiUrl;
   
   private currentUserSubject = new BehaviorSubject<User | null>(null);
@@ -55,6 +55,10 @@ export class AuthService {
   private isLoggedInSubject = new BehaviorSubject<boolean>(false);
   public isLoggedIn$ = this.isLoggedInSubject.asObservable();
 
+  /** Emits true once the initial session check (GET /auth/me) has completed. Used by guards to wait before deciding. */
+  private sessionInitDoneSubject = new BehaviorSubject<boolean>(false);
+  public sessionInitDone$ = this.sessionInitDoneSubject.asObservable();
+
   get currentUser(): User | null {
     return this.currentUserSubject.value;
   }
@@ -62,40 +66,44 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private router: Router
-  ) {
-    this.loadUserFromStorage();
-  }
+  ) {}
 
-  /** On init: restore auth state from localStorage so late subscribers (e.g. Navbar) get current value immediately. */
-  private loadUserFromStorage(): void {
-    const token = this.getToken();
-    const user = this.getUser();
-    if (token && user) {
-      if (this.isLoggedIn()) {
-        this.currentUserSubject.next(user);
-        this.isLoggedInSubject.next(true);
-      } else {
-        this.clearToken();
-        this.clearUser();
+  /**
+   * Verify session with backend (GET /auth/me). Updates currentUser and isLoggedIn.
+   * On 401 or error, clears state gracefully. Completes without throwing.
+   * Use in APP_INITIALIZER so the app waits for session rehydration before routing.
+   */
+  verifySession(): Observable<void> {
+    return this.http.get<{ success: boolean; user?: User }>(`${this.apiUrl}/auth/me`, { withCredentials: true }).pipe(
+      tap((res) => {
+        if (res?.success && res?.user) {
+          this.currentUserSubject.next(res.user);
+          this.isLoggedInSubject.next(true);
+        } else {
+          this.currentUserSubject.next(null);
+          this.isLoggedInSubject.next(false);
+        }
+      }),
+      catchError(() => {
         this.currentUserSubject.next(null);
         this.isLoggedInSubject.next(false);
-      }
-    } else {
-      this.currentUserSubject.next(null);
-      this.isLoggedInSubject.next(false);
-    }
+        // Do not navigate or call logout() – session check 401 is expected for guests
+        return of(undefined);
+      }),
+      tap(() => this.sessionInitDoneSubject.next(true)),
+      map(() => undefined as void),
+      take(1)
+    );
   }
 
   /**
    * Login with username and password
    */
   login(credentials: LoginCredentials): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, credentials)
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, credentials, { withCredentials: true })
       .pipe(
         tap(response => {
-          if (response.success && response.token) {
-            this.setToken(response.token);
-            this.setUser(response.user);
+          if (response.success && response.user) {
             this.isLoggedInSubject.next(true);
             this.currentUserSubject.next(response.user);
           }
@@ -108,83 +116,43 @@ export class AuthService {
   }
 
   /**
-   * Logout - clear token and redirect to login
+   * Logout: clear legacy localStorage, clear cookie on server, clear in-memory state.
    */
   logout(): void {
-    this.clearToken();
-    this.clearUser();
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+    }
+    this.http.post(`${this.apiUrl}/auth/logout`, {}, { withCredentials: true }).subscribe({ next: () => {}, error: () => {} });
     this.isLoggedInSubject.next(false);
     this.currentUserSubject.next(null);
     this.router.navigate(['/login']);
   }
 
-  /**
-   * Check if user is logged in
-   */
+  /** True if current user is in memory (session from HttpOnly cookie + /auth/me). */
   isLoggedIn(): boolean {
-    const token = this.getToken();
-    if (!token) {
-      return false;
-    }
-
-    // Basic token expiration check (JWT tokens contain expiration)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expirationTime = payload.exp * 1000; // Convert to milliseconds
-      
-      if (Date.now() >= expirationTime) {
-        // Token expired
-        this.clearToken();
-        this.clearUser();
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      // Invalid token format
-      this.clearToken();
-      this.clearUser();
-      return false;
-    }
+    return this.currentUserSubject.value != null;
   }
 
-  /**
-   * Get the current token
-   */
-  getToken(): string | null {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return localStorage.getItem(this.TOKEN_KEY);
-    }
-    return null;
-  }
-
-  /**
-   * Get the current user
-   */
+  /** Current user from memory (no localStorage). */
   getUser(): User | null {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const userStr = localStorage.getItem(this.USER_KEY);
-      if (userStr) {
-        try {
-          return JSON.parse(userStr);
-        } catch (error) {
-          return null;
-        }
-      }
-    }
-    return null;
+    return this.currentUserSubject.value;
+  }
+
+  /** Set current user (e.g. after employee login). Cookie is set by backend. */
+  setCurrentUser(user: User | null): void {
+    this.currentUserSubject.next(user);
+    this.isLoggedInSubject.next(user != null);
   }
 
   /**
    * Register a new user
    */
   register(credentials: RegisterCredentials): Observable<RegisterResponse> {
-    return this.http.post<RegisterResponse>(`${this.apiUrl}/auth/register`, credentials)
+    return this.http.post<RegisterResponse>(`${this.apiUrl}/auth/register`, credentials, { withCredentials: true })
       .pipe(
         tap(response => {
-          if (response.success && response.token && response.user) {
-            this.setToken(response.token);
-            this.setUser(response.user);
+          if (response.success && response.user) {
             this.isLoggedInSubject.next(true);
             this.currentUserSubject.next(response.user);
           }
@@ -197,63 +165,28 @@ export class AuthService {
   }
 
   /**
-   * Validate token with backend
+   * Re-validate session with backend (/auth/me).
    */
   validateToken(): Observable<{ success: boolean; valid: boolean; user?: User }> {
-    const token = this.getToken();
-    if (!token) {
-      return throwError(() => new Error('No token available'));
-    }
-
-    return this.http.post<{ success: boolean; valid: boolean; user?: User }>(
-      `${this.apiUrl}/auth/validate`,
-      { token }
-    ).pipe(
+    return this.http.get<{ success: boolean; user?: User }>(`${this.apiUrl}/auth/me`, { withCredentials: true }).pipe(
       tap(response => {
-        if (!response.valid) {
-          this.logout();
-        } else if (response.user) {
+        if (response?.success && response?.user) {
           this.currentUserSubject.next(response.user);
+        } else {
+          this.currentUserSubject.next(null);
+          this.isLoggedInSubject.next(false);
         }
       }),
-      catchError(error => {
-        this.logout();
-        return throwError(() => error);
+      map(response => ({
+        success: response?.success ?? false,
+        valid: !!(response?.success && response?.user),
+        user: response?.user
+      })),
+      catchError(() => {
+        this.currentUserSubject.next(null);
+        this.isLoggedInSubject.next(false);
+        return throwError(() => new Error('Session invalid'));
       })
     );
-  }
-
-  /**
-   * Private helper methods
-   */
-  private setToken(token: string): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem(this.TOKEN_KEY, token);
-    }
-  }
-
-  private clearToken(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem(this.TOKEN_KEY);
-    }
-  }
-
-  private setUser(user: User): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    }
-  }
-
-  private clearUser(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem(this.USER_KEY);
-    }
-  }
-
-  private checkTokenValidity(): void {
-    if (!this.isLoggedIn()) {
-      this.currentUserSubject.next(null);
-      this.isLoggedInSubject.next(false);
-    }
   }
 }

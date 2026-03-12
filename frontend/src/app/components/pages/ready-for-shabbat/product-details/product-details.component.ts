@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 
 import { MenuService, MenuItem, PricingOption, PriceVariant } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
+import { SeoService } from '../../../../services/seo.service';
 
 @Component({
   selector: 'app-product-details',
@@ -585,6 +586,7 @@ export class ProductDetailsComponent implements OnInit {
   private router = inject(Router);
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
+  private seoService = inject(SeoService);
 
   product: MenuItem | null = null;
   isLoading = true;
@@ -641,18 +643,18 @@ export class ProductDetailsComponent implements OnInit {
         this.product = product;
         
         if (this.product) {
-          // Initialize selected size to first option if available
+          this.seoService.updateTags({
+            title: `${this.product.name} | קייטרינג מגדים`,
+            description: this.product.description || this.product.name,
+            image: this.product.imageUrl
+          });
           if (this.hasSizeOptions()) {
             this.selectedSizeIndex = 0;
           }
-          
-          // Auto-detect category from product if not set from route
           if (!this.category && this.product.category) {
-            // Use getCategoryRoute to map to SHORT route paths
             this.category = this.getCategoryRoute(this.product.category);
           }
         }
-        
         this.isLoading = false;
       },
       error: (error) => {

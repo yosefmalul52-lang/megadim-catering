@@ -49,9 +49,6 @@
               </div>
               <div class="item-actions">
                 <span class="item-price">{{ getPrice(dish) }} ₪</span>
-                <button *ngIf="isCholentBarOpen()" type="button" class="btn-add" (click)="addToCart(dish)" aria-label="הוסף לעגלה">
-                  <i class="fas fa-plus"></i> הוסף לעגלה
-                </button>
               </div>
             </div>
             <p class="item-desc">{{ dish.description }}</p>

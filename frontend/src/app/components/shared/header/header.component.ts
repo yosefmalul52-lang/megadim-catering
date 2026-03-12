@@ -19,6 +19,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { MAIN_NAV_LINKS } from '../../../nav-links';
+import { CONTACT_TEL_HREF } from '../../../constants/contact.constants';
 
 @Component({
   selector: 'app-header',
@@ -104,7 +105,20 @@ export class HeaderComponent implements OnInit {
   }
 
   get contactPhone(): string {
-    return this.settings?.contactPhone || '052-8240230';
+    const p = this.settings?.contactPhone;
+    if (!p) return '073-367-8399';
+    if (p.replace(/\D/g, '') === '0528240230') return '073-367-8399';
+    return p;
+  }
+
+  /** tel: href – from settings (normalized) or fallback. */
+  get contactTelHref(): string {
+    const p = this.settings?.contactPhone;
+    if (!p) return CONTACT_TEL_HREF;
+    const digits = p.replace(/\D/g, '');
+    if (digits === '0528240230') return CONTACT_TEL_HREF;
+    const e164 = digits.startsWith('0') ? '972' + digits.slice(1) : digits.startsWith('972') ? digits : '972' + digits;
+    return 'tel:+' + e164;
   }
 
   onSearchClick(): void {

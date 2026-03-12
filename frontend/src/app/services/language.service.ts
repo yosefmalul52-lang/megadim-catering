@@ -111,7 +111,7 @@ export class LanguageService {
     
     // Header
     orderByPhone: 'להזמנות התקשרו',
-    phoneNumber: '0528240230',
+    phoneNumber: '073-367-8399',
     login: 'התחברות',
     register: 'הרשמה',
     search: 'חיפוש',
@@ -195,7 +195,7 @@ export class LanguageService {
     
     // Header
     orderByPhone: 'Call to Order',
-    phoneNumber: '0528240230',
+    phoneNumber: '073-367-8399',
     login: 'Login',
     register: 'Register',
     search: 'Search',

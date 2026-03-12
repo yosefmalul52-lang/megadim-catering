@@ -108,7 +108,9 @@ $white: #FFFFFF;
     /* Target the logo image – anti-blur & hardware acceleration */
     .main-logo {
       max-height: 130px;
+      max-width: 100%;
       width: auto;
+      height: auto;
       display: block;
       object-fit: contain;
 

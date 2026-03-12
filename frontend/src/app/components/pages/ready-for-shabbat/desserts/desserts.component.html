@@ -28,28 +28,30 @@
     </div>
 
     <!-- Desserts Grid -->
-    <div class="product-grid" *ngIf="!isLoading">
+    <div class="product-grid unified-menu-grid" *ngIf="!isLoading">
       <div *ngFor="let dish of desserts" class="product-card">
-        <div class="image-container">
-          <img [src]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="dish.name" (click)="viewDetails(dish)">
-          <span class="badge badge-unavailable" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
+        <div class="card-image-wrapper">
+          <img [ngSrc]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="dish.name" width="400" height="300" (click)="viewDetails(dish)">
+          <div class="badge" *ngIf="dish.isPopular === true">מומלץ</div>
+          <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
         </div>
 
         <div class="card-content">
-          <h3 (click)="viewDetails(dish)">{{ dish.name }}</h3>
-          <p class="description">{{ dish.description }}</p>
+          <h4 class="card-title" (click)="viewDetails(dish)">{{ dish.name }}</h4>
+          <p class="card-desc">{{ dish.description }}</p>
           
-          <div class="price-row">
+          <div class="card-price">
             <span class="currency">₪</span>{{ getPrice(dish) }}
             <span class="unit" *ngIf="dish.pricePer100g"> / ליחידה (משוער)</span>
           </div>
 
           <div class="card-actions">
-            <button class="btn-outline" (click)="viewDetails(dish)">
+            <button class="btn-details" (click)="viewDetails(dish)">
               פרטים
             </button>
-            <button class="btn-solid" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
-              <i class="fas fa-shopping-cart"></i> הוסף לסל
+            <button class="btn-add" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
+              <mat-icon>shopping_cart</mat-icon>
+              הוספה לסל
             </button>
           </div>
         </div>

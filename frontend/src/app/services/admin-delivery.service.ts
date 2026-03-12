@@ -14,7 +14,8 @@ export interface DeliveryPricingTier {
 export interface DeliveryStoreSettings {
   freeShippingThreshold: number;
   isFreeShippingActive: boolean;
-  allowedDays?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+  /** Specific dates open for orders; format 'YYYY-MM-DD' */
+  openDates?: string[];
   minimumLeadDays?: number; // Earliest order = today + this many days
 }
 

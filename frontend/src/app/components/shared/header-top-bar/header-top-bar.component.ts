@@ -6,6 +6,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { LanguageService } from '../../../services/language.service';
+import { CONTACT_PHONE_DISPLAY, CONTACT_TEL_HREF } from '../../../constants/contact.constants';
 import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
@@ -23,9 +24,9 @@ import { ToastService } from '../../../services/toast.service';
           <div class="left-section">
             <div class="social-icons">
               <a 
-                href="tel:0528240230" 
+                [href]="contactTelHref" 
                 class="social-icon phone-icon"
-                [attr.aria-label]="'התקשרו למספר ' + languageService.strings.phoneNumber"
+                [attr.aria-label]="'התקשרו למספר ' + contactPhoneDisplay"
               >
                 <i class="fas fa-phone" aria-hidden="true"></i>
               </a>
@@ -59,10 +60,12 @@ import { ToastService } from '../../../services/toast.service';
             </button>
           </div>
           
-          <!-- Center: Phone Number -->
+          <!-- Center: Phone Number (click-to-call) -->
           <div class="center-section">
             <div class="phone-section">
-              <span class="phone-text">להזמנות התקשרו - 0528240230</span>
+              <a class="phone-text" [href]="contactTelHref">
+                להזמנות התקשרו - {{ contactPhoneDisplay }}
+              </a>
             </div>
           </div>
           
@@ -187,7 +190,10 @@ export class HeaderTopBarComponent implements OnInit {
   toastService = inject(ToastService);
   private fb = inject(FormBuilder);
   private router = inject(Router);
-  
+
+  readonly contactPhoneDisplay = CONTACT_PHONE_DISPLAY;
+  readonly contactTelHref = CONTACT_TEL_HREF;
+
   isUserMenuOpen = false;
   private userMenuCloseTimeout: ReturnType<typeof setTimeout> | null = null;
   isSearchOpen = false;

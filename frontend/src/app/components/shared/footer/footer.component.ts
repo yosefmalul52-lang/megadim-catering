@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { CONTACT_PHONE_DISPLAY, CONTACT_TEL_HREF, CONTACT_WHATSAPP_HREF } from '../../../constants/contact.constants';
 
 @Component({
   selector: 'app-footer',
@@ -26,17 +27,26 @@ export class FooterComponent implements OnInit {
   }
 
   get contactPhone(): string {
-    return this.settings?.contactPhone || '052-8240230';
+    const p = this.settings?.contactPhone;
+    if (!p) return CONTACT_PHONE_DISPLAY;
+    if (p.replace(/\D/g, '') === '0528240230') return CONTACT_PHONE_DISPLAY;
+    return p;
+  }
+
+  /** tel: href for click-to-call. */
+  get contactTelHref(): string {
+    const p = this.settings?.contactPhone;
+    if (!p) return CONTACT_TEL_HREF;
+    const digits = p.replace(/\D/g, '');
+    if (digits === '0528240230') return CONTACT_TEL_HREF;
+    const e164 = digits.startsWith('0') ? '972' + digits.slice(1) : digits.startsWith('972') ? digits : '972' + digits;
+    return 'tel:+' + e164;
   }
 
   get whatsappLink(): string {
     if (this.settings?.whatsappLink) {
       return this.settings.whatsappLink;
     }
-    // Fallback: Generate WhatsApp link from phone number
-    const phoneDigits = this.contactPhone.replace(/[^0-9]/g, '');
-    // Remove leading 0 and add country code
-    const phoneNumber = phoneDigits.startsWith('0') ? phoneDigits.substring(1) : phoneDigits;
-    return `https://wa.me/972${phoneNumber}`;
+    return CONTACT_WHATSAPP_HREF;
   }
 }

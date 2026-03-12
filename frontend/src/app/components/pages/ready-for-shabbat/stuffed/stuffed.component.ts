@@ -1,13 +1,14 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 
 @Component({
   selector: 'app-stuffed',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, NgOptimizedImage, RouterModule, MatIconModule],
   templateUrl: './stuffed.component.html',
   styleUrls: ['./stuffed.component.scss']
 })

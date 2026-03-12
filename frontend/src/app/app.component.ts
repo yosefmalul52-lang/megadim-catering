@@ -14,6 +14,7 @@ import { ToastComponent } from './components/shared/toast/toast.component';
 
 import { LanguageService } from './services/language.service';
 import { MAIN_NAV_LINKS } from './nav-links';
+import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 
 @Component({
   selector: 'app-root',
@@ -61,18 +62,22 @@ import { MAIN_NAV_LINKS } from './nav-links';
       <app-toast></app-toast>
     </mat-sidenav-container>
 
-    <!-- Cookie Consent Banner -->
-    <div class="cookie-banner" *ngIf="showCookieBanner">
-      <p>אתר זה עושה שימוש בעוגיות (Cookies) כדי לשפר את חווית הגלישה, לנהל את אזור הלקוח ולאבטח את המידע שלך. בהמשך הגלישה באתר הנך מסכים למדיניות הפרטיות שלנו.</p>
+    <!-- Cookie Consent Banner (GDPR / Israeli Privacy Law compliant) -->
+    <div class="cookie-banner" *ngIf="showCookieBanner" role="dialog" aria-label="העדפות עוגיות">
+      <p class="cookie-text">
+        אתר זה עושה שימוש בעוגיות (Cookies) כדי להבטיח לך את חווית הגלישה הטובה ביותר, לאבטח את החיבור שלך ולשמור את סל הקניות. למידע נוסף, קרא את
+        <a routerLink="/privacy-policy" class="cookie-link">מדיניות הפרטיות</a>
+        שלנו.
+      </p>
       <div class="cookie-actions">
-        <a routerLink="/privacy-policy">למידע נוסף</a>
-        <button type="button" class="btn-primary-gold" (click)="acceptCookies()">הבנתי ואישרתי</button>
+        <button type="button" class="accept-btn" (click)="acceptAll()">אישור הכל</button>
+        <button type="button" class="reject-btn" (click)="rejectAll()">דחה הכל</button>
       </div>
     </div>
 
     <!-- Floating WhatsApp Button (bottom-left so it doesn't overlap accessibility on the right) -->
     <a
-      href="https://wa.me/972528240230"
+      [href]="whatsappHref"
       target="_blank"
       rel="noopener noreferrer"
       class="fab-whatsapp"
@@ -87,7 +92,9 @@ import { MAIN_NAV_LINKS } from './nav-links';
 export class AppComponent implements OnInit {
   private languageService = inject(LanguageService);
   private router = inject(Router);
-  
+
+  readonly whatsappHref = CONTACT_WHATSAPP_HREF;
+
   // Content direction property (NOT document direction)
   textDir: 'rtl' | 'ltr' = 'rtl';
   isLoginOrAdminPage = false;
@@ -95,8 +102,11 @@ export class AppComponent implements OnInit {
   navLinks = MAIN_NAV_LINKS;
 
   ngOnInit(): void {
-    if (typeof localStorage !== 'undefined' && !localStorage.getItem('cookieConsent')) {
-      this.showCookieBanner = true;
+    if (typeof localStorage !== 'undefined') {
+      const consent = localStorage.getItem('cookieConsent');
+      // Show banner only if no valid choice yet (legacy 'accepted' treated as 'all')
+      const hasChoice = consent === 'all' || consent === 'essential' || consent === 'rejected' || consent === 'accepted';
+      if (!hasChoice) this.showCookieBanner = true;
     }
     // Subscribe to language changes to update content direction
     this.languageService.currentLanguage$.subscribe(lang => {
@@ -122,9 +132,28 @@ export class AppComponent implements OnInit {
     this.isLoginOrAdminPage = url.startsWith('/admin') || url.startsWith('/time-clock') || url.startsWith('/employee-login') || url.startsWith('/my-zone');
   }
 
-  acceptCookies(): void {
+  acceptAll(): void {
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('cookieConsent', 'accepted');
+      localStorage.setItem('cookieConsent', 'all');
+    }
+    this.showCookieBanner = false;
+  }
+
+  acceptEssentialOnly(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('cookieConsent', 'essential');
+    }
+    this.showCookieBanner = false;
+  }
+
+  /**
+   * Reject all non-essential cookies. We still store 'rejected' so the banner stays hidden.
+   * Legally, strictly necessary cookies (session/auth, cart) may still be used for the site
+   * to function; "reject" means the user does not consent to optional/marketing cookies.
+   */
+  rejectAll(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('cookieConsent', 'rejected');
     }
     this.showCookieBanner = false;
   }

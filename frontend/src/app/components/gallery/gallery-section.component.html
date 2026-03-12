@@ -12,14 +12,16 @@
         <div class="item-wrapper">
           <div class="item-image" *ngIf="item.type === 'image'">
             <img
-              [src]="item.url"
+              [ngSrc]="item.url"
               [alt]="item.title || 'Gallery image'"
+              width="400"
+              height="300"
               (error)="onImageError($event)"
             >
           </div>
           
           <div class="item-video" *ngIf="item.type === 'video'">
-            <img [src]="item.thumbnail || '/assets/images/placeholder-dish.jpg'" [alt]="item.title || 'Video thumbnail'">
+            <img [ngSrc]="item.thumbnail || '/assets/images/placeholder-dish.jpg'" [alt]="item.title || 'Video thumbnail'" width="400" height="300">
             <div class="play-overlay">
               <mat-icon>play_circle_filled</mat-icon>
             </div>

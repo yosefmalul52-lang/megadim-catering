@@ -149,7 +149,7 @@ export class SiteSettingsService {
         const defaultSettings: SiteSettings = {
           shabbatMenuUrl: '',
           eventsMenuUrl: '',
-          contactPhone: '052-8240230',
+          contactPhone: '073-367-8399',
           orderEmail: '',
           whatsappLink: '',
           cholentForceOpen: false,

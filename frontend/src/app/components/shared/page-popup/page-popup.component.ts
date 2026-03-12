@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
@@ -9,7 +9,8 @@ const POPUP_DISMISSED_KEY = 'popupDismissed';
   standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './page-popup.component.html',
-  styleUrls: ['./page-popup.component.scss']
+  styleUrls: ['./page-popup.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PagePopupComponent implements OnInit {
   @Input() title: string = '';

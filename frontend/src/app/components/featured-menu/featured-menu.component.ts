@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,7 +17,7 @@ interface Category {
 @Component({
   selector: 'app-featured-menu',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule, MatSnackBarModule],
+  imports: [CommonModule, NgOptimizedImage, RouterModule, MatButtonModule, MatIconModule, MatSnackBarModule],
   templateUrl: './featured-menu.component.html',
   styleUrls: ['./featured-menu.component.scss']
 })

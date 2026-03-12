@@ -1,12 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { SeoService } from '../../../services/seo.service';
 
 @Component({
   selector: 'app-about-page',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, NgOptimizedImage, MatIconModule],
   templateUrl: './about-page.component.html',
   styleUrls: ['./about-page.component.scss']
 })

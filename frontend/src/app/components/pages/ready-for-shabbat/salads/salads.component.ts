@@ -2,18 +2,20 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { MatIconModule } from '@angular/material/icon';
 
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { LanguageService } from '../../../../services/language.service';
 import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
+import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 
 @Component({
   selector: 'app-salads',
   standalone: true,
-  imports: [CommonModule, TranslateModule, RouterModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
   template: `
     <div class="salads-page">
       <app-page-banner [message]="settings?.pageAnnouncements?.['salads']?.bannerText"></app-page-banner>
@@ -45,37 +47,35 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
           <span>טוען מנות...</span>
         </div>
 
-        <!-- Salads Grid (only API data — no static cards) -->
-        <div class="menu-grid grid-4-cols" *ngIf="!isLoading && salads.length > 0">
+        <!-- Salads Grid (design aligned with Home "What\'s Cooking" cards) -->
+        <div class="menu-grid grid-4-cols unified-menu-grid" *ngIf="!isLoading && salads.length > 0">
           <div 
             *ngFor="let salad of salads; trackBy: trackByItemId" 
             class="product-card"
           >
-            <div class="image-container">
+            <div class="card-image-wrapper">
               <img 
                 [src]="salad.imageUrl || '/assets/images/placeholder-dish.jpg'" 
                 [alt]="salad.name"
                 loading="lazy"
               >
-              <!-- Popular Badge -->
-              <span class="badge badge-popular" *ngIf="salad.isPopular === true">מומלץ</span>
-              <!-- Out of Stock Badge -->
+              <div class="badge" *ngIf="salad.isPopular === true">מומלץ</div>
               <span class="badge badge-out-of-stock" *ngIf="!isAvailable(salad)">לא זמין כרגע</span>
             </div>
             
-            <div class="card-body">
-              <h3 class="title">{{ salad.name }}</h3>
-              <p class="description">{{ salad.description }}</p>
+            <div class="card-content">
+              <h4 class="card-title">{{ salad.name }}</h4>
+              <p class="card-desc">{{ salad.description }}</p>
               
-              <!-- Price Per 100g Display -->
+              <!-- Price Per 100g (optional line) -->
               <div class="price-unit" *ngIf="salad.pricePer100g">
                 {{ 'PRODUCT.PRICE_100G' | translate }} {{ salad.pricePer100g }} {{ 'PRODUCT.SHEKEL' | translate }}
               </div>
               
-              <!-- Pricing Options Selection -->
+              <!-- Pricing Options Dropdown - preserved -->
               <select 
                 *ngIf="hasPricingOptions(salad)"
-                class="form-control"
+                class="form-control card-select"
                 [value]="getSelectedOptionIndex(salad.id || salad._id || '')"
                 (change)="selectPricingOption(salad.id || salad._id || '', $event)"
               >
@@ -85,7 +85,7 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
                 </option>
               </select>
               
-              <!-- Legacy Size Selection (for pricingVariants) -->
+              <!-- Size selection (pricingVariants) - preserved -->
               <div class="size-selection" *ngIf="!hasPricingOptions(salad) && hasPricingVariants(salad)">
                 <label class="size-label">בחרו גודל:</label>
                 <div class="size-options">
@@ -102,33 +102,29 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
                 </div>
               </div>
               
-              <!-- Single Price Display -->
-              <div class="price-section" *ngIf="!hasPricingOptions(salad) && !hasPricingVariants(salad) && salad.price">
-                <span class="price">₪{{ salad.price }}</span>
-              </div>
+              <div class="card-price" *ngIf="!hasPricingOptions(salad) && !hasPricingVariants(salad)">₪{{ getPrice(salad) }}</div>
+              <div class="card-price" *ngIf="(hasPricingOptions(salad) || hasPricingVariants(salad)) && hasSelectedOption(salad)">₪{{ getSelectedPrice(salad) }}</div>
               
-              <!-- Error Message -->
               <div class="error-message" *ngIf="hasValidationError(salad.id || salad._id || '')">
                 נא לבחור גודל תחילה
               </div>
               
-              <div class="actions">
+              <div class="card-actions">
                 <button 
                   (click)="showDetails(salad)" 
                   class="btn-details"
                   [attr.aria-label]="'פרטים על ' + salad.name"
                 >
-                  {{ 'PRODUCT.DETAILS' | translate }}
+                  פרטים
                 </button>
-                
                 <button 
                   (click)="addToCart(salad)" 
                   class="btn-add"
                   [attr.aria-label]="'הוסף לסל ' + salad.name"
                   [disabled]="!isAvailable(salad)"
                 >
-                  <i class="fas fa-shopping-cart"></i>
-                  {{ 'PRODUCT.ADD_TO_CART' | translate }}
+                  <mat-icon>shopping_cart</mat-icon>
+                  הוספה לסל
                 </button>
               </div>
             </div>
@@ -235,351 +231,8 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
       margin-bottom: 4rem;
       padding-bottom: 40px;
       width: 100%;
-      // Center the grid content
       justify-content: center;
-
-      // Make sure cards take full height of the row
-      .product-card {
-        height: 100%;
-      }
     }
-
-    .product-card {
-      background: #fff;
-      border-radius: 12px;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-
-      // Hover Effect: Lift and Gold Border
-      &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-      }
-
-      // 1. Image Area — uniform height, no distortion
-      .image-container {
-        height: 200px;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-        border-bottom: 1px solid #eaeaea;
-        position: relative;
-        background-color: #ffffff;
-
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          object-position: center;
-          display: block;
-        }
-
-        // Badge styling
-        .badge {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background-color: var(--primary-gold);
-          color: #1f3540;
-          padding: 4px 12px;
-          font-size: 0.75rem;
-          font-weight: 800;
-          border-radius: 6px;
-          z-index: 2;
-          text-transform: uppercase;
-        }
-
-        .badge-out-of-stock {
-          background: #6b2d2d;
-          color: white;
-          padding: 6px 12px;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 700;
-        }
-      }
-
-      // Zoom effect
-      &:hover .image-container img {
-        transform: scale(1.02);
-      }
-
-      // 2. Content Area
-      .card-body {
-        padding: 16px;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        text-align: center;
-        justify-content: space-between;
-        
-        // Ensure dropdown and buttons align by having consistent padding context
-        > * {
-          width: 100%;
-        }
-
-        h3.title {
-          font-size: 1.3rem;
-          font-weight: bold;
-          color: #1f3540;
-          margin-bottom: 8px;
-          line-height: 1.3;
-        }
-
-        p.description {
-          font-size: 0.95rem;
-          color: #555;
-          line-height: 1.5;
-          margin-bottom: 12px;
-          flex-grow: 1;
-        }
-
-        // NEW: Price Per 100g Styling
-        .price-unit {
-          font-size: 1rem;
-          font-weight: 700;
-          color: #1f3540; // $navy
-          margin-bottom: 12px;
-          text-align: right;
-          display: block;
-
-          // Optional: Add a subtle separator line above it
-          padding-top: 10px;
-          border-top: 1px solid #f0f0f0;
-          width: 100%;
-        }
-
-        // Dropdown styling - Clean white background with gold border on focus
-        .form-control, select {
-          width: 100%;
-          padding: 10px 12px;
-          border: 1px solid #ddd;
-          background-color: #ffffff;
-          border-radius: 8px;
-          margin-bottom: 12px;
-          font-size: 0.9rem;
-          color: #1f3540;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-family: inherit;
-          
-          &:focus {
-            outline: none;
-            border-color: var(--primary-gold);
-            box-shadow: 0 0 0 2px rgba(224, 192, 117, 0.1);
-          }
-          
-          &:hover {
-            border-color: #bbb;
-          }
-        }
-
-        // Size Selection
-        .size-selection {
-          width: 100%;
-          margin-bottom: 20px;
-        }
-
-        .size-label {
-          display: block;
-          font-size: 0.9rem;
-          font-weight: 600;
-          color: #1f3540; // $navy
-          margin-bottom: 0.75rem;
-        }
-
-        .size-options {
-          display: flex;
-          gap: 0.75rem;
-          width: 100%;
-        }
-
-        .size-btn {
-          flex: 1;
-          padding: 0.75rem 0.5rem;
-          border: 2px solid #ddd;
-          border-radius: 0; // Square buttons
-          background: white;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.25rem;
-          min-height: 60px;
-          justify-content: center;
-
-          &:hover {
-            border-color: var(--primary-gold);
-            background: #fafafa;
-          }
-
-          &.active {
-            border-color: var(--primary-gold);
-            background: rgba(224, 192, 117, 0.1);
-            box-shadow: 0 2px 8px rgba(224, 192, 117, 0.2);
-          }
-        }
-
-        .size-weight {
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #1f3540; // $navy
-        }
-
-        .size-price {
-          font-size: 1rem;
-          font-weight: bold;
-          color: var(--primary-gold);
-        }
-
-        .size-btn.active .size-price {
-          color: #1f3540; // $navy
-        }
-
-        // Price Section
-        .price-section {
-          margin-bottom: 12px;
-          text-align: center;
-          
-          .price {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: var(--primary-gold);
-          }
-        }
-
-        // Error Message
-        .error-message {
-          color: #dc3545;
-          font-size: 0.85rem;
-          margin-bottom: 8px;
-          text-align: center;
-          padding: 0 16px;
-        }
-
-        // 3. Buttons Area
-        .actions {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          width: 100%;
-          margin-top: auto;
-          padding: 0;
-          margin: 16px 0 0 0;
-
-          button {
-            height: 42px;
-            border-radius: 0;
-            font-weight: bold;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            padding: 10px 20px;
-            white-space: nowrap;
-            width: 100%;
-            text-align: center;
-
-            i {
-              font-size: 1rem;
-            }
-          }
-
-          // 'Details' - Secondary Button (Gold Outline)
-          .btn-details {
-            background: transparent;
-            border: 2px solid var(--primary-gold);
-            color: var(--primary-gold);
-            font-weight: bold;
-            
-            &:hover {
-              background: rgba(224, 192, 117, 0.1);
-              box-shadow: 0 2px 8px rgba(224, 192, 117, 0.2);
-            }
-          }
-
-          // 'Add to Cart' - Primary Button (Solid Gold)
-          .btn-add {
-            background: var(--primary-gold);
-            border: none;
-            color: #1f3540;
-            font-weight: bold;
-            box-shadow: 0 4px 10px rgba(224, 192, 117, 0.4);
-
-            &:hover:not(:disabled) {
-              background: rgba(224, 192, 117, 0.95);
-              box-shadow: 0 6px 15px rgba(224, 192, 117, 0.5);
-              transform: translateY(-1px);
-            }
-
-            &:disabled {
-              background: #f5f5f5;
-              border: none;
-              color: #999;
-              cursor: not-allowed;
-              box-shadow: none;
-            }
-
-            i {
-              margin-left: 6px;
-              font-size: 18px;
-              color: #1f3540;
-            }
-          }
-        }
-      }
-
-      // When popular badge exists, move out-of-stock badge to left
-      .image-container:has(.badge-popular) .badge-out-of-stock {
-        right: auto;
-        left: 10px;
-      }
-    }
-
-    .item-tags {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .tag {
-      background: rgba(255, 255, 255, 0.9);
-      padding: 0.25rem 0.75rem;
-      border-radius: 1rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #0E1A24;
-    }
-
-    .tag.vegan {
-      background: rgba(76, 175, 80, 0.9);
-      color: white;
-    }
-
-    .tag.healthy {
-      background: rgba(67, 160, 71, 0.9);
-      color: white;
-    }
-
-    .tag.gluten-free {
-      background: rgba(255, 193, 7, 0.9);
-      color: #0E1A24;
-    }
-
 
     .empty-state {
       text-align: center;
@@ -667,6 +320,7 @@ export class SaladsComponent implements OnInit {
   cartService = inject(CartService);
   languageService = inject(LanguageService);
   settingsService = inject(SiteSettingsService);
+  seoService = inject(SeoService);
   router = inject(Router);
 
   settings: SiteSettings | null = null;
@@ -680,6 +334,12 @@ export class SaladsComponent implements OnInit {
   validationErrors: { [key: string]: boolean } = {}; // Track validation errors per item
 
   ngOnInit(): void {
+    this.seoService.updateTags({
+      title: 'סלטי הבית - קייטרינג מגדים | סלטים לשבת',
+      description: 'מגוון סלטים טריים בעבודת יד לכבוד שבת המלכה. חומוס, טחינה, חצילים ועוד. הזמינו עכשיו.',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg',
+      keywords: 'סלטים לשבת, חומוס, טחינה, קייטרינג מגדים, אוכל כשר'
+    });
     this.settingsService.getSettings(true).subscribe(s => {
       this.settings = s ?? null;
       const pa = s?.pageAnnouncements?.['salads'];

@@ -216,3 +216,237 @@ body {
   bottom: auto !important;
   transform: translateY(-50%) !important;
 }
+
+/* === UNIFIED MENU ITEM CARD (all categories: Salads, Desserts, Fish, Sides, Stuffed, Main) === */
+$card-navy: #1f3540;
+$card-gold: #E0C075;
+
+/* Apply to grids that use the unified card design */
+.unified-menu-grid .product-card,
+.menu-grid.unified-menu-grid .product-card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border-color: $card-gold;
+    transform: translateY(-5px);
+  }
+
+  .card-image-wrapper {
+    height: 200px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    border-bottom: 1px solid #eaeaea;
+    position: relative;
+    background-color: #fff;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+      transition: transform 0.5s ease;
+    }
+
+    .badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: $card-gold;
+      color: #fff;
+      padding: 5px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 0;
+      z-index: 2;
+    }
+
+    .badge-out-of-stock {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #6b2d2d;
+      color: white;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 0;
+      z-index: 2;
+    }
+  }
+
+  &:hover .card-image-wrapper img {
+    transform: scale(1.05);
+  }
+
+  .card-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    text-align: right;
+  }
+
+  .card-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: $card-navy;
+    margin-bottom: 10px;
+  }
+
+  .card-desc,
+  .card-content .description {
+    font-size: 0.95rem;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    flex-grow: 1;
+  }
+
+  .card-price,
+  .card-content .price-row {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: $card-gold;
+    margin-bottom: 15px;
+
+    .currency { color: $card-gold; }
+    .unit { font-size: 0.85rem; color: #666; font-weight: 500; }
+  }
+
+  .price-unit {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $card-navy;
+    margin-bottom: 10px;
+  }
+
+  .form-control.card-select,
+  .card-content select.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 0;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    color: $card-navy;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .form-control:focus,
+  .card-content select:focus {
+    outline: none;
+    border-color: $card-gold;
+  }
+
+  .size-selection { width: 100%; margin-bottom: 12px; }
+  .size-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $card-navy;
+    margin-bottom: 0.5rem;
+  }
+  .size-options { display: flex; gap: 8px; width: 100%; }
+  .size-btn {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 0;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-height: 52px;
+    justify-content: center;
+  }
+  .size-btn:hover { border-color: $card-gold; }
+  .size-btn.active {
+    border-color: $card-gold;
+    background: rgba(224, 192, 117, 0.15);
+  }
+  .size-weight { font-size: 0.85rem; font-weight: 600; color: $card-navy; }
+  .size-price { font-size: 0.95rem; font-weight: 700; color: $card-gold; }
+
+  .error-message {
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+  }
+
+  .btn-details,
+  .btn-outline {
+    flex: 1;
+    background: transparent;
+    border: 1px solid $card-gold;
+    color: $card-gold;
+    padding: 10px;
+    font-weight: 600;
+    border-radius: 0;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .btn-details:hover,
+  .btn-outline:hover {
+    background: #f4f4f4;
+  }
+
+  .btn-add,
+  .btn-solid {
+    flex: 1.5;
+    background: $card-navy;
+    border: none;
+    color: #fff;
+    padding: 10px;
+    font-weight: 600;
+    border-radius: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: 0.3s;
+  }
+
+  .btn-add mat-icon,
+  .btn-solid mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .btn-add:hover:not(:disabled),
+  .btn-solid:hover:not(:disabled) {
+    background: #2a4550;
+  }
+
+  .btn-add:disabled,
+  .btn-solid:disabled {
+    background: #ccc;
+    color: #888;
+    cursor: not-allowed;
+  }
+}

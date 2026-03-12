@@ -157,8 +157,7 @@ export class LoginComponent implements OnInit {
     // Debug logging
     console.log('🔍 Login Component - Initial State:', {
       isLoggedIn: this.isLoggedIn,
-      currentUser: this.currentUser,
-      hasToken: !!this.authService.getToken()
+      currentUser: this.currentUser
     });
     
     // Subscribe to auth state changes

@@ -18,7 +18,7 @@
         [routerLink]="[category.id]"
         routerLinkActive="active"
       >
-        <img [src]="category.image" [alt]="category.title" class="category-image">
+        <img [ngSrc]="category.image" [alt]="category.title" width="400" height="300" class="category-image">
         <div class="category-info">
           <h3>{{ category.title }}</h3>
         </div>

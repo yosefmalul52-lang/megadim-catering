@@ -19,9 +19,10 @@
       <div class="product-card" *ngFor="let item of featuredMainCourses">
         <div class="card-image-wrapper">
           <img 
-            [src]="item.imageUrl || 'assets/images/placeholder.jpg'" 
-            [alt]="item.name" 
-            onerror="this.src='assets/images/placeholder.jpg'"
+            [ngSrc]="item.imageUrl || 'assets/images/placeholder.jpg'" 
+            [alt]="item.name"
+            width="400"
+            height="300"
           >
           <div class="badge" *ngIf="item.isPopular">מומלץ</div>
         </div>

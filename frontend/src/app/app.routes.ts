@@ -119,6 +119,10 @@ export const routes: Routes = [
     loadComponent: () => import('./components/pages/terms/terms.component').then(m => m.TermsComponent)
   },
   {
+    path: 'accessibility',
+    loadComponent: () => import('./components/pages/accessibility/accessibility.component').then(m => m.AccessibilityComponent)
+  },
+  {
     path: 'privacy-policy',
     loadComponent: () => import('./components/pages/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
   },

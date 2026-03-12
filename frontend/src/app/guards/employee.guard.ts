@@ -1,18 +1,21 @@
 import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
+import { filter, take, map } from 'rxjs/operators';
+import { AuthService } from '../services/auth.service';
 
-export const employeeGuard: CanActivateFn = (route, state) => {
+export const employeeGuard: CanActivateFn = () => {
   const router = inject(Router);
+  const authService = inject(AuthService);
 
-  const token = localStorage.getItem('employee_token');
-  const employeeData = localStorage.getItem('employee_data');
-
-  // Check if employee token exists
-  if (token && employeeData) {
-    return true;
-  }
-
-  // Redirect to employee login
-  router.navigate(['/employee-login']);
-  return false;
+  return authService.sessionInitDone$.pipe(
+    filter((done) => done),
+    take(1),
+    map(() => {
+      if (authService.isLoggedIn() && authService.currentUser?.role === 'employee') {
+        return true;
+      }
+      router.navigate(['/employee-login']);
+      return false;
+    })
+  );
 };
