@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { MenuController } from '../controllers/menu.controller';
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 const router = Router();
 const menuController = new MenuController();
@@ -22,11 +22,11 @@ router.get('/category/:category', menuController.getMenuItemsByCategory);
 router.get('/stats', menuController.getMenuStatistics);
 router.get('/:id', menuController.getMenuItemById);
 
-// Admin routes (protected with JWT authenticate middleware)
-router.post('/', authenticate, menuController.createMenuItem);
-router.post('/migrate-cholent-desserts-category', authenticate, menuController.migrateCholentDessertsCategory);
-router.put('/reorder', authenticate, menuController.reorderMenuItems);
-router.put('/:id', authenticate, menuController.updateMenuItem);
-router.delete('/:id', authenticate, menuController.deleteMenuItem);
+// Admin-only routes
+router.post('/', authenticate, authorize('admin'), menuController.createMenuItem);
+router.post('/migrate-cholent-desserts-category', authenticate, authorize('admin'), menuController.migrateCholentDessertsCategory);
+router.put('/reorder', authenticate, authorize('admin'), menuController.reorderMenuItems);
+router.put('/:id', authenticate, authorize('admin'), menuController.updateMenuItem);
+router.delete('/:id', authenticate, authorize('admin'), menuController.deleteMenuItem);
 
 export default router;

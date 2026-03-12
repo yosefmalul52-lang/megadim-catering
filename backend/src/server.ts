@@ -80,6 +80,11 @@ console.log('☁️ Cloudinary Config:', {
   has_secret: !!process.env.CLOUDINARY_API_SECRET
 });
 
+if (!process.env.JWT_SECRET || !String(process.env.JWT_SECRET).trim()) {
+  console.error('❌ JWT_SECRET must be set in environment (e.g. backend/.env). Refusing to start.');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 

@@ -5,10 +5,10 @@ const router = express.Router();
 const shoppingController = new ShoppingController();
 
 // Import authenticate middleware
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
-// Get shopping list (Protected - Admin only)
-router.get('/', authenticate, shoppingController.getShoppingList);
+// Admin-only: shopping list
+router.get('/', authenticate, authorize('admin'), shoppingController.getShoppingList);
 
 export default router;
 

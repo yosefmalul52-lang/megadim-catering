@@ -1,19 +1,19 @@
 import { Router } from 'express';
 import { VideoController } from '../controllers/video.controller';
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 
 const router = Router();
 const videoController = new VideoController();
 
 // Public routes
 router.get('/', videoController.getVideos);
-router.get('/stats', authenticate, videoController.getVideoStatistics);
 router.get('/:id', videoController.getVideoById);
 
-// Admin routes (Protected with JWT authentication)
-router.post('/', authenticate, videoController.addVideo);
-router.put('/:id', authenticate, videoController.updateVideo);
-router.delete('/:id', authenticate, videoController.deleteVideo);
+// Admin-only: stats and mutations
+router.get('/stats', authenticate, authorize('admin'), videoController.getVideoStatistics);
+router.post('/', authenticate, authorize('admin'), videoController.addVideo);
+router.put('/:id', authenticate, authorize('admin'), videoController.updateVideo);
+router.delete('/:id', authenticate, authorize('admin'), videoController.deleteVideo);
 
 export default router;
 

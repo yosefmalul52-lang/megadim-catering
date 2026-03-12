@@ -9,7 +9,10 @@ import { asyncHandler } from '../middleware/errorHandler';
 const router = express.Router();
 const orderController = new OrderController();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in environment (e.g. backend/.env)');
+}
 
 const placeOrderLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

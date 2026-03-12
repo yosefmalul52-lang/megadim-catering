@@ -374,24 +374,27 @@ export class OrderController {
     });
   });
 
-  // Get order by ID (protected - user can only access their own orders)
+  // Get order by ID (customer: own orders only; admin: any order)
   getOrderById = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const userId = (req as any).user?.id || (req as any).user?._id;
+    const user = (req as any).user;
+    const userId = user?.id || user?._id;
+    const isAdmin = user?.role === 'admin';
 
     if (!id) {
       throw createValidationError('Order ID is required');
     }
 
-    if (!userId) {
+    if (!user || !userId) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required'
       });
     }
 
-    // Get order and verify it belongs to the user
-    const order = await this.orderService.getOrderById(id, userId);
+    const order = isAdmin
+      ? await this.orderService.getOrderByIdForAdmin(id)
+      : await this.orderService.getOrderById(id, userId);
 
     if (!order) {
       throw createNotFoundError('Order');

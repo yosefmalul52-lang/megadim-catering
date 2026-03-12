@@ -210,6 +210,19 @@ export class OrderService {
     }
   }
 
+  /** Get order by ID without user filter (admin only). */
+  async getOrderByIdForAdmin(orderId: string): Promise<IOrder | null> {
+    try {
+      const order = await Order.findOne({ _id: orderId }).lean();
+      if (!order || !order.items?.length) return order as IOrder | null;
+      await this.enrichOrderItemsImageUrlPublic(order.items);
+      return order as IOrder | null;
+    } catch (error: any) {
+      console.error('Error fetching order by ID (admin):', error);
+      throw error;
+    }
+  }
+
   /** Fills imageUrl on each item from MenuItem when missing. Accepts productId as string or ObjectId. */
   async enrichOrderItemsImageUrlPublic(items: any[]): Promise<void> {
     if (!items?.length) return;

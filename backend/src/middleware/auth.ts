@@ -6,8 +6,8 @@ import { Request, Response, NextFunction } from 'express';
 const User = require('../models/User');
 const Employee = require('../models/Employee');
 
-// JWT Secret - should match the one in auth routes
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// JWT Secret - must be set in environment; server throws on startup if missing
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Authentication middleware to verify JWT token
@@ -25,6 +25,14 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       res.status(401).json({
         success: false,
         message: 'אין הרשאה - נדרש token'
+      });
+      return;
+    }
+
+    if (!JWT_SECRET) {
+      res.status(500).json({
+        success: false,
+        message: 'Server misconfiguration'
       });
       return;
     }
@@ -136,11 +144,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     if (!user) {
       res.status(404).json({
         success: false,
-        message: 'משתמש לא נמצא',
-        debugDb: mongoose.connection.name,
-        debugCollection: User.collection.name,
-        debugTotalUsers: count,
-        debugSearchedId: String(userId)
+        message: 'משתמש לא נמצא'
       });
       return;
     }

@@ -6,7 +6,10 @@ import { OrderController } from '../controllers/order.controller';
 const router = express.Router();
 const orderController = new OrderController();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in environment (e.g. backend/.env)');
+}
 
 // Rate limiter for checkout endpoint only
 const checkoutLimiter = rateLimit({
@@ -85,25 +88,29 @@ const optionalAuthenticate = async (req: Request, res: Response, next: NextFunct
 router.post('/checkout', checkoutLimiter, optionalAuthenticate, orderController.submitOrder);
 router.post('/send', checkoutLimiter, orderController.sendOrder);
 
-// Customer routes (Protected with JWT authentication)
+// Customer routes (authenticated; returns only current user's orders)
 router.get('/my-orders', authenticate, orderController.getMyOrders);
 
-// Admin routes (Protected with JWT authentication)
-router.get('/', authenticate, orderController.getAllOrders);
-router.get('/stats', authenticate, orderController.getOrderStatistics);
-router.get('/stats/revenue', authenticate, orderController.getRevenueStats);
-router.get('/kitchen-report', authenticate, orderController.getKitchenReport);
-router.get('/delivery-report', authenticate, orderController.getDeliveryReport);
-router.get('/recent', authenticate, orderController.getRecentOrders);
-router.get('/search', authenticate, orderController.searchOrders);
-router.get('/dashboard-stats', authenticate, orderController.getDashboardStats);
+// Admin-only: list all orders and business reports (GET / returns all orders; customers use /my-orders)
+router.get('/', authenticate, authorize('admin'), orderController.getAllOrders);
+router.get('/stats', authenticate, authorize('admin'), orderController.getOrderStatistics);
+router.get('/stats/revenue', authenticate, authorize('admin'), orderController.getRevenueStats);
+router.get('/kitchen-report', authenticate, authorize('admin'), orderController.getKitchenReport);
+router.get('/delivery-report', authenticate, authorize('admin'), orderController.getDeliveryReport);
+router.get('/recent', authenticate, authorize('admin'), orderController.getRecentOrders);
+router.get('/search', authenticate, authorize('admin'), orderController.searchOrders);
+router.get('/dashboard-stats', authenticate, authorize('admin'), orderController.getDashboardStats);
+
+// Get order by ID (authenticate only; controller restricts to own order for non-admin)
 router.get('/:id', authenticate, orderController.getOrderById);
-router.put('/:id/restore', authenticate, orderController.restoreOrder);
+
+// Admin-only: mutate orders
+router.put('/:id/restore', authenticate, authorize('admin'), orderController.restoreOrder);
 router.delete('/:id/permanent', authenticate, authorize('admin'), orderController.permanentDeleteOrder);
-router.put('/:id/status', authenticate, orderController.updateOrderStatus);
-router.patch('/:id/status', authenticate, orderController.updateOrderStatus);
-router.patch('/:id/date', authenticate, orderController.updateOrderDate);
-router.put('/:id/date', authenticate, orderController.updateOrderDate);
-router.delete('/:id', authenticate, orderController.deleteOrder);
+router.put('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
+router.patch('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
+router.patch('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
+router.put('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
+router.delete('/:id', authenticate, authorize('admin'), orderController.deleteOrder);
 
 export default router;

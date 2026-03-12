@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
+const { authenticate, authorize } = require('../middleware/auth');
 const router = Router();
 
 // Load testimonials from JSON file
@@ -61,8 +62,8 @@ router.get('/featured', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-// Admin: Get all testimonials (including unpublished)
-router.get('/admin/all', asyncHandler(async (req: Request, res: Response) => {
+// Admin-only: get all testimonials (including unpublished)
+router.get('/admin/all', authenticate, authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const testimonials = await loadTestimonials();
 
   res.status(200).json({
@@ -73,8 +74,8 @@ router.get('/admin/all', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-// Admin: Create new testimonial
-router.post('/', asyncHandler(async (req: Request, res: Response) => {
+// Admin-only: create new testimonial
+router.post('/', authenticate, authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const { name, event, quote, rating, location, imageUrl } = req.body;
 
   if (!name || !event || !quote) {
@@ -113,8 +114,8 @@ router.post('/', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-// Admin: Update testimonial
-router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
+// Admin-only: update testimonial
+router.put('/:id', authenticate, authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const updateData = req.body;
 
@@ -145,8 +146,8 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-// Admin: Delete testimonial
-router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
+// Admin-only: delete testimonial
+router.delete('/:id', authenticate, authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   if (!id) {
@@ -169,8 +170,8 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   });
 }));
 
-// Get testimonial statistics
-router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
+// Admin-only: testimonial statistics
+router.get('/stats', authenticate, authorize('admin'), asyncHandler(async (req: Request, res: Response) => {
   const testimonials = await loadTestimonials();
   
   const total = testimonials.length;
