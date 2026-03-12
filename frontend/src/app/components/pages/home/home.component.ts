@@ -26,7 +26,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
       <!-- Hero Section: priority img for LCP -->
       <section class="hero-section">
         <div class="hero-bg-image">
-          <img ngSrc="v1768222488/hero1_ime6hz.png" alt="קייטרינג מגדים" width="1920" height="1080" priority>
+          <img ngSrc="v1768222488/hero1_ime6hz.png" alt="קייטרינג מגדים" width="1920" height="1080" priority sizes="(max-width: 600px) 100vw, 80vw">
         </div>
         
         <div class="content-container">
