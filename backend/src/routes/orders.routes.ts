@@ -23,12 +23,14 @@ const placeOrderLimiter = rateLimit({
 const { authenticate } = require('../middleware/auth');
 
 const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const cookieToken = (req as any).cookies?.token;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '').trim() : null;
+  const token = cookieToken || bearerToken;
+  if (!token) {
     (req as any).user = null;
     return next();
   }
-  const token = authHeader.replace('Bearer ', '').trim();
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
     const userId = decoded.id || decoded.userId || decoded._id;

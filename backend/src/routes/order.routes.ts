@@ -23,21 +23,15 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 // Optional authentication middleware - doesn't fail if no token (for guest orders)
 const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction) => {
-  // KZ: Log Authorization header
+  const cookieToken = (req as any).cookies?.token;
   const authHeader = req.headers.authorization;
-  console.log('KZ Authorization Header:', authHeader);
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    // No token provided - continue as guest
-    console.log('KZ: No Authorization header or not Bearer token - proceeding as guest');
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.replace('Bearer ', '').trim() : null;
+  const token = cookieToken || bearerToken;
+
+  if (!token) {
     (req as any).user = null;
     return next();
   }
-
-  // Token provided - try to authenticate
-  // KZ: Ensure we correctly strip 'Bearer '
-  const token = authHeader.replace('Bearer ', '').trim();
-  console.log('KZ: Extracted token (first 20 chars):', token.substring(0, 20) + '...');
   
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);

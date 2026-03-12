@@ -33,6 +33,7 @@ console.log('🚀 Server starting with Vercel CORS fix applied!');
 
 // Now import everything else after env is loaded
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -108,21 +109,38 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
-// Security headers (XSS, clickjacking, etc.)
-app.use(helmet());
+// Security headers: Helmet with CSP (API-only server; CSP is good practice for responses)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
 
-// Rate limit: 100 requests per 15 minutes per IP (brute-force protection)
-app.use(rateLimit({
+// General API rate limit: 100 requests per 15 minutes per IP (DDoS / abuse protection)
+const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false
-}));
+});
+app.use('/api', generalApiLimiter);
 
 // Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For handling form data, including multipart
+app.use(cookieParser());
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

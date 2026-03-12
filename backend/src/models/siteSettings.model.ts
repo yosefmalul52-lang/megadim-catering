@@ -48,7 +48,7 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
     },
     contactPhone: {
       type: String,
-      default: '0528240230',
+      default: '073-367-8399',
       trim: true,
       required: false
     },

@@ -15,24 +15,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
  */
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Get token from Authorization header
+    // Token: HttpOnly cookie first, then Authorization header (fallback)
+    const cookieToken = (req as any).cookies?.token;
     const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        success: false,
-        message: 'אין הרשאה - נדרש token'
-      });
-      return;
-    }
-
-    // Extract token
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : null;
+    const token = cookieToken || bearerToken;
 
     if (!token) {
       res.status(401).json({
         success: false,
-        message: 'אין הרשאה - token חסר'
+        message: 'אין הרשאה - נדרש token'
       });
       return;
     }

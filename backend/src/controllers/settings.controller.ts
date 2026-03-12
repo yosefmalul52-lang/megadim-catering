@@ -59,7 +59,7 @@ export class SettingsController {
         settings = new SiteSettings({
           shabbatMenuUrl: '',
           eventsMenuUrl: '',
-          contactPhone: '0528240230',
+          contactPhone: '073-367-8399',
           orderEmail: 'yosefmalul52@gmail.com',
           whatsappLink: '',
           cholentForceOpen: false,
@@ -78,7 +78,7 @@ export class SettingsController {
         data: {
           shabbatMenuUrl: settings.shabbatMenuUrl || '',
           eventsMenuUrl: settings.eventsMenuUrl || '',
-          contactPhone: settings.contactPhone || '0528240230',
+          contactPhone: settings.contactPhone || '073-367-8399',
           orderEmail: settings.orderEmail || 'yosefmalul52@gmail.com',
           whatsappLink: settings.whatsappLink || '',
           cholentForceOpen: !!settings.cholentForceOpen,
@@ -209,7 +209,7 @@ export class SettingsController {
         data: {
           shabbatMenuUrl: result.shabbatMenuUrl || '',
           eventsMenuUrl: result.eventsMenuUrl || '',
-          contactPhone: result.contactPhone || '0528240230',
+          contactPhone: result.contactPhone || '073-367-8399',
           orderEmail: result.orderEmail || 'yosefmalul52@gmail.com',
           whatsappLink: result.whatsappLink || '',
           cholentForceOpen: !!result.cholentForceOpen,
@@ -291,18 +291,20 @@ export class SettingsController {
     });
   });
 
-  /** GET /api/settings/delivery – free shipping + allowed days (create default if missing) */
+  /** GET /api/settings/delivery – free shipping + openDates + minimumLeadDays (create default if missing) */
   getDeliverySettings = asyncHandler(async (req: Request, res: Response) => {
     let doc = await StoreSettings.findOne();
     if (!doc) {
       doc = await StoreSettings.create({
         freeShippingThreshold: 500,
         isFreeShippingActive: false,
-        allowedDays: [0, 1, 2, 3],
+        openDates: [],
         minimumLeadDays: 2
       });
     }
-    const allowedDays = Array.isArray(doc.allowedDays) ? doc.allowedDays : [0, 1, 2, 3];
+    const openDates = Array.isArray((doc as any).openDates)
+      ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s as string))
+      : [];
     const minimumLeadDays = typeof doc.minimumLeadDays === 'number' && doc.minimumLeadDays >= 0 ? doc.minimumLeadDays : 2;
     res.status(200).json({
       success: true,
@@ -311,15 +313,15 @@ export class SettingsController {
         isFreeShippingActive: !!doc.isFreeShippingActive,
         baseDeliveryFee: typeof (doc as any).baseDeliveryFee === 'number' ? (doc as any).baseDeliveryFee : 25,
         pricePerKm: typeof (doc as any).pricePerKm === 'number' ? (doc as any).pricePerKm : 3,
-        allowedDays,
+        openDates,
         minimumLeadDays
       }
     });
   });
 
-  /** PUT /api/settings/delivery – update free shipping + allowed days + minimumLeadDays + baseDeliveryFee + pricePerKm */
+  /** PUT /api/settings/delivery – update free shipping + openDates + minimumLeadDays + baseDeliveryFee + pricePerKm */
   updateDeliverySettings = asyncHandler(async (req: Request, res: Response) => {
-    const { freeShippingThreshold, isFreeShippingActive, allowedDays, minimumLeadDays, baseDeliveryFee, pricePerKm } = req.body || {};
+    const { freeShippingThreshold, isFreeShippingActive, openDates, minimumLeadDays, baseDeliveryFee, pricePerKm } = req.body || {};
     if (freeShippingThreshold !== undefined) {
       const n = Number(freeShippingThreshold);
       if (Number.isNaN(n) || n < 0) throw createValidationError('freeShippingThreshold must be a non-negative number');
@@ -327,10 +329,11 @@ export class SettingsController {
     if (isFreeShippingActive !== undefined && typeof isFreeShippingActive !== 'boolean') {
       throw createValidationError('isFreeShippingActive must be a boolean');
     }
-    if (allowedDays !== undefined) {
-      if (!Array.isArray(allowedDays)) throw createValidationError('allowedDays must be an array');
-      const valid = allowedDays.every((d: unknown) => typeof d === 'number' && d >= 0 && d <= 6);
-      if (!valid) throw createValidationError('allowedDays must contain only numbers 0–6 (0=Sun, 6=Sat)');
+    const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
+    if (openDates !== undefined) {
+      if (!Array.isArray(openDates)) throw createValidationError('openDates must be an array');
+      const valid = openDates.every((s: unknown) => typeof s === 'string' && YYYYMMDD.test(s as string));
+      if (!valid) throw createValidationError('openDates must contain only strings in YYYY-MM-DD format');
     }
     if (minimumLeadDays !== undefined) {
       const n = Number(minimumLeadDays);
@@ -349,12 +352,14 @@ export class SettingsController {
     const update: Record<string, unknown> = {};
     if (freeShippingThreshold !== undefined) update.freeShippingThreshold = Number(freeShippingThreshold);
     if (isFreeShippingActive !== undefined) update.isFreeShippingActive = isFreeShippingActive;
-    if (allowedDays !== undefined) update.allowedDays = allowedDays;
+    if (openDates !== undefined) update.openDates = openDates;
     if (minimumLeadDays !== undefined) update.minimumLeadDays = Number(minimumLeadDays);
     if (baseDeliveryFee !== undefined) update.baseDeliveryFee = Number(baseDeliveryFee);
     if (pricePerKm !== undefined) update.pricePerKm = Number(pricePerKm);
     const doc = await StoreSettings.findOneAndUpdate({}, update, { new: true, upsert: true, setDefaultsOnInsert: true });
-    const allowedDaysOut = Array.isArray(doc.allowedDays) ? doc.allowedDays : [0, 1, 2, 3];
+    const openDatesOut = Array.isArray((doc as any).openDates)
+      ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && YYYYMMDD.test(s as string))
+      : [];
     const minimumLeadDaysOut = typeof doc.minimumLeadDays === 'number' && doc.minimumLeadDays >= 0 ? doc.minimumLeadDays : 2;
     res.status(200).json({
       success: true,
@@ -363,7 +368,7 @@ export class SettingsController {
         isFreeShippingActive: !!doc.isFreeShippingActive,
         baseDeliveryFee: typeof (doc as any).baseDeliveryFee === 'number' ? (doc as any).baseDeliveryFee : 25,
         pricePerKm: typeof (doc as any).pricePerKm === 'number' ? (doc as any).pricePerKm : 3,
-        allowedDays: allowedDaysOut,
+        openDates: openDatesOut,
         minimumLeadDays: minimumLeadDaysOut
       },
       message: 'Delivery settings updated'

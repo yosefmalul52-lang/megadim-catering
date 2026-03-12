@@ -1,17 +1,39 @@
 import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'mysecretkey123';
+
+// Strict rate limit for login endpoints (brute-force protection)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window per IP
+  message: { success: false, message: 'Too many login attempts from this IP, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const COOKIE_NAME = 'token';
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+const cookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  maxAge: COOKIE_MAX_AGE_MS,
+  path: '/'
+});
 
 // Import User model
 const User = require('../models/User');
 // Import Employee model
 const Employee = require('../models/Employee');
+const { authenticate } = require('../middleware/auth');
 
-// Login Route
-router.post('/login', async (req: Request, res: Response) => {
+// Login Route (with strict rate limiting)
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
 
@@ -68,7 +90,7 @@ router.post('/login', async (req: Request, res: Response) => {
       idString: String(payload.id),
       role: payload.role
     });
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     console.log('✅ JWT token created successfully');
 
     // Return user without password (sanitized)
@@ -77,16 +99,16 @@ router.post('/login', async (req: Request, res: Response) => {
       ? { id: (userResponse as any)._id, fullName: (userResponse as any).fullName, username: (userResponse as any).username, role: (userResponse as any).role }
       : { id: user._id, fullName: user.fullName, username: user.username, role: user.role };
 
+    res.cookie(COOKIE_NAME, token, cookieOptions());
     return res.json({
       success: true,
-      token,
       user: safeUser
     });
   } catch (err: any) {
     console.error(err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Server error' 
+      message: 'Server error'
     });
   }
 });
@@ -125,7 +147,7 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Create Token (7 days)
     const payload = { id: user._id, role: user.role };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 
     // Return user without password (sanitized)
     const userResponse = await User.findById(user._id).select('-password').lean();
@@ -133,22 +155,22 @@ router.post('/register', async (req: Request, res: Response) => {
       ? { id: (userResponse as any)._id, fullName: (userResponse as any).fullName, username: (userResponse as any).username, role: (userResponse as any).role }
       : { id: user._id, fullName, username: user.username, role: 'user' };
 
+    res.cookie(COOKIE_NAME, token, cookieOptions());
     return res.json({
       success: true,
-      token,
       user: safeUser
     });
   } catch (err: any) {
     console.error(err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Server error' 
+      message: 'Server error'
     });
   }
 });
 
-// Employee Login Route
-router.post('/employee-login', async (req: Request, res: Response) => {
+// Employee Login Route (with strict rate limiting)
+router.post('/employee-login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { phone, pinCode } = req.body;
 
@@ -187,12 +209,12 @@ router.post('/employee-login', async (req: Request, res: Response) => {
       role: 'employee',
       type: 'employee' // To distinguish from regular users
     };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' }); // Longer expiry for employees
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
     console.log('✅ Employee JWT token created successfully');
 
+    res.cookie(COOKIE_NAME, token, cookieOptions());
     return res.json({
       success: true,
-      token,
       employee: {
         id: employee._id,
         firstName: employee.firstName,
@@ -204,11 +226,32 @@ router.post('/employee-login', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     console.error('❌ Employee login error:', err);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Server error' 
+      message: 'Server error'
     });
   }
+});
+
+// Session: return current user from cookie (no token in response)
+router.get('/me', authenticate, (req: Request, res: Response) => {
+  const user = (req as any).user;
+  const safe = user ? {
+    id: user._id?.toString?.() ?? user.id,
+    username: user.username,
+    role: user.role,
+    fullName: user.fullName,
+    phone: user.phone,
+    firstName: user.firstName,
+    lastName: user.lastName
+  } : null;
+  return res.json({ success: true, user: safe });
+});
+
+// Logout: clear HttpOnly cookie
+router.post('/logout', (_req: Request, res: Response) => {
+  res.clearCookie(COOKIE_NAME, { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
+  return res.json({ success: true });
 });
 
 export default router;
