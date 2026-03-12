@@ -211,11 +211,12 @@ export const authorize = (...roles: string[]) => {
     const user = (req as any).user;
 
     if (!user || !roles.includes(user.role)) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Forbidden: Admin access required',
         serverSeesRole: user ? user.role : 'User object missing'
       });
+      return;
     }
 
     next();
