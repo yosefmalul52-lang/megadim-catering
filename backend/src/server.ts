@@ -109,13 +109,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
-// Security headers: Helmet with CSP (API-only server; CSP is good practice for responses)
+// Security headers: Helmet – explicit X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP
 app.use(helmet({
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
       connectSrc: ["'self'"],
