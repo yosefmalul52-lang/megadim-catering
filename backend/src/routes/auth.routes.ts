@@ -253,10 +253,16 @@ router.get('/me', authenticate, (req: Request, res: Response) => {
   return res.json({ success: true, user: safe });
 });
 
-// Logout: clear HttpOnly cookie
+// Logout: clear cookie with the SAME options it was set with (required for browser to clear it)
 router.post('/logout', (_req: Request, res: Response) => {
-  res.clearCookie(COOKIE_NAME, { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' });
-  return res.json({ success: true });
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie(COOKIE_NAME, {
+    path: '/',
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? ('none' as const) : ('lax' as const)
+  });
+  return res.status(200).json({ success: true, message: 'Logged out successfully' });
 });
 
 export default router;
