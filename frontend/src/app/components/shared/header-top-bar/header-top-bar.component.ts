@@ -31,7 +31,7 @@ import { ToastService } from '../../../services/toast.service';
                 <i class="fas fa-phone" aria-hidden="true"></i>
               </a>
               <a 
-                href="https://instagram.com/magadim" 
+                href="https://www.instagram.com/megadim_catering/" 
                 target="_blank"
                 rel="noopener noreferrer"
                 class="social-icon instagram-icon"
@@ -40,7 +40,7 @@ import { ToastService } from '../../../services/toast.service';
                 <i class="fab fa-instagram" aria-hidden="true"></i>
               </a>
               <a 
-                href="https://facebook.com/magadim" 
+                href="https://www.facebook.com/Megadimcatering/" 
                 target="_blank"
                 rel="noopener noreferrer"
                 class="social-icon facebook-icon"

@@ -66,7 +66,7 @@ export class ContactService {
     return {
       phone: CONTACT_PHONE_DISPLAY,
       whatsapp: CONTACT_WHATSAPP_HREF,
-      email: 'info@megadim-catering.com',
+      email: 'Office@megadim-catering.com',
       address: 'ישראל', // Replace with actual address
       businessHours: 'ראשון-חמישי: 8:00-20:00, יום שישי: 8:00-14:00',
       serviceAreas: [
