@@ -154,8 +154,11 @@ import { SeoService } from '../../../../services/seo.service';
   styles: [`
     .product-details-page {
       min-height: 100vh;
-      background-color: #ffffff;
-      padding: 1.5rem 0;
+      padding: 2.5rem 0 3.5rem;
+      background:
+        radial-gradient(circle at top right, rgba(224, 192, 117, 0.18), transparent 55%),
+        radial-gradient(circle at bottom left, rgba(15, 31, 46, 0.18), transparent 60%),
+        linear-gradient(180deg, #fefaf2 0%, #f9f6ef 50%, #f5f2eb 100%);
     }
 
     .container {
@@ -199,6 +202,14 @@ import { SeoService } from '../../../../services/seo.service';
       grid-template-columns: 1fr 1fr;
       gap: 3rem;
       align-items: start;
+      padding: 2.5rem 2.25rem;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.94), #faf7ef),
+        #ffffff;
+      box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.10),
+        0 0 0 1px rgba(255, 255, 255, 0.6);
     }
 
     /* Product Info */
@@ -219,7 +230,18 @@ import { SeoService } from '../../../../services/seo.service';
       margin: 0 0 0.25rem 0;
       line-height: 1.3;
       padding-bottom: 0.75rem;
-      border-bottom: 2px solid var(--primary-gold);
+      position: relative;
+    }
+
+    .product-name::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 110px;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(to left, transparent, var(--primary-gold));
     }
 
     /* Product Description */
@@ -261,9 +283,18 @@ import { SeoService } from '../../../../services/seo.service';
     }
 
     .price {
-      font-size: 2rem;
-      font-weight: bold;
+      font-size: 2.1rem;
+      font-weight: 800;
       color: #1f3540;
+      letter-spacing: 0.03em;
+    }
+
+    .price::before {
+      content: '₪';
+      font-size: 1.4rem;
+      margin-left: 0.15rem;
+      color: var(--primary-gold);
+      vertical-align: middle;
     }
 
     .size-selector-group {
@@ -342,11 +373,11 @@ import { SeoService } from '../../../../services/seo.service';
       display: inline-flex;
       align-items: center;
       gap: 0;
-      border: 1px solid rgba(224, 192, 117, 0.6);
-      border-radius: 8px;
+      border: 1px solid rgba(224, 192, 117, 0.7);
+      border-radius: 999px;
       overflow: hidden;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
 
     .quantity-btn {
@@ -402,10 +433,10 @@ import { SeoService } from '../../../../services/seo.service';
     .btn-add-to-cart {
       width: 100%;
       padding: 1rem 1.5rem;
-      background: #1a2b4c;
-      color: #ffffff;
+      background: linear-gradient(135deg, #f6d887 0%, #e0c075 40%, #c9a24d 100%);
+      color: #1f3540;
       border: none;
-      border-radius: 8px;
+      border-radius: 999px;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
@@ -413,13 +444,16 @@ import { SeoService } from '../../../../services/seo.service';
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      transition: opacity 0.25s ease, box-shadow 0.25s ease;
+      transition: transform 0.2s ease, box-shadow 0.25s ease, background 0.25s ease;
       margin-top: 0.5rem;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(224, 192, 117, 0.55);
     }
 
     .btn-add-to-cart:hover:not(:disabled) {
-      opacity: 0.92;
-      box-shadow: 0 6px 20px rgba(26, 43, 76, 0.35);
+      transform: translateY(-2px) scale(1.01);
+      box-shadow: 0 16px 40px rgba(224, 192, 117, 0.7);
     }
 
     .btn-add-to-cart:disabled {

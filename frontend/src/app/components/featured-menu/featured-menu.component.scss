@@ -255,8 +255,14 @@ $gray-bg: #f8f8f8;
       grid-template-columns: repeat(2, 1fr); // Drop to 2
     }
     
-    @media (max-width: 500px) {
-      grid-template-columns: 1fr; // Drop to 1
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr; // Single column on mobile
+      padding: 0 10px 40px; // Match salads-contained look
+      
+      .product-card {
+        max-width: 420px;
+        margin: 0 auto;
+      }
     }
   }
 }

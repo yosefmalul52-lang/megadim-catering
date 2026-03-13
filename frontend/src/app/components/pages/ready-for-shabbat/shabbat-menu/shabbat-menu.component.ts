@@ -55,7 +55,7 @@ export class ShabbatMenuComponent implements OnInit {
       id: 'desserts', 
       nameKey: 'CATEGORIES.DESSERTS', 
       title: 'קינוחים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg'
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1773392935/magadim-catering/v0bvgugfq4aomoz6pusr.jpg'
     },
     { 
       id: 'stuffed', 

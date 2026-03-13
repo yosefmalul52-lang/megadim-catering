@@ -52,11 +52,13 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
         <div class="category-cards-container">
           <div class="category-card" routerLink="/catering">
             <div class="card-image card-image--quality">
-              <app-optimized-image
-                publicId="v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg"
-                altText="קייטרינג לאירועים"
-                cssClass="card-image__img"
-              ></app-optimized-image>
+              <img
+                ngSrc="v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg"
+                alt="קייטרינג לאירועים"
+                width="800"
+                height="600"
+                class="card-image__img"
+              >
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועים</h3>
               </div>
@@ -64,7 +66,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           </div>
           <div class="category-card" routerLink="/shabbat-events">
             <div class="card-image card-image--quality">
-              <img ngSrc="v1773063136/sj-objio-py3ddhtev50-unsplash_a1ojam.jpg" alt="קייטרינג לאירועי שבת וחג" width="800" height="600" class="card-image__img">
+              <img ngSrc="v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg" alt="קייטרינג לאירועי שבת וחג" width="800" height="600" class="card-image__img">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועי שבת וחג</h3>
               </div>
@@ -573,6 +575,27 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
                 rgba(26, 43, 60, 0.85) 100%    // Dark site blue at bottom
               );
               z-index: 1;
+            }
+          }
+
+          // Explicit fix for catering card image so it never distorts and shows the table setup
+          &[routerLink="/catering"] {
+            .card-image img,
+            .card-image .card-image__img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+              object-position: top center;
+            }
+
+            // Soften overlay for this card so the photo stays clear and inviting
+            .card-image::before {
+              background: linear-gradient(
+                to bottom,
+                rgba(26, 43, 60, 0) 0%,
+                rgba(26, 43, 60, 0.22) 50%,
+                rgba(26, 43, 60, 0.7) 100%
+              );
             }
           }
           

@@ -16,7 +16,7 @@
     
     <!-- Products Grid -->
     <div class="products-grid" *ngIf="!isLoading">
-      <div class="product-card" *ngFor="let item of featuredMainCourses">
+      <div class="product-card" *ngFor="let item of (featuredMainCourses | slice:0:visibleProductsCount)">
         <div
           class="card-image-wrapper"
           [routerLink]="['/ready-for-shabbat', 'product', getItemId(item)]"

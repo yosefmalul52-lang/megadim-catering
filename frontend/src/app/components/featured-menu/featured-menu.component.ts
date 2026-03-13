@@ -34,6 +34,7 @@ export class FeaturedMenuComponent implements OnInit {
   // Featured products from Main Courses category (Dynamic Data)
   featuredMainCourses: MenuItem[] = [];
   isLoading = false;
+  visibleProductsCount = 6; // default for desktop/tablet
 
   constructor(
     private cartService: CartService,
@@ -43,7 +44,17 @@ export class FeaturedMenuComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.setVisibleProductsCount();
     this.loadFeaturedMainCourses();
+  }
+
+  private setVisibleProductsCount(): void {
+    if (typeof window === 'undefined') {
+      this.visibleProductsCount = 6;
+      return;
+    }
+    const width = window.innerWidth || 0;
+    this.visibleProductsCount = width < 768 ? 4 : 6;
   }
 
   private loadFeaturedMainCourses(): void {
@@ -53,8 +64,8 @@ export class FeaturedMenuComponent implements OnInit {
         // Filter only items where isFeatured === true
         const featuredItems = items.filter(item => item.isFeatured === true);
         
-        // Take first 8 items (up to 8 cards)
-        this.featuredMainCourses = featuredItems.slice(0, 8);
+        // Keep full featured list; actual count is controlled by visibleProductsCount in template
+        this.featuredMainCourses = featuredItems;
         this.isLoading = false;
       },
       error: (error) => {
