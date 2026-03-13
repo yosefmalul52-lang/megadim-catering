@@ -91,13 +91,18 @@ const PORT = process.env.PORT || 4000;
 // Trust proxy so X-Forwarded-For is used (Render / reverse proxy)
 app.set('trust proxy', 1);
 
-// Allowed origins: production Vercel URL only (+ optional custom domain from env, + localhost in dev)
+// Allowed origins: production domains + optional list from env (ALLOWED_ORIGINS)
+const envOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : [];
+
 const allowedOrigins: string[] = [
-  'https://megadim-catering.vercel.app'
+  'https://megadim-catering.vercel.app',
+  'https://www.megadim-catering.com',
+  'https://megadim-catering.com',
+  ...envOrigins
 ];
-if (process.env.CORS_ORIGIN) {
-  allowedOrigins.push(process.env.CORS_ORIGIN.trim());
-}
+
 if (process.env.NODE_ENV !== 'production') {
   allowedOrigins.push('http://localhost:4200');
 }
