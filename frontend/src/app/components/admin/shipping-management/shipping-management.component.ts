@@ -33,7 +33,7 @@ export class ShippingManagementComponent implements OnInit {
   tiersLoading = false;
   showTierModal = false;
   editingTier: DeliveryPricingTier | null = null;
-  tierForm = { minKm: 0, maxKm: 10, price: 50, freeShippingThreshold: '' as number | '' };
+  tierForm = { minKm: 0, maxKm: 10, price: 50, freeShippingThreshold: '' as number | '', minOrderForDelivery: '' as number | '' };
   tierError = '';
 
   cities: DeliveryCityOverride[] = [];
@@ -95,7 +95,8 @@ export class ShippingManagementComponent implements OnInit {
             maxDistanceKm: t.maxDistanceKm,
             price: t.price,
             isActive: t.isActive,
-            freeShippingThreshold: t.hasOwnProperty('freeShippingThreshold') && t.freeShippingThreshold != null ? Number(t.freeShippingThreshold) : undefined
+            freeShippingThreshold: t.hasOwnProperty('freeShippingThreshold') && t.freeShippingThreshold != null ? Number(t.freeShippingThreshold) : undefined,
+            minOrderForDelivery: t.hasOwnProperty('minOrderForDelivery') && t.minOrderForDelivery != null ? Number(t.minOrderForDelivery) : undefined
           }));
         }
         this.tiersLoading = false;
@@ -116,7 +117,11 @@ export class ShippingManagementComponent implements OnInit {
         freeShippingThreshold:
           t.freeShippingThreshold === null || (t as any).freeShippingThreshold === ''
             ? undefined
-            : (t.freeShippingThreshold as any)
+            : (t.freeShippingThreshold as any),
+        minOrderForDelivery:
+          (t as any).minOrderForDelivery === null || (t as any).minOrderForDelivery === ''
+            ? undefined
+            : (t as any).minOrderForDelivery
       }))
     };
     console.log('Sending payload:', payload);
@@ -141,7 +146,8 @@ export class ShippingManagementComponent implements OnInit {
             maxDistanceKm: t.maxDistanceKm,
             price: t.price,
             isActive: t.isActive,
-            freeShippingThreshold: t.hasOwnProperty('freeShippingThreshold') && t.freeShippingThreshold != null ? Number(t.freeShippingThreshold) : undefined
+            freeShippingThreshold: t.hasOwnProperty('freeShippingThreshold') && t.freeShippingThreshold != null ? Number(t.freeShippingThreshold) : undefined,
+            minOrderForDelivery: t.hasOwnProperty('minOrderForDelivery') && t.minOrderForDelivery != null ? Number(t.minOrderForDelivery) : undefined
           }));
           this.saveAllDirtyCities();
         }
@@ -157,7 +163,7 @@ export class ShippingManagementComponent implements OnInit {
 
   openAddTier(): void {
     this.editingTier = null;
-    this.tierForm = { minKm: 0, maxKm: 10, price: 50, freeShippingThreshold: '' };
+    this.tierForm = { minKm: 0, maxKm: 10, price: 50, freeShippingThreshold: '', minOrderForDelivery: '' };
     this.tierError = '';
     this.showTierModal = true;
   }
@@ -168,7 +174,8 @@ export class ShippingManagementComponent implements OnInit {
       minKm: tier.minDistanceKm,
       maxKm: tier.maxDistanceKm,
       price: tier.price,
-      freeShippingThreshold: typeof tier.freeShippingThreshold === 'number' ? tier.freeShippingThreshold : ''
+      freeShippingThreshold: typeof tier.freeShippingThreshold === 'number' ? tier.freeShippingThreshold : '',
+      minOrderForDelivery: typeof (tier as any).minOrderForDelivery === 'number' ? (tier as any).minOrderForDelivery : ''
     };
     this.tierError = '';
     this.showTierModal = true;
@@ -180,7 +187,7 @@ export class ShippingManagementComponent implements OnInit {
   }
 
   submitTier(): void {
-    const { minKm, maxKm, price, freeShippingThreshold } = this.tierForm;
+    const { minKm, maxKm, price, freeShippingThreshold, minOrderForDelivery } = this.tierForm;
     if (minKm > maxKm) {
       this.tierError = 'מינימום ק״מ חייב להיות קטן או שווה למקסימום';
       return;
@@ -194,12 +201,21 @@ export class ShippingManagementComponent implements OnInit {
       this.tierError = 'משלוח חינם מעל (₪) חייב להיות מספר לא שלילי או ריק';
       return;
     }
+    const mod =
+      minOrderForDelivery === '' || minOrderForDelivery === null || minOrderForDelivery === undefined
+        ? undefined
+        : Number(minOrderForDelivery);
+    if (mod !== undefined && (Number.isNaN(mod) || mod < 0)) {
+      this.tierError = 'מינימום הזמנה (₪) חייב להיות מספר לא שלילי או ריק';
+      return;
+    }
 
     if (this.editingTier) {
       this.editingTier.minDistanceKm = minKm;
       this.editingTier.maxDistanceKm = maxKm;
       this.editingTier.price = price;
       (this.editingTier as any).freeShippingThreshold = fst;
+      (this.editingTier as any).minOrderForDelivery = mod;
     } else {
       // Local-only tier until Save All (backend will replace IDs on save)
       this.tiers = [
@@ -210,7 +226,8 @@ export class ShippingManagementComponent implements OnInit {
           maxDistanceKm: maxKm,
           price,
           isActive: true,
-          freeShippingThreshold: fst
+          freeShippingThreshold: fst,
+          minOrderForDelivery: mod
         } as any
       ].sort((a, b) => a.minDistanceKm - b.minDistanceKm);
     }

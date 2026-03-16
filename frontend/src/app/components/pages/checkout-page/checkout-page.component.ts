@@ -77,6 +77,10 @@ export class CheckoutPageComponent implements OnInit {
   deliveryOutOfRange = false;
   /** User-facing error message from delivery fee API (400 / other errors) */
   deliveryError: string | null = null;
+  /** True when cart total is below the minimum order amount for the matched delivery tier. */
+  deliveryIneligible = false;
+  /** Detailed eligibility message shown under delivery options when ineligible. */
+  deliveryEligibilityMessage: string | null = null;
 
   orderForm!: FormGroup;
   cartItems: CartItem[] = [];
@@ -168,6 +172,15 @@ export class CheckoutPageComponent implements OnInit {
     });
   }
 
+  /** Handle click/keyboard on the Delivery card, respecting eligibility. */
+  onSelectDeliveryCard(): void {
+    if (this.deliveryIneligible) {
+      return;
+    }
+    this.orderForm.get('deliveryType')?.setValue('delivery');
+    this.orderForm.get('deliveryType')?.markAsTouched();
+  }
+
   /** Refresh dropdown list when input is focused */
   onCityFocus(): void {
     this.showDropdown = true;
@@ -228,6 +241,8 @@ export class CheckoutPageComponent implements OnInit {
       this.originalDeliveryFee = 0;
       this.deliveryError = null;
       this.deliveryOutOfRange = false;
+      this.deliveryIneligible = false;
+      this.deliveryEligibilityMessage = null;
       return;
     }
     const city = cityValue.trim();
@@ -236,20 +251,42 @@ export class CheckoutPageComponent implements OnInit {
     this.deliveryFeeLoading = true;
     this.deliveryOutOfRange = false;
     this.deliveryError = null;
+    this.deliveryIneligible = false;
+    this.deliveryEligibilityMessage = null;
     this.deliveryService.calculateFee(city, cartTotal).subscribe({
       next: (res) => {
-        this.deliveryFee = res.price;
-        this.isDeliveryFree = res.isFree === true;
-        this.originalDeliveryFee = res.originalPrice ?? res.price;
-        this.deliveryFeeLoading = false;
-        this.deliveryOutOfRange = false;
-        this.deliveryError = null;
+        if (res.isEligible === false) {
+          const minRequired = res.minRequired ?? 0;
+          const amountShort = res.amountShort ?? Math.max(0, minRequired - cartTotal);
+          this.deliveryIneligible = true;
+          this.deliveryFee = 0;
+          this.isDeliveryFree = false;
+          this.originalDeliveryFee = 0;
+          this.deliveryOutOfRange = false;
+          this.deliveryFeeLoading = false;
+          this.deliveryEligibilityMessage = `לא ניתן לבצע משלוח לאזור זה. מינימום ההזמנה הנדרש הוא ${minRequired} ₪ (חסר לך ${amountShort} ₪). אנא הוסף מוצרים או בחר באיסוף עצמי.`;
+          this.deliveryError = this.deliveryEligibilityMessage;
+          // Force self pickup so user isn't stuck on an invalid delivery option
+          this.orderForm.get('deliveryType')?.setValue('pickup');
+          this.updateAddressValidators();
+        } else {
+          this.deliveryIneligible = false;
+          this.deliveryEligibilityMessage = null;
+          this.deliveryFee = res.price;
+          this.isDeliveryFree = res.isFree === true;
+          this.originalDeliveryFee = res.originalPrice ?? res.price;
+          this.deliveryFeeLoading = false;
+          this.deliveryOutOfRange = false;
+          this.deliveryError = null;
+        }
       },
       error: (err) => {
         this.deliveryFee = 0;
         this.isDeliveryFree = false;
         this.originalDeliveryFee = 0;
         this.deliveryFeeLoading = false;
+        this.deliveryIneligible = false;
+        this.deliveryEligibilityMessage = null;
         if (err.status === 400 && err.error?.code === 'OUT_OF_RANGE') {
           this.deliveryOutOfRange = true;
           this.deliveryError =

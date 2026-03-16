@@ -75,6 +75,7 @@
               <th>מקסימום ק״מ</th>
               <th>מחיר משלוח (₪)</th>
               <th>משלוח חינם מעל (₪)</th>
+              <th>מינימום הזמנה (₪)</th>
               <th>פעולות</th>
             </tr>
           </thead>
@@ -85,6 +86,7 @@
                 <td>{{ tier.maxDistanceKm }}</td>
                 <td>{{ tier.price }}</td>
                 <td>{{ tier.freeShippingThreshold ?? 'גלובלי' }}</td>
+                <td>{{ tier.minOrderForDelivery ? tier.minOrderForDelivery : 'ללא' }}</td>
                 <td>
                   <button type="button" class="btn-icon edit" (click)="openEditTier(tier)" title="ערוך"><i class="fas fa-edit"></i></button>
                   <button type="button" class="btn-icon delete" (click)="deleteTier(tier)" title="מחק"><i class="fas fa-trash-alt"></i></button>
@@ -204,6 +206,21 @@
               class="field-input"
               placeholder="השאר ריק להגדרה גלובלית"
               title="השאר ריק להגדרה גלובלית"
+            />
+          </div>
+          <div class="form-row">
+            <label class="field-label">
+              מינימום הזמנה למשלוח (₪)
+              <span class="hint-inline">השאר ריק ללא הגבלה לטווח זה</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="10"
+              [(ngModel)]="tierForm.minOrderForDelivery"
+              class="field-input"
+              placeholder="ללא הגבלה"
+              title="ללא הגבלה"
             />
           </div>
           @if (tierError) {

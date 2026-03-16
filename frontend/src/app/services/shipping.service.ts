@@ -38,6 +38,8 @@ export interface DeliveryPricingTier {
   isActive?: boolean;
   /** Optional per-tier free shipping threshold (₪). Leave empty to use global. */
   freeShippingThreshold?: number;
+   /** Optional per-tier minimum order amount (₪) required for delivery. */
+  minOrderForDelivery?: number;
 }
 
 @Injectable({

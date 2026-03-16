@@ -103,17 +103,21 @@
                     <div
                       class="delivery-card"
                       [class.active]="orderForm.get('deliveryType')?.value === 'delivery'"
-                      (click)="orderForm.get('deliveryType')?.setValue('delivery'); orderForm.get('deliveryType')?.markAsTouched()"
+                      [class.disabled]="deliveryIneligible"
+                      (click)="onSelectDeliveryCard()"
                       role="button"
                       tabindex="0"
-                      (keydown.enter)="orderForm.get('deliveryType')?.setValue('delivery')"
-                      (keydown.space)="orderForm.get('deliveryType')?.setValue('delivery')"
+                      (keydown.enter)="onSelectDeliveryCard()"
+                      (keydown.space)="onSelectDeliveryCard()"
                     >
                       <i class="fas fa-truck" aria-hidden="true"></i>
                       משלוח
                     </div>
                   </div>
                 </div>
+                <p class="delivery-eligibility-warning" *ngIf="deliveryIneligible && deliveryEligibilityMessage">
+                  {{ deliveryEligibilityMessage }}
+                </p>
                 <ng-container *ngIf="orderForm.get('deliveryType')?.value === 'delivery'">
                   <div class="field-row field-row-full">
                     <div class="custom-dropdown-container">

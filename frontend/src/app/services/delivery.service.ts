@@ -8,6 +8,11 @@ export interface CalculateFeeResponse {
   price: number;
   originalPrice?: number;
   isFree?: boolean;
+  isEligible?: boolean;
+  minRequired?: number;
+  currentTotal?: number;
+  message?: string;
+  amountShort?: number;
 }
 
 @Injectable({

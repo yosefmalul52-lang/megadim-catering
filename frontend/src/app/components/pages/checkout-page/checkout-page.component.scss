@@ -535,6 +535,17 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
     border-color: rgba(224, 192, 117, 0.5);
     background-color: rgba(224, 192, 117, 0.03);
   }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.delivery-eligibility-warning {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #b91c1c;
 }
 
 .delivery-options {
