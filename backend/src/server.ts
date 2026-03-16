@@ -3,30 +3,37 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Load .env: try cwd, then backend root, then project root (so backend/.env wins)
-const cwdEnv = path.join(process.cwd(), '.env');
-const backendEnv = path.join(__dirname, '..', '.env');
-const rootEnv = path.join(__dirname, '..', '..', '.env');
-
-dotenv.config(); // cwd
-for (const p of [backendEnv, rootEnv]) {
-  if (fs.existsSync(p)) {
-    const r = dotenv.config({ path: p });
-    if (!r.error) console.log('[env] Loaded:', p);
-    else console.warn('[env] Failed to load', p, r.error?.message);
+// Load environment variables from backend/.env only (single authoritative source)
+const backendEnvPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(backendEnvPath)) {
+  const result = dotenv.config({ path: backendEnvPath });
+  if (result.error) {
+    console.warn('[env] Failed to load backend .env:', result.error.message);
+  } else {
+    console.log('[env] Loaded backend .env:', backendEnvPath);
+  }
+} else {
+  // Fallback to default dotenv behavior if backend/.env is missing
+  const result = dotenv.config();
+  if (result.error) {
+    console.warn('[env] No backend .env file found and default dotenv load failed:', result.error.message);
+  } else {
+    console.log('[env] Loaded default .env from CWD');
   }
 }
 
-// Normalize: trim so "KEY=  value  " or empty value is handled
-const raw = process.env.GOOGLE_MAPS_API_KEY;
-if (raw !== undefined) process.env.GOOGLE_MAPS_API_KEY = raw.trim();
+// Aggressively normalize GOOGLE_MAPS_API_KEY to avoid hidden characters / quotes / spaces
+if (typeof process.env.GOOGLE_MAPS_API_KEY === 'string') {
+  process.env.GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY.replace(/['" ]/g, '').trim();
+}
+
 const hasMapsKey = !!process.env.GOOGLE_MAPS_API_KEY;
 
 if (hasMapsKey) {
   console.log('[env] GOOGLE_MAPS_API_KEY is set (delivery fee API ready)');
 } else {
-  console.warn('[env] GOOGLE_MAPS_API_KEY is missing or empty.');
-  console.warn('[env] In backend/.env use exactly: GOOGLE_MAPS_API_KEY=your_key (no spaces around =)');
+  console.warn('[env] GOOGLE_MAPS_API_KEY is missing or empty after cleaning.');
+  console.warn('[env] In backend/.env use exactly: GOOGLE_MAPS_API_KEY=your_key (no quotes, no spaces).');
 }
 
 console.log('🚀 Server starting with Vercel CORS fix applied!');

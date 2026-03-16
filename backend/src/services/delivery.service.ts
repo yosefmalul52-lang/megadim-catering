@@ -20,44 +20,47 @@ interface LatLng {
 }
 
 /**
- * Fetch latitude/longitude for a given city using OpenStreetMap Nominatim.
- * NOTE: Nominatim requires a valid User-Agent header.
+ * Fetch latitude/longitude for a given city using Google Geocoding API.
  */
-async function geocodeCityWithOsm(city: string): Promise<LatLng> {
-  const q = encodeURIComponent(city);
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}`;
+async function geocodeCityWithGoogle(city: string): Promise<LatLng> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_MAPS_API_KEY is not set in environment');
+  }
 
-  console.log('[Delivery Service] OSM geocoding for city:', city);
+  const address = city.includes('ישראל') ? city : `${city}, ישראל`;
+  const encoded = encodeURIComponent(address);
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${apiKey}`;
+
+  console.log('[Delivery Service] Google Geocoding for city:', address);
 
   try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'MegadimCateringApp/1.0 (Contact: yosef@megadim-catering.com)',
-        'Accept-Language': 'he'
-      }
-    });
-    const data: any[] = Array.isArray(response.data) ? response.data : [];
+    const response = await axios.get(url);
+    const data = response.data;
 
-    if (data.length === 0) {
-      throw new Error('No results from Nominatim for city');
+    if (!data || data.status !== 'OK' || !Array.isArray(data.results) || data.results.length === 0) {
+      const status = data?.status || 'NO_STATUS';
+      const msg = data?.error_message || '';
+      console.error('[Google Geocoding Error]:', status, msg);
+      throw new Error(`Google Geocoding failed: ${status}`);
     }
 
-    const first = data[0];
-    const latNum = Number(first.lat);
-    const lonNum = Number(first.lon);
+    const loc = data.results[0]?.geometry?.location;
+    const latNum = typeof loc?.lat === 'number' ? loc.lat : Number(loc?.lat);
+    const lonNum = typeof loc?.lng === 'number' ? loc.lng : Number((loc as any)?.lng);
 
     if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
-      throw new Error('Invalid lat/lon from Nominatim');
+      throw new Error('Invalid lat/lon from Google Geocoding');
     }
 
     return { lat: latNum, lon: lonNum };
   } catch (err: any) {
-    console.error('❌ [Delivery Service] OSM Nominatim request failed:');
+    console.error('❌ [Delivery Service] Google Geocoding request failed:');
     if (err?.response) {
       console.error('Status:', err.response.status);
       console.error('Data:', err.response.data);
     } else if (err?.request) {
-      console.error('No response received from OSM (network/timeout)');
+      console.error('No response received from Google (network/timeout)');
     } else {
       console.error('Error Message:', err?.message);
     }
@@ -122,7 +125,7 @@ export async function calculateDeliveryFee(
   const destinationAddress = city.includes('ישראל') ? city : `${city}, ישראל`;
 
   const originCoords: LatLng = { lat: ORIGIN_LAT, lon: ORIGIN_LON };
-  const destCoords = await geocodeCityWithOsm(destinationAddress);
+  const destCoords = await geocodeCityWithGoogle(destinationAddress);
 
   const straightKm = haversineKm(originCoords, destCoords);
   const distanceKm = Math.round(straightKm * ROUTING_FACTOR * 10) / 10;
@@ -168,7 +171,7 @@ export async function getDistanceForAddress(addressOrCity: string): Promise<numb
   const destinationAddress = s.includes('ישראל') ? s : `${s}, ישראל`;
   try {
     const originCoords: LatLng = { lat: ORIGIN_LAT, lon: ORIGIN_LON };
-    const destCoords = await geocodeCityWithOsm(destinationAddress);
+    const destCoords = await geocodeCityWithGoogle(destinationAddress);
     const straightKm = haversineKm(originCoords, destCoords);
     const distanceKm = Math.round(straightKm * ROUTING_FACTOR * 10) / 10;
     return distanceKm;
