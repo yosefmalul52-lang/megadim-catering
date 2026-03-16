@@ -3,10 +3,11 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-// Load environment variables from backend/.env only (single authoritative source)
+// Load environment variables from backend/.env only (single authoritative source).
+// IMPORTANT: Do NOT override env vars already provided by the hosting platform (Render/Vercel).
 const backendEnvPath = path.join(__dirname, '..', '.env');
 if (fs.existsSync(backendEnvPath)) {
-  const result = dotenv.config({ path: backendEnvPath });
+  const result = dotenv.config({ path: backendEnvPath, override: false });
   if (result.error) {
     console.warn('[env] Failed to load backend .env:', result.error.message);
   } else {
@@ -14,7 +15,7 @@ if (fs.existsSync(backendEnvPath)) {
   }
 } else {
   // Fallback to default dotenv behavior if backend/.env is missing
-  const result = dotenv.config();
+  const result = dotenv.config({ override: false });
   if (result.error) {
     console.warn('[env] No backend .env file found and default dotenv load failed:', result.error.message);
   } else {

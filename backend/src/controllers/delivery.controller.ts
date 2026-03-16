@@ -29,6 +29,9 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
 
     const mapsKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
     if (!mapsKey) {
+      console.error(
+        '[Production Alert] Delivery calculation skipped: GOOGLE_MAPS_API_KEY is undefined or empty in this environment.'
+      );
       console.warn('[Delivery API] GOOGLE_MAPS_API_KEY missing – using flat-rate fallback so checkout does not break.');
       const storeSettings = await StoreSettings.findOne().lean();
       const freeShippingThreshold = storeSettings?.freeShippingThreshold ?? 500;
@@ -82,9 +85,13 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
     console.error('Stack Trace:', err?.stack);
 
     const details = err?.message ? String(err.message) : undefined;
+    const hasMapsKey = !!process.env.GOOGLE_MAPS_API_KEY;
     res.status(500).json({
       error: 'שגיאת שרת פנימית בחישוב המשלוח',
-      ...(details && { details })
+      ...(details && { details }),
+      debugInfo: {
+        hasKey: hasMapsKey
+      }
     });
     return;
   }
