@@ -133,8 +133,15 @@ function haversineKm(a: LatLng, b: LatLng): number {
  * 3) No matching tier (distance > highest maxKM or no tiers) -> null (out of area)
  */
 export async function calculateDeliveryFee(
-  destinationCity: string
-): Promise<{ distance: number; price: number; usedOverride?: boolean; tierFreeShippingThreshold?: number } | null> {
+  destinationCity: string,
+  cartTotal?: number
+): Promise<{
+  distance: number;
+  price: number;
+  usedOverride?: boolean;
+  tierFreeShippingThreshold?: number;
+  minOrderForDelivery?: number;
+} | null> {
   const city = (destinationCity || '').trim();
   if (!city) return null;
 
@@ -209,7 +216,10 @@ export async function calculateDeliveryFee(
     const fst = (tier as any).freeShippingThreshold;
     const tierFreeShippingThreshold =
       typeof fst === 'number' && Number.isFinite(fst) && fst >= 0 ? fst : undefined;
-    return { distance: distanceKm, price: tier.price, tierFreeShippingThreshold };
+    const mod = (tier as any).minOrderForDelivery;
+    const minOrderForDelivery =
+      typeof mod === 'number' && Number.isFinite(mod) && mod >= 0 ? mod : undefined;
+    return { distance: distanceKm, price: tier.price, tierFreeShippingThreshold, minOrderForDelivery };
   }
 
   // Fallback: distance strictly greater than all maxKM or no tiers -> out of area

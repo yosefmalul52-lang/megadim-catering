@@ -46,7 +46,7 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const result = await calculateDeliveryFee(destinationCity);
+    const result = await calculateDeliveryFee(destinationCity, cartTotalNum);
     if (result === null) {
       res.status(400).json({ error: 'מחוץ לאזור המשלוחים' });
       return;
@@ -55,6 +55,27 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
     const storeSettings = await StoreSettings.findOne().lean();
     const freeShippingThreshold = storeSettings?.freeShippingThreshold ?? 500;
     const isFreeShippingActive = !!storeSettings?.isFreeShippingActive;
+
+    // Enforce per-tier minimum order for delivery, if defined
+    const tierMinOrder = (result as any).minOrderForDelivery;
+    if (typeof tierMinOrder === 'number' && tierMinOrder > 0 && cartTotalNum < tierMinOrder) {
+      const amountShort = Math.max(0, tierMinOrder - cartTotalNum);
+      console.log(
+        `[Delivery API] Minimum order for delivery not met. Required: ${tierMinOrder}₪, current cart: ${cartTotalNum}₪`
+      );
+      res.status(200).json({
+        distance: result.distance,
+        price: 0,
+        originalPrice: result.price,
+        isFree: false,
+        isEligible: false,
+        minRequired: tierMinOrder,
+        currentTotal: cartTotalNum,
+        message: 'Minimum order not met',
+        amountShort
+      });
+      return;
+    }
 
     // Strict hierarchy for free shipping:
     // 1) Tier override (if defined and > 0)
@@ -91,7 +112,8 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
       distance: result.distance,
       price: finalFee,
       originalPrice: finalFee === 0 ? result.price : undefined,
-      isFree: finalFee === 0
+      isFree: finalFee === 0,
+      isEligible: true
     });
     return;
   } catch (err: any) {

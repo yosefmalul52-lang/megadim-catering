@@ -379,6 +379,11 @@ export class SettingsController {
           const n = Number(fst);
           if (Number.isNaN(n) || n < 0) throw createValidationError('tiers.freeShippingThreshold must be a non-negative number when provided');
         }
+        const mod = (t as any).minOrderForDelivery;
+        if (mod !== undefined && mod !== null && mod !== '') {
+          const n = Number(mod);
+          if (Number.isNaN(n) || n < 0) throw createValidationError('tiers.minOrderForDelivery must be a non-negative number when provided');
+        }
         const isActive = (t as any).isActive;
         if (isActive !== undefined && typeof isActive !== 'boolean') throw createValidationError('tiers.isActive must be a boolean');
       }
@@ -410,14 +415,17 @@ export class SettingsController {
           // Replace the entire tiers list atomically (IDs will be regenerated)
           await DeliveryPricing.deleteMany({}, { session });
           const docsToInsert = (tiers as any[]).map((t) => {
-            const fst = t.freeShippingThreshold;
+            const fst = (t as any).freeShippingThreshold;
             const hasFst = fst !== undefined && fst !== null && fst !== '';
+            const mod = (t as any).minOrderForDelivery;
+            const hasMod = mod !== undefined && mod !== null && mod !== '';
             const doc = {
               minDistanceKm: Number(t.minDistanceKm),
               maxDistanceKm: Number(t.maxDistanceKm),
               price: Number(t.price),
               isActive: typeof t.isActive === 'boolean' ? t.isActive : true,
-              freeShippingThreshold: hasFst ? Number(fst) : null
+              freeShippingThreshold: hasFst ? Number(fst) : null,
+              minOrderForDelivery: hasMod ? Number(mod) : null
             };
             return doc;
           });
