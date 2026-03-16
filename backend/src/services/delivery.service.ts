@@ -32,7 +32,8 @@ async function geocodeCityWithOsm(city: string): Promise<LatLng> {
   try {
     const response = await axios.get(url, {
       headers: {
-        'User-Agent': 'MegadimCateringApp/1.0 (contact: Office@megadim-catering.com)'
+        'User-Agent': 'MegadimCateringApp/1.0 (Contact: yosef@megadim-catering.com)',
+        'Accept-Language': 'he'
       }
     });
     const data: any[] = Array.isArray(response.data) ? response.data : [];
