@@ -17,6 +17,7 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
         : typeof body.city === 'string'
           ? body.city.trim()
           : undefined;
+    // Type-safety: cartTotal may arrive as string from frontend
     const cartTotal = typeof body.cartTotal === 'number' ? body.cartTotal : Number(body.cartTotal);
     const cartTotalNum = Number.isNaN(cartTotal) ? 0 : cartTotal;
 
@@ -55,21 +56,42 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
     const freeShippingThreshold = storeSettings?.freeShippingThreshold ?? 500;
     const isFreeShippingActive = !!storeSettings?.isFreeShippingActive;
 
-    // Priority 1: Free shipping above threshold (only when in delivery area)
-    if (isFreeShippingActive && cartTotalNum >= freeShippingThreshold) {
-      res.status(200).json({
-        distance: result.distance,
-        price: 0,
-        originalPrice: result.price,
-        isFree: true
-      });
-      return;
+    // Strict hierarchy for free shipping:
+    // 1) Tier override (if defined and > 0)
+    // 2) Global fallback (if active and threshold > 0)
+    let finalFee = result.price;
+    const tierThreshold = (result as any).tierFreeShippingThreshold;
+
+    if (typeof tierThreshold === 'number' && tierThreshold > 0) {
+      if (cartTotalNum >= tierThreshold) {
+        finalFee = 0;
+        console.log(
+          `[Delivery API] Free shipping applied from SPECIFIC tier threshold (${tierThreshold}₪)`
+        );
+      }
+    } else if (isFreeShippingActive && typeof freeShippingThreshold === 'number' && freeShippingThreshold > 0) {
+      if (cartTotalNum >= freeShippingThreshold) {
+        finalFee = 0;
+        console.log(
+          `[Delivery API] Free shipping applied from GLOBAL threshold (${freeShippingThreshold}₪)`
+        );
+      }
     }
+
+    console.log(
+      '[Delivery Calc] Cart Total:',
+      cartTotalNum,
+      '| Tier Price:',
+      result.price,
+      '| Final Fee:',
+      finalFee
+    );
 
     res.status(200).json({
       distance: result.distance,
-      price: result.price,
-      isFree: false
+      price: finalFee,
+      originalPrice: finalFee === 0 ? result.price : undefined,
+      isFree: finalFee === 0
     });
     return;
   } catch (err: any) {

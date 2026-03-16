@@ -10,7 +10,7 @@ const DEFAULT_TIERS = [
 
 /**
  * Wipes the DeliveryPricing collection and inserts default distance-based tiers.
- * Called automatically when the server connects to MongoDB (for development/testing).
+ * Only call when collection is empty (e.g. from runDeliveryPricingSeed).
  */
 export async function seedDeliveryPrices(): Promise<void> {
   await DeliveryPricing.deleteMany({});
@@ -18,9 +18,15 @@ export async function seedDeliveryPrices(): Promise<void> {
   console.log('Delivery prices seeded successfully.');
 }
 
-/** Legacy name: run on first deploy when collection is empty (no wipe). */
+/**
+ * Run on server startup. Seeds delivery tiers ONLY if the collection is empty.
+ * MUST NOT overwrite existing user data on restart.
+ */
 export async function runDeliveryPricingSeed(): Promise<void> {
   const count = await DeliveryPricing.countDocuments();
-  if (count > 0) return;
+  if (count > 0) {
+    console.log('Delivery pricing: collection already has data. Skipping seed (no overwrite).');
+    return;
+  }
   await seedDeliveryPrices();
 }

@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import SiteSettings, { PAGE_IDS, IPageAnnouncement } from '../models/siteSettings.model';
 import StoreSettings from '../models/store-settings.model';
 import Setting from '../models/setting.model';
+import DeliveryPricing from '../models/delivery-pricing.model';
 import { asyncHandler, createValidationError } from '../middleware/errorHandler';
 
 function defaultPageAnnouncements(): Record<string, IPageAnnouncement> {
@@ -302,6 +304,7 @@ export class SettingsController {
         minimumLeadDays: 2
       });
     }
+    const tiers = await DeliveryPricing.find({}).sort({ minDistanceKm: 1 }).lean();
     const openDates = Array.isArray((doc as any).openDates)
       ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s as string))
       : [];
@@ -314,14 +317,24 @@ export class SettingsController {
         baseDeliveryFee: typeof (doc as any).baseDeliveryFee === 'number' ? (doc as any).baseDeliveryFee : 25,
         pricePerKm: typeof (doc as any).pricePerKm === 'number' ? (doc as any).pricePerKm : 3,
         openDates,
-        minimumLeadDays
+        minimumLeadDays,
+        tiers
       }
     });
   });
 
-  /** PUT /api/settings/delivery – update free shipping + openDates + minimumLeadDays + baseDeliveryFee + pricePerKm */
+  /** PUT /api/settings/delivery – atomic save of global delivery settings + full tiers array */
   updateDeliverySettings = asyncHandler(async (req: Request, res: Response) => {
-    const { freeShippingThreshold, isFreeShippingActive, openDates, minimumLeadDays, baseDeliveryFee, pricePerKm } = req.body || {};
+    const {
+      freeShippingThreshold,
+      isFreeShippingActive,
+      openDates,
+      minimumLeadDays,
+      baseDeliveryFee,
+      pricePerKm,
+      tiers
+    } = req.body || {};
+
     if (freeShippingThreshold !== undefined) {
       const n = Number(freeShippingThreshold);
       if (Number.isNaN(n) || n < 0) throw createValidationError('freeShippingThreshold must be a non-negative number');
@@ -349,6 +362,28 @@ export class SettingsController {
       const n = Number(pricePerKm);
       if (Number.isNaN(n) || n < 0) throw createValidationError('pricePerKm must be a non-negative number');
     }
+
+    if (tiers !== undefined) {
+      if (!Array.isArray(tiers)) throw createValidationError('tiers must be an array');
+      for (const t of tiers) {
+        if (!t || typeof t !== 'object') throw createValidationError('tiers entries must be objects');
+        const min = Number((t as any).minDistanceKm);
+        const max = Number((t as any).maxDistanceKm);
+        const price = Number((t as any).price);
+        if (Number.isNaN(min) || min < 0) throw createValidationError('tiers.minDistanceKm must be a non-negative number');
+        if (Number.isNaN(max) || max < 0) throw createValidationError('tiers.maxDistanceKm must be a non-negative number');
+        if (min > max) throw createValidationError('tiers.minDistanceKm must be <= tiers.maxDistanceKm');
+        if (Number.isNaN(price) || price < 0) throw createValidationError('tiers.price must be a non-negative number');
+        const fst = (t as any).freeShippingThreshold;
+        if (fst !== undefined && fst !== null && fst !== '') {
+          const n = Number(fst);
+          if (Number.isNaN(n) || n < 0) throw createValidationError('tiers.freeShippingThreshold must be a non-negative number when provided');
+        }
+        const isActive = (t as any).isActive;
+        if (isActive !== undefined && typeof isActive !== 'boolean') throw createValidationError('tiers.isActive must be a boolean');
+      }
+    }
+
     const update: Record<string, unknown> = {};
     if (freeShippingThreshold !== undefined) update.freeShippingThreshold = Number(freeShippingThreshold);
     if (isFreeShippingActive !== undefined) update.isFreeShippingActive = isFreeShippingActive;
@@ -356,22 +391,66 @@ export class SettingsController {
     if (minimumLeadDays !== undefined) update.minimumLeadDays = Number(minimumLeadDays);
     if (baseDeliveryFee !== undefined) update.baseDeliveryFee = Number(baseDeliveryFee);
     if (pricePerKm !== undefined) update.pricePerKm = Number(pricePerKm);
-    const doc = await StoreSettings.findOneAndUpdate({}, update, { new: true, upsert: true, setDefaultsOnInsert: true });
-    const openDatesOut = Array.isArray((doc as any).openDates)
-      ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && YYYYMMDD.test(s as string))
-      : [];
-    const minimumLeadDaysOut = typeof doc.minimumLeadDays === 'number' && doc.minimumLeadDays >= 0 ? doc.minimumLeadDays : 2;
-    res.status(200).json({
-      success: true,
-      data: {
-        freeShippingThreshold: doc.freeShippingThreshold ?? 500,
-        isFreeShippingActive: !!doc.isFreeShippingActive,
-        baseDeliveryFee: typeof (doc as any).baseDeliveryFee === 'number' ? (doc as any).baseDeliveryFee : 25,
-        pricePerKm: typeof (doc as any).pricePerKm === 'number' ? (doc as any).pricePerKm : 3,
-        openDates: openDatesOut,
-        minimumLeadDays: minimumLeadDaysOut
-      },
-      message: 'Delivery settings updated'
-    });
+
+    console.log('--- DB SAVE DEBUG ---');
+    console.log('1. Payload received for distanceTiers/tiers:', JSON.stringify(tiers, null, 2));
+
+    const session = await mongoose.startSession();
+    try {
+      let savedDoc: any;
+      await session.withTransaction(async () => {
+        savedDoc = await StoreSettings.findOneAndUpdate({}, update, {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+          session
+        });
+
+        if (tiers !== undefined) {
+          // Replace the entire tiers list atomically (IDs will be regenerated)
+          await DeliveryPricing.deleteMany({}, { session });
+          const docsToInsert = (tiers as any[]).map((t) => {
+            const fst = t.freeShippingThreshold;
+            const hasFst = fst !== undefined && fst !== null && fst !== '';
+            const doc = {
+              minDistanceKm: Number(t.minDistanceKm),
+              maxDistanceKm: Number(t.maxDistanceKm),
+              price: Number(t.price),
+              isActive: typeof t.isActive === 'boolean' ? t.isActive : true,
+              freeShippingThreshold: hasFst ? Number(fst) : null
+            };
+            return doc;
+          });
+          if (docsToInsert.length > 0) {
+            console.log('--- DB SAVE DEBUG (docsToInsert before insertMany) ---', JSON.stringify(docsToInsert, null, 2));
+            await DeliveryPricing.insertMany(docsToInsert, { session });
+          }
+        }
+      });
+
+      const doc = savedDoc as any;
+      const openDatesOut = Array.isArray(doc?.openDates)
+        ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && YYYYMMDD.test(s as string))
+        : [];
+      const minimumLeadDaysOut = typeof doc?.minimumLeadDays === 'number' && doc.minimumLeadDays >= 0 ? doc.minimumLeadDays : 2;
+      const tiersOut = await DeliveryPricing.find({}).sort({ minDistanceKm: 1 }).lean();
+      console.log('2. Document actually saved to DB (tiers from DeliveryPricing collection):', JSON.stringify(tiersOut, null, 2));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          freeShippingThreshold: doc?.freeShippingThreshold ?? 500,
+          isFreeShippingActive: !!doc?.isFreeShippingActive,
+          baseDeliveryFee: typeof doc?.baseDeliveryFee === 'number' ? doc.baseDeliveryFee : 25,
+          pricePerKm: typeof doc?.pricePerKm === 'number' ? doc.pricePerKm : 3,
+          openDates: openDatesOut,
+          minimumLeadDays: minimumLeadDaysOut,
+          tiers: tiersOut
+        },
+        message: 'Delivery settings updated'
+      });
+    } finally {
+      session.endSession();
+    }
   });
 }

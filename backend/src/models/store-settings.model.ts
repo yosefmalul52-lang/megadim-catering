@@ -1,5 +1,9 @@
 import mongoose from 'mongoose';
 
+/**
+ * Global store settings only. Distance tiers (with per-tier freeShippingThreshold)
+ * live in the DeliveryPricing collection; see delivery-pricing.model.ts.
+ */
 const storeSettingsSchema = new mongoose.Schema(
   {
     freeShippingThreshold: { type: Number, default: 500 },

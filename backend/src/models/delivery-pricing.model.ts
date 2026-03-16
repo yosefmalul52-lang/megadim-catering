@@ -5,6 +5,8 @@ export interface IDeliveryPricing extends Document {
   maxDistanceKm: number;
   price: number;
   isActive: boolean;
+  /** Optional per-tier free shipping threshold (₪). Overrides global threshold when set. */
+  freeShippingThreshold?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -14,6 +16,7 @@ const DeliveryPricingSchema = new Schema<IDeliveryPricing>(
     minDistanceKm: { type: Number, required: true },
     maxDistanceKm: { type: Number, required: true },
     price: { type: Number, required: true },
+    freeShippingThreshold: { type: Number, required: false, default: null },
     isActive: { type: Boolean, default: true }
   },
   {

@@ -58,9 +58,9 @@ export const connectDatabase = async (): Promise<void> => {
     const { runCholentBarSeed } = await import('../seed/cholentBarSeed');
     await runCholentBarSeed();
 
-    // Seed delivery pricing (wipe + insert default tiers – for development/testing)
-    const { seedDeliveryPrices } = await import('../seed/deliveryPricingSeed');
-    await seedDeliveryPrices();
+    // Seed delivery pricing ONLY when collection is empty – never overwrite user data on restart
+    const { runDeliveryPricingSeed } = await import('../seed/deliveryPricingSeed');
+    await runDeliveryPricingSeed();
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {
