@@ -2,86 +2,90 @@ import axios from 'axios';
 import DeliveryPricing from '../models/delivery-pricing.model';
 import DeliveryCityOverride from '../models/delivery-city-override.model';
 
-/** נקודת המוצא לחישוב מרחק משלוח – קבוע: מעלה מכמש */
-const ORIGIN = 'מעלה מכמש, ישראל';
+/** Origin point for delivery distance – Ma'ale Mikhmas (fixed coordinates) */
+const ORIGIN_LAT = 31.884;
+const ORIGIN_LON = 35.312;
+
+/** Approximate factor from straight-line to real driving distance */
+const ROUTING_FACTOR = 1.35;
 
 /** Normalize city for matching (lowercase, trim, collapse spaces) */
 function normalizeCityName(city: string): string {
   return (city || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+interface LatLng {
+  lat: number;
+  lon: number;
+}
+
 /**
- * Get driving distance in km from Google Maps Distance Matrix API.
- * Returns distance in km rounded to 1 decimal place.
+ * Fetch latitude/longitude for a given city using OpenStreetMap Nominatim.
+ * NOTE: Nominatim requires a valid User-Agent header.
  */
-async function getDistanceKm(destination: string): Promise<number> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    throw new Error('GOOGLE_MAPS_API_KEY is not set in environment');
-  }
+async function geocodeCityWithOsm(city: string): Promise<LatLng> {
+  const q = encodeURIComponent(city);
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${q}`;
 
-  const originStr = encodeURIComponent(ORIGIN);
-  const destStr = encodeURIComponent(destination);
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originStr}&destinations=${destStr}&key=${apiKey}&language=he`;
+  console.log('[Delivery Service] OSM geocoding for city:', city);
 
-  console.log('1. Starting Google API request...');
-  let data: any;
   try {
-    const response = await axios.get(url);
-    data = response.data;
-    console.log('2. Google API responded with status:', data?.status ?? 'unknown');
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'MegadimCateringApp/1.0 (contact: Office@megadim-catering.com)'
+      }
+    });
+    const data: any[] = Array.isArray(response.data) ? response.data : [];
+
+    if (data.length === 0) {
+      throw new Error('No results from Nominatim for city');
+    }
+
+    const first = data[0];
+    const latNum = Number(first.lat);
+    const lonNum = Number(first.lon);
+
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+      throw new Error('Invalid lat/lon from Nominatim');
+    }
+
+    return { lat: latNum, lon: lonNum };
   } catch (err: any) {
-    console.error('❌ [Delivery Service] Google Maps request failed:');
+    console.error('❌ [Delivery Service] OSM Nominatim request failed:');
     if (err?.response) {
-      console.error('Data:', err.response.data);
       console.error('Status:', err.response.status);
+      console.error('Data:', err.response.data);
     } else if (err?.request) {
-      console.error('No response received from Google (network/timeout)');
+      console.error('No response received from OSM (network/timeout)');
     } else {
       console.error('Error Message:', err?.message);
     }
-    console.error('Stack Trace:', err?.stack);
-    const message =
-      err?.response?.data?.error_message ||
-      err?.message ||
-      (err?.response?.status ? `HTTP ${err.response.status}` : 'Unknown error');
-    throw new Error(message);
+    throw err;
   }
+}
 
-  if (data.status !== 'OK') {
-    const msg =
-      data.error_message ||
-      (data.status === 'REQUEST_DENIED'
-        ? 'מפתח Google Maps לא תקין או ש-Distance Matrix API לא מופעל בפרויקט'
-        : `Google API: ${data.status}`);
-    console.error('[Google Maps API Error]:', data.status, data.error_message || '');
-    throw new Error(msg);
-  }
+/**
+ * Haversine formula – straight-line distance between two coordinates (km).
+ */
+function haversineKm(a: LatLng, b: LatLng): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371; // Earth radius in km
 
-  if (!data?.rows || !data.rows[0] || !data.rows[0].elements || !data.rows[0].elements[0]) {
-    const msg = 'Invalid response structure from Google Maps API.';
-    console.error('[Google Maps API Error]:', msg);
-    throw new Error(msg);
-  }
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lon - a.lon);
 
-  const row = data.rows[0];
-  const element = row.elements[0];
-  if (element.status !== 'OK') {
-    const msg = 'Could not calculate route to destination';
-    console.error('[Google Maps API Error]:', msg);
-    throw new Error(msg);
-  }
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
 
-  const distanceMeters = element.distance?.value;
-  if (typeof distanceMeters !== 'number') {
-    const msg = 'Invalid distance value from Google API';
-    console.error('[Google Maps API Error]:', msg);
-    throw new Error(msg);
-  }
+  const sinDlat = Math.sin(dLat / 2);
+  const sinDlng = Math.sin(dLng / 2);
 
-  const distanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
-  console.log(`[Google Maps] Distance to ${destination} is ${distanceKm} km.`);
-  return distanceKm;
+  const h =
+    sinDlat * sinDlat +
+    Math.cos(lat1) * Math.cos(lat2) * sinDlng * sinDlng;
+
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return R * c;
 }
 
 /**
@@ -98,7 +102,7 @@ export async function calculateDeliveryFee(
 
   const normalized = normalizeCityName(city);
 
-  // Priority 2: City override (bypasses distance)
+  // Priority 1: City override (bypasses distance and external APIs)
   const override = await DeliveryCityOverride.findOne({
     cityName: normalized,
     isActive: true
@@ -113,9 +117,20 @@ export async function calculateDeliveryFee(
     };
   }
 
-  // Priority 3: Distance ranges table
-  const destination = `${city}, ישראל`;
-  const distanceKm = await getDistanceKm(destination);
+  // Priority 2: Distance ranges table using OSM + Haversine + routing factor
+  const destinationAddress = city.includes('ישראל') ? city : `${city}, ישראל`;
+
+  const originCoords: LatLng = { lat: ORIGIN_LAT, lon: ORIGIN_LON };
+  const destCoords = await geocodeCityWithOsm(destinationAddress);
+
+  const straightKm = haversineKm(originCoords, destCoords);
+  const distanceKm = Math.round(straightKm * ROUTING_FACTOR * 10) / 10;
+
+  console.log(
+    `[Delivery API] Haversine distance from origin to "${destinationAddress}" = ${straightKm.toFixed(
+      2
+    )} km, adjusted driving distance ≈ ${distanceKm} km.`
+  );
 
   const tier = await DeliveryPricing.findOne({
     minDistanceKm: { $lte: distanceKm },
@@ -149,9 +164,13 @@ export async function calculateDeliveryFee(
 export async function getDistanceForAddress(addressOrCity: string): Promise<number | null> {
   const s = (addressOrCity || '').trim();
   if (!s) return null;
-  const destination = s.includes('ישראל') ? s : `${s}, ישראל`;
+  const destinationAddress = s.includes('ישראל') ? s : `${s}, ישראל`;
   try {
-    return await getDistanceKm(destination);
+    const originCoords: LatLng = { lat: ORIGIN_LAT, lon: ORIGIN_LON };
+    const destCoords = await geocodeCityWithOsm(destinationAddress);
+    const straightKm = haversineKm(originCoords, destCoords);
+    const distanceKm = Math.round(straightKm * ROUTING_FACTOR * 10) / 10;
+    return distanceKm;
   } catch {
     return null;
   }
