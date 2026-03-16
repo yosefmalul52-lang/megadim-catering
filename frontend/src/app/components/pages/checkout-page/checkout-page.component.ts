@@ -231,7 +231,8 @@ export class CheckoutPageComponent implements OnInit {
       return;
     }
     const city = cityValue.trim();
-    const cartTotal = this.cartSummary.totalPrice ?? 0;
+    // cartTotal must be subtotal before delivery; ensure it's a number (sometimes becomes string/undefined)
+    const cartTotal = Number(this.cartSummary.totalPrice ?? 0) || 0;
     this.deliveryFeeLoading = true;
     this.deliveryOutOfRange = false;
     this.deliveryError = null;

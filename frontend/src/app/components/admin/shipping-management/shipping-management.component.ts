@@ -26,15 +26,14 @@ export class ShippingManagementComponent implements OnInit {
     baseDeliveryFee: 25,
     pricePerKm: 3
   };
-  globalSaving = false;
-  globalSaveError = '';
+  saveAllLoading = false;
+  saveAllError = '';
 
   tiers: DeliveryPricingTier[] = [];
   tiersLoading = false;
   showTierModal = false;
   editingTier: DeliveryPricingTier | null = null;
-  tierForm = { minKm: 0, maxKm: 10, price: 50 };
-  tierSaving = false;
+  tierForm = { minKm: 0, maxKm: 10, price: 50, freeShippingThreshold: '' as number | '' };
   tierError = '';
 
   cities: DeliveryCityOverride[] = [];
@@ -72,60 +71,93 @@ export class ShippingManagementComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSettings();
-    this.loadTiers();
     this.loadCities();
   }
 
   loadSettings(): void {
+    this.tiersLoading = true;
     this.shipping.getGlobalSettings().subscribe({
       next: (res) => {
         if (res.success && res.data) {
           this.global = {
             ...this.global,
             freeShippingThreshold: res.data.freeShippingThreshold ?? 500,
-            isFreeShippingActive: !!res.data.isFreeShippingActive
+            isFreeShippingActive: !!res.data.isFreeShippingActive,
+            baseDeliveryFee: typeof res.data.baseDeliveryFee === 'number' ? res.data.baseDeliveryFee : this.global.baseDeliveryFee,
+            pricePerKm: typeof res.data.pricePerKm === 'number' ? res.data.pricePerKm : this.global.pricePerKm,
+            openDates: res.data.openDates,
+            minimumLeadDays: res.data.minimumLeadDays
           };
+          const rawTiers = Array.isArray(res.data.tiers) ? res.data.tiers : [];
+          this.tiers = rawTiers.map((t: any) => ({
+            _id: t._id != null ? String(t._id) : '',
+            minDistanceKm: t.minDistanceKm,
+            maxDistanceKm: t.maxDistanceKm,
+            price: t.price,
+            isActive: t.isActive,
+            freeShippingThreshold: t.hasOwnProperty('freeShippingThreshold') && t.freeShippingThreshold != null ? Number(t.freeShippingThreshold) : undefined
+          }));
         }
+        this.tiersLoading = false;
       },
-      error: () => {}
+      error: () => {
+        this.tiersLoading = false;
+      }
     });
   }
 
-  saveGlobal(): void {
-    this.globalSaveError = '';
-    this.globalSaving = true;
-    this.shipping
-      .updateGlobalSettings({
-        freeShippingThreshold: this.global.freeShippingThreshold,
-        isFreeShippingActive: this.global.isFreeShippingActive
-      })
-      .subscribe({
-        next: () => {
-          this.globalSaving = false;
-          this.toast.success('הגדרות המשלוח נשמרו בהצלחה');
-        },
-        error: (err) => {
-          this.globalSaveError = err.error?.error || 'שגיאה בשמירה';
-          this.globalSaving = false;
-          this.toast.error(this.globalSaveError);
-        }
-      });
-  }
+  saveAllChanges(): void {
+    this.saveAllError = '';
+    this.saveAllLoading = true;
+    const payload: ShippingGlobalSettings = {
+      ...this.global,
+      tiers: this.tiers.map((t) => ({
+        ...t,
+        freeShippingThreshold:
+          t.freeShippingThreshold === null || (t as any).freeShippingThreshold === ''
+            ? undefined
+            : (t.freeShippingThreshold as any)
+      }))
+    };
+    console.log('Sending payload:', payload);
 
-  loadTiers(): void {
-    this.tiersLoading = true;
-    this.shipping.getPricingTiers().subscribe({
-      next: (list) => {
-        this.tiers = list;
-        this.tiersLoading = false;
+    this.shipping.saveAllDeliverySettings(payload).subscribe({
+      next: (res) => {
+        this.saveAllLoading = false;
+        if (res?.success && res.data) {
+          this.global = {
+            ...this.global,
+            freeShippingThreshold: res.data.freeShippingThreshold ?? this.global.freeShippingThreshold,
+            isFreeShippingActive: !!res.data.isFreeShippingActive,
+            baseDeliveryFee: typeof res.data.baseDeliveryFee === 'number' ? res.data.baseDeliveryFee : this.global.baseDeliveryFee,
+            pricePerKm: typeof res.data.pricePerKm === 'number' ? res.data.pricePerKm : this.global.pricePerKm,
+            openDates: res.data.openDates,
+            minimumLeadDays: res.data.minimumLeadDays
+          };
+          const rawTiers = Array.isArray(res.data.tiers) ? res.data.tiers : [];
+          this.tiers = rawTiers.map((t: any) => ({
+            _id: t._id != null ? String(t._id) : '',
+            minDistanceKm: t.minDistanceKm,
+            maxDistanceKm: t.maxDistanceKm,
+            price: t.price,
+            isActive: t.isActive,
+            freeShippingThreshold: t.hasOwnProperty('freeShippingThreshold') && t.freeShippingThreshold != null ? Number(t.freeShippingThreshold) : undefined
+          }));
+          this.saveAllDirtyCities();
+        }
+        this.toast.success('כל השינויים נשמרו בהצלחה');
       },
-      error: () => (this.tiersLoading = false)
+      error: (err) => {
+        this.saveAllLoading = false;
+        this.saveAllError = err?.error?.error || err?.error?.message || 'שגיאה בשמירת השינויים';
+        this.toast.error(this.saveAllError);
+      }
     });
   }
 
   openAddTier(): void {
     this.editingTier = null;
-    this.tierForm = { minKm: 0, maxKm: 10, price: 50 };
+    this.tierForm = { minKm: 0, maxKm: 10, price: 50, freeShippingThreshold: '' };
     this.tierError = '';
     this.showTierModal = true;
   }
@@ -135,7 +167,8 @@ export class ShippingManagementComponent implements OnInit {
     this.tierForm = {
       minKm: tier.minDistanceKm,
       maxKm: tier.maxDistanceKm,
-      price: tier.price
+      price: tier.price,
+      freeShippingThreshold: typeof tier.freeShippingThreshold === 'number' ? tier.freeShippingThreshold : ''
     };
     this.tierError = '';
     this.showTierModal = true;
@@ -147,56 +180,48 @@ export class ShippingManagementComponent implements OnInit {
   }
 
   submitTier(): void {
-    const { minKm, maxKm, price } = this.tierForm;
+    const { minKm, maxKm, price, freeShippingThreshold } = this.tierForm;
     if (minKm > maxKm) {
       this.tierError = 'מינימום ק״מ חייב להיות קטן או שווה למקסימום';
       return;
     }
     this.tierError = '';
-    this.tierSaving = true;
-    const body = { minDistanceKm: minKm, maxDistanceKm: maxKm, price };
-    if (this.editingTier) {
-      this.shipping.updatePricingTier(this.editingTier._id, body).subscribe({
-        next: () => {
-          this.loadTiers();
-          this.closeTierModal();
-          this.tierSaving = false;
-          this.toast.success('טווח המרחק עודכן בהצלחה');
-        },
-        error: (err) => {
-          this.tierError = err.error?.error || 'שגיאה בשמירה';
-          this.tierSaving = false;
-          this.toast.error(this.tierError);
-        }
-      });
-    } else {
-      this.shipping.createPricingTier(body).subscribe({
-        next: () => {
-          this.loadTiers();
-          this.closeTierModal();
-          this.tierSaving = false;
-          this.toast.success('טווח המרחק נוסף בהצלחה');
-        },
-        error: (err) => {
-          this.tierError = err.error?.error || 'שגיאה בהוספה';
-          this.tierSaving = false;
-          this.toast.error(this.tierError);
-        }
-      });
+    const fst =
+      freeShippingThreshold === '' || freeShippingThreshold === null || freeShippingThreshold === undefined
+        ? undefined
+        : Number(freeShippingThreshold);
+    if (fst !== undefined && (Number.isNaN(fst) || fst < 0)) {
+      this.tierError = 'משלוח חינם מעל (₪) חייב להיות מספר לא שלילי או ריק';
+      return;
     }
+
+    if (this.editingTier) {
+      this.editingTier.minDistanceKm = minKm;
+      this.editingTier.maxDistanceKm = maxKm;
+      this.editingTier.price = price;
+      (this.editingTier as any).freeShippingThreshold = fst;
+    } else {
+      // Local-only tier until Save All (backend will replace IDs on save)
+      this.tiers = [
+        ...this.tiers,
+        {
+          _id: 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+          minDistanceKm: minKm,
+          maxDistanceKm: maxKm,
+          price,
+          isActive: true,
+          freeShippingThreshold: fst
+        } as any
+      ].sort((a, b) => a.minDistanceKm - b.minDistanceKm);
+    }
+
+    this.closeTierModal();
   }
 
   deleteTier(tier: DeliveryPricingTier): void {
     if (!window.confirm(`למחוק טווח ${tier.minDistanceKm}-${tier.maxDistanceKm} ק״מ?`)) return;
-    this.shipping.deletePricingTier(tier._id).subscribe({
-      next: () => {
-        this.loadTiers();
-        this.toast.success('טווח המרחק נמחק בהצלחה');
-      },
-      error: (err) => {
-        this.toast.error(err.error?.error || 'שגיאה במחיקת טווח המרחק');
-      }
-    });
+    this.tiers = this.tiers.filter((t) => t._id !== tier._id);
+    this.toast.info('הטווח הוסר מקומית. לחץ "שמור שינויים" כדי לשמור בשרת.');
   }
 
   loadCities(): void {
@@ -243,6 +268,23 @@ export class ShippingManagementComponent implements OnInit {
 
   markDirty(city: DeliveryCityOverride): void {
     this.dirtyIds.add(city._id);
+  }
+
+  /** After main save (global + tiers) succeeds, persist any dirty city overrides. */
+  private saveAllDirtyCities(): void {
+    const toSave = this.cities.filter((c) => this.dirtyIds.has(c._id));
+    if (toSave.length === 0) return;
+    toSave.forEach((city) => {
+      this.shipping.updateCityOverride(city._id, { overridePrice: city.overridePrice }).subscribe({
+        next: () => {
+          this.dirtyIds.delete(city._id);
+          this.loadCities();
+        },
+        error: () => {
+          this.toast.error('שגיאה בעדכון מחיר העיר: ' + city.displayName);
+        }
+      });
+    });
   }
 
   isDirty(city: DeliveryCityOverride): boolean {

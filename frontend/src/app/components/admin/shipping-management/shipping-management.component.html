@@ -22,23 +22,6 @@
                 <span>הפעל משלוח חינם מעל הסכום</span>
               </label>
             </div>
-            <div class="form-row actions-row">
-              <button
-                type="button"
-                class="btn-primary"
-                (click)="saveGlobal()"
-                [disabled]="globalSaving"
-              >
-                <i *ngIf="globalSaving" class="fas fa-spinner fa-spin"></i>
-                {{ globalSaving ? 'שומר...' : 'שמירת הגדרות' }}
-              </button>
-            </div>
-            @if (globalSaving) {
-              <span class="save-indicator"><i class="fas fa-spinner fa-spin"></i> שומר...</span>
-            }
-            @if (globalSaveError) {
-              <p class="error-text">{{ globalSaveError }}</p>
-            }
           </div>
         </div>
         <div class="tester-block">
@@ -91,6 +74,7 @@
               <th>מינימום ק״מ</th>
               <th>מקסימום ק״מ</th>
               <th>מחיר משלוח (₪)</th>
+              <th>משלוח חינם מעל (₪)</th>
               <th>פעולות</th>
             </tr>
           </thead>
@@ -100,6 +84,7 @@
                 <td>{{ tier.minDistanceKm }}</td>
                 <td>{{ tier.maxDistanceKm }}</td>
                 <td>{{ tier.price }}</td>
+                <td>{{ tier.freeShippingThreshold ?? 'גלובלי' }}</td>
                 <td>
                   <button type="button" class="btn-icon edit" (click)="openEditTier(tier)" title="ערוך"><i class="fas fa-edit"></i></button>
                   <button type="button" class="btn-icon delete" (click)="deleteTier(tier)" title="מחק"><i class="fas fa-trash-alt"></i></button>
@@ -167,6 +152,22 @@
         <p class="loading-msg"><i class="fas fa-spinner fa-spin"></i> טוען...</p>
       }
     </section>
+
+    <!-- Save All Changes – one payload: global + distance tiers (and dirty city overrides) -->
+    <section class="section-save-all">
+      <button
+        type="button"
+        class="btn-save-all"
+        (click)="saveAllChanges()"
+        [disabled]="saveAllLoading"
+      >
+        <i *ngIf="saveAllLoading" class="fas fa-spinner fa-spin"></i>
+        {{ saveAllLoading ? 'שומר...' : 'שמור את כל השינויים' }}
+      </button>
+      @if (saveAllError) {
+        <p class="error-text save-all-error">{{ saveAllError }}</p>
+      }
+    </section>
   </div>
 
   <!-- Add/Edit Tier Modal -->
@@ -190,14 +191,29 @@
             <label class="field-label">מחיר משלוח (₪)</label>
             <input type="number" min="0" step="1" [(ngModel)]="tierForm.price" class="field-input" />
           </div>
+          <div class="form-row">
+            <label class="field-label">
+              משלוח חינם מעל (₪)
+              <span class="hint-inline">השאר ריק להגדרה גלובלית</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="10"
+              [(ngModel)]="tierForm.freeShippingThreshold"
+              class="field-input"
+              placeholder="השאר ריק להגדרה גלובלית"
+              title="השאר ריק להגדרה גלובלית"
+            />
+          </div>
           @if (tierError) {
             <p class="error-text">{{ tierError }}</p>
           }
         </div>
         <div class="modal-footer">
           <button type="button" class="btn-secondary" (click)="closeTierModal()">ביטול</button>
-          <button type="button" class="btn-primary" (click)="submitTier()" [disabled]="tierSaving">
-            @if (tierSaving) { <i class="fas fa-spinner fa-spin"></i> } {{ editingTier ? 'שמור' : 'הוסף' }}
+          <button type="button" class="btn-primary" (click)="submitTier()">
+            {{ editingTier ? 'שמור מקומית' : 'הוסף מקומית' }}
           </button>
         </div>
       </div>

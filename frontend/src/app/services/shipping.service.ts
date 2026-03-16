@@ -11,6 +11,7 @@ export interface ShippingGlobalSettings {
   /** Specific dates open for orders; format 'YYYY-MM-DD' */
   openDates?: string[];
   minimumLeadDays?: number;
+  tiers?: DeliveryPricingTier[];
 }
 
 export interface DeliveryCityOverride {
@@ -35,6 +36,8 @@ export interface DeliveryPricingTier {
   maxDistanceKm: number;
   price: number;
   isActive?: boolean;
+  /** Optional per-tier free shipping threshold (₪). Leave empty to use global. */
+  freeShippingThreshold?: number;
 }
 
 @Injectable({
@@ -51,6 +54,11 @@ export class ShippingService {
 
   updateGlobalSettings(settings: Partial<ShippingGlobalSettings>): Observable<{ success: boolean; data: ShippingGlobalSettings }> {
     return this.http.put<{ success: boolean; data: ShippingGlobalSettings }>(`${this.settingsUrl}/delivery`, settings);
+  }
+
+  /** Atomic save: global settings + full tiers array in one request */
+  saveAllDeliverySettings(payload: ShippingGlobalSettings): Observable<{ success: boolean; data: ShippingGlobalSettings; message?: string }> {
+    return this.http.put<{ success: boolean; data: ShippingGlobalSettings; message?: string }>(`${this.settingsUrl}/delivery`, payload);
   }
 
   getCityOverrides(): Observable<DeliveryCityOverride[]> {

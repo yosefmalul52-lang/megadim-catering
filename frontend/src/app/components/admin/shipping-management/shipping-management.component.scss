@@ -511,3 +511,53 @@ $border: #e2e8f0;
     cursor: not-allowed;
   }
 }
+
+// Sticky Save All at bottom of page
+.section-save-all {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid $border;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem 2rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-save-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1rem 2.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: $brand-gold;
+  color: $brand-dark;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  min-width: 240px;
+
+  &:hover:not(:disabled) {
+    background: darken($brand-gold, 8%);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+.save-all-error {
+  margin: 0;
+}
