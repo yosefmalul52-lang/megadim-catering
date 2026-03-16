@@ -7,6 +7,7 @@ import {
   DeliveryCityOverride,
   DeliveryPricingTier
 } from '../../../services/shipping.service';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-shipping-management',
@@ -17,6 +18,7 @@ import {
 })
 export class ShippingManagementComponent implements OnInit {
   private shipping = inject(ShippingService);
+  private toast = inject(ToastService);
 
   global: ShippingGlobalSettings = {
     freeShippingThreshold: 500,
@@ -98,10 +100,14 @@ export class ShippingManagementComponent implements OnInit {
         isFreeShippingActive: this.global.isFreeShippingActive
       })
       .subscribe({
-        next: () => (this.globalSaving = false),
+        next: () => {
+          this.globalSaving = false;
+          this.toast.success('הגדרות המשלוח נשמרו בהצלחה');
+        },
         error: (err) => {
           this.globalSaveError = err.error?.error || 'שגיאה בשמירה';
           this.globalSaving = false;
+          this.toast.error(this.globalSaveError);
         }
       });
   }
@@ -155,10 +161,12 @@ export class ShippingManagementComponent implements OnInit {
           this.loadTiers();
           this.closeTierModal();
           this.tierSaving = false;
+          this.toast.success('טווח המרחק עודכן בהצלחה');
         },
         error: (err) => {
           this.tierError = err.error?.error || 'שגיאה בשמירה';
           this.tierSaving = false;
+          this.toast.error(this.tierError);
         }
       });
     } else {
@@ -167,10 +175,12 @@ export class ShippingManagementComponent implements OnInit {
           this.loadTiers();
           this.closeTierModal();
           this.tierSaving = false;
+          this.toast.success('טווח המרחק נוסף בהצלחה');
         },
         error: (err) => {
           this.tierError = err.error?.error || 'שגיאה בהוספה';
           this.tierSaving = false;
+          this.toast.error(this.tierError);
         }
       });
     }
@@ -179,8 +189,13 @@ export class ShippingManagementComponent implements OnInit {
   deleteTier(tier: DeliveryPricingTier): void {
     if (!window.confirm(`למחוק טווח ${tier.minDistanceKm}-${tier.maxDistanceKm} ק״מ?`)) return;
     this.shipping.deletePricingTier(tier._id).subscribe({
-      next: () => this.loadTiers(),
-      error: () => {}
+      next: () => {
+        this.loadTiers();
+        this.toast.success('טווח המרחק נמחק בהצלחה');
+      },
+      error: (err) => {
+        this.toast.error(err.error?.error || 'שגיאה במחיקת טווח המרחק');
+      }
     });
   }
 
@@ -216,10 +231,12 @@ export class ShippingManagementComponent implements OnInit {
         this.loadCities();
         this.closeAddCity();
         this.addSaving = false;
+        this.toast.success('עיר חדשה נוספה בהצלחה');
       },
       error: (err) => {
         this.addError = err.error?.error || 'שגיאה בהוספה';
         this.addSaving = false;
+        this.toast.error(this.addError);
       }
     });
   }
@@ -237,8 +254,11 @@ export class ShippingManagementComponent implements OnInit {
       next: () => {
         this.dirtyIds.delete(city._id);
         this.loadCities();
+        this.toast.success('מחיר העיר עודכן בהצלחה');
       },
-      error: () => {}
+      error: (err) => {
+        this.toast.error(err.error?.error || 'שגיאה בעדכון מחיר העיר');
+      }
     });
   }
 
@@ -247,16 +267,24 @@ export class ShippingManagementComponent implements OnInit {
     this.shipping.updateCityOverride(city._id, { isActive: next }).subscribe({
       next: () => {
         city.isActive = next;
+        this.toast.success(next ? 'העיר הופעלה למשלוחים' : 'העיר הושבתה ממשלוחים');
       },
-      error: () => {}
+      error: (err) => {
+        this.toast.error(err.error?.error || 'שגיאה בעדכון סטטוס העיר');
+      }
     });
   }
 
   deleteCity(city: DeliveryCityOverride): void {
     if (!window.confirm('למחוק את העיר "' + city.displayName + '"?')) return;
     this.shipping.deleteCityOverride(city._id).subscribe({
-      next: () => this.loadCities(),
-      error: () => {}
+      next: () => {
+        this.loadCities();
+        this.toast.success('העיר נמחקה בהצלחה');
+      },
+      error: (err) => {
+        this.toast.error(err.error?.error || 'שגיאה במחיקת העיר');
+      }
     });
   }
 

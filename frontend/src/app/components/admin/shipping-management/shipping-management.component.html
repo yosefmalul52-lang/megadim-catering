@@ -14,13 +14,24 @@
           <div class="global-form">
             <div class="form-row">
               <label class="field-label">משלוח חינם מעל סכום (₪)</label>
-              <input type="number" min="0" step="10" [(ngModel)]="global.freeShippingThreshold" (blur)="saveGlobal()" class="field-input" />
+              <input type="number" min="0" step="10" [(ngModel)]="global.freeShippingThreshold" class="field-input" />
             </div>
             <div class="form-row toggle-row">
               <label class="toggle-label">
-                <input type="checkbox" [(ngModel)]="global.isFreeShippingActive" (change)="saveGlobal()" />
+                <input type="checkbox" [(ngModel)]="global.isFreeShippingActive" />
                 <span>הפעל משלוח חינם מעל הסכום</span>
               </label>
+            </div>
+            <div class="form-row actions-row">
+              <button
+                type="button"
+                class="btn-primary"
+                (click)="saveGlobal()"
+                [disabled]="globalSaving"
+              >
+                <i *ngIf="globalSaving" class="fas fa-spinner fa-spin"></i>
+                {{ globalSaving ? 'שומר...' : 'שמירת הגדרות' }}
+              </button>
             </div>
             @if (globalSaving) {
               <span class="save-indicator"><i class="fas fa-spinner fa-spin"></i> שומר...</span>
