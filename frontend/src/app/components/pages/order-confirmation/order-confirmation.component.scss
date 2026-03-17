@@ -283,6 +283,12 @@ $whatsapp-green-dark: #20bd5a;
   background: rgba($brand-gold, 0.2);
   color: darken($brand-gold, 18%);
   font-size: 0.85rem;
+
+  &.next-step-icon-success {
+    background: rgba(34, 139, 34, 0.12);
+    color: #2d8a2d;
+    font-size: 1rem;
+  }
 }
 
 .next-steps-closing {
@@ -337,6 +343,32 @@ $whatsapp-green-dark: #20bd5a;
     background: linear-gradient(145deg, lighten($brand-gold, 2%) 0%, darken($brand-gold, 12%) 100%);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba($brand-gold, 0.4);
+  }
+}
+
+// כפתור חזרה לדף הבית – עיצוב אלגנטי (רקע לבן, מסגרת זהב)
+.card .actions .btn-home,
+.btn-home {
+  background: #ffffff !important;
+  color: #1f3540;
+  border: 2px solid #d4a84b;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: 1rem 1.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+
+  i {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    margin-left: 0.45rem;
+  }
+
+  &:hover {
+    background: linear-gradient(145deg, #fefbf4 0%, #f9f0dc 100%) !important;
+    border-color: #e0c075;
+    color: #1f3540;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(224, 192, 117, 0.3);
   }
 }
 

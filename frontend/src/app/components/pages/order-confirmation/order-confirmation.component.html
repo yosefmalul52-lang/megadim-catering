@@ -39,7 +39,7 @@
         <h2 class="next-steps-title">מה קורה עכשיו?</h2>
         <ul class="next-steps-list">
           <li class="next-step">
-            <span class="next-step-icon" aria-hidden="true"><i class="fas fa-file-check"></i></span>
+            <span class="next-step-icon next-step-icon-success" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
             <span>הזמנתכם התקבלה בהצלחה במערכת.</span>
           </li>
           <li class="next-step">
@@ -58,7 +58,10 @@
       </section>
 
       <div class="actions">
-        <a routerLink="/" class="btn btn-primary">חזרה לדף הבית</a>
+        <a routerLink="/" class="btn btn-home">
+          <i class="fas fa-home" aria-hidden="true"></i>
+          <span>חזרה לדף הבית</span>
+        </a>
         <a [href]="whatsappHref"
            target="_blank"
            rel="noopener noreferrer"
