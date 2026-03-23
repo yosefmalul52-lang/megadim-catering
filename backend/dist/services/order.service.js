@@ -21,6 +21,9 @@ class OrderService {
         // Categories that should only show units, not calculated weight
         this.UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
     }
+    generateOrderNumber() {
+        return 'MG-' + Math.floor(100000 + Math.random() * 900000).toString();
+    }
     // Submit a new order
     submitOrder(orderData_1) {
         return __awaiter(this, arguments, void 0, function* (orderData, userId = null) {
@@ -47,6 +50,7 @@ class OrderService {
                 // Create order document
                 const order = new Order_1.default({
                     userId: userId || null, // null for guest orders
+                    orderNumber: this.generateOrderNumber(),
                     customerDetails: {
                         fullName: orderData.customerName,
                         phone: orderData.phone,
@@ -126,6 +130,7 @@ class OrderService {
             }
             const order = new Order_1.default({
                 userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null,
+                orderNumber: this.generateOrderNumber(),
                 customerDetails,
                 items: orderItems,
                 totalPrice: payload.totalAmount,
@@ -212,6 +217,23 @@ class OrderService {
             }
         });
     }
+    /** Get order by ID without user filter (admin only). */
+    getOrderByIdForAdmin(orderId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            try {
+                const order = yield Order_1.default.findOne({ _id: orderId }).lean();
+                if (!order || !((_j = order.items) === null || _j === void 0 ? void 0 : _j.length))
+                    return order;
+                yield this.enrichOrderItemsImageUrlPublic(order.items);
+                return order;
+            }
+            catch (error) {
+                console.error('Error fetching order by ID (admin):', error);
+                throw error;
+            }
+        });
+    }
     /** Fills imageUrl on each item from MenuItem when missing. Accepts productId as string or ObjectId. */
     enrichOrderItemsImageUrlPublic(items) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -253,6 +275,27 @@ class OrderService {
             }
             catch (error) {
                 console.error('Error updating order status:', error);
+                throw error;
+            }
+        });
+    }
+    /** Update order event/delivery date (Admin). Sets customerDetails.eventDate (stored as YYYY-MM-DD). */
+    updateOrderEventDate(orderId, eventDate) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const dateValue = typeof eventDate === 'string' ? new Date(eventDate + 'T12:00:00.000Z') : eventDate;
+                if (isNaN(dateValue.getTime())) {
+                    throw new Error('Invalid date');
+                }
+                const dateStr = dateValue.toISOString().slice(0, 10);
+                const updateResult = yield Order_1.default.updateOne({ _id: orderId }, { $set: { 'customerDetails.eventDate': dateStr } });
+                if (updateResult.matchedCount === 0)
+                    return null;
+                const updated = yield Order_1.default.findById(orderId).lean();
+                return updated;
+            }
+            catch (error) {
+                console.error('Error updating order event date:', error);
                 throw error;
             }
         });
@@ -469,20 +512,37 @@ class OrderService {
     }
     // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
     // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
-    getKitchenReport() {
+    getKitchenReport(targetDate) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 // Active order statuses - include all variations
                 const activeStatuses = ['new', 'in-progress', 'ready', 'accepted', 'processing', 'בטיפול', 'חדש', 'New'];
+                const normalizedTargetDate = typeof targetDate === 'string' && targetDate.trim()
+                    ? (targetDate.includes('T') ? targetDate.slice(0, 10) : targetDate.trim())
+                    : '';
+                const matchStage = {
+                    status: { $in: activeStatuses }
+                };
+                // Kitchen prep should use the intended delivery/pickup date (customerDetails.eventDate).
+                // Match exact YYYY-MM-DD and also tolerate values that include a time suffix.
+                if (normalizedTargetDate) {
+                    const escapedDate = normalizedTargetDate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const dateRegex = new RegExp(`^${escapedDate}`);
+                    matchStage.$or = [
+                        { 'customerDetails.eventDate': normalizedTargetDate },
+                        { 'customerDetails.eventDate': dateRegex }
+                    ];
+                }
                 console.log('🔍 OrderService: Starting kitchen report with aggregation pipeline');
                 console.log('🔍 OrderService: Filtering by statuses:', activeStatuses);
+                if (normalizedTargetDate) {
+                    console.log('🔍 OrderService: Filtering kitchen report by event date:', normalizedTargetDate);
+                }
                 // Use aggregation pipeline with $lookup to populate product details
                 const aggregationResult = yield Order_1.default.aggregate([
                     // Step 1: Match active orders
                     {
-                        $match: {
-                            status: { $in: activeStatuses }
-                        }
+                        $match: matchStage
                     },
                     // Step 2: Unwind items array
                     {

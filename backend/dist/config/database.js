@@ -96,9 +96,9 @@ const connectDatabase = () => __awaiter(void 0, void 0, void 0, function* () {
         // One-time Cholent Bar menu seed (runs only if items not already present)
         const { runCholentBarSeed } = yield Promise.resolve().then(() => __importStar(require('../seed/cholentBarSeed')));
         yield runCholentBarSeed();
-        // Seed delivery pricing (wipe + insert default tiers – for development/testing)
-        const { seedDeliveryPrices } = yield Promise.resolve().then(() => __importStar(require('../seed/deliveryPricingSeed')));
-        yield seedDeliveryPrices();
+        // Seed delivery pricing ONLY when collection is empty – never overwrite user data on restart
+        const { runDeliveryPricingSeed } = yield Promise.resolve().then(() => __importStar(require('../seed/deliveryPricingSeed')));
+        yield runDeliveryPricingSeed();
         // Handle connection events
         mongoose_1.default.connection.on('error', (err) => {
             console.error('❌ MongoDB connection error:', err);

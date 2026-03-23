@@ -44,6 +44,12 @@ const OrderSchema = new mongoose_1.Schema({
         default: null,
         index: true
     },
+    orderNumber: {
+        type: String,
+        unique: true,
+        sparse: true,
+        index: true
+    },
     customerDetails: {
         type: Object,
         required: true
@@ -75,7 +81,16 @@ const OrderSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false,
         index: true
-    }
+    },
+    orderType: {
+        type: String,
+        enum: ['shabbat', 'catering'],
+        required: false,
+        index: true
+    },
+    numberOfPortions: { type: mongoose_1.Schema.Types.Mixed, required: false },
+    mealTime: { type: String, required: false },
+    mealTypes: { type: String, required: false }
 }, {
     timestamps: true,
     collection: 'orders',
@@ -85,6 +100,7 @@ const OrderSchema = new mongoose_1.Schema({
 OrderSchema.index({ userId: 1 });
 OrderSchema.index({ status: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ orderType: 1 });
 // Create and export the model
 const Order = mongoose_1.default.model('Order', OrderSchema);
 exports.default = Order;

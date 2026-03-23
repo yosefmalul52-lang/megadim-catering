@@ -18,29 +18,31 @@ const mongoose_1 = __importDefault(require("mongoose"));
 // Import models - using require for CommonJS compatibility
 const User = require('../models/User');
 const Employee = require('../models/Employee');
-// JWT Secret - should match the one in auth routes
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// JWT Secret - must be set in environment; server throws on startup if missing
+const JWT_SECRET = process.env.JWT_SECRET;
 /**
  * Authentication middleware to verify JWT token
  * Expects token in Authorization header as: Bearer <token>
  */
 const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _j;
     try {
-        // Get token from Authorization header
+        // Token: HttpOnly cookie first, then Authorization header (fallback)
+        const cookieToken = (_j = req.cookies) === null || _j === void 0 ? void 0 : _j.token;
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        const bearerToken = (authHeader === null || authHeader === void 0 ? void 0 : authHeader.startsWith('Bearer ')) ? authHeader.substring(7).trim() : null;
+        const token = cookieToken || bearerToken;
+        if (!token) {
             res.status(401).json({
                 success: false,
                 message: 'אין הרשאה - נדרש token'
             });
             return;
         }
-        // Extract token
-        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-        if (!token) {
-            res.status(401).json({
+        if (!JWT_SECRET) {
+            res.status(500).json({
                 success: false,
-                message: 'אין הרשאה - token חסר'
+                message: 'Server misconfiguration'
             });
             return;
         }
@@ -139,11 +141,7 @@ const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         if (!user) {
             res.status(404).json({
                 success: false,
-                message: 'משתמש לא נמצא',
-                debugDb: mongoose_1.default.connection.name,
-                debugCollection: User.collection.name,
-                debugTotalUsers: count,
-                debugSearchedId: String(userId)
+                message: 'משתמש לא נמצא'
             });
             return;
         }
@@ -197,23 +195,17 @@ const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
 });
 exports.authenticate = authenticate;
 /**
- * Optional: Role-based authorization middleware
- * Use after authenticate middleware
+ * Role-based authorization middleware. Use after authenticate middleware.
+ * Returns 403 with serverSeesRole for debugging production role mismatch.
  */
 const authorize = (...roles) => {
     return (req, res, next) => {
         const user = req.user;
-        if (!user) {
-            res.status(401).json({
-                success: false,
-                message: 'אין הרשאה'
-            });
-            return;
-        }
-        if (!roles.includes(user.role)) {
+        if (!user || !roles.includes(user.role)) {
             res.status(403).json({
                 success: false,
-                message: 'אין הרשאה גישה לפעולה זו'
+                message: 'Forbidden: Admin access required',
+                serverSeesRole: user ? user.role : 'User object missing'
             });
             return;
         }

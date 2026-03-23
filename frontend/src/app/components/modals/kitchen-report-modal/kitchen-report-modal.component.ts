@@ -40,18 +40,47 @@ export interface GroupedKitchenReport {
             תאריך: {{ todayDate }}
           </div>
 
+          <div class="filter-bar">
+            <div class="filter-group">
+              <label for="kitchen-date-filter">תאריך הזמנה:</label>
+              <input
+                id="kitchen-date-filter"
+                type="date"
+                [value]="selectedDate || ''"
+                (change)="onDateChange($event)"
+              />
+              <button type="button" class="btn-clear-date" (click)="clearDateFilter()">
+                כל התאריכים
+              </button>
+            </div>
+
+            <div class="filter-group">
+              <label for="kitchen-category-filter">קטגוריה:</label>
+              <select
+                id="kitchen-category-filter"
+                [value]="selectedCategory"
+                (change)="onCategoryChange($event)"
+              >
+                <option value="ALL">כל הקטגוריות / המנות</option>
+                <option *ngFor="let category of availableCategories" [value]="category">
+                  {{ category }}
+                </option>
+              </select>
+            </div>
+          </div>
+
           <div *ngIf="isLoading" class="loading-state">
             <i class="fas fa-spinner fa-spin"></i>
             <span>טוען דוח...</span>
           </div>
 
-          <div *ngIf="!isLoading && groupedReport.length === 0" class="empty-state">
+          <div *ngIf="!isLoading && filteredReport.length === 0" class="empty-state">
             <i class="fas fa-clipboard-list"></i>
             <p>אין הזמנות פעילות כרגע</p>
           </div>
 
-          <div *ngIf="!isLoading && groupedReport.length > 0" class="report-groups-container">
-            <div *ngFor="let group of groupedReport" class="category-group">
+          <div *ngIf="!isLoading && filteredReport.length > 0" class="report-groups-container">
+            <div *ngFor="let group of filteredReport" class="category-group">
               <h3 class="category-header">{{ group.category }}</h3>
               <div class="report-table-container">
                 <table class="kitchen-report-table">
@@ -77,13 +106,13 @@ export interface GroupedKitchenReport {
             </div>
           </div>
           
-          <div *ngIf="!isLoading && groupedReport.length === 0" class="no-data">
+          <div *ngIf="!isLoading && filteredReport.length === 0" class="no-data">
             <i class="fas fa-clipboard-list"></i>
             <p>אין הזמנות פעילות להצגה.</p>
           </div>
         </div>
 
-        <div class="modal-footer" *ngIf="!isLoading && groupedReport.length > 0">
+        <div class="modal-footer" *ngIf="!isLoading && filteredReport.length > 0">
           <button class="btn-print" (click)="printReport()">
             <i class="fas fa-print"></i>
             הדפס דוח
@@ -185,6 +214,56 @@ export interface GroupedKitchenReport {
 
     .report-date i {
       color: #1a2a3a;
+    }
+
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border: 1px solid #e6e6e6;
+      border-radius: 8px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-group label {
+      font-weight: 600;
+      color: #1a2a3a;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      border: 1px solid #d6d6d6;
+      border-radius: 6px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.95rem;
+      min-width: 170px;
+      background: #fff;
+      color: #1a2a3a;
+    }
+
+    .btn-clear-date {
+      border: 1px solid #d6d6d6;
+      background: #f5f5f5;
+      color: #1a2a3a;
+      border-radius: 6px;
+      padding: 0.45rem 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn-clear-date:hover {
+      background: #ececec;
     }
 
     .loading-state,
@@ -402,19 +481,40 @@ export class KitchenReportModalComponent implements OnInit {
   @Output() closeModal = new EventEmitter<void>();
 
   reportItems: KitchenReportItem[] = [];
-  groupedReport: GroupedKitchenReport[] = [];
+  selectedDate: string | null = null;
+  selectedCategory: string = 'ALL';
   isLoading = true;
   todayDate = '';
+
+  get availableCategories(): string[] {
+    const set = new Set(
+      this.reportItems
+        .map((item) => (item.category || '').trim())
+        .filter((category) => !!category)
+    );
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  get filteredReport(): GroupedKitchenReport[] {
+    const category =
+      typeof this.selectedCategory === 'string' ? this.selectedCategory.trim() : 'ALL';
+    const filteredItems =
+      category && category !== 'ALL'
+        ? this.reportItems.filter((item) => (item.category || '').trim() === category)
+        : this.reportItems;
+    return this.groupByCategory(filteredItems);
+  }
 
   ngOnInit(): void {
     this.todayDate = this.formatDate(new Date());
     this.loadKitchenReport();
   }
 
-  loadKitchenReport(): void {
+  loadKitchenReport(date?: string | null): void {
     this.isLoading = true;
-    console.log('🔍 Frontend: Loading kitchen report...');
-    this.orderService.getKitchenReport().subscribe({
+    const targetDate = date && date.trim() ? date.trim() : undefined;
+    console.log('🔍 Frontend: Loading kitchen report...', { date: targetDate || 'ALL' });
+    this.orderService.getKitchenReport(targetDate).subscribe({
       next: (items) => {
         console.log('✅ Frontend: Received report from backend:', items);
         console.log('✅ Frontend: Report items count:', items.length);
@@ -424,12 +524,7 @@ export class KitchenReportModalComponent implements OnInit {
         this.reportItems = this.processData(items);
         console.log('✅ Frontend: Processed report items:', this.reportItems);
         console.log('✅ Frontend: Processed items count:', this.reportItems.length);
-        
-        // Group items by category
-        this.groupedReport = this.groupByCategory(this.reportItems);
-        console.log('✅ Frontend: Grouped report:', this.groupedReport);
-        console.log('✅ Frontend: Grouped report count:', this.groupedReport.length);
-        console.log('✅ Frontend: Final Grouped Data for View:', JSON.stringify(this.groupedReport, null, 2));
+        console.log('✅ Frontend: Categories available:', this.availableCategories);
         
         this.isLoading = false;
       },
@@ -444,6 +539,22 @@ export class KitchenReportModalComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  onDateChange(event: Event): void {
+    const value = (event.target as HTMLInputElement | null)?.value || '';
+    this.selectedDate = value ? value : null;
+    this.loadKitchenReport(this.selectedDate);
+  }
+
+  clearDateFilter(): void {
+    this.selectedDate = null;
+    this.loadKitchenReport(null);
+  }
+
+  onCategoryChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement | null)?.value || 'ALL';
+    this.selectedCategory = value || 'ALL';
   }
 
   private processData(data: any[]): KitchenReportItem[] {
@@ -557,7 +668,7 @@ export class KitchenReportModalComponent implements OnInit {
           <body>
             <h1>דוח הכנות למטבח</h1>
             <div class="report-date">תאריך: ${this.todayDate}</div>
-                   ${this.groupedReport.map(group => {
+                   ${this.filteredReport.map(group => {
                      return `
                      <div class="category-group-print">
                        <h3 class="category-header-print">${group.category}</h3>

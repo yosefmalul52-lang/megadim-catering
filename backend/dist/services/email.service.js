@@ -40,6 +40,34 @@ function escapeHtml(s) {
 class EmailService {
     constructor() {
         this.transporter = createTransporter();
+        console.log('📧 EmailService: transporter created with host/port/user summary:', {
+            host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+            port: Number(process.env.EMAIL_PORT) || 587,
+            hasUser: !!EMAIL_USER,
+            hasPass: !!EMAIL_PASS
+        });
+    }
+    /**
+     * Internal helper to wrap transporter.sendMail with strong logging & normalized errors.
+     */
+    sendMailWithLogging(context, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                yield this.transporter.sendMail(options);
+            }
+            catch (error) {
+                console.error('🚨 CRITICAL EMAIL ERROR in context:', context);
+                console.error('🚨 Email error message:', (error === null || error === void 0 ? void 0 : error.message) || error);
+                console.error('🚨 Email error details:', {
+                    name: error === null || error === void 0 ? void 0 : error.name,
+                    code: error === null || error === void 0 ? void 0 : error.code,
+                    command: error === null || error === void 0 ? void 0 : error.command,
+                    response: error === null || error === void 0 ? void 0 : error.response,
+                    responseCode: error === null || error === void 0 ? void 0 : error.responseCode
+                });
+                throw new Error(`Failed to send email (${context}). Please check server logs for SMTP credentials or connection issues.`);
+            }
+        });
     }
     /**
      * Verify SMTP connection. Logs result to console.
@@ -47,8 +75,57 @@ class EmailService {
      */
     verifyConnection() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.transporter.verify();
-            console.log('✅ SMTP connection ready – server can send order emails');
+            try {
+                yield this.transporter.verify();
+                console.log('✅ SMTP connection ready – server can send emails');
+            }
+            catch (error) {
+                console.error('🚨 CRITICAL EMAIL ERROR during SMTP verifyConnection');
+                console.error('🚨 Email verify error message:', (error === null || error === void 0 ? void 0 : error.message) || error);
+                console.error('🚨 Email verify error details:', {
+                    name: error === null || error === void 0 ? void 0 : error.name,
+                    code: error === null || error === void 0 ? void 0 : error.code,
+                    command: error === null || error === void 0 ? void 0 : error.command,
+                    response: error === null || error === void 0 ? void 0 : error.response,
+                    responseCode: error === null || error === void 0 ? void 0 : error.responseCode
+                });
+                throw new Error('Failed to verify SMTP connection. Please check EMAIL_HOST/PORT/USER/PASS environment variables and provider status.');
+            }
+        });
+    }
+    /**
+     * Send contact form submission to the business.
+     * Uses OWNER_EMAIL so the business receives the inquiry; falls back to EMAIL_USER only if OWNER_EMAIL is missing.
+     */
+    sendContactFormToBusiness(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!EMAIL_USER || !EMAIL_PASS) {
+                throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
+            }
+            const toEmail = EMAIL_USER;
+            console.log('📧 Contact form: sending to', toEmail);
+            const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
+            const senderEmail = process.env.EMAIL_USER;
+            const subject = `פנייה חדשה מאתר מגדים: ${escapeHtml(payload.name)}`;
+            const html = `
+      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 560px; padding: 24px;">
+        <h2 style="color: #0E1A24; margin: 0 0 16px;">פנייה חדשה מהאתר</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>שם:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${escapeHtml(payload.name)}</td></tr>
+          <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>טלפון:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${escapeHtml(payload.phone)}</td></tr>
+          <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>אימייל:</strong></td><td style="padding: 8px 0; border-bottom: 1px solid #eee;">${payload.email ? escapeHtml(payload.email) : '—'}</td></tr>
+        </table>
+        <p style="margin: 16px 0 0; color: #333;"><strong>הודעה:</strong></p>
+        <p style="margin: 8px 0 0; padding: 12px; background: #f8f9fa; border-radius: 8px; white-space: pre-wrap;">${escapeHtml(payload.message)}</p>
+      </div>`;
+            yield this.sendMailWithLogging('contact-form', {
+                from: `"${businessName}" <${senderEmail}>`,
+                to: toEmail,
+                replyTo: payload.email || undefined,
+                subject,
+                html
+            });
+            console.log('✅ Contact form email sent successfully to:', toEmail);
         });
     }
     /**
@@ -83,34 +160,22 @@ class EmailService {
             const ownerHtml = (0, email_templates_1.generateAdminEmailHtml)(templateData);
             const customerHtml = (0, email_templates_1.generateCustomerEmailHtml)(templateData);
             // 1. Send Order Details to the Business Owner (Office)
-            try {
-                yield this.transporter.sendMail({
-                    from: `"${businessName} - אתר" <${senderEmail}>`,
-                    to: ownerEmail,
-                    subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
-                    html: ownerHtml
-                });
-            }
-            catch (err) {
-                console.error('Order email: failed to send to business owner (OWNER_EMAIL):', (err === null || err === void 0 ? void 0 : err.message) || err);
-                throw err;
-            }
+            yield this.sendMailWithLogging('order:owner', {
+                from: `"${businessName} - אתר" <${senderEmail}>`,
+                to: ownerEmail,
+                subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
+                html: ownerHtml
+            });
             // 2. Send Receipt to the Customer (if customerEmail provided from frontend)
             const customerEmailTrimmed = typeof customerEmail === 'string' ? customerEmail.trim() : '';
             if (customerEmailTrimmed) {
-                try {
-                    yield this.transporter.sendMail({
-                        from: `"${businessName}" <${senderEmail}>`,
-                        replyTo: ownerEmail,
-                        to: customerEmailTrimmed,
-                        subject: `אישור הזמנה - ${businessName}`,
-                        html: customerHtml
-                    });
-                }
-                catch (err) {
-                    console.error('Order email: failed to send receipt to customer:', (err === null || err === void 0 ? void 0 : err.message) || err);
-                    throw err;
-                }
+                yield this.sendMailWithLogging('order:customer-receipt', {
+                    from: `"${businessName}" <${senderEmail}>`,
+                    replyTo: ownerEmail,
+                    to: customerEmailTrimmed,
+                    subject: `אישור הזמנה - ${businessName}`,
+                    html: customerHtml
+                });
             }
         });
     }
@@ -135,7 +200,7 @@ class EmailService {
 כתובת: ${((_z = order.customerDetails) === null || _z === void 0 ? void 0 : _z.address) || 'לא צוין'}
 הערות: ${((_2 = order.customerDetails) === null || _2 === void 0 ? void 0 : _2.notes) || 'אין הערות'}
       `.trim();
-                yield this.transporter.sendMail({
+                yield this.sendMailWithLogging('order:legacy-admin', {
                     from: `"${businessName} - אתר" <${senderEmail}>`,
                     to: clientEmail,
                     subject: `הזמנה חדשה #${((_3 = order._id) === null || _3 === void 0 ? void 0 : _3.toString().substring(0, 8)) || 'N/A'} - ${businessName}`,
@@ -164,8 +229,12 @@ class EmailService {
                 console.log('✅ Order confirmation email sent:', order._id);
             }
             catch (error) {
-                console.error('❌ Error sending order email:', (error === null || error === void 0 ? void 0 : error.message) || error);
-                console.error('❌ Email error details:', { message: error === null || error === void 0 ? void 0 : error.message, code: error === null || error === void 0 ? void 0 : error.code, response: error === null || error === void 0 ? void 0 : error.response });
+                console.error('❌ Error sending order email (legacy admin):', (error === null || error === void 0 ? void 0 : error.message) || error);
+                console.error('❌ Email error details (legacy admin):', {
+                    message: error === null || error === void 0 ? void 0 : error.message,
+                    code: error === null || error === void 0 ? void 0 : error.code,
+                    response: error === null || error === void 0 ? void 0 : error.response
+                });
             }
         });
     }
@@ -212,20 +281,53 @@ class EmailService {
         <p style="color: #666; font-size: 0.95em;">נעדכן כשההזמנה תהיה מוכנה. לכל שאלה – צרו איתנו קשר.</p>
         <p style="color: #0E1A24; font-weight: 600;">בתיאבון,<br/>צוות מגדים</p>
       </div>`;
-            try {
-                yield this.transporter.sendMail({
-                    from: `"${businessName}" <${senderEmail}>`,
-                    replyTo: ownerEmail || undefined,
-                    to: toEmail,
-                    subject: `הזמנתך אושרה – ${businessName}`,
-                    html
-                });
-                console.log('✅ Order approved email sent to customer:', toEmail);
-            }
-            catch (err) {
-                console.error('❌ Failed to send order approved email to customer:', (err === null || err === void 0 ? void 0 : err.message) || err);
-                throw err;
-            }
+            yield this.sendMailWithLogging('order:approved-customer', {
+                from: `"${businessName}" <${senderEmail}>`,
+                replyTo: ownerEmail || undefined,
+                to: toEmail,
+                subject: `הזמנתך אושרה – ${businessName}`,
+                html
+            });
+            console.log('✅ Order approved email sent to customer:', toEmail);
+        });
+    }
+    /**
+     * Send catering order (שבת וחג) using the same email flow as "אוכל מוכן" – same templates, same recipient logic.
+     * Converts catering payload to OrderEmailData and calls sendOrderEmails.
+     */
+    sendCateringOrderEmails(data, ownerEmail, customerEmail) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const mealTimeLabel = data.mealTime === 'evening'
+                ? 'ערב שבת'
+                : data.mealTime === 'morning'
+                    ? 'שבת בבוקר'
+                    : 'שתי ארוחות שבת';
+            const notesParts = [
+                `קייטרינג שבת וחג. מספר מנות: ${data.numberOfPortions}`,
+                `סוג ארוחה: ${mealTimeLabel}`,
+                `סעודה שלישית: ${data.seudaShlishit === 'yes' ? 'כן' : 'לא'}`
+            ];
+            if (data.remarks && data.remarks.trim())
+                notesParts.push(`הערות: ${data.remarks.trim()}`);
+            const notes = notesParts.join(' | ');
+            const items = [];
+            (data.salads || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `סלט: ${String(s).trim()}`, quantity: 1, price: 0 }));
+            (data.firstCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `מנה ראשונה: ${String(s).trim()}`, quantity: 1, price: 0 }));
+            (data.mainCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `מנה עיקרית: ${String(s).trim()}`, quantity: 1, price: 0 }));
+            (data.sidesEvening || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `תוספת ערב: ${String(s).trim()}`, quantity: 1, price: 0 }));
+            (data.sidesMorning || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `תוספת בוקר: ${String(s).trim()}`, quantity: 1, price: 0 }));
+            const orderData = {
+                customerName: data.fullName,
+                phone: data.phone,
+                customerEmail: data.email,
+                eventDate: data.eventDate,
+                deliveryType: data.deliveryType,
+                address: data.address || undefined,
+                notes,
+                items,
+                total: 0
+            };
+            yield this.sendOrderEmails(orderData, ownerEmail, customerEmail !== null && customerEmail !== void 0 ? customerEmail : data.email);
         });
     }
 }

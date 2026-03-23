@@ -617,6 +617,8 @@ export class OrderController {
   // Get kitchen preparation report
   getKitchenReport = asyncHandler(async (req: Request, res: Response) => {
     try {
+      const targetDate = typeof req.query.date === 'string' ? req.query.date : undefined;
+
       // DIAGNOSTIC LOG: Check what orders exist in DB
       const OrderModel = require('../models/Order').default;
       const allOrders = await OrderModel.find({}, 'status items').lean();
@@ -635,7 +637,7 @@ export class OrderController {
         }
       }
 
-      const report = await this.orderService.getKitchenReport();
+      const report = await this.orderService.getKitchenReport(targetDate);
       
       // Log the final result
       console.log('🥗 KITCHEN REPORT RESULT:', report);

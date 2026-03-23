@@ -344,16 +344,72 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       )
       .join('');
     const orderCode = order.orderNumber || (order._id || order.id)?.toString().slice(-8) || '';
+    const cd: any = order.customerDetails || {};
+    const deliveryMethodRaw = (cd.deliveryType || cd.deliveryMethod || '').toString().toLowerCase();
+    const isPickup = deliveryMethodRaw === 'pickup' || deliveryMethodRaw === 'self-pickup' || deliveryMethodRaw === 'self_pickup';
+    const orderTypeLabel = isPickup ? 'סוג הזמנה: איסוף עצמי' : 'סוג הזמנה: משלוח';
+
+    const deliveryDetails: any = cd.deliveryDetails || {};
+    const addressObj = typeof cd.address === 'object' && cd.address !== null ? cd.address : null;
+    const street = deliveryDetails.street || addressObj?.street || '';
+    const houseNumber = deliveryDetails.number || addressObj?.number || '';
+    const city = deliveryDetails.city || addressObj?.city || cd.city || cd.deliveryCity || '';
+    const floor = deliveryDetails.floor || addressObj?.floor || '';
+    const apartment = deliveryDetails.apartment || addressObj?.apartment || '';
+    const textualAddress = typeof cd.address === 'string' ? cd.address : '';
+    const prettyAddress = [
+      city ? `עיר: ${city}` : '',
+      street ? `רחוב: ${street}` : '',
+      houseNumber ? `מספר: ${houseNumber}` : '',
+      floor ? `קומה: ${floor}` : '',
+      apartment ? `דירה: ${apartment}` : ''
+    ]
+      .filter(Boolean)
+      .join(' | ');
+    const addressDisplay = isPickup
+      ? 'כתובת: איסוף מבית העסק'
+      : (prettyAddress || textualAddress || 'כתובת לא צוינה');
+
+    const customerNotes = (cd.notes || cd.comments || cd.specialRequests || '').toString().trim();
+    const notesHtml = customerNotes
+      ? `<div class="notes-section"><div class="notes-title">הערות הלקוח:</div><div>${customerNotes}</div></div>`
+      : '';
     const html = `
       <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${orderCode}</title>
-      <style>body{font-family:Heebo,Arial;padding:20px;max-width:600px;margin:0 auto}
-      table{width:100%;border-collapse:collapse} th,td{border:1px solid #ddd;padding:8px;text-align:right}
-      th{background:#f5f5f5} h1{color:#0E1A24} .total{font-weight:bold;font-size:1.2em}</style></head>
+      <style>
+      body{font-family:Heebo,Arial,sans-serif;padding:20px;max-width:760px;margin:0 auto;color:#111;background:#fff}
+      h1{margin:0 0 8px;color:#111}
+      .meta{margin:0 0 14px;font-size:14px}
+      .order-type{font-size:24px;font-weight:800;line-height:1.2;margin:6px 0 14px;padding:10px 12px;border:2px solid #111}
+      .section{margin:10px 0 14px;padding:10px 12px;border:1px solid #111}
+      .section-title{font-weight:800;margin-bottom:4px}
+      .notes-section{margin:12px 0;padding:12px;border:2px solid #111}
+      .notes-title{font-weight:800;margin-bottom:6px}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      th,td{border:1px solid #111;padding:8px;text-align:right;color:#000}
+      th{background:#fff;font-weight:800}
+      .total{font-weight:800;font-size:1.2em;margin-top:12px}
+      @media print{
+        *{color:#000 !important;background:#fff !important;box-shadow:none !important}
+        body{margin:0;padding:8mm;max-width:none}
+        .order-type,.section,.notes-section{border:1px solid #000 !important}
+        table{page-break-inside:auto}
+        tr{page-break-inside:avoid}
+        thead{display:table-header-group}
+      }
+      </style></head>
       <body>
         <h1>הזמנה #${orderCode}</h1>
+        <div class="order-type">${orderTypeLabel}</div>
+        <div class="meta"><strong>סטטוס:</strong> ${this.getStatusLabel(order.status || '')}</div>
         <p><strong>לקוח:</strong> ${order.customerDetails?.fullName || 'לא צוין'}</p>
         <p><strong>טלפון:</strong> ${order.customerDetails?.phone || 'לא צוין'}</p>
         <p><strong>תאריך אירוע:</strong> ${order.customerDetails?.eventDate || 'לא צוין'}</p>
+        <div class="section">
+          <div class="section-title">כתובת משלוח / איסוף</div>
+          <div>${addressDisplay}</div>
+        </div>
+        ${notesHtml}
         <table><thead><tr><th>פריט</th><th>כמות</th><th>סה"כ</th></tr></thead><tbody>${itemsHtml}</tbody></table>
         <p class="total">סה"כ לתשלום: ₪${(order.totalPrice ?? 0).toFixed(2)}</p>
       </body></html>`;

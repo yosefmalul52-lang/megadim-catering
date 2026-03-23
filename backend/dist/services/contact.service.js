@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContactService = void 0;
 const uuid_1 = require("uuid");
+const email_service_1 = require("./email.service");
 class ContactService {
     constructor() {
         this.contacts = [];
@@ -64,16 +65,15 @@ class ContactService {
             const newContact = Object.assign(Object.assign({ id: (0, uuid_1.v4)() }, contactData), { status: 'new', createdAt: new Date(), updatedAt: new Date() });
             this.contacts.unshift(newContact); // Add to beginning of array for newest first
             console.log(`📧 New contact form submitted by ${newContact.name} (${newContact.phone})`);
-            console.log(`Event type: ${newContact.eventType || 'Not specified'}`);
-            console.log(`Message: ${newContact.message.substring(0, 100)}...`);
-            // In a real application, this would:
-            // 1. Save to database
-            // 2. Send email notification to admin
-            // 3. Send auto-reply to customer
-            // 4. Add to CRM system
+            yield email_service_1.emailService.sendContactFormToBusiness({
+                name: newContact.name,
+                phone: newContact.phone,
+                email: newContact.email,
+                message: newContact.message
+            });
             return {
                 success: true,
-                message: 'תודה על פנייתך! נחזור אליך בהקדם.',
+                message: 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.',
                 contactId: newContact.id
             };
         });

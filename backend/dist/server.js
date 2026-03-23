@@ -11,47 +11,57 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _j;
 Object.defineProperty(exports, "__esModule", { value: true });
 // CRITICAL: Load environment variables FIRST, before any other imports
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-// Load .env: try cwd, then backend root, then project root (so backend/.env wins)
-const cwdEnv = path_1.default.join(process.cwd(), '.env');
-const backendEnv = path_1.default.join(__dirname, '..', '.env');
-const rootEnv = path_1.default.join(__dirname, '..', '..', '.env');
-dotenv_1.default.config(); // cwd
-for (const p of [backendEnv, rootEnv]) {
-    if (fs_1.default.existsSync(p)) {
-        const r = dotenv_1.default.config({ path: p });
-        if (!r.error)
-            console.log('[env] Loaded:', p);
-        else
-            console.warn('[env] Failed to load', p, (_j = r.error) === null || _j === void 0 ? void 0 : _j.message);
+// Load environment variables from backend/.env only (single authoritative source).
+// IMPORTANT: Do NOT override env vars already provided by the hosting platform (Render/Vercel).
+const backendEnvPath = path_1.default.join(__dirname, '..', '.env');
+if (fs_1.default.existsSync(backendEnvPath)) {
+    const result = dotenv_1.default.config({ path: backendEnvPath, override: false });
+    if (result.error) {
+        console.warn('[env] Failed to load backend .env:', result.error.message);
+    }
+    else {
+        console.log('[env] Loaded backend .env:', backendEnvPath);
     }
 }
-// Normalize: trim so "KEY=  value  " or empty value is handled
-const raw = process.env.GOOGLE_MAPS_API_KEY;
-if (raw !== undefined)
-    process.env.GOOGLE_MAPS_API_KEY = raw.trim();
+else {
+    // Fallback to default dotenv behavior if backend/.env is missing
+    const result = dotenv_1.default.config({ override: false });
+    if (result.error) {
+        console.warn('[env] No backend .env file found and default dotenv load failed:', result.error.message);
+    }
+    else {
+        console.log('[env] Loaded default .env from CWD');
+    }
+}
+// Aggressively normalize GOOGLE_MAPS_API_KEY to avoid hidden characters / quotes / spaces
+if (typeof process.env.GOOGLE_MAPS_API_KEY === 'string') {
+    process.env.GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY.replace(/['" ]/g, '').trim();
+}
 const hasMapsKey = !!process.env.GOOGLE_MAPS_API_KEY;
 if (hasMapsKey) {
     console.log('[env] GOOGLE_MAPS_API_KEY is set (delivery fee API ready)');
 }
 else {
-    console.warn('[env] GOOGLE_MAPS_API_KEY is missing or empty.');
-    console.warn('[env] In backend/.env use exactly: GOOGLE_MAPS_API_KEY=your_key (no spaces around =)');
+    console.warn('[env] GOOGLE_MAPS_API_KEY is missing or empty after cleaning.');
+    console.warn('[env] In backend/.env use exactly: GOOGLE_MAPS_API_KEY=your_key (no quotes, no spaces).');
 }
 console.log('🚀 Server starting with Vercel CORS fix applied!');
 // Now import everything else after env is loaded
 const express_1 = __importDefault(require("express"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const database_1 = require("./config/database");
 // Import routes
 const menu_routes_1 = __importDefault(require("./routes/menu.routes"));
 const contact_routes_1 = __importDefault(require("./routes/contact.routes"));
+const catering_routes_1 = __importDefault(require("./routes/catering.routes"));
 const order_routes_1 = __importDefault(require("./routes/order.routes"));
 const orders_routes_1 = __importDefault(require("./routes/orders.routes"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
@@ -84,25 +94,73 @@ console.log('☁️ Cloudinary Config:', {
     api_key: process.env.CLOUDINARY_API_KEY || 'Missing',
     has_secret: !!process.env.CLOUDINARY_API_SECRET
 });
+if (!process.env.JWT_SECRET || !String(process.env.JWT_SECRET).trim()) {
+    console.error('❌ JWT_SECRET must be set in environment (e.g. backend/.env). Refusing to start.');
+    process.exit(1);
+}
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 4000;
-// CORS middleware - MUST be first, before any other middleware or routes
-// Allow Vercel and Localhost to access the server
+// Trust proxy so X-Forwarded-For is used (Render / reverse proxy)
+app.set('trust proxy', 1);
+// Allowed origins: production domains + optional list from env (ALLOWED_ORIGINS)
+const envOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : [];
+const allowedOrigins = [
+    'https://megadim-catering.vercel.app',
+    'https://www.megadim-catering.com',
+    'https://megadim-catering.com',
+    ...envOrigins
+];
+if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:4200');
+}
+// CORS – strict: only allowed origins, credentials enabled
 app.use((0, cors_1.default)({
-    origin: [
-        'http://localhost:4200', // Local development
-        'https://magadim-backend.onrender.com', // Render backend (if needed)
-        /\.vercel\.app$/ // All Vercel preview and production deployments (matches *.vercel.app)
-    ],
+    origin: (origin, callback) => {
+        if (!origin)
+            return callback(null, true); // same-origin or non-browser (e.g. Postman)
+        if (allowedOrigins.includes(origin))
+            return callback(null, true);
+        callback(null, false); // disallow: no Access-Control-Allow-Origin sent
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
-// Security headers (XSS, clickjacking, etc.)
-app.use((0, helmet_1.default)());
-// Middleware
+// Security headers: Helmet – explicit X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP
+app.use((0, helmet_1.default)({
+    frameguard: { action: 'deny' },
+    noSniff: true,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
+            connectSrc: ["'self'"],
+            frameSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"]
+        }
+    },
+    crossOriginEmbedderPolicy: false
+}));
+// General API rate limit: 100 requests per 15 minutes per IP (DDoS / abuse protection)
+const generalApiLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: { success: false, message: 'Too many requests, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+app.use('/api', generalApiLimiter);
+// Body parsing
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true })); // For handling form data, including multipart
+app.use((0, cookie_parser_1.default)());
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.status(200).json({
@@ -118,6 +176,10 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => {
     res.send('✅ API is running on Port ' + PORT);
 });
+// robots.txt for crawlers
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain').send('User-agent: *\nAllow: /');
+});
 // MongoDB Connection - Use centralized database config
 (0, database_1.connectDatabase)().catch((err) => {
     console.error('❌ Failed to connect to MongoDB:', err);
@@ -129,6 +191,7 @@ app.use('/api/settings', settings_routes_1.default);
 app.use('/api/delivery', delivery_routes_1.default);
 app.use('/api/menu', menu_routes_1.default);
 app.use('/api/contact', contact_routes_1.default);
+app.use('/api/catering', catering_routes_1.default);
 app.use('/api/order', order_routes_1.default);
 app.use('/api/orders', orders_routes_1.default);
 app.use('/api/auth', auth_routes_1.default);
@@ -163,6 +226,11 @@ app.listen(PORT, () => __awaiter(void 0, void 0, void 0, function* () {
         }
         catch (err) {
             console.error('❌ SMTP connection failed on startup:', (err === null || err === void 0 ? void 0 : err.message) || err);
+            console.error('❌ Full SMTP startup error:', {
+                message: err === null || err === void 0 ? void 0 : err.message,
+                code: err === null || err === void 0 ? void 0 : err.code,
+                response: err === null || err === void 0 ? void 0 : err.response
+            });
         }
     }
     else {

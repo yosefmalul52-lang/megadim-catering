@@ -309,7 +309,7 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
   }
 
   // Get kitchen preparation report
-  getKitchenReport(): Observable<{ 
+  getKitchenReport(date?: string): Observable<{ 
     productName: string;
     category: string;
     totalPackages: number; 
@@ -318,6 +318,7 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
     unit?: string;
     isUnitOnly?: boolean;
   }[]> {
+    const params = date ? { date } : undefined;
     return this.http.get<{ 
       success: boolean; 
       data: { 
@@ -330,7 +331,8 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
         isUnitOnly?: boolean;
       }[] 
     }>(
-      `${environment.apiUrl}/order/kitchen-report`
+      `${environment.apiUrl}/order/kitchen-report`,
+      { params }
     ).pipe(
       map(response => response.data),
       catchError(error => {

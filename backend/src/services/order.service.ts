@@ -510,7 +510,7 @@ export class OrderService {
 
   // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
   // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
-  async getKitchenReport(): Promise<{ 
+  async getKitchenReport(targetDate?: string): Promise<{ 
     productName: string;
     category: string;
     totalPackages: number; 
@@ -523,16 +523,37 @@ export class OrderService {
       // Active order statuses - include all variations
       const activeStatuses = ['new', 'in-progress', 'ready', 'accepted', 'processing', 'בטיפול', 'חדש', 'New'];
       
+      const normalizedTargetDate =
+        typeof targetDate === 'string' && targetDate.trim()
+          ? (targetDate.includes('T') ? targetDate.slice(0, 10) : targetDate.trim())
+          : '';
+
+      const matchStage: Record<string, any> = {
+        status: { $in: activeStatuses }
+      };
+
+      // Kitchen prep should use the intended delivery/pickup date (customerDetails.eventDate).
+      // Match exact YYYY-MM-DD and also tolerate values that include a time suffix.
+      if (normalizedTargetDate) {
+        const escapedDate = normalizedTargetDate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const dateRegex = new RegExp(`^${escapedDate}`);
+        matchStage.$or = [
+          { 'customerDetails.eventDate': normalizedTargetDate },
+          { 'customerDetails.eventDate': dateRegex }
+        ];
+      }
+
       console.log('🔍 OrderService: Starting kitchen report with aggregation pipeline');
       console.log('🔍 OrderService: Filtering by statuses:', activeStatuses);
+      if (normalizedTargetDate) {
+        console.log('🔍 OrderService: Filtering kitchen report by event date:', normalizedTargetDate);
+      }
 
       // Use aggregation pipeline with $lookup to populate product details
       const aggregationResult: any[] = await Order.aggregate([
         // Step 1: Match active orders
         {
-          $match: {
-            status: { $in: activeStatuses }
-          }
+          $match: matchStage
         },
         
         // Step 2: Unwind items array

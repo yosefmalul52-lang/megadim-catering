@@ -169,6 +169,10 @@ const MenuItemSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false
     },
+    order: {
+        type: Number,
+        default: 0
+    },
     servingSize: {
         type: String,
         trim: true

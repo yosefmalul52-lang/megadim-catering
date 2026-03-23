@@ -18,7 +18,10 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const order_controller_1 = require("../controllers/order.controller");
 const router = express_1.default.Router();
 const orderController = new order_controller_1.OrderController();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET must be set in environment (e.g. backend/.env)');
+}
 // Rate limiter for checkout endpoint only
 const checkoutLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -32,19 +35,15 @@ const checkoutLimiter = (0, express_rate_limit_1.default)({
 const { authenticate, authorize } = require('../middleware/auth');
 // Optional authentication middleware - doesn't fail if no token (for guest orders)
 const optionalAuthenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    // KZ: Log Authorization header
+    var _j;
+    const cookieToken = (_j = req.cookies) === null || _j === void 0 ? void 0 : _j.token;
     const authHeader = req.headers.authorization;
-    console.log('KZ Authorization Header:', authHeader);
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        // No token provided - continue as guest
-        console.log('KZ: No Authorization header or not Bearer token - proceeding as guest');
+    const bearerToken = (authHeader === null || authHeader === void 0 ? void 0 : authHeader.startsWith('Bearer ')) ? authHeader.replace('Bearer ', '').trim() : null;
+    const token = cookieToken || bearerToken;
+    if (!token) {
         req.user = null;
         return next();
     }
-    // Token provided - try to authenticate
-    // KZ: Ensure we correctly strip 'Bearer '
-    const token = authHeader.replace('Bearer ', '').trim();
-    console.log('KZ: Extracted token (first 20 chars):', token.substring(0, 20) + '...');
     try {
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
         console.log('KZ Decoded Token:', JSON.stringify(decoded, null, 2));
@@ -91,21 +90,25 @@ const optionalAuthenticate = (req, res, next) => __awaiter(void 0, void 0, void 
 // Public routes - checkout is rate-limited and optionally authenticated
 router.post('/checkout', checkoutLimiter, optionalAuthenticate, orderController.submitOrder);
 router.post('/send', checkoutLimiter, orderController.sendOrder);
-// Customer routes (Protected with JWT authentication)
+// Customer routes (authenticated; returns only current user's orders)
 router.get('/my-orders', authenticate, orderController.getMyOrders);
-// Admin routes (Protected with JWT authentication)
-router.get('/', authenticate, orderController.getAllOrders);
-router.get('/stats', authenticate, orderController.getOrderStatistics);
-router.get('/stats/revenue', authenticate, orderController.getRevenueStats);
-router.get('/kitchen-report', authenticate, orderController.getKitchenReport);
-router.get('/delivery-report', authenticate, orderController.getDeliveryReport);
-router.get('/recent', authenticate, orderController.getRecentOrders);
-router.get('/search', authenticate, orderController.searchOrders);
-router.get('/dashboard-stats', authenticate, orderController.getDashboardStats);
+// Admin-only: list all orders and business reports (GET / returns all orders; customers use /my-orders)
+router.get('/', authenticate, authorize('admin'), orderController.getAllOrders);
+router.get('/stats', authenticate, authorize('admin'), orderController.getOrderStatistics);
+router.get('/stats/revenue', authenticate, authorize('admin'), orderController.getRevenueStats);
+router.get('/kitchen-report', authenticate, authorize('admin'), orderController.getKitchenReport);
+router.get('/delivery-report', authenticate, authorize('admin'), orderController.getDeliveryReport);
+router.get('/recent', authenticate, authorize('admin'), orderController.getRecentOrders);
+router.get('/search', authenticate, authorize('admin'), orderController.searchOrders);
+router.get('/dashboard-stats', authenticate, authorize('admin'), orderController.getDashboardStats);
+// Get order by ID (authenticate only; controller restricts to own order for non-admin)
 router.get('/:id', authenticate, orderController.getOrderById);
-router.put('/:id/restore', authenticate, orderController.restoreOrder);
+// Admin-only: mutate orders
+router.put('/:id/restore', authenticate, authorize('admin'), orderController.restoreOrder);
 router.delete('/:id/permanent', authenticate, authorize('admin'), orderController.permanentDeleteOrder);
-router.put('/:id/status', authenticate, orderController.updateOrderStatus);
-router.patch('/:id/status', authenticate, orderController.updateOrderStatus);
-router.delete('/:id', authenticate, orderController.deleteOrder);
+router.put('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
+router.patch('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
+router.patch('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
+router.put('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
+router.delete('/:id', authenticate, authorize('admin'), orderController.deleteOrder);
 exports.default = router;

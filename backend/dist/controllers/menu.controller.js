@@ -349,7 +349,7 @@ class MenuController {
             if (popular !== undefined) {
                 query.isPopular = popular === 'true';
             }
-            const menuItems = yield menuItem_1.default.find(query);
+            const menuItems = yield menuItem_1.default.find(query).sort({ order: 1 });
             res.status(200).json({
                 success: true,
                 data: menuItems,
@@ -382,7 +382,7 @@ class MenuController {
             const menuItems = yield menuItem_1.default.find({
                 category: category,
                 isAvailable: true
-            });
+            }).sort({ order: 1 });
             res.status(200).json({
                 success: true,
                 data: menuItems,
@@ -567,6 +567,25 @@ class MenuController {
                 timestamp: new Date().toISOString()
             });
         }));
+        /** PUT /api/menu/reorder — bulk update order field. Body: [{ id: string, order: number }] */
+        this.reorderMenuItems = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const items = req.body;
+            if (!Array.isArray(items) || items.length === 0) {
+                throw (0, errorHandler_1.createValidationError)('Body must be a non-empty array of { id, order }');
+            }
+            const ops = items.map((entry) => ({
+                updateOne: {
+                    filter: { _id: entry.id },
+                    update: { $set: { order: entry.order } }
+                }
+            }));
+            yield menuItem_1.default.bulkWrite(ops);
+            res.status(200).json({
+                success: true,
+                message: 'Order updated successfully',
+                timestamp: new Date().toISOString()
+            });
+        }));
         // Get menu statistics (for admin dashboard)
         this.getMenuStatistics = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             const totalItems = yield menuItem_1.default.countDocuments();
@@ -607,6 +626,23 @@ class MenuController {
             res.status(200).json({
                 success: true,
                 data: stats,
+                timestamp: new Date().toISOString()
+            });
+        }));
+        /**
+         * POST /api/menu/migrate-cholent-desserts-category
+         * One-time migration: set category to "קינוחים צ'ולנט" for items that have
+         * category "קינוחים" and are intended for the Cholent menu only (menuTypes is ['cholent']).
+         */
+        this.migrateCholentDessertsCategory = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            const result = yield menuItem_1.default.updateMany({ category: 'קינוחים', menuTypes: ['cholent'] }, { $set: { category: "קינוחים צ'ולנט" } });
+            const updated = (_j = result.modifiedCount) !== null && _j !== void 0 ? _j : 0;
+            console.log(`[Menu Migration] Set category to קינוחים צ'ולנט for ${updated} cholent-only dessert item(s)`);
+            res.status(200).json({
+                success: true,
+                message: `Updated ${updated} item(s) to category "קינוחים צ'ולנט".`,
+                modifiedCount: updated,
                 timestamp: new Date().toISOString()
             });
         }));

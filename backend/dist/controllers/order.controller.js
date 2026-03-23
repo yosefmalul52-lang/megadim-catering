@@ -173,10 +173,12 @@ class OrderController {
             catch (emailErr) {
                 console.error('Email failed to send, but order was saved:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
             }
+            const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
             res.status(201).json({
                 success: true,
                 orderId: savedOrder._id.toString(),
-                order: savedOrder.toObject ? savedOrder.toObject() : savedOrder,
+                orderNumber: plainOrder.orderNumber,
+                order: plainOrder,
                 message: 'Order created successfully'
             });
         }));
@@ -326,22 +328,24 @@ class OrderController {
                 timestamp: new Date().toISOString()
             });
         }));
-        // Get order by ID (protected - user can only access their own orders)
+        // Get order by ID (customer: own orders only; admin: any order)
         this.getOrderById = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            var _j, _k;
             const { id } = req.params;
-            const userId = ((_j = req.user) === null || _j === void 0 ? void 0 : _j.id) || ((_k = req.user) === null || _k === void 0 ? void 0 : _k._id);
+            const user = req.user;
+            const userId = (user === null || user === void 0 ? void 0 : user.id) || (user === null || user === void 0 ? void 0 : user._id);
+            const isAdmin = (user === null || user === void 0 ? void 0 : user.role) === 'admin';
             if (!id) {
                 throw (0, errorHandler_1.createValidationError)('Order ID is required');
             }
-            if (!userId) {
+            if (!user || !userId) {
                 return res.status(401).json({
                     success: false,
                     message: 'Authentication required'
                 });
             }
-            // Get order and verify it belongs to the user
-            const order = yield this.orderService.getOrderById(id, userId);
+            const order = isAdmin
+                ? yield this.orderService.getOrderByIdForAdmin(id)
+                : yield this.orderService.getOrderById(id, userId);
             if (!order) {
                 throw (0, errorHandler_1.createNotFoundError)('Order');
             }
@@ -387,6 +391,35 @@ class OrderController {
                 message: status === 'processing' ? 'Order approved and customer notified' : 'Order status updated successfully',
                 timestamp: new Date().toISOString()
             });
+        }));
+        /** PATCH/PUT /api/order/:id/date – update order event/delivery date (Admin). */
+        this.updateOrderDate = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q;
+            try {
+                const { id } = req.params;
+                const newDate = (_k = (_j = req.body) === null || _j === void 0 ? void 0 : _j.eventDate) !== null && _k !== void 0 ? _k : (_q = req.body) === null || _q === void 0 ? void 0 : _q.newDate;
+                if (!id) {
+                    throw (0, errorHandler_1.createValidationError)('Order ID is required');
+                }
+                if (newDate === undefined || newDate === null || String(newDate).trim() === '') {
+                    throw (0, errorHandler_1.createValidationError)('eventDate or newDate is required');
+                }
+                const dateStr = String(newDate).trim();
+                const updatedOrder = yield this.orderService.updateOrderEventDate(id, dateStr);
+                if (!updatedOrder) {
+                    throw (0, errorHandler_1.createNotFoundError)('Order');
+                }
+                res.status(200).json({
+                    success: true,
+                    data: updatedOrder,
+                    message: 'Order event date updated successfully',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            catch (err) {
+                console.error('Error updating order date:', err);
+                throw err;
+            }
         }));
         /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
         this.getDashboardStats = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
@@ -493,6 +526,7 @@ class OrderController {
         // Get kitchen preparation report
         this.getKitchenReport = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             try {
+                const targetDate = typeof req.query.date === 'string' ? req.query.date : undefined;
                 // DIAGNOSTIC LOG: Check what orders exist in DB
                 const OrderModel = require('../models/Order').default;
                 const allOrders = yield OrderModel.find({}, 'status items').lean();
@@ -509,7 +543,7 @@ class OrderController {
                         console.log('🔍 SAMPLE ITEM PRODUCTID TYPE:', typeof allOrders[0].items[0].productId);
                     }
                 }
-                const report = yield this.orderService.getKitchenReport();
+                const report = yield this.orderService.getKitchenReport(targetDate);
                 // Log the final result
                 console.log('🥗 KITCHEN REPORT RESULT:', report);
                 console.log('🥗 KITCHEN REPORT RESULT COUNT:', report.length);
