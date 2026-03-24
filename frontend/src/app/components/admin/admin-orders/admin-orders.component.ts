@@ -630,6 +630,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const payloadItems = this.editableItems
       .map((item) => ({
         productId: String(item.productId || '').trim(),
+        name: String(item.name || '').trim(),
         quantity: Number(item.quantity || 0)
       }))
       .filter((item) => item.productId && item.quantity > 0);
@@ -643,10 +644,27 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.isSavingItems = true;
     this.orderService.updateOrderItems(orderId, payloadItems).subscribe({
       next: (updated) => {
-        this.selectedOrder = updated;
+        const normalizedUpdated: Order = {
+          ...updated,
+          id: (updated._id || updated.id || '').toString()
+        };
+
+        // Immediate UI reactivity: replace the updated order in local arrays.
+        const replaceInList = (list: Order[]) => {
+          const idx = list.findIndex((o) => ((o._id || o.id || '').toString() === orderId));
+          if (idx !== -1) list[idx] = normalizedUpdated;
+        };
+        replaceInList(this.orders);
+        replaceInList(this.archiveOrders);
+
+        this.selectedOrder = normalizedUpdated;
         this.cancelEditingItems();
+        // Auto-close details modal after successful save.
+        this.closeModal();
+
         this.successMessage = 'פריטי ההזמנה עודכנו בהצלחה';
         setTimeout(() => (this.successMessage = ''), 3000);
+        // Keep data in sync with server snapshot.
         this.loadOrders();
         this.loadStats();
       },
