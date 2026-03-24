@@ -294,6 +294,7 @@ class OrderService {
                 var _j;
                 const item = rawItem || {};
                 const productId = String(item.productId || item.id || '').trim();
+                const productName = String(item.name || '').trim();
                 const quantity = Number(item.quantity);
                 if (!productId) {
                     throw new Error(`items[${index}].productId (or id) is required`);
@@ -305,19 +306,56 @@ class OrderService {
                 // Some legacy/cart flows send composite ids like "<objectId>-<timestamp>".
                 // In that case, safely extract the ObjectId prefix.
                 let lookupProductId = productId;
+                let product = null;
+                const escapedRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const normalizedBaseName = productName
+                    ? productName
+                        // Remove variant suffix in parentheses: "סלט חומוס (500 מ"ל - 500)" -> "סלט חומוס"
+                        .replace(/\s*\([^)]*\)\s*$/, '')
+                        .trim()
+                    : '';
+                const findByNameFallback = () => __awaiter(this, void 0, void 0, function* () {
+                    if (!productName && !normalizedBaseName)
+                        return null;
+                    const nameCandidates = [productName, normalizedBaseName].filter(Boolean);
+                    // Try exact match first (fast + deterministic)
+                    for (const candidate of nameCandidates) {
+                        const exact = yield menuItem_1.default.findOne({ name: candidate }).lean();
+                        if (exact)
+                            return exact;
+                    }
+                    // Then prefix match on normalized base name (handles extra suffixes/formatting)
+                    if (normalizedBaseName) {
+                        return menuItem_1.default.findOne({
+                            name: { $regex: `^${escapedRegex(normalizedBaseName)}(?:\\s|\\(|$)`, $options: 'i' }
+                        }).lean();
+                    }
+                    return null;
+                });
                 if (!mongoose_1.default.Types.ObjectId.isValid(lookupProductId)) {
                     const objectIdPrefix = (_j = lookupProductId.match(/^[a-fA-F0-9]{24}/)) === null || _j === void 0 ? void 0 : _j[0];
                     if (objectIdPrefix && mongoose_1.default.Types.ObjectId.isValid(objectIdPrefix)) {
                         lookupProductId = objectIdPrefix;
+                        product = yield menuItem_1.default.findById(lookupProductId).lean();
                     }
                     else {
-                        throw new Error(`Invalid product id format at items[${index}] (${productId})`);
+                        // Legacy compatibility: non-ObjectId ids (e.g. "6")
+                        product = yield findByNameFallback();
+                        if (!product) {
+                            throw new Error(`Invalid product id format at items[${index}] (${productId})`);
+                        }
                     }
                 }
-                // Security: fetch authentic product data (especially price) from DB.
-                const product = yield menuItem_1.default.findById(lookupProductId).lean();
+                else {
+                    // Security: fetch authentic product data (especially price) from DB.
+                    product = yield menuItem_1.default.findById(lookupProductId).lean();
+                }
+                // If id looked valid but no DB row found (deleted/legacy mismatch), fallback by name.
                 if (!product) {
-                    throw new Error(`Product not found for items[${index}] (id=${lookupProductId})`);
+                    product = yield findByNameFallback();
+                }
+                if (!product) {
+                    throw new Error(`Product not found for items[${index}] (id=${lookupProductId}${productName ? `, name=${productName}` : ''})`);
                 }
                 const authenticPrice = Number(product.price);
                 if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
