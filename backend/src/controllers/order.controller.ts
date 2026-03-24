@@ -486,6 +486,31 @@ export class OrderController {
     }
   });
 
+  /** PUT /api/order/admin/:id/items – replace order items and recalculate total from DB prices (Admin). */
+  updateOrderItems = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const items = req.body?.items;
+
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      throw createValidationError('items array is required and must not be empty');
+    }
+
+    const updatedOrder = await this.orderService.updateOrderItems(id, items);
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Order items updated and total recalculated successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
   getDashboardStats = asyncHandler(async (req: Request, res: Response) => {
     const stats = await this.orderService.getDashboardStats();

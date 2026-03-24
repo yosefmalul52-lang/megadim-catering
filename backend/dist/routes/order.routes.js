@@ -110,5 +110,6 @@ router.put('/:id/status', authenticate, authorize('admin'), orderController.upda
 router.patch('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
 router.patch('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
 router.put('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
+router.put('/admin/:id/items', authenticate, authorize('admin'), orderController.updateOrderItems);
 router.delete('/:id', authenticate, authorize('admin'), orderController.deleteOrder);
 exports.default = router;

@@ -421,6 +421,28 @@ class OrderController {
                 throw err;
             }
         }));
+        /** PUT /api/order/admin/:id/items – replace order items and recalculate total from DB prices (Admin). */
+        this.updateOrderItems = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            const { id } = req.params;
+            const items = (_j = req.body) === null || _j === void 0 ? void 0 : _j.items;
+            if (!id) {
+                throw (0, errorHandler_1.createValidationError)('Order ID is required');
+            }
+            if (!Array.isArray(items) || items.length === 0) {
+                throw (0, errorHandler_1.createValidationError)('items array is required and must not be empty');
+            }
+            const updatedOrder = yield this.orderService.updateOrderItems(id, items);
+            if (!updatedOrder) {
+                throw (0, errorHandler_1.createNotFoundError)('Order');
+            }
+            res.status(200).json({
+                success: true,
+                data: updatedOrder,
+                message: 'Order items updated and total recalculated successfully',
+                timestamp: new Date().toISOString()
+            });
+        }));
         /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
         this.getDashboardStats = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             const stats = yield this.orderService.getDashboardStats();

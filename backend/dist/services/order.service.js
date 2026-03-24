@@ -279,6 +279,56 @@ class OrderService {
             }
         });
     }
+    /**
+     * Update order items securely (Admin):
+     * - Uses MenuItem as the single source of truth for price/name/category.
+     * - Recalculates totalPrice on the server from authenticated product prices.
+     */
+    updateOrderItems(orderId, newItems) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!Array.isArray(newItems) || newItems.length === 0) {
+                throw new Error('items array is required and must not be empty');
+            }
+            const normalizedItems = [];
+            for (let i = 0; i < newItems.length; i++) {
+                const item = newItems[i] || {};
+                const productId = String(item.productId || item.id || '').trim();
+                const quantity = Number(item.quantity);
+                if (!productId) {
+                    throw new Error(`items[${i}].productId (or id) is required`);
+                }
+                if (!Number.isFinite(quantity) || quantity <= 0) {
+                    throw new Error(`items[${i}].quantity must be a positive number`);
+                }
+                // Security: fetch authentic product data (especially price) from DB.
+                const product = yield menuItem_1.default.findById(productId).lean();
+                if (!product) {
+                    throw new Error(`Product not found for items[${i}] (id=${productId})`);
+                }
+                const authenticPrice = Number(product.price);
+                if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
+                    throw new Error(`Invalid product price in DB for product ${productId}`);
+                }
+                normalizedItems.push({
+                    productId: String(product._id || productId),
+                    name: String(product.name || item.name || ''),
+                    price: authenticPrice,
+                    quantity,
+                    category: product.category,
+                    imageUrl: product.imageUrl,
+                    description: product.description
+                });
+            }
+            const recalculatedTotalPrice = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const updated = yield Order_1.default.findByIdAndUpdate(orderId, {
+                $set: {
+                    items: normalizedItems,
+                    totalPrice: Math.round(recalculatedTotalPrice * 100) / 100
+                }
+            }, { new: true }).lean();
+            return updated;
+        });
+    }
     /** Update order event/delivery date (Admin). Sets customerDetails.eventDate (stored as YYYY-MM-DD). */
     updateOrderEventDate(orderId, eventDate) {
         return __awaiter(this, void 0, void 0, function* () {
