@@ -6,6 +6,7 @@ import { interval, Subscription } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 
 import { OrderService, Order, DashboardStats } from '../../../services/order.service';
+import { MenuService, MenuItem } from '../../../services/menu.service';
 import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
 import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-order-builder.component';
 
@@ -18,6 +19,7 @@ import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-orde
 })
 export class AdminOrdersComponent implements OnInit, OnDestroy {
   orderService = inject(OrderService);
+  menuService = inject(MenuService);
   private route = inject(ActivatedRoute);
 
   /** When true, hide orders list and show full-page manual order builder */
@@ -46,6 +48,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   /** Current value of the date input (YYYY-MM-DD). */
   editEventDateValue = '';
   dateUpdatingId: string | null = null;
+  isEditingItems = false;
+  editableItems: Array<{ productId: string; name: string; quantity: number; category?: string; unitPrice?: number }> = [];
+  availableMenuItems: MenuItem[] = [];
+  searchTerm = '';
+  isSavingItems = false;
 
   readonly statusOptions = [
     { value: 'pending', label: 'ממתין' },
@@ -531,6 +538,124 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   closeModal(): void {
     this.selectedOrder = null;
     this.isEditingEventDate = false;
+    this.isEditingItems = false;
+    this.editableItems = [];
+    this.searchTerm = '';
+  }
+
+  startEditingItems(): void {
+    if (!this.selectedOrder) return;
+    this.isEditingItems = true;
+    this.searchTerm = '';
+    this.editableItems = (this.selectedOrder.items || []).map((item) => ({
+      productId: String((item as any).productId || (item as any).id || ''),
+      name: String(item.name || ''),
+      quantity: Number(item.quantity || 1),
+      category: String((item as any).category || ''),
+      unitPrice: Number((item as any).price || 0)
+    }));
+
+    if (!this.availableMenuItems.length) {
+      this.menuService.getMenuItems().subscribe({
+        next: (items) => {
+          this.availableMenuItems = Array.isArray(items) ? items.filter((i) => (i._id || i.id)) : [];
+        },
+        error: () => {
+          this.errorMessage = 'שגיאה בטעינת רשימת המוצרים';
+          setTimeout(() => (this.errorMessage = ''), 3000);
+        }
+      });
+    }
+  }
+
+  cancelEditingItems(): void {
+    this.isEditingItems = false;
+    this.editableItems = [];
+    this.searchTerm = '';
+    this.isSavingItems = false;
+  }
+
+  removeEditableItem(index: number): void {
+    this.editableItems.splice(index, 1);
+  }
+
+  get searchResults(): MenuItem[] {
+    const term = (this.searchTerm || '').trim().toLowerCase();
+    if (!term) return [];
+    return this.availableMenuItems
+      .filter((p) => {
+        const name = String(p.name || '').toLowerCase();
+        const category = String(p.category || '').toLowerCase();
+        return name.includes(term) || category.includes(term);
+      })
+      .slice(0, 50);
+  }
+
+  get editableSubtotal(): number {
+    return this.editableItems.reduce((sum, item) => {
+      const fallbackPrice = Number(item.unitPrice || 0);
+      const menuPrice = Number(
+        this.availableMenuItems.find((p) => String(p._id || p.id || '') === item.productId)?.price ?? fallbackPrice
+      );
+      const unitPrice = Number.isFinite(menuPrice) ? menuPrice : 0;
+      return sum + unitPrice * Number(item.quantity || 0);
+    }, 0);
+  }
+
+  addProductToOrder(product: MenuItem): void {
+    const productId = String(product._id || product.id || '').trim();
+    if (!productId) return;
+
+    const existing = this.editableItems.find((i) => i.productId === productId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      this.editableItems.push({
+        productId,
+        name: product.name,
+        quantity: 1,
+        category: product.category || '',
+        unitPrice: Number(product.price || 0)
+      });
+    }
+    this.searchTerm = '';
+  }
+
+  saveEditedItems(): void {
+    const order = this.selectedOrder;
+    if (!order) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId) return;
+
+    const payloadItems = this.editableItems
+      .map((item) => ({
+        productId: String(item.productId || '').trim(),
+        quantity: Number(item.quantity || 0)
+      }))
+      .filter((item) => item.productId && item.quantity > 0);
+
+    if (!payloadItems.length) {
+      this.errorMessage = 'יש לבחור לפחות מוצר אחד להזמנה';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+
+    this.isSavingItems = true;
+    this.orderService.updateOrderItems(orderId, payloadItems).subscribe({
+      next: (updated) => {
+        this.selectedOrder = updated;
+        this.cancelEditingItems();
+        this.successMessage = 'פריטי ההזמנה עודכנו בהצלחה';
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.loadOrders();
+        this.loadStats();
+      },
+      error: (err) => {
+        this.isSavingItems = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון פריטי ההזמנה';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
   }
 
   /** Return event date as YYYY-MM-DD for <input type="date">. */

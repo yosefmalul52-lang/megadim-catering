@@ -913,6 +913,195 @@ $border: #e2e8f0;
   gap: 0.75rem;
 }
 
+.items-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.btn-edit-items {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid $border;
+  background: #fff;
+  color: $brand-dark;
+  border-radius: 8px;
+  padding: 0.45rem 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-edit-items:hover {
+  background: rgba($brand-gold, 0.14);
+  border-color: rgba($brand-gold, 0.6);
+}
+
+.items-edit-panel {
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+  background: #fafafa;
+}
+
+.items-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.editable-item-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 42px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.editable-item-name {
+  font-weight: 600;
+  color: $brand-dark;
+}
+
+.input-item-qty {
+  border: 1px solid $border;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+}
+
+.btn-remove-item {
+  width: 42px;
+  height: 38px;
+  border: 1px solid #f3c2c2;
+  background: #fff;
+  color: #c62828;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-remove-item:hover {
+  background: #fff5f5;
+}
+
+.add-product-row {
+  margin-bottom: 0.85rem;
+}
+
+.autocomplete-wrapper {
+  position: relative;
+}
+
+.input-add-product {
+  width: 100%;
+  border: 1px solid $border;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+  font-family: inherit;
+}
+
+.autocomplete-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 250px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.autocomplete-item {
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid #f1f1f1;
+  cursor: pointer;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover {
+  background: #f8fbff;
+}
+
+.autocomplete-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.autocomplete-name {
+  color: $brand-dark;
+  font-weight: 600;
+}
+
+.autocomplete-price {
+  color: #1f3444;
+  font-weight: 700;
+}
+
+.autocomplete-meta {
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.local-subtotal {
+  margin-top: 0.45rem;
+  margin-bottom: 0.85rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px dashed #d8d8d8;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  color: $brand-dark;
+}
+
+.edit-items-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.btn-save-items,
+.btn-cancel-items {
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid $border;
+}
+
+.btn-save-items {
+  border-color: $brand-dark;
+  background: $brand-dark;
+  color: #fff;
+}
+
+.btn-save-items:hover:not(:disabled) {
+  background: darken($brand-dark, 6%);
+}
+
+.btn-cancel-items {
+  background: #fff;
+  color: $slate;
+}
+
+.btn-cancel-items:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
 .order-item {
   display: flex;
   justify-content: space-between;

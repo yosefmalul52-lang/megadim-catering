@@ -34,9 +34,12 @@ export interface OrderResponse {
 }
 
 export interface OrderItem {
+  productId?: string;
+  id?: string;
   name: string;
   price: number;
   quantity: number;
+  category?: string;
   selectedOption?: {
     label: string;
     amount: string;
@@ -235,6 +238,23 @@ export class OrderService {
       }),
       catchError((error: any) => {
         console.error('Error updating order date:', error);
+        throw error;
+      })
+    );
+  }
+
+  /** Admin: replace items of an existing order and let backend recalculate totalPrice from DB prices. */
+  updateOrderItems(orderId: string, items: Array<{ productId?: string; id?: string; quantity: number }>): Observable<Order> {
+    return this.http.put<{ success: boolean; data: Order }>(
+      `${environment.apiUrl}/order/admin/${orderId}/items`,
+      { items }
+    ).pipe(
+      map((response) => ({
+        ...response.data,
+        id: response.data._id || response.data.id
+      })),
+      catchError((error: any) => {
+        console.error('Error updating order items:', error);
         throw error;
       })
     );

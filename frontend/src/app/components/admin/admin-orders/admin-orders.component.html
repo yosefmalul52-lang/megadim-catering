@@ -495,6 +495,81 @@
             </div>
             <div class="details-section">
               <h3>פריטי ההזמנה</h3>
+              <div class="items-actions">
+                @if (!isEditingItems) {
+                  <button type="button" class="btn-edit-items" (click)="startEditingItems()">
+                    <i class="fas fa-pen"></i>
+                    ערוך מוצרים
+                  </button>
+                }
+              </div>
+
+              @if (isEditingItems) {
+                <div class="items-edit-panel">
+                  <div class="items-edit-list">
+                    @for (item of editableItems; track item.productId + '-' + $index; let i = $index) {
+                      <div class="editable-item-row">
+                        <div class="editable-item-name">{{ item.name }}</div>
+                        <input
+                          type="number"
+                          min="1"
+                          class="input-item-qty"
+                          [ngModel]="item.quantity"
+                          (ngModelChange)="item.quantity = +$event"
+                        />
+                        <button type="button" class="btn-remove-item" (click)="removeEditableItem(i)">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    }
+                  </div>
+
+                  <div class="add-product-row autocomplete-wrapper">
+                    <input
+                      type="text"
+                      class="input-add-product"
+                      [ngModel]="searchTerm"
+                      (ngModelChange)="searchTerm = $event"
+                      placeholder="🔍 חפש מנה להוספה (לפי שם או קטגוריה)..."
+                    />
+
+                    @if (searchTerm.trim().length > 0 && searchResults.length > 0) {
+                      <ul class="autocomplete-results">
+                        @for (product of searchResults; track product._id || product.id || $index) {
+                          <li class="autocomplete-item" (click)="addProductToOrder(product)">
+                            <div class="autocomplete-main">
+                              <span class="autocomplete-name">{{ product.name }}</span>
+                              <span class="autocomplete-price">₪{{ (product.price || 0) | number:'1.0-2' }}</span>
+                            </div>
+                            <div class="autocomplete-meta">{{ product.category || 'ללא קטגוריה' }}</div>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+
+                  <div class="local-subtotal">
+                    <span>סה"כ ביניים לעריכה:</span>
+                    <strong>₪{{ editableSubtotal | number:'1.2-2' }}</strong>
+                  </div>
+
+                  <div class="edit-items-actions">
+                    <button
+                      type="button"
+                      class="btn-save-items"
+                      [disabled]="isSavingItems"
+                      (click)="saveEditedItems()"
+                    >
+                      @if (isSavingItems) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                      שמור שינויים
+                    </button>
+                    <button type="button" class="btn-cancel-items" [disabled]="isSavingItems" (click)="cancelEditingItems()">
+                      ביטול
+                    </button>
+                  </div>
+                </div>
+              }
+
               <div class="items-list">
                 @for (item of selectedOrder.items; track $index) {
                   <div class="order-item">
