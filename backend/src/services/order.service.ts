@@ -1,5 +1,6 @@
 import Order, { IOrder } from '../models/Order';
 import MenuItem from '../models/menuItem';
+import mongoose from 'mongoose';
 import { CreateOrderRequest, CreateCheckoutOrderRequest, OrderResponse } from '../models/order.model';
 import { emailService } from './email.service';
 
@@ -283,49 +284,54 @@ export class OrderService {
       throw new Error('items array is required and must not be empty');
     }
 
-    const normalizedItems: Array<{
-      productId: string;
-      name: string;
-      price: number;
-      quantity: number;
-      category?: string;
-      imageUrl?: string;
-      description?: string;
-    }> = [];
+    const normalizedItems = await Promise.all(
+      newItems.map(async (rawItem: any, index: number) => {
+        const item = rawItem || {};
+        const productId = String(item.productId || item.id || '').trim();
+        const quantity = Number(item.quantity);
 
-    for (let i = 0; i < newItems.length; i++) {
-      const item = newItems[i] || {};
-      const productId = String(item.productId || item.id || '').trim();
-      const quantity = Number(item.quantity);
+        if (!productId) {
+          throw new Error(`items[${index}].productId (or id) is required`);
+        }
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          throw new Error(`items[${index}].quantity must be a positive number`);
+        }
 
-      if (!productId) {
-        throw new Error(`items[${i}].productId (or id) is required`);
-      }
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new Error(`items[${i}].quantity must be a positive number`);
-      }
+        // Prevent CastError crash on invalid ObjectId values.
+        // Some legacy/cart flows send composite ids like "<objectId>-<timestamp>".
+        // In that case, safely extract the ObjectId prefix.
+        let lookupProductId = productId;
+        if (!mongoose.Types.ObjectId.isValid(lookupProductId)) {
+          const objectIdPrefix = lookupProductId.match(/^[a-fA-F0-9]{24}/)?.[0];
+          if (objectIdPrefix && mongoose.Types.ObjectId.isValid(objectIdPrefix)) {
+            lookupProductId = objectIdPrefix;
+          } else {
+            throw new Error(`Invalid product id format at items[${index}] (${productId})`);
+          }
+        }
 
-      // Security: fetch authentic product data (especially price) from DB.
-      const product = await MenuItem.findById(productId).lean();
-      if (!product) {
-        throw new Error(`Product not found for items[${i}] (id=${productId})`);
-      }
+        // Security: fetch authentic product data (especially price) from DB.
+        const product = await MenuItem.findById(lookupProductId).lean();
+        if (!product) {
+          throw new Error(`Product not found for items[${index}] (id=${lookupProductId})`);
+        }
 
-      const authenticPrice = Number((product as any).price);
-      if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
-        throw new Error(`Invalid product price in DB for product ${productId}`);
-      }
+        const authenticPrice = Number((product as any).price);
+        if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
+          throw new Error(`Invalid product price in DB for product ${lookupProductId}`);
+        }
 
-      normalizedItems.push({
-        productId: String((product as any)._id || productId),
-        name: String((product as any).name || item.name || ''),
-        price: authenticPrice,
-        quantity,
-        category: (product as any).category,
-        imageUrl: (product as any).imageUrl,
-        description: (product as any).description
-      });
-    }
+        return {
+          productId: String((product as any)._id || lookupProductId),
+          name: String((product as any).name || item.name || ''),
+          price: authenticPrice,
+          quantity,
+          category: (product as any).category,
+          imageUrl: (product as any).imageUrl,
+          description: (product as any).description
+        };
+      })
+    );
 
     const recalculatedTotalPrice = normalizedItems.reduce(
       (sum, item) => sum + item.price * item.quantity,

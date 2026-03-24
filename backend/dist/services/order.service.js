@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrderService = void 0;
 const Order_1 = __importDefault(require("../models/Order"));
 const menuItem_1 = __importDefault(require("../models/menuItem"));
+const mongoose_1 = __importDefault(require("mongoose"));
 const email_service_1 = require("./email.service");
 class OrderService {
     constructor() {
@@ -289,36 +290,49 @@ class OrderService {
             if (!Array.isArray(newItems) || newItems.length === 0) {
                 throw new Error('items array is required and must not be empty');
             }
-            const normalizedItems = [];
-            for (let i = 0; i < newItems.length; i++) {
-                const item = newItems[i] || {};
+            const normalizedItems = yield Promise.all(newItems.map((rawItem, index) => __awaiter(this, void 0, void 0, function* () {
+                var _j;
+                const item = rawItem || {};
                 const productId = String(item.productId || item.id || '').trim();
                 const quantity = Number(item.quantity);
                 if (!productId) {
-                    throw new Error(`items[${i}].productId (or id) is required`);
+                    throw new Error(`items[${index}].productId (or id) is required`);
                 }
                 if (!Number.isFinite(quantity) || quantity <= 0) {
-                    throw new Error(`items[${i}].quantity must be a positive number`);
+                    throw new Error(`items[${index}].quantity must be a positive number`);
+                }
+                // Prevent CastError crash on invalid ObjectId values.
+                // Some legacy/cart flows send composite ids like "<objectId>-<timestamp>".
+                // In that case, safely extract the ObjectId prefix.
+                let lookupProductId = productId;
+                if (!mongoose_1.default.Types.ObjectId.isValid(lookupProductId)) {
+                    const objectIdPrefix = (_j = lookupProductId.match(/^[a-fA-F0-9]{24}/)) === null || _j === void 0 ? void 0 : _j[0];
+                    if (objectIdPrefix && mongoose_1.default.Types.ObjectId.isValid(objectIdPrefix)) {
+                        lookupProductId = objectIdPrefix;
+                    }
+                    else {
+                        throw new Error(`Invalid product id format at items[${index}] (${productId})`);
+                    }
                 }
                 // Security: fetch authentic product data (especially price) from DB.
-                const product = yield menuItem_1.default.findById(productId).lean();
+                const product = yield menuItem_1.default.findById(lookupProductId).lean();
                 if (!product) {
-                    throw new Error(`Product not found for items[${i}] (id=${productId})`);
+                    throw new Error(`Product not found for items[${index}] (id=${lookupProductId})`);
                 }
                 const authenticPrice = Number(product.price);
                 if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
-                    throw new Error(`Invalid product price in DB for product ${productId}`);
+                    throw new Error(`Invalid product price in DB for product ${lookupProductId}`);
                 }
-                normalizedItems.push({
-                    productId: String(product._id || productId),
+                return {
+                    productId: String(product._id || lookupProductId),
                     name: String(product.name || item.name || ''),
                     price: authenticPrice,
                     quantity,
                     category: product.category,
                     imageUrl: product.imageUrl,
                     description: product.description
-                });
-            }
+                };
+            })));
             const recalculatedTotalPrice = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const updated = yield Order_1.default.findByIdAndUpdate(orderId, {
                 $set: {

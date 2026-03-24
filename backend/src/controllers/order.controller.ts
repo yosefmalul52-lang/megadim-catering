@@ -498,7 +498,14 @@ export class OrderController {
       throw createValidationError('items array is required and must not be empty');
     }
 
-    const updatedOrder = await this.orderService.updateOrderItems(id, items);
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.updateOrderItems(id, items);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to update order items';
+      // Input/model validation problems should return 400, not 500.
+      throw createValidationError(msg);
+    }
     if (!updatedOrder) {
       throw createNotFoundError('Order');
     }

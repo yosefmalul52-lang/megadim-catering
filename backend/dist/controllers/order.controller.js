@@ -432,7 +432,15 @@ class OrderController {
             if (!Array.isArray(items) || items.length === 0) {
                 throw (0, errorHandler_1.createValidationError)('items array is required and must not be empty');
             }
-            const updatedOrder = yield this.orderService.updateOrderItems(id, items);
+            let updatedOrder;
+            try {
+                updatedOrder = yield this.orderService.updateOrderItems(id, items);
+            }
+            catch (err) {
+                const msg = (err === null || err === void 0 ? void 0 : err.message) || 'Failed to update order items';
+                // Input/model validation problems should return 400, not 500.
+                throw (0, errorHandler_1.createValidationError)(msg);
+            }
             if (!updatedOrder) {
                 throw (0, errorHandler_1.createNotFoundError)('Order');
             }
