@@ -309,6 +309,8 @@ export class OrderService {
           ? productName
               // Remove variant suffix in parentheses: "סלט חומוס (500 מ"ל - 500)" -> "סלט חומוס"
               .replace(/\s*\([^)]*\)\s*$/, '')
+              // Remove variant suffix in dash format: "סלט חומוס - קטן" -> "סלט חומוס"
+              .replace(/\s*-\s*[^-]+$/, '')
               .trim()
           : '';
 
@@ -357,17 +359,93 @@ export class OrderService {
           );
         }
 
-        const authenticPrice = Number((product as any).price);
+        const requestedVariantLabel = String(
+          item?.selectedOption?.label || item?.variant || item?.size || ''
+        ).trim();
+        const requestedVariantAmount = String(item?.selectedOption?.amount || '').trim();
+
+        let selectedOptionToSave:
+          | { label: string; amount?: string; price: number }
+          | undefined;
+        let authenticPrice = Number((product as any).price);
+
+        if (requestedVariantLabel) {
+          const pricingOptions = Array.isArray((product as any).pricingOptions)
+            ? (product as any).pricingOptions
+            : [];
+          const pricingVariants = Array.isArray((product as any).pricingVariants)
+            ? (product as any).pricingVariants
+            : [];
+
+          const normalizedRequestedLabel = requestedVariantLabel.toLowerCase();
+          const normalizedRequestedAmount = requestedVariantAmount.toLowerCase();
+
+          const matchedOption = pricingOptions.find((opt: any) => {
+            const label = String(opt?.label || '').trim().toLowerCase();
+            const amount = String(opt?.amount || '').trim().toLowerCase();
+            if (!label) return false;
+            const byLabel = label === normalizedRequestedLabel;
+            const byAmount = normalizedRequestedAmount ? amount === normalizedRequestedAmount : false;
+            return byLabel || byAmount;
+          });
+
+          if (matchedOption) {
+            authenticPrice = Number(matchedOption.price);
+            selectedOptionToSave = {
+              label: String(matchedOption.label || requestedVariantLabel).trim(),
+              amount: String(matchedOption.amount || requestedVariantAmount).trim() || undefined,
+              price: authenticPrice
+            };
+          } else {
+            const matchedVariant = pricingVariants.find((variant: any) => {
+              const label = String(variant?.label || '').trim().toLowerCase();
+              const size = String(variant?.size || '').trim().toLowerCase();
+              if (!label && !size) return false;
+              return label === normalizedRequestedLabel || size === normalizedRequestedLabel;
+            });
+
+            if (matchedVariant) {
+              authenticPrice = Number(matchedVariant.price);
+              selectedOptionToSave = {
+                label: String(
+                  matchedVariant.label || matchedVariant.size || requestedVariantLabel
+                ).trim(),
+                amount: String(matchedVariant.size || requestedVariantAmount).trim() || undefined,
+                price: authenticPrice
+              };
+            } else {
+              throw new Error(
+                `Variant "${requestedVariantLabel}" not found in DB for items[${index}] (product=${String(
+                  (product as any).name || lookupProductId
+                )})`
+              );
+            }
+          }
+        } else if (item?.selectedOption?.label) {
+          // Preserve legacy payload shape if it already includes selectedOption details.
+          selectedOptionToSave = {
+            label: String(item.selectedOption.label).trim(),
+            amount: String(item.selectedOption.amount || '').trim() || undefined,
+            price: Number(item.selectedOption.price ?? authenticPrice)
+          };
+        }
+
         if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
           throw new Error(`Invalid product price in DB for product ${lookupProductId}`);
         }
 
+        const canonicalProductName = String((product as any).name || item.name || '').trim();
+        const canonicalItemName = selectedOptionToSave?.label
+          ? `${canonicalProductName} - ${selectedOptionToSave.label}`
+          : canonicalProductName;
+
         return {
           productId: String((product as any)._id || lookupProductId),
-          name: String((product as any).name || item.name || ''),
+          name: canonicalItemName,
           price: authenticPrice,
           quantity,
           category: (product as any).category,
+          selectedOption: selectedOptionToSave,
           imageUrl: (product as any).imageUrl,
           description: (product as any).description
         };
