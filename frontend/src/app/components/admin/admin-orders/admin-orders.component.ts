@@ -10,6 +10,31 @@ import { MenuService, MenuItem } from '../../../services/menu.service';
 import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
 import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-order-builder.component';
 
+type SelectedOptionPayload = {
+  label: string;
+  amount?: string;
+  price: number;
+};
+
+type EditableOrderItem = {
+  productId: string;
+  baseName: string;
+  name: string;
+  quantity: number;
+  category?: string;
+  unitPrice?: number;
+  selectedOption?: SelectedOptionPayload;
+};
+
+type SearchResultItem = {
+  productId: string;
+  baseName: string;
+  displayName: string;
+  category: string;
+  unitPrice: number;
+  selectedOption?: SelectedOptionPayload;
+};
+
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
@@ -49,7 +74,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   editEventDateValue = '';
   dateUpdatingId: string | null = null;
   isEditingItems = false;
-  editableItems: Array<{ productId: string; name: string; quantity: number; category?: string; unitPrice?: number }> = [];
+  editableItems: EditableOrderItem[] = [];
   availableMenuItems: MenuItem[] = [];
   searchTerm = '';
   isSavingItems = false;
@@ -549,10 +574,18 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.searchTerm = '';
     this.editableItems = (this.selectedOrder.items || []).map((item) => ({
       productId: String((item as any).productId || (item as any).id || ''),
+      baseName: String((item as any).name || '').split(' - ')[0].trim(),
       name: String(item.name || ''),
       quantity: Number(item.quantity || 1),
       category: String((item as any).category || ''),
-      unitPrice: Number((item as any).price || 0)
+      unitPrice: Number((item as any).price || 0),
+      selectedOption: (item as any).selectedOption
+        ? {
+            label: String((item as any).selectedOption.label || '').trim(),
+            amount: String((item as any).selectedOption.amount || '').trim() || undefined,
+            price: Number((item as any).selectedOption.price ?? (item as any).price ?? 0)
+          }
+        : undefined
     }));
 
     if (!this.availableMenuItems.length) {
@@ -579,13 +612,64 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.editableItems.splice(index, 1);
   }
 
-  get searchResults(): MenuItem[] {
+  get searchResults(): SearchResultItem[] {
     const term = (this.searchTerm || '').trim().toLowerCase();
     if (!term) return [];
-    return this.availableMenuItems
-      .filter((p) => {
-        const name = String(p.name || '').toLowerCase();
-        const category = String(p.category || '').toLowerCase();
+    const flattened: SearchResultItem[] = [];
+    for (const product of this.availableMenuItems) {
+      const productId = String(product._id || product.id || '').trim();
+      if (!productId) continue;
+      const baseName = String(product.name || '').trim();
+      const category = String(product.category || '').trim();
+      const options = Array.isArray((product as any).pricingOptions) ? (product as any).pricingOptions : [];
+      const variants = Array.isArray((product as any).pricingVariants) ? (product as any).pricingVariants : [];
+      const hasOptions = options.length > 0;
+      const hasVariants = !hasOptions && variants.length > 0;
+
+      if (hasOptions) {
+        for (const option of options) {
+          const label = String(option?.label || '').trim();
+          const amount = String(option?.amount || '').trim();
+          const unitPrice = Number(option?.price ?? 0);
+          flattened.push({
+            productId,
+            baseName,
+            displayName: `${baseName} - ${label} (${unitPrice}₪)`,
+            category,
+            unitPrice,
+            selectedOption: { label, amount: amount || undefined, price: unitPrice }
+          });
+        }
+      } else if (hasVariants) {
+        for (const variant of variants) {
+          const label = String(variant?.label || variant?.size || '').trim();
+          const amount = String(variant?.size || '').trim();
+          const unitPrice = Number(variant?.price ?? 0);
+          flattened.push({
+            productId,
+            baseName,
+            displayName: `${baseName} - ${label} (${unitPrice}₪)`,
+            category,
+            unitPrice,
+            selectedOption: { label, amount: amount || undefined, price: unitPrice }
+          });
+        }
+      } else {
+        const unitPrice = Number(product.price || 0);
+        flattened.push({
+          productId,
+          baseName,
+          displayName: `${baseName} (${unitPrice}₪)`,
+          category,
+          unitPrice
+        });
+      }
+    }
+
+    return flattened
+      .filter((row) => {
+        const name = row.displayName.toLowerCase();
+        const category = row.category.toLowerCase();
         return name.includes(term) || category.includes(term);
       })
       .slice(0, 50);
@@ -593,29 +677,38 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   get editableSubtotal(): number {
     return this.editableItems.reduce((sum, item) => {
-      const fallbackPrice = Number(item.unitPrice || 0);
-      const menuPrice = Number(
-        this.availableMenuItems.find((p) => String(p._id || p.id || '') === item.productId)?.price ?? fallbackPrice
-      );
-      const unitPrice = Number.isFinite(menuPrice) ? menuPrice : 0;
+      const unitPrice = Number.isFinite(Number(item.unitPrice || 0)) ? Number(item.unitPrice || 0) : 0;
       return sum + unitPrice * Number(item.quantity || 0);
     }, 0);
   }
 
-  addProductToOrder(product: MenuItem): void {
-    const productId = String(product._id || product.id || '').trim();
+  addProductToOrder(product: SearchResultItem): void {
+    const productId = String(product.productId || '').trim();
     if (!productId) return;
+    const selectedLabel = String(product.selectedOption?.label || '').trim();
+    const nextName = selectedLabel ? `${product.baseName} - ${selectedLabel}` : product.baseName;
 
-    const existing = this.editableItems.find((i) => i.productId === productId);
+    const existing = this.editableItems.find((i) => {
+      const existingLabel = String(i.selectedOption?.label || '').trim();
+      return i.productId === productId && existingLabel === selectedLabel;
+    });
     if (existing) {
       existing.quantity += 1;
     } else {
       this.editableItems.push({
         productId,
-        name: product.name,
+        baseName: product.baseName,
+        name: nextName,
         quantity: 1,
         category: product.category || '',
-        unitPrice: Number(product.price || 0)
+        unitPrice: Number(product.unitPrice || 0),
+        selectedOption: product.selectedOption
+          ? {
+              label: product.selectedOption.label,
+              amount: product.selectedOption.amount,
+              price: Number(product.selectedOption.price || 0)
+            }
+          : undefined
       });
     }
     this.searchTerm = '';
@@ -631,7 +724,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       .map((item) => ({
         productId: String(item.productId || '').trim(),
         name: String(item.name || '').trim(),
-        quantity: Number(item.quantity || 0)
+        quantity: Number(item.quantity || 0),
+        selectedOption: item.selectedOption
+          ? {
+              label: String(item.selectedOption.label || '').trim(),
+              amount: String(item.selectedOption.amount || '').trim() || undefined,
+              price: Number(item.selectedOption.price || item.unitPrice || 0)
+            }
+          : undefined
       }))
       .filter((item) => item.productId && item.quantity > 0);
 

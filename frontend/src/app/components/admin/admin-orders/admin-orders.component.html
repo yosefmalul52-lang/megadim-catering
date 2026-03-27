@@ -535,11 +535,11 @@
 
                     @if (searchTerm.trim().length > 0 && searchResults.length > 0) {
                       <ul class="autocomplete-results">
-                        @for (product of searchResults; track product._id || product.id || $index) {
+                        @for (product of searchResults; track product.productId + '-' + (product.selectedOption?.label || 'base') + '-' + $index) {
                           <li class="autocomplete-item" (click)="addProductToOrder(product)">
                             <div class="autocomplete-main">
-                              <span class="autocomplete-name">{{ product.name }}</span>
-                              <span class="autocomplete-price">₪{{ (product.price || 0) | number:'1.0-2' }}</span>
+                              <span class="autocomplete-name">{{ product.displayName }}</span>
+                              <span class="autocomplete-price">₪{{ (product.unitPrice || 0) | number:'1.0-2' }}</span>
                             </div>
                             <div class="autocomplete-meta">{{ product.category || 'ללא קטגוריה' }}</div>
                           </li>

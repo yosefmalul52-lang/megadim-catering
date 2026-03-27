@@ -244,7 +244,16 @@ export class OrderService {
   }
 
   /** Admin: replace items of an existing order and let backend recalculate totalPrice from DB prices. */
-  updateOrderItems(orderId: string, items: Array<{ productId?: string; id?: string; quantity: number }>): Observable<Order> {
+  updateOrderItems(
+    orderId: string,
+    items: Array<{
+      productId?: string;
+      id?: string;
+      name?: string;
+      quantity: number;
+      selectedOption?: { label: string; amount?: string; price?: number };
+    }>
+  ): Observable<Order> {
     return this.http.put<{ success: boolean; data: Order }>(
       `${environment.apiUrl}/order/admin/${orderId}/items`,
       { items }
