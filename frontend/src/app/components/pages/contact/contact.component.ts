@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContactService } from '../../../services/contact.service';
 import { SeoService } from '../../../services/seo.service';
+import { MarketingService } from '../../../services/marketing.service';
 
 @Component({
   selector: 'app-contact',
@@ -14,6 +15,7 @@ import { SeoService } from '../../../services/seo.service';
 export class ContactComponent implements OnInit {
   private contactService = inject(ContactService);
   private seoService = inject(SeoService);
+  private marketingService = inject(MarketingService);
 
   form = {
     name: '',
@@ -43,12 +45,14 @@ export class ContactComponent implements OnInit {
     this.successMessage = '';
     this.errorMessage = '';
     this.isSubmitting = true;
+    const utms = this.marketingService.getUtms();
     this.contactService
       .submitContactForm({
         name: this.form.name,
         phone: this.form.phone,
         email: this.form.email,
         message: this.form.message,
+        ...(Object.keys(utms).length > 0 ? { marketingData: utms } : {})
       })
       .subscribe({
         next: (res) => {

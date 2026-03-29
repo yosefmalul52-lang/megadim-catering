@@ -18,6 +18,7 @@ import { SiteSettingsService, SiteSettings } from '../../../services/site-settin
 import { LocationService } from '../../../services/location.service';
 import { DeliveryService } from '../../../services/delivery.service';
 import { CouponService } from '../../../services/coupon.service';
+import { MarketingService } from '../../../services/marketing.service';
 import { toYYYYMMDD } from '../../../utils/date.utils';
 import { environment } from '../../../../environments/environment';
 
@@ -51,6 +52,7 @@ export class CheckoutPageComponent implements OnInit {
   private deliveryService = inject(DeliveryService);
   private couponService = inject(CouponService);
   private authService = inject(AuthService);
+  private marketingService = inject(MarketingService);
 
   couponCodeInput = '';
   appliedCouponCode: string | null = null;
@@ -411,6 +413,7 @@ export class CheckoutPageComponent implements OnInit {
         : undefined;
 
     const currentUser = this.authService.currentUser;
+    const utms = this.marketingService.getUtms();
     const orderData = {
       ...formValue,
       customerName: (formValue.fullName || '').trim(),
@@ -425,7 +428,8 @@ export class CheckoutPageComponent implements OnInit {
       totalAmount: this.grandTotal,
       notes: (formValue.notes || '').trim() || undefined,
       ...(this.appliedCouponCode ? { couponCode: this.appliedCouponCode } : {}),
-      ...(currentUser?.id ? { userId: currentUser.id } : {})
+      ...(currentUser?.id ? { userId: currentUser.id } : {}),
+      ...(Object.keys(utms).length > 0 ? { marketingData: utms } : {})
     };
 
     this.http

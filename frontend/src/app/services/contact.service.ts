@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { CONTACT_PHONE_DISPLAY, CONTACT_TEL_HREF, CONTACT_WHATSAPP_HREF } from '../constants/contact.constants';
+import type { UtmRecord } from './marketing.service';
 
 export interface ContactRequest {
   name: string;
@@ -12,6 +13,8 @@ export interface ContactRequest {
   message: string;
   email?: string;
   preferredContactTime?: string;
+  /** Standard UTM fields captured client-side (e.g. from localStorage). */
+  marketingData?: UtmRecord;
 }
 
 export interface ContactResponse {
@@ -27,10 +30,20 @@ export class ContactService {
   private http = inject(HttpClient);
 
   submitContactForm(request: ContactRequest): Observable<ContactResponse> {
+    const body: Record<string, unknown> = {
+      name: request.name,
+      phone: request.phone,
+      email: request.email,
+      message: request.message
+    };
+    const md = request.marketingData;
+    if (md && Object.keys(md).length > 0) {
+      body['marketingData'] = md;
+    }
     return this.http
       .post<{ success: boolean; data: ContactResponse; message?: string }>(
         `${environment.apiUrl}/contact`,
-        { name: request.name, phone: request.phone, email: request.email, message: request.message }
+        body
       )
       .pipe(
         map((res) => ({

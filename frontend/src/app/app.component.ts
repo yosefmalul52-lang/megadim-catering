@@ -13,6 +13,7 @@ import { FooterComponent } from './components/shared/footer/footer.component';
 import { ToastComponent } from './components/shared/toast/toast.component';
 
 import { LanguageService } from './services/language.service';
+import { MarketingService } from './services/marketing.service';
 import { MAIN_NAV_LINKS } from './nav-links';
 import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 
@@ -100,6 +101,11 @@ export class AppComponent implements OnInit {
   isLoginOrAdminPage = false;
   showCookieBanner = false;
   navLinks = MAIN_NAV_LINKS;
+
+  constructor() {
+    // Instantiate early so UTMs are captured from the landing URL and subsequent navigations.
+    inject(MarketingService);
+  }
 
   ngOnInit(): void {
     if (typeof localStorage !== 'undefined') {
