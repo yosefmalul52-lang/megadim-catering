@@ -16,22 +16,20 @@ class ContactController {
     constructor() {
         // Submit contact form
         this.submitContactForm = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q, _z;
             const contactData = req.body;
-            // Basic validation
-            if (!contactData.name || !contactData.phone || !contactData.message) {
-                throw (0, errorHandler_1.createValidationError)('Name, phone, and message are required');
+            // Basic validation (email required — matches Mongo schema and public contact form)
+            if (!((_j = contactData.name) === null || _j === void 0 ? void 0 : _j.trim()) || !((_k = contactData.phone) === null || _k === void 0 ? void 0 : _k.trim()) || !((_q = contactData.message) === null || _q === void 0 ? void 0 : _q.trim()) || !((_z = contactData.email) === null || _z === void 0 ? void 0 : _z.trim())) {
+                throw (0, errorHandler_1.createValidationError)('Name, phone, email, and message are required');
             }
             // Validate phone number format (basic Israeli phone validation)
             const phoneRegex = /^0\d{1,2}-?\d{7}$|^0\d{9}$/;
             if (!phoneRegex.test(contactData.phone.replace(/\s/g, ''))) {
                 throw (0, errorHandler_1.createValidationError)('Please provide a valid Israeli phone number');
             }
-            // Validate email if provided
-            if (contactData.email) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(contactData.email)) {
-                    throw (0, errorHandler_1.createValidationError)('Please provide a valid email address');
-                }
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(contactData.email.trim())) {
+                throw (0, errorHandler_1.createValidationError)('Please provide a valid email address');
             }
             // Validate message length
             if (contactData.message.length < 10) {
@@ -95,7 +93,7 @@ class ContactController {
             if (!status) {
                 throw (0, errorHandler_1.createValidationError)('Status is required');
             }
-            const validStatuses = ['new', 'contacted', 'quoted', 'converted', 'closed'];
+            const validStatuses = ['new', 'read', 'handled'];
             if (!validStatuses.includes(status)) {
                 throw (0, errorHandler_1.createValidationError)('Invalid status value');
             }

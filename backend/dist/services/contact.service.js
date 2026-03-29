@@ -8,171 +8,164 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContactService = void 0;
-const uuid_1 = require("uuid");
+const mongoose_1 = __importDefault(require("mongoose"));
+const Contact_1 = __importDefault(require("../models/Contact"));
 const email_service_1 = require("./email.service");
+const webhook_util_1 = require("../utils/webhook.util");
+function leanToContactRequest(doc) {
+    var _j, _k, _q, _z;
+    if (!(doc === null || doc === void 0 ? void 0 : doc._id))
+        return null;
+    return {
+        id: String(doc._id),
+        name: String((_j = doc.name) !== null && _j !== void 0 ? _j : ''),
+        email: String((_k = doc.email) !== null && _k !== void 0 ? _k : ''),
+        phone: String((_q = doc.phone) !== null && _q !== void 0 ? _q : ''),
+        message: String((_z = doc.message) !== null && _z !== void 0 ? _z : ''),
+        status: doc.status || 'new',
+        source: doc.source != null ? String(doc.source) : undefined,
+        notes: doc.notes != null ? String(doc.notes) : undefined,
+        marketingData: doc.marketingData,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+    };
+}
 class ContactService {
-    constructor() {
-        this.contacts = [];
-        // Initialize with some sample data for development
-        this.initializeSampleData();
-    }
-    initializeSampleData() {
-        const sampleContacts = [
-            {
-                id: '1',
-                name: 'יוסי כהן',
-                phone: '052-123-4567',
-                email: 'yossi@example.com',
-                eventType: 'בר מצווה',
-                message: 'שלום, אני מעוניין בקייטרינג לבר מצווה ל-80 איש. תאריך האירוע: 15/03/2024',
-                source: 'website',
-                status: 'new',
-                createdAt: new Date('2024-01-15T10:30:00'),
-                updatedAt: new Date('2024-01-15T10:30:00')
-            },
-            {
-                id: '2',
-                name: 'שרה לוי',
-                phone: '054-987-6543',
-                email: 'sarah@example.com',
-                eventType: 'חתונה',
-                message: 'מעוניינת בהצעת מחיר לחתונה ל-150 אורחים',
-                source: 'website',
-                status: 'contacted',
-                createdAt: new Date('2024-01-14T14:20:00'),
-                updatedAt: new Date('2024-01-14T16:45:00')
-            },
-            {
-                id: '3',
-                name: 'דוד מזרחי',
-                phone: '03-555-1234',
-                eventType: 'ברית מילה',
-                message: 'צריך קייטרינג לברית מילה ל-40 איש, בתאריך 20/02/2024',
-                source: 'phone',
-                status: 'quoted',
-                createdAt: new Date('2024-01-13T09:15:00'),
-                updatedAt: new Date('2024-01-13T11:30:00')
-            }
-        ];
-        this.contacts = sampleContacts;
-        console.log(`✅ Initialized with ${this.contacts.length} sample contact requests`);
-    }
-    // Submit new contact form
+    // Submit new contact form — persist first, then notify by email (fail-open).
     submitContactForm(contactData) {
         return __awaiter(this, void 0, void 0, function* () {
-            const newContact = Object.assign(Object.assign({ id: (0, uuid_1.v4)() }, contactData), { status: 'new', createdAt: new Date(), updatedAt: new Date() });
-            this.contacts.unshift(newContact); // Add to beginning of array for newest first
-            console.log(`📧 New contact form submitted by ${newContact.name} (${newContact.phone})`);
-            yield email_service_1.emailService.sendContactFormToBusiness({
-                name: newContact.name,
-                phone: newContact.phone,
-                email: newContact.email,
-                message: newContact.message
+            const marketingData = (0, webhook_util_1.sanitizeMarketingData)(contactData.marketingData);
+            const doc = yield Contact_1.default.create(Object.assign({ name: contactData.name.trim(), email: (contactData.email || '').trim(), phone: contactData.phone.trim(), message: contactData.message.trim(), source: (contactData.source || 'website').trim() || 'website', status: 'new' }, (marketingData ? { marketingData } : {})));
+            const contactId = doc._id.toString();
+            console.log(`📧 New contact form saved: ${contactId} (${doc.name}, ${doc.phone})`);
+            const contactForWebhook = typeof doc.toObject === 'function' ? doc.toObject() : doc;
+            void (0, webhook_util_1.fireWebhook)(process.env.N8N_CONTACT_WEBHOOK_URL, contactForWebhook);
+            void email_service_1.emailService
+                .sendContactFormToBusiness({
+                name: doc.name,
+                phone: doc.phone,
+                email: doc.email,
+                message: doc.message
+            })
+                .catch((emailErr) => {
+                console.error('Contact form: email notification failed (contactId=%s):', contactId, emailErr);
             });
             return {
                 success: true,
                 message: 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.',
-                contactId: newContact.id
+                contactId
             };
         });
     }
-    // Get all contact requests with filtering and pagination
     getAllContactRequests() {
         return __awaiter(this, arguments, void 0, function* (filters = {}) {
-            let filteredContacts = [...this.contacts];
-            // Filter by status
-            if (filters.status) {
-                filteredContacts = filteredContacts.filter(contact => contact.status === filters.status);
+            var _j, _k;
+            const query = {};
+            if (filters.status && ['new', 'read', 'handled'].includes(filters.status)) {
+                query.status = filters.status;
             }
-            const total = filteredContacts.length;
-            // Sort by creation date (newest first)
-            filteredContacts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            // Apply pagination
-            const limit = filters.limit || 50;
-            const offset = filters.offset || 0;
-            const paginatedContacts = filteredContacts.slice(offset, offset + limit);
-            return {
-                contacts: paginatedContacts,
-                total
-            };
+            const limit = Math.min(Math.max((_j = filters.limit) !== null && _j !== void 0 ? _j : 50, 1), 200);
+            const offset = Math.max((_k = filters.offset) !== null && _k !== void 0 ? _k : 0, 0);
+            const [total, docs] = yield Promise.all([
+                Contact_1.default.countDocuments(query),
+                Contact_1.default.find(query).sort({ createdAt: -1 }).skip(offset).limit(limit).lean()
+            ]);
+            const contacts = docs
+                .map((d) => leanToContactRequest(d))
+                .filter((c) => c !== null);
+            return { contacts, total };
         });
     }
-    // Get contact request by ID
     getContactRequestById(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contact = this.contacts.find(c => c.id === id);
-            return contact || null;
+            if (!mongoose_1.default.Types.ObjectId.isValid(id))
+                return null;
+            const doc = yield Contact_1.default.findById(id).lean();
+            return leanToContactRequest(doc);
         });
     }
-    // Update contact request status
     updateContactStatus(id, updateData) {
         return __awaiter(this, void 0, void 0, function* () {
-            const contactIndex = this.contacts.findIndex(c => c.id === id);
-            if (contactIndex === -1) {
+            if (!updateData.status)
                 return null;
+            if (!mongoose_1.default.Types.ObjectId.isValid(id))
+                return null;
+            const doc = yield Contact_1.default.findByIdAndUpdate(id, {
+                $set: Object.assign({ status: updateData.status }, (updateData.notes !== undefined ? { notes: updateData.notes } : {}))
+            }, { new: true, runValidators: true }).lean();
+            if (doc) {
+                console.log(`📝 Contact ${id} status updated to ${updateData.status}`);
             }
-            this.contacts[contactIndex] = Object.assign(Object.assign(Object.assign({}, this.contacts[contactIndex]), updateData), { updatedAt: new Date() });
-            console.log(`📝 Contact ${id} status updated to ${updateData.status}`);
-            return this.contacts[contactIndex];
+            return leanToContactRequest(doc);
         });
     }
-    // Delete contact request
     deleteContactRequest(id) {
         return __awaiter(this, void 0, void 0, function* () {
-            const initialLength = this.contacts.length;
-            this.contacts = this.contacts.filter(c => c.id !== id);
-            if (this.contacts.length < initialLength) {
+            if (!mongoose_1.default.Types.ObjectId.isValid(id))
+                return false;
+            const result = yield Contact_1.default.findByIdAndDelete(id);
+            if (result) {
                 console.log(`🗑️ Contact request ${id} deleted`);
                 return true;
             }
             return false;
         });
     }
-    // Get contact statistics
     getContactStatistics() {
         return __awaiter(this, void 0, void 0, function* () {
-            const total = this.contacts.length;
+            const total = yield Contact_1.default.countDocuments();
+            const [statusAgg, sourceAgg] = yield Promise.all([
+                Contact_1.default.aggregate([
+                    { $group: { _id: '$status', count: { $sum: 1 } } }
+                ]),
+                Contact_1.default.aggregate([
+                    { $group: { _id: '$source', count: { $sum: 1 } } }
+                ])
+            ]);
             const byStatus = {};
+            for (const row of statusAgg) {
+                byStatus[row._id || 'unknown'] = row.count;
+            }
             const bySource = {};
-            const byEventType = {};
-            this.contacts.forEach(contact => {
-                // Count by status
-                byStatus[contact.status || 'unknown'] = (byStatus[contact.status || 'unknown'] || 0) + 1;
-                // Count by source
-                bySource[contact.source || 'unknown'] = (bySource[contact.source || 'unknown'] || 0) + 1;
-                // Count by event type
-                if (contact.eventType) {
-                    byEventType[contact.eventType] = (byEventType[contact.eventType] || 0) + 1;
-                }
-            });
-            // Count recent contacts (last 7 days)
+            for (const row of sourceAgg) {
+                bySource[row._id || 'unknown'] = row.count;
+            }
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
-            const recentCount = this.contacts.filter(contact => contact.createdAt && new Date(contact.createdAt) > weekAgo).length;
-            // Calculate conversion rate (quoted or converted / total)
-            const convertedCount = (byStatus['quoted'] || 0) + (byStatus['converted'] || 0);
-            const conversionRate = total > 0 ? (convertedCount / total) * 100 : 0;
+            const recentCount = yield Contact_1.default.countDocuments({ createdAt: { $gt: weekAgo } });
+            const handled = byStatus['handled'] || 0;
+            const conversionRate = total > 0 ? Math.round((handled / total) * 10000) / 100 : 0;
             return {
                 total,
                 byStatus,
                 bySource,
-                byEventType,
+                byEventType: {},
                 recentCount,
-                conversionRate: Math.round(conversionRate * 100) / 100
+                conversionRate
             };
         });
     }
-    // Search contact requests
     searchContacts(query) {
         return __awaiter(this, void 0, void 0, function* () {
-            const searchTerm = query.toLowerCase();
-            return this.contacts.filter(contact => contact.name.toLowerCase().includes(searchTerm) ||
-                contact.phone.includes(searchTerm) ||
-                (contact.email && contact.email.toLowerCase().includes(searchTerm)) ||
-                (contact.eventType && contact.eventType.toLowerCase().includes(searchTerm)) ||
-                contact.message.toLowerCase().includes(searchTerm));
+            const term = (query || '').trim();
+            if (!term)
+                return [];
+            const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rx = new RegExp(escaped, 'i');
+            const docs = yield Contact_1.default.find({
+                $or: [{ name: rx }, { phone: rx }, { email: rx }, { message: rx }]
+            })
+                .sort({ createdAt: -1 })
+                .limit(100)
+                .lean();
+            return docs
+                .map((d) => leanToContactRequest(d))
+                .filter((c) => c !== null);
         });
     }
 }

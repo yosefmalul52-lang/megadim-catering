@@ -14,6 +14,14 @@ export interface IOrder extends Document {
   numberOfPortions?: number | string;
   mealTime?: string;
   mealTypes?: string;
+  /** Client-captured UTM / campaign params (optional). */
+  marketingData?: {
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+    utm_term?: string;
+    utm_content?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -74,7 +82,14 @@ const OrderSchema: Schema<IOrder> = new Schema({
   },
   numberOfPortions: { type: Schema.Types.Mixed, required: false },
   mealTime: { type: String, required: false },
-  mealTypes: { type: String, required: false }
+  mealTypes: { type: String, required: false },
+  marketingData: {
+    utm_source: { type: String, trim: true },
+    utm_medium: { type: String, trim: true },
+    utm_campaign: { type: String, trim: true },
+    utm_term: { type: String, trim: true },
+    utm_content: { type: String, trim: true }
+  }
 }, {
   timestamps: true,
   collection: 'orders',

@@ -5,6 +5,7 @@ import { emailService, OrderEmailData } from '../services/email.service';
 import { validateAndApplyCoupon, incrementCouponUsage } from '../services/coupon.service';
 import { asyncHandler, createValidationError, createNotFoundError } from '../middleware/errorHandler';
 import { CreateOrderRequest, CreateCheckoutOrderRequest } from '../models/order.model';
+import { fireWebhook } from '../utils/webhook.util';
 
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
 
@@ -157,6 +158,9 @@ export class OrderController {
     (body as any).userId = userId;
 
     const savedOrder = await this.orderService.createOrderFromCheckout(body);
+
+    const orderForWebhook = typeof (savedOrder as any).toObject === 'function' ? (savedOrder as any).toObject() : savedOrder;
+    void fireWebhook(process.env.N8N_ORDER_WEBHOOK_URL, orderForWebhook);
 
     if (couponIdToIncrement) {
       await incrementCouponUsage(couponIdToIncrement);

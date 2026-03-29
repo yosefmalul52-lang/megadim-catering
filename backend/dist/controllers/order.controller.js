@@ -14,6 +14,7 @@ const order_service_1 = require("../services/order.service");
 const email_service_1 = require("../services/email.service");
 const coupon_service_1 = require("../services/coupon.service");
 const errorHandler_1 = require("../middleware/errorHandler");
+const webhook_util_1 = require("../utils/webhook.util");
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -140,6 +141,8 @@ class OrderController {
             const userId = user ? (user._id || user.id) : null;
             body.userId = userId;
             const savedOrder = yield this.orderService.createOrderFromCheckout(body);
+            const orderForWebhook = typeof savedOrder.toObject === 'function' ? savedOrder.toObject() : savedOrder;
+            void (0, webhook_util_1.fireWebhook)(process.env.N8N_ORDER_WEBHOOK_URL, orderForWebhook);
             if (couponIdToIncrement) {
                 yield (0, coupon_service_1.incrementCouponUsage)(couponIdToIncrement);
             }

@@ -90,7 +90,14 @@ const OrderSchema = new mongoose_1.Schema({
     },
     numberOfPortions: { type: mongoose_1.Schema.Types.Mixed, required: false },
     mealTime: { type: String, required: false },
-    mealTypes: { type: String, required: false }
+    mealTypes: { type: String, required: false },
+    marketingData: {
+        utm_source: { type: String, trim: true },
+        utm_medium: { type: String, trim: true },
+        utm_campaign: { type: String, trim: true },
+        utm_term: { type: String, trim: true },
+        utm_content: { type: String, trim: true }
+    }
 }, {
     timestamps: true,
     collection: 'orders',

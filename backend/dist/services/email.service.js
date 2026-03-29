@@ -18,6 +18,15 @@ const email_templates_1 = require("./email-templates");
 /** Single source of truth: EMAIL_HOST, EMAIL_PORT (default 587), EMAIL_USER, EMAIL_PASS */
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
 const EMAIL_PASS = process.env.EMAIL_PASS;
+/**
+ * From header for website-originated mail (SMTP user = dedicated Gmail; display name for clients).
+ * Override display name with EMAIL_FROM_DISPLAY_NAME if needed.
+ */
+function getWebsiteFromHeader() {
+    const display = (process.env.EMAIL_FROM_DISPLAY_NAME || 'Megadim Website').trim() || 'Megadim Website';
+    const addr = (process.env.EMAIL_USER || '').trim();
+    return `"${display}" <${addr}>`;
+}
 function createTransporter() {
     return nodemailer_1.default.createTransport({
         host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -94,18 +103,20 @@ class EmailService {
         });
     }
     /**
-     * Send contact form submission to the business.
-     * Uses OWNER_EMAIL so the business receives the inquiry; falls back to EMAIL_USER only if OWNER_EMAIL is missing.
+     * Send contact form submission to the business owner inbox (OWNER_EMAIL).
+     * SMTP auth uses EMAIL_USER; Reply-To is the customer's email so the business can reply in one click.
      */
     sendContactFormToBusiness(payload) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!EMAIL_USER || !EMAIL_PASS) {
                 throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
             }
-            const toEmail = EMAIL_USER;
-            console.log('📧 Contact form: sending to', toEmail);
-            const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
-            const senderEmail = process.env.EMAIL_USER;
+            const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+            if (!ownerEmail) {
+                throw new Error('OWNER_EMAIL is not configured');
+            }
+            const customerReplyEmail = (payload.email || '').trim();
+            console.log('📧 Contact form: sending to owner', ownerEmail, customerReplyEmail ? `(reply-to: ${customerReplyEmail})` : '');
             const subject = `פנייה חדשה מאתר מגדים: ${escapeHtml(payload.name)}`;
             const html = `
       <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 560px; padding: 24px;">
@@ -119,13 +130,13 @@ class EmailService {
         <p style="margin: 8px 0 0; padding: 12px; background: #f8f9fa; border-radius: 8px; white-space: pre-wrap;">${escapeHtml(payload.message)}</p>
       </div>`;
             yield this.sendMailWithLogging('contact-form', {
-                from: `"${businessName}" <${senderEmail}>`,
-                to: toEmail,
-                replyTo: payload.email || undefined,
+                from: getWebsiteFromHeader(),
+                to: ownerEmail,
+                replyTo: customerReplyEmail || undefined,
                 subject,
                 html
             });
-            console.log('✅ Contact form email sent successfully to:', toEmail);
+            console.log('✅ Contact form email sent successfully to owner:', ownerEmail);
         });
     }
     /**
@@ -137,9 +148,8 @@ class EmailService {
             if (!EMAIL_USER || !EMAIL_PASS) {
                 throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
             }
-            const senderEmail = process.env.EMAIL_USER;
             const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
-            const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
+            const businessName = process.env.BUSINESS_NAME || 'Megadim';
             if (!ownerEmail) {
                 throw new Error('OWNER_EMAIL is not configured');
             }
@@ -159,18 +169,22 @@ class EmailService {
             };
             const ownerHtml = (0, email_templates_1.generateAdminEmailHtml)(templateData);
             const customerHtml = (0, email_templates_1.generateCustomerEmailHtml)(templateData);
-            // 1. Send Order Details to the Business Owner (Office)
+            const customerReplyTo = (typeof orderData.customerEmail === 'string' ? orderData.customerEmail.trim() : '') ||
+                (typeof customerEmail === 'string' ? customerEmail.trim() : '') ||
+                '';
+            // 1. Send order details to the business owner (never to EMAIL_USER)
             yield this.sendMailWithLogging('order:owner', {
-                from: `"${businessName} - אתר" <${senderEmail}>`,
+                from: getWebsiteFromHeader(),
                 to: ownerEmail,
+                replyTo: customerReplyTo || undefined,
                 subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
                 html: ownerHtml
             });
-            // 2. Send Receipt to the Customer (if customerEmail provided from frontend)
+            // 2. Send receipt to the customer (if customer email provided)
             const customerEmailTrimmed = typeof customerEmail === 'string' ? customerEmail.trim() : '';
             if (customerEmailTrimmed) {
                 yield this.sendMailWithLogging('order:customer-receipt', {
-                    from: `"${businessName}" <${senderEmail}>`,
+                    from: getWebsiteFromHeader(),
                     replyTo: ownerEmail,
                     to: customerEmailTrimmed,
                     subject: `אישור הזמנה - ${businessName}`,
@@ -185,31 +199,36 @@ class EmailService {
      */
     sendOrderEmail(order) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _j, _k, _q, _z, _2, _3, _4, _6;
+            var _j, _k, _q, _z, _2, _3, _4, _6, _7;
             try {
-                const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
-                const senderEmail = process.env.EMAIL_USER;
-                const clientEmail = process.env.OWNER_EMAIL || EMAIL_USER || 'owner@megadim.com';
+                const businessName = process.env.BUSINESS_NAME || 'Megadim';
+                const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+                if (!ownerEmail) {
+                    console.warn('⚠️ sendOrderEmail: OWNER_EMAIL not set – skipping legacy admin notification');
+                    return;
+                }
+                const customerReplyEmail = (((_j = order.customerDetails) === null || _j === void 0 ? void 0 : _j.email) || '').toString().trim();
                 const itemsList = order.items
                     .map((item, index) => `${index + 1}. ${item.name}\n   כמות: ${item.quantity}\n   מחיר ליחידה: ₪${item.price}\n   סה"כ: ₪${(item.price * item.quantity).toFixed(2)}`)
                     .join('\n');
                 const customerInfo = `
-שם: ${((_j = order.customerDetails) === null || _j === void 0 ? void 0 : _j.fullName) || 'לא צוין'}
-טלפון: ${((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.phone) || 'לא צוין'}
-אימייל: ${((_q = order.customerDetails) === null || _q === void 0 ? void 0 : _q.email) || 'לא צוין'}
-כתובת: ${((_z = order.customerDetails) === null || _z === void 0 ? void 0 : _z.address) || 'לא צוין'}
-הערות: ${((_2 = order.customerDetails) === null || _2 === void 0 ? void 0 : _2.notes) || 'אין הערות'}
+שם: ${((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.fullName) || 'לא צוין'}
+טלפון: ${((_q = order.customerDetails) === null || _q === void 0 ? void 0 : _q.phone) || 'לא צוין'}
+אימייל: ${((_z = order.customerDetails) === null || _z === void 0 ? void 0 : _z.email) || 'לא צוין'}
+כתובת: ${((_2 = order.customerDetails) === null || _2 === void 0 ? void 0 : _2.address) || 'לא צוין'}
+הערות: ${((_3 = order.customerDetails) === null || _3 === void 0 ? void 0 : _3.notes) || 'אין הערות'}
       `.trim();
                 yield this.sendMailWithLogging('order:legacy-admin', {
-                    from: `"${businessName} - אתר" <${senderEmail}>`,
-                    to: clientEmail,
-                    subject: `הזמנה חדשה #${((_3 = order._id) === null || _3 === void 0 ? void 0 : _3.toString().substring(0, 8)) || 'N/A'} - ${businessName}`,
+                    from: getWebsiteFromHeader(),
+                    to: ownerEmail,
+                    replyTo: customerReplyEmail || undefined,
+                    subject: `הזמנה חדשה #${((_4 = order._id) === null || _4 === void 0 ? void 0 : _4.toString().substring(0, 8)) || 'N/A'} - ${businessName}`,
                     html: `
           <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
             <h2 style="color: #0E1A24; text-align: center;">הזמנה חדשה התקבלה</h2>
             <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
               <h3 style="color: #cbb69e; border-bottom: 2px solid #cbb69e; padding-bottom: 10px;">פרטי ההזמנה</h3>
-              <p><strong>מספר הזמנה:</strong> ${((_4 = order._id) === null || _4 === void 0 ? void 0 : _4.toString()) || 'N/A'}</p>
+              <p><strong>מספר הזמנה:</strong> ${((_6 = order._id) === null || _6 === void 0 ? void 0 : _6.toString()) || 'N/A'}</p>
               <p><strong>תאריך:</strong> ${new Date(order.createdAt || Date.now()).toLocaleString('he-IL')}</p>
               <p><strong>סטטוס:</strong> ${order.status}</p>
               <p><strong>סה"כ לתשלום:</strong> <span style="font-size: 1.2em; color: #cbb69e; font-weight: bold;">₪${order.totalPrice.toFixed(2)}</span></p>
@@ -224,7 +243,7 @@ class EmailService {
             </div>
           </div>
         `,
-                    text: `הזמנה חדשה התקבלה\n\nמספר הזמנה: ${((_6 = order._id) === null || _6 === void 0 ? void 0 : _6.toString()) || 'N/A'}\nתאריך: ${new Date(order.createdAt || Date.now()).toLocaleString('he-IL')}\nסטטוס: ${order.status}\nסה"כ: ₪${order.totalPrice.toFixed(2)}\n\nפרטי הלקוח:\n${customerInfo}\n\nפריטי ההזמנה:\n${itemsList}`
+                    text: `הזמנה חדשה התקבלה\n\nמספר הזמנה: ${((_7 = order._id) === null || _7 === void 0 ? void 0 : _7.toString()) || 'N/A'}\nתאריך: ${new Date(order.createdAt || Date.now()).toLocaleString('he-IL')}\nסטטוס: ${order.status}\nסה"כ: ₪${order.totalPrice.toFixed(2)}\n\nפרטי הלקוח:\n${customerInfo}\n\nפריטי ההזמנה:\n${itemsList}`
                 });
                 console.log('✅ Order confirmation email sent:', order._id);
             }
@@ -254,8 +273,7 @@ class EmailService {
                 console.warn('⚠️ Email not configured – skipping approval email to customer');
                 return;
             }
-            const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
-            const senderEmail = process.env.EMAIL_USER;
+            const businessName = process.env.BUSINESS_NAME || 'Megadim';
             const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
             const customerName = ((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.fullName) || 'לקוח/ה';
             const orderIdShort = ((_q = order._id) === null || _q === void 0 ? void 0 : _q.toString().slice(-8)) || '';
@@ -282,7 +300,7 @@ class EmailService {
         <p style="color: #0E1A24; font-weight: 600;">בתיאבון,<br/>צוות מגדים</p>
       </div>`;
             yield this.sendMailWithLogging('order:approved-customer', {
-                from: `"${businessName}" <${senderEmail}>`,
+                from: getWebsiteFromHeader(),
                 replyTo: ownerEmail || undefined,
                 to: toEmail,
                 subject: `הזמנתך אושרה – ${businessName}`,

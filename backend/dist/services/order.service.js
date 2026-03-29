@@ -16,6 +16,7 @@ exports.OrderService = void 0;
 const Order_1 = __importDefault(require("../models/Order"));
 const menuItem_1 = __importDefault(require("../models/menuItem"));
 const mongoose_1 = __importDefault(require("mongoose"));
+const webhook_util_1 = require("../utils/webhook.util");
 const email_service_1 = require("./email.service");
 class OrderService {
     constructor() {
@@ -129,14 +130,8 @@ class OrderService {
             if (isManual && payload.paymentStatus) {
                 customerDetails.isPaid = payload.paymentStatus === 'paid';
             }
-            const order = new Order_1.default({
-                userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null,
-                orderNumber: this.generateOrderNumber(),
-                customerDetails,
-                items: orderItems,
-                totalPrice: payload.totalAmount,
-                status
-            });
+            const marketingData = (0, webhook_util_1.sanitizeMarketingData)(payload.marketingData);
+            const order = new Order_1.default(Object.assign({ userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null, orderNumber: this.generateOrderNumber(), customerDetails, items: orderItems, totalPrice: payload.totalAmount, status }, (marketingData ? { marketingData } : {})));
             const savedOrder = yield order.save();
             console.log('✅ OrderService: Checkout order saved:', savedOrder._id);
             // Admin email is sent from order.controller createOrder (nodemailer) so failures don't affect response
@@ -291,7 +286,7 @@ class OrderService {
                 throw new Error('items array is required and must not be empty');
             }
             const normalizedItems = yield Promise.all(newItems.map((rawItem, index) => __awaiter(this, void 0, void 0, function* () {
-                var _j;
+                var _j, _k, _q, _z, _2;
                 const item = rawItem || {};
                 const productId = String(item.productId || item.id || '').trim();
                 const productName = String(item.name || '').trim();
@@ -312,6 +307,8 @@ class OrderService {
                     ? productName
                         // Remove variant suffix in parentheses: "סלט חומוס (500 מ"ל - 500)" -> "סלט חומוס"
                         .replace(/\s*\([^)]*\)\s*$/, '')
+                        // Remove variant suffix in dash format: "סלט חומוס - קטן" -> "סלט חומוס"
+                        .replace(/\s*-\s*[^-]+$/, '')
                         .trim()
                     : '';
                 const findByNameFallback = () => __awaiter(this, void 0, void 0, function* () {
@@ -357,16 +354,79 @@ class OrderService {
                 if (!product) {
                     throw new Error(`Product not found for items[${index}] (id=${lookupProductId}${productName ? `, name=${productName}` : ''})`);
                 }
-                const authenticPrice = Number(product.price);
+                const requestedVariantLabel = String(((_k = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _k === void 0 ? void 0 : _k.label) || (item === null || item === void 0 ? void 0 : item.variant) || (item === null || item === void 0 ? void 0 : item.size) || '').trim();
+                const requestedVariantAmount = String(((_q = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _q === void 0 ? void 0 : _q.amount) || '').trim();
+                let selectedOptionToSave;
+                let authenticPrice = Number(product.price);
+                if (requestedVariantLabel) {
+                    const pricingOptions = Array.isArray(product.pricingOptions)
+                        ? product.pricingOptions
+                        : [];
+                    const pricingVariants = Array.isArray(product.pricingVariants)
+                        ? product.pricingVariants
+                        : [];
+                    const normalizedRequestedLabel = requestedVariantLabel.toLowerCase();
+                    const normalizedRequestedAmount = requestedVariantAmount.toLowerCase();
+                    const matchedOption = pricingOptions.find((opt) => {
+                        const label = String((opt === null || opt === void 0 ? void 0 : opt.label) || '').trim().toLowerCase();
+                        const amount = String((opt === null || opt === void 0 ? void 0 : opt.amount) || '').trim().toLowerCase();
+                        if (!label)
+                            return false;
+                        const byLabel = label === normalizedRequestedLabel;
+                        const byAmount = normalizedRequestedAmount ? amount === normalizedRequestedAmount : false;
+                        return byLabel || byAmount;
+                    });
+                    if (matchedOption) {
+                        authenticPrice = Number(matchedOption.price);
+                        selectedOptionToSave = {
+                            label: String(matchedOption.label || requestedVariantLabel).trim(),
+                            amount: String(matchedOption.amount || requestedVariantAmount).trim() || undefined,
+                            price: authenticPrice
+                        };
+                    }
+                    else {
+                        const matchedVariant = pricingVariants.find((variant) => {
+                            const label = String((variant === null || variant === void 0 ? void 0 : variant.label) || '').trim().toLowerCase();
+                            const size = String((variant === null || variant === void 0 ? void 0 : variant.size) || '').trim().toLowerCase();
+                            if (!label && !size)
+                                return false;
+                            return label === normalizedRequestedLabel || size === normalizedRequestedLabel;
+                        });
+                        if (matchedVariant) {
+                            authenticPrice = Number(matchedVariant.price);
+                            selectedOptionToSave = {
+                                label: String(matchedVariant.label || matchedVariant.size || requestedVariantLabel).trim(),
+                                amount: String(matchedVariant.size || requestedVariantAmount).trim() || undefined,
+                                price: authenticPrice
+                            };
+                        }
+                        else {
+                            throw new Error(`Variant "${requestedVariantLabel}" not found in DB for items[${index}] (product=${String(product.name || lookupProductId)})`);
+                        }
+                    }
+                }
+                else if ((_z = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _z === void 0 ? void 0 : _z.label) {
+                    // Preserve legacy payload shape if it already includes selectedOption details.
+                    selectedOptionToSave = {
+                        label: String(item.selectedOption.label).trim(),
+                        amount: String(item.selectedOption.amount || '').trim() || undefined,
+                        price: Number((_2 = item.selectedOption.price) !== null && _2 !== void 0 ? _2 : authenticPrice)
+                    };
+                }
                 if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
                     throw new Error(`Invalid product price in DB for product ${lookupProductId}`);
                 }
+                const canonicalProductName = String(product.name || item.name || '').trim();
+                const canonicalItemName = (selectedOptionToSave === null || selectedOptionToSave === void 0 ? void 0 : selectedOptionToSave.label)
+                    ? `${canonicalProductName} - ${selectedOptionToSave.label}`
+                    : canonicalProductName;
                 return {
                     productId: String(product._id || lookupProductId),
-                    name: String(product.name || item.name || ''),
+                    name: canonicalItemName,
                     price: authenticPrice,
                     quantity,
                     category: product.category,
+                    selectedOption: selectedOptionToSave,
                     imageUrl: product.imageUrl,
                     description: product.description
                 };

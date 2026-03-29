@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { ContactRequest, ContactResponse, UpdateContactRequest } from '../models/contact.model';
 import Contact from '../models/Contact';
 import { emailService } from './email.service';
+import { fireWebhook, sanitizeMarketingData } from '../utils/webhook.util';
 
 interface ContactFilters {
   status?: string;
@@ -18,6 +19,7 @@ type LeanContactDoc = {
   status?: string;
   source?: string;
   notes?: string;
+  marketingData?: Record<string, string>;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -33,6 +35,7 @@ function leanToContactRequest(doc: LeanContactDoc | null): ContactRequest | null
     status: (doc.status as ContactRequest['status']) || 'new',
     source: doc.source != null ? String(doc.source) : undefined,
     notes: doc.notes != null ? String(doc.notes) : undefined,
+    marketingData: doc.marketingData,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt
   };
@@ -41,17 +44,23 @@ function leanToContactRequest(doc: LeanContactDoc | null): ContactRequest | null
 export class ContactService {
   // Submit new contact form — persist first, then notify by email (fail-open).
   async submitContactForm(contactData: ContactRequest): Promise<ContactResponse> {
+    const marketingData = sanitizeMarketingData(contactData.marketingData);
+
     const doc = await Contact.create({
       name: contactData.name.trim(),
       email: (contactData.email || '').trim(),
       phone: contactData.phone.trim(),
       message: contactData.message.trim(),
       source: (contactData.source || 'website').trim() || 'website',
-      status: 'new'
+      status: 'new',
+      ...(marketingData ? { marketingData } : {})
     });
 
     const contactId = doc._id.toString();
     console.log(`📧 New contact form saved: ${contactId} (${doc.name}, ${doc.phone})`);
+
+    const contactForWebhook = typeof (doc as any).toObject === 'function' ? (doc as any).toObject() : doc;
+    void fireWebhook(process.env.N8N_CONTACT_WEBHOOK_URL, contactForWebhook);
 
     void emailService
       .sendContactFormToBusiness({

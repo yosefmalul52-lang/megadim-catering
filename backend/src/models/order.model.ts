@@ -72,4 +72,6 @@ export interface CreateCheckoutOrderRequest {
   couponCode?: string;
   /** Set by backend from auth token when user is logged in; links order to User. */
   userId?: string | null;
+  /** Optional UTM / campaign attribution from the client. */
+  marketingData?: Record<string, string>;
 }

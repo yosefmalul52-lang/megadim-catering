@@ -8,6 +8,8 @@ export interface ContactRequest {
   source?: string;
   status?: 'new' | 'read' | 'handled';
   notes?: string;
+  /** Optional UTM / campaign attribution from the client. */
+  marketingData?: Record<string, string>;
   createdAt?: Date;
   updatedAt?: Date;
 }

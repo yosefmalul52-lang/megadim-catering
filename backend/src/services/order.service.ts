@@ -2,6 +2,7 @@ import Order, { IOrder } from '../models/Order';
 import MenuItem from '../models/menuItem';
 import mongoose from 'mongoose';
 import { CreateOrderRequest, CreateCheckoutOrderRequest, OrderResponse } from '../models/order.model';
+import { sanitizeMarketingData } from '../utils/webhook.util';
 import { emailService } from './email.service';
 
 export class OrderService {
@@ -120,13 +121,16 @@ export class OrderService {
     if (isManual && payload.paymentStatus) {
       customerDetails.isPaid = payload.paymentStatus === 'paid';
     }
+    const marketingData = sanitizeMarketingData((payload as { marketingData?: unknown }).marketingData);
+
     const order = new Order({
       userId: (payload as any).userId ?? null,
       orderNumber: this.generateOrderNumber(),
       customerDetails,
       items: orderItems,
       totalPrice: payload.totalAmount,
-      status
+      status,
+      ...(marketingData ? { marketingData } : {})
     });
 
     const savedOrder = await order.save();
