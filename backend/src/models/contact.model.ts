@@ -1,13 +1,13 @@
+/** API / transport shape for contact submissions (aligned with Mongo `Contact` model). */
 export interface ContactRequest {
   id?: string;
   name: string;
   phone: string;
-  email?: string;
-  eventType?: string;
+  email: string;
   message: string;
-  preferredContactTime?: string;
-  source?: string; // 'website', 'whatsapp', 'phone', etc.
-  status?: 'new' | 'contacted' | 'quoted' | 'converted' | 'closed';
+  source?: string;
+  status?: 'new' | 'read' | 'handled';
+  notes?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -19,6 +19,6 @@ export interface ContactResponse {
 }
 
 export interface UpdateContactRequest {
-  status?: ContactRequest['status'];
+  status?: 'new' | 'read' | 'handled';
   notes?: string;
 }

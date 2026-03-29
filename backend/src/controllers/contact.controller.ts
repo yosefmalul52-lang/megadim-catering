@@ -14,9 +14,9 @@ export class ContactController {
   submitContactForm = asyncHandler(async (req: Request, res: Response) => {
     const contactData: ContactRequest = req.body;
 
-    // Basic validation
-    if (!contactData.name || !contactData.phone || !contactData.message) {
-      throw createValidationError('Name, phone, and message are required');
+    // Basic validation (email required — matches Mongo schema and public contact form)
+    if (!contactData.name?.trim() || !contactData.phone?.trim() || !contactData.message?.trim() || !contactData.email?.trim()) {
+      throw createValidationError('Name, phone, email, and message are required');
     }
 
     // Validate phone number format (basic Israeli phone validation)
@@ -25,12 +25,9 @@ export class ContactController {
       throw createValidationError('Please provide a valid Israeli phone number');
     }
 
-    // Validate email if provided
-    if (contactData.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(contactData.email)) {
-        throw createValidationError('Please provide a valid email address');
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactData.email.trim())) {
+      throw createValidationError('Please provide a valid email address');
     }
 
     // Validate message length
@@ -114,7 +111,7 @@ export class ContactController {
       throw createValidationError('Status is required');
     }
 
-    const validStatuses = ['new', 'contacted', 'quoted', 'converted', 'closed'];
+    const validStatuses = ['new', 'read', 'handled'];
     if (!validStatuses.includes(status)) {
       throw createValidationError('Invalid status value');
     }

@@ -1,5 +1,6 @@
-import { v4 as uuidv4 } from 'uuid';
+import mongoose from 'mongoose';
 import { ContactRequest, ContactResponse, UpdateContactRequest } from '../models/contact.model';
+import Contact from '../models/Contact';
 import { emailService } from './email.service';
 
 interface ContactFilters {
@@ -8,217 +9,193 @@ interface ContactFilters {
   offset?: number;
 }
 
+type LeanContactDoc = {
+  _id: mongoose.Types.ObjectId;
+  name?: string;
+  email?: string;
+  phone?: string;
+  message?: string;
+  status?: string;
+  source?: string;
+  notes?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+function leanToContactRequest(doc: LeanContactDoc | null): ContactRequest | null {
+  if (!doc?._id) return null;
+  return {
+    id: String(doc._id),
+    name: String(doc.name ?? ''),
+    email: String(doc.email ?? ''),
+    phone: String(doc.phone ?? ''),
+    message: String(doc.message ?? ''),
+    status: (doc.status as ContactRequest['status']) || 'new',
+    source: doc.source != null ? String(doc.source) : undefined,
+    notes: doc.notes != null ? String(doc.notes) : undefined,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt
+  };
+}
+
 export class ContactService {
-  private contacts: ContactRequest[] = [];
-
-  constructor() {
-    // Initialize with some sample data for development
-    this.initializeSampleData();
-  }
-
-  private initializeSampleData(): void {
-    const sampleContacts: ContactRequest[] = [
-      {
-        id: '1',
-        name: 'יוסי כהן',
-        phone: '052-123-4567',
-        email: 'yossi@example.com',
-        eventType: 'בר מצווה',
-        message: 'שלום, אני מעוניין בקייטרינג לבר מצווה ל-80 איש. תאריך האירוע: 15/03/2024',
-        source: 'website',
-        status: 'new',
-        createdAt: new Date('2024-01-15T10:30:00'),
-        updatedAt: new Date('2024-01-15T10:30:00')
-      },
-      {
-        id: '2',
-        name: 'שרה לוי',
-        phone: '054-987-6543',
-        email: 'sarah@example.com',
-        eventType: 'חתונה',
-        message: 'מעוניינת בהצעת מחיר לחתונה ל-150 אורחים',
-        source: 'website',
-        status: 'contacted',
-        createdAt: new Date('2024-01-14T14:20:00'),
-        updatedAt: new Date('2024-01-14T16:45:00')
-      },
-      {
-        id: '3',
-        name: 'דוד מזרחי',
-        phone: '03-555-1234',
-        eventType: 'ברית מילה',
-        message: 'צריך קייטרינג לברית מילה ל-40 איש, בתאריך 20/02/2024',
-        source: 'phone',
-        status: 'quoted',
-        createdAt: new Date('2024-01-13T09:15:00'),
-        updatedAt: new Date('2024-01-13T11:30:00')
-      }
-    ];
-
-    this.contacts = sampleContacts;
-    console.log(`✅ Initialized with ${this.contacts.length} sample contact requests`);
-  }
-
-  // Submit new contact form
+  // Submit new contact form — persist first, then notify by email (fail-open).
   async submitContactForm(contactData: ContactRequest): Promise<ContactResponse> {
-    const newContact: ContactRequest = {
-      id: uuidv4(),
-      ...contactData,
-      status: 'new',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+    const doc = await Contact.create({
+      name: contactData.name.trim(),
+      email: (contactData.email || '').trim(),
+      phone: contactData.phone.trim(),
+      message: contactData.message.trim(),
+      source: (contactData.source || 'website').trim() || 'website',
+      status: 'new'
+    });
 
-    this.contacts.unshift(newContact); // Add to beginning of array for newest first
+    const contactId = doc._id.toString();
+    console.log(`📧 New contact form saved: ${contactId} (${doc.name}, ${doc.phone})`);
 
-    console.log(`📧 New contact form submitted by ${newContact.name} (${newContact.phone})`);
-
-    // Notify business by email without failing the submission if SMTP errors.
     void emailService
       .sendContactFormToBusiness({
-        name: newContact.name,
-        phone: newContact.phone,
-        email: newContact.email,
-        message: newContact.message
+        name: doc.name,
+        phone: doc.phone,
+        email: doc.email,
+        message: doc.message
       })
       .catch((emailErr: unknown) => {
-        console.error('Contact form: email notification failed (contactId=%s):', newContact.id, emailErr);
+        console.error('Contact form: email notification failed (contactId=%s):', contactId, emailErr);
       });
 
     return {
       success: true,
       message: 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.',
-      contactId: newContact.id
+      contactId
     };
   }
 
-  // Get all contact requests with filtering and pagination
   async getAllContactRequests(filters: ContactFilters = {}): Promise<{
     contacts: ContactRequest[];
     total: number;
   }> {
-    let filteredContacts = [...this.contacts];
-
-    // Filter by status
-    if (filters.status) {
-      filteredContacts = filteredContacts.filter(contact => contact.status === filters.status);
+    const query: Record<string, string> = {};
+    if (filters.status && ['new', 'read', 'handled'].includes(filters.status)) {
+      query.status = filters.status;
     }
 
-    const total = filteredContacts.length;
+    const limit = Math.min(Math.max(filters.limit ?? 50, 1), 200);
+    const offset = Math.max(filters.offset ?? 0, 0);
 
-    // Sort by creation date (newest first)
-    filteredContacts.sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    const [total, docs] = await Promise.all([
+      Contact.countDocuments(query),
+      Contact.find(query).sort({ createdAt: -1 }).skip(offset).limit(limit).lean()
+    ]);
 
-    // Apply pagination
-    const limit = filters.limit || 50;
-    const offset = filters.offset || 0;
-    const paginatedContacts = filteredContacts.slice(offset, offset + limit);
+    const contacts = docs
+      .map((d) => leanToContactRequest(d as LeanContactDoc))
+      .filter((c): c is ContactRequest => c !== null);
 
-    return {
-      contacts: paginatedContacts,
-      total
-    };
+    return { contacts, total };
   }
 
-  // Get contact request by ID
   async getContactRequestById(id: string): Promise<ContactRequest | null> {
-    const contact = this.contacts.find(c => c.id === id);
-    return contact || null;
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    const doc = await Contact.findById(id).lean();
+    return leanToContactRequest(doc as LeanContactDoc | null);
   }
 
-  // Update contact request status
   async updateContactStatus(id: string, updateData: UpdateContactRequest): Promise<ContactRequest | null> {
-    const contactIndex = this.contacts.findIndex(c => c.id === id);
-    
-    if (contactIndex === -1) {
-      return null;
+    if (!updateData.status) return null;
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+
+    const doc = await Contact.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          status: updateData.status,
+          ...(updateData.notes !== undefined ? { notes: updateData.notes } : {})
+        }
+      },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (doc) {
+      console.log(`📝 Contact ${id} status updated to ${updateData.status}`);
     }
 
-    this.contacts[contactIndex] = {
-      ...this.contacts[contactIndex],
-      ...updateData,
-      updatedAt: new Date()
-    };
-
-    console.log(`📝 Contact ${id} status updated to ${updateData.status}`);
-
-    return this.contacts[contactIndex];
+    return leanToContactRequest(doc as LeanContactDoc | null);
   }
 
-  // Delete contact request
   async deleteContactRequest(id: string): Promise<boolean> {
-    const initialLength = this.contacts.length;
-    this.contacts = this.contacts.filter(c => c.id !== id);
-    
-    if (this.contacts.length < initialLength) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return false;
+    const result = await Contact.findByIdAndDelete(id);
+    if (result) {
       console.log(`🗑️ Contact request ${id} deleted`);
       return true;
     }
-    
     return false;
   }
 
-  // Get contact statistics
   async getContactStatistics(): Promise<{
     total: number;
     byStatus: { [status: string]: number };
     bySource: { [source: string]: number };
+    /** Legacy shape; not stored on Contact documents. */
     byEventType: { [eventType: string]: number };
     recentCount: number;
     conversionRate: number;
   }> {
-    const total = this.contacts.length;
-    
-    const byStatus: { [status: string]: number } = {};
-    const bySource: { [source: string]: number } = {};
-    const byEventType: { [eventType: string]: number } = {};
-    
-    this.contacts.forEach(contact => {
-      // Count by status
-      byStatus[contact.status || 'unknown'] = (byStatus[contact.status || 'unknown'] || 0) + 1;
-      
-      // Count by source
-      bySource[contact.source || 'unknown'] = (bySource[contact.source || 'unknown'] || 0) + 1;
-      
-      // Count by event type
-      if (contact.eventType) {
-        byEventType[contact.eventType] = (byEventType[contact.eventType] || 0) + 1;
-      }
-    });
+    const total = await Contact.countDocuments();
 
-    // Count recent contacts (last 7 days)
+    const [statusAgg, sourceAgg] = await Promise.all([
+      Contact.aggregate<{ _id: string | null; count: number }>([
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      Contact.aggregate<{ _id: string | null; count: number }>([
+        { $group: { _id: '$source', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const byStatus: { [status: string]: number } = {};
+    for (const row of statusAgg) {
+      byStatus[row._id || 'unknown'] = row.count;
+    }
+
+    const bySource: { [source: string]: number } = {};
+    for (const row of sourceAgg) {
+      bySource[row._id || 'unknown'] = row.count;
+    }
+
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const recentCount = this.contacts.filter(contact => 
-      contact.createdAt && new Date(contact.createdAt) > weekAgo
-    ).length;
+    const recentCount = await Contact.countDocuments({ createdAt: { $gt: weekAgo } });
 
-    // Calculate conversion rate (quoted or converted / total)
-    const convertedCount = (byStatus['quoted'] || 0) + (byStatus['converted'] || 0);
-    const conversionRate = total > 0 ? (convertedCount / total) * 100 : 0;
+    const handled = byStatus['handled'] || 0;
+    const conversionRate = total > 0 ? Math.round((handled / total) * 10000) / 100 : 0;
 
     return {
       total,
       byStatus,
       bySource,
-      byEventType,
+      byEventType: {},
       recentCount,
-      conversionRate: Math.round(conversionRate * 100) / 100
+      conversionRate
     };
   }
 
-  // Search contact requests
   async searchContacts(query: string): Promise<ContactRequest[]> {
-    const searchTerm = query.toLowerCase();
-    
-    return this.contacts.filter(contact =>
-      contact.name.toLowerCase().includes(searchTerm) ||
-      contact.phone.includes(searchTerm) ||
-      (contact.email && contact.email.toLowerCase().includes(searchTerm)) ||
-      (contact.eventType && contact.eventType.toLowerCase().includes(searchTerm)) ||
-      contact.message.toLowerCase().includes(searchTerm)
-    );
+    const term = (query || '').trim();
+    if (!term) return [];
+
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const rx = new RegExp(escaped, 'i');
+
+    const docs = await Contact.find({
+      $or: [{ name: rx }, { phone: rx }, { email: rx }, { message: rx }]
+    })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    return docs
+      .map((d) => leanToContactRequest(d as LeanContactDoc))
+      .filter((c): c is ContactRequest => c !== null);
   }
 }

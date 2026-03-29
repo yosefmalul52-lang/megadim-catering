@@ -6,12 +6,14 @@ import { generateAdminEmailHtml, generateCustomerEmailHtml, OrderTemplateData } 
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
-/** Professional From header for all outbound mail (dedicated business Gmail via nodemailer). */
-function getFromHeader(displayNameSuffix?: string): string {
-  const baseName = (process.env.BUSINESS_NAME || 'Megadim').trim() || 'Megadim';
-  const displayName = displayNameSuffix ? `${baseName} ${displayNameSuffix}`.trim() : baseName;
+/**
+ * From header for website-originated mail (SMTP user = dedicated Gmail; display name for clients).
+ * Override display name with EMAIL_FROM_DISPLAY_NAME if needed.
+ */
+function getWebsiteFromHeader(): string {
+  const display = (process.env.EMAIL_FROM_DISPLAY_NAME || 'Megadim Website').trim() || 'Megadim Website';
   const addr = (process.env.EMAIL_USER || '').trim();
-  return `"${displayName}" <${addr}>`;
+  return `"${display}" <${addr}>`;
 }
 
 function createTransporter(): nodemailer.Transporter {
@@ -111,8 +113,8 @@ export class EmailService {
   }
 
   /**
-   * Send contact form submission to the business.
-   * Uses OWNER_EMAIL so the business receives the inquiry; falls back to EMAIL_USER only if OWNER_EMAIL is missing.
+   * Send contact form submission to the business owner inbox (OWNER_EMAIL).
+   * SMTP auth uses EMAIL_USER; Reply-To is the customer's email so the business can reply in one click.
    */
   async sendContactFormToBusiness(payload: {
     name: string;
@@ -123,8 +125,12 @@ export class EmailService {
     if (!EMAIL_USER || !EMAIL_PASS) {
       throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
     }
-    const toEmail = EMAIL_USER;
-    console.log('📧 Contact form: sending to', toEmail);
+    const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+    if (!ownerEmail) {
+      throw new Error('OWNER_EMAIL is not configured');
+    }
+    const customerReplyEmail = (payload.email || '').trim();
+    console.log('📧 Contact form: sending to owner', ownerEmail, customerReplyEmail ? `(reply-to: ${customerReplyEmail})` : '');
     const subject = `פנייה חדשה מאתר מגדים: ${escapeHtml(payload.name)}`;
     const html = `
       <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 560px; padding: 24px;">
@@ -138,13 +144,13 @@ export class EmailService {
         <p style="margin: 8px 0 0; padding: 12px; background: #f8f9fa; border-radius: 8px; white-space: pre-wrap;">${escapeHtml(payload.message)}</p>
       </div>`;
     await this.sendMailWithLogging('contact-form', {
-      from: getFromHeader(),
-      to: toEmail,
-      replyTo: payload.email || undefined,
+      from: getWebsiteFromHeader(),
+      to: ownerEmail,
+      replyTo: customerReplyEmail || undefined,
       subject,
       html
     });
-    console.log('✅ Contact form email sent successfully to:', toEmail);
+    console.log('✅ Contact form email sent successfully to owner:', ownerEmail);
   }
 
   /**
@@ -185,19 +191,25 @@ export class EmailService {
     const ownerHtml = generateAdminEmailHtml(templateData);
     const customerHtml = generateCustomerEmailHtml(templateData);
 
-    // 1. Send Order Details to the Business Owner (Office)
+    const customerReplyTo =
+      (typeof orderData.customerEmail === 'string' ? orderData.customerEmail.trim() : '') ||
+      (typeof customerEmail === 'string' ? customerEmail.trim() : '') ||
+      '';
+
+    // 1. Send order details to the business owner (never to EMAIL_USER)
     await this.sendMailWithLogging('order:owner', {
-      from: getFromHeader('- אתר'),
+      from: getWebsiteFromHeader(),
       to: ownerEmail,
+      replyTo: customerReplyTo || undefined,
       subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
       html: ownerHtml
     });
 
-    // 2. Send Receipt to the Customer (if customerEmail provided from frontend)
+    // 2. Send receipt to the customer (if customer email provided)
     const customerEmailTrimmed = typeof customerEmail === 'string' ? customerEmail.trim() : '';
     if (customerEmailTrimmed) {
       await this.sendMailWithLogging('order:customer-receipt', {
-        from: getFromHeader(),
+        from: getWebsiteFromHeader(),
         replyTo: ownerEmail,
         to: customerEmailTrimmed,
         subject: `אישור הזמנה - ${businessName}`,
@@ -213,7 +225,12 @@ export class EmailService {
   async sendOrderEmail(order: IOrder): Promise<void> {
     try {
       const businessName = process.env.BUSINESS_NAME || 'Megadim';
-      const clientEmail = process.env.OWNER_EMAIL || EMAIL_USER || 'owner@megadim.com';
+      const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+      if (!ownerEmail) {
+        console.warn('⚠️ sendOrderEmail: OWNER_EMAIL not set – skipping legacy admin notification');
+        return;
+      }
+      const customerReplyEmail = (order.customerDetails?.email || '').toString().trim();
 
       const itemsList = order.items
         .map(
@@ -231,8 +248,9 @@ export class EmailService {
       `.trim();
 
       await this.sendMailWithLogging('order:legacy-admin', {
-        from: getFromHeader('- אתר'),
-        to: clientEmail,
+        from: getWebsiteFromHeader(),
+        to: ownerEmail,
+        replyTo: customerReplyEmail || undefined,
         subject: `הזמנה חדשה #${order._id?.toString().substring(0, 8) || 'N/A'} - ${businessName}`,
         html: `
           <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
@@ -314,7 +332,7 @@ export class EmailService {
       </div>`;
 
     await this.sendMailWithLogging('order:approved-customer', {
-      from: getFromHeader(),
+      from: getWebsiteFromHeader(),
       replyTo: ownerEmail || undefined,
       to: toEmail,
       subject: `הזמנתך אושרה – ${businessName}`,
