@@ -66,27 +66,8 @@ export class CateringController {
     };
 
     const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
-    if (!ownerEmail) {
-      console.warn('OWNER_EMAIL not set – cannot send catering order email');
-      return res.status(503).json({
-        success: false,
-        message: 'Owner email is not configured (OWNER_EMAIL)',
-        timestamp: new Date().toISOString()
-      });
-    }
 
-    try {
-      await emailService.sendCateringOrderEmails(payload, ownerEmail, payload.email);
-    } catch (emailErr: unknown) {
-      console.error('Catering Email Error:', emailErr);
-      return res.status(500).json({
-        success: false,
-        message: 'שגיאה בשליחת האימייל. נסה שוב או צור קשר.',
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Persist catering order in same orders collection for Admin Dashboard
+    // Persist catering order first — never block success on email delivery.
     const orderDoc = {
       orderType: 'catering' as const,
       customerDetails: {
@@ -104,11 +85,40 @@ export class CateringController {
       mealTime: payload.mealTime,
       mealTypes: mealTimeToLabel(payload.mealTime)
     };
-    await Order.create(orderDoc);
+
+    let created;
+    try {
+      created = await Order.create(orderDoc);
+    } catch (dbErr: unknown) {
+      console.error('Catering: failed to save order to database:', dbErr);
+      return res.status(500).json({
+        success: false,
+        message: 'שגיאה בשמירת ההזמנה. נסה שוב או צור קשר.',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (ownerEmail && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        await emailService.sendCateringOrderEmails(payload, ownerEmail, payload.email);
+      } catch (emailErr: unknown) {
+        console.error(
+          'Catering: email failed after order was saved (orderId=%s):',
+          created?._id?.toString(),
+          emailErr
+        );
+      }
+    } else {
+      console.warn(
+        'Catering: skipping notification email — OWNER_EMAIL or EMAIL_USER/EMAIL_PASS not configured (orderId=%s)',
+        created?._id?.toString()
+      );
+    }
 
     res.status(201).json({
       success: true,
       message: 'ההזמנה נשלחה בהצלחה',
+      orderId: created._id?.toString(),
       timestamp: new Date().toISOString()
     });
   });

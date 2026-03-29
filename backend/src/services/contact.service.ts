@@ -73,12 +73,17 @@ export class ContactService {
 
     console.log(`📧 New contact form submitted by ${newContact.name} (${newContact.phone})`);
 
-    await emailService.sendContactFormToBusiness({
-      name: newContact.name,
-      phone: newContact.phone,
-      email: newContact.email,
-      message: newContact.message
-    });
+    // Notify business by email without failing the submission if SMTP errors.
+    void emailService
+      .sendContactFormToBusiness({
+        name: newContact.name,
+        phone: newContact.phone,
+        email: newContact.email,
+        message: newContact.message
+      })
+      .catch((emailErr: unknown) => {
+        console.error('Contact form: email notification failed (contactId=%s):', newContact.id, emailErr);
+      });
 
     return {
       success: true,

@@ -6,6 +6,14 @@ import { generateAdminEmailHtml, generateCustomerEmailHtml, OrderTemplateData } 
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
+/** Professional From header for all outbound mail (dedicated business Gmail via nodemailer). */
+function getFromHeader(displayNameSuffix?: string): string {
+  const baseName = (process.env.BUSINESS_NAME || 'Megadim').trim() || 'Megadim';
+  const displayName = displayNameSuffix ? `${baseName} ${displayNameSuffix}`.trim() : baseName;
+  const addr = (process.env.EMAIL_USER || '').trim();
+  return `"${displayName}" <${addr}>`;
+}
+
 function createTransporter(): nodemailer.Transporter {
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -117,8 +125,6 @@ export class EmailService {
     }
     const toEmail = EMAIL_USER;
     console.log('📧 Contact form: sending to', toEmail);
-    const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
-    const senderEmail = process.env.EMAIL_USER;
     const subject = `פנייה חדשה מאתר מגדים: ${escapeHtml(payload.name)}`;
     const html = `
       <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 560px; padding: 24px;">
@@ -132,7 +138,7 @@ export class EmailService {
         <p style="margin: 8px 0 0; padding: 12px; background: #f8f9fa; border-radius: 8px; white-space: pre-wrap;">${escapeHtml(payload.message)}</p>
       </div>`;
     await this.sendMailWithLogging('contact-form', {
-      from: `"${businessName}" <${senderEmail}>`,
+      from: getFromHeader(),
       to: toEmail,
       replyTo: payload.email || undefined,
       subject,
@@ -154,9 +160,8 @@ export class EmailService {
       throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
     }
 
-    const senderEmail = process.env.EMAIL_USER;
     const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
-    const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
+    const businessName = process.env.BUSINESS_NAME || 'Megadim';
 
     if (!ownerEmail) {
       throw new Error('OWNER_EMAIL is not configured');
@@ -182,7 +187,7 @@ export class EmailService {
 
     // 1. Send Order Details to the Business Owner (Office)
     await this.sendMailWithLogging('order:owner', {
-      from: `"${businessName} - אתר" <${senderEmail}>`,
+      from: getFromHeader('- אתר'),
       to: ownerEmail,
       subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
       html: ownerHtml
@@ -192,7 +197,7 @@ export class EmailService {
     const customerEmailTrimmed = typeof customerEmail === 'string' ? customerEmail.trim() : '';
     if (customerEmailTrimmed) {
       await this.sendMailWithLogging('order:customer-receipt', {
-        from: `"${businessName}" <${senderEmail}>`,
+        from: getFromHeader(),
         replyTo: ownerEmail,
         to: customerEmailTrimmed,
         subject: `אישור הזמנה - ${businessName}`,
@@ -207,8 +212,7 @@ export class EmailService {
    */
   async sendOrderEmail(order: IOrder): Promise<void> {
     try {
-      const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
-      const senderEmail = process.env.EMAIL_USER;
+      const businessName = process.env.BUSINESS_NAME || 'Megadim';
       const clientEmail = process.env.OWNER_EMAIL || EMAIL_USER || 'owner@megadim.com';
 
       const itemsList = order.items
@@ -227,7 +231,7 @@ export class EmailService {
       `.trim();
 
       await this.sendMailWithLogging('order:legacy-admin', {
-        from: `"${businessName} - אתר" <${senderEmail}>`,
+        from: getFromHeader('- אתר'),
         to: clientEmail,
         subject: `הזמנה חדשה #${order._id?.toString().substring(0, 8) || 'N/A'} - ${businessName}`,
         html: `
@@ -277,8 +281,7 @@ export class EmailService {
       console.warn('⚠️ Email not configured – skipping approval email to customer');
       return;
     }
-    const businessName = process.env.BUSINESS_NAME || 'קייטרינג מגדים';
-    const senderEmail = process.env.EMAIL_USER;
+    const businessName = process.env.BUSINESS_NAME || 'Megadim';
     const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
     const customerName = order.customerDetails?.fullName || 'לקוח/ה';
     const orderIdShort = order._id?.toString().slice(-8) || '';
@@ -311,7 +314,7 @@ export class EmailService {
       </div>`;
 
     await this.sendMailWithLogging('order:approved-customer', {
-      from: `"${businessName}" <${senderEmail}>`,
+      from: getFromHeader(),
       replyTo: ownerEmail || undefined,
       to: toEmail,
       subject: `הזמנתך אושרה – ${businessName}`,
