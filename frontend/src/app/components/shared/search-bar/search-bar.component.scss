@@ -294,6 +294,18 @@
   }
 }
 
+.result-item.is-coming-soon {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.result-item.is-coming-soon:hover,
+.result-item.is-coming-soon:focus {
+  background-color: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
 .dish-result {
   .result-image {
     width: 60px;
@@ -367,6 +379,15 @@
 .result-price {
   color: $color-gold;
   font-weight: $font-weight-semibold;
+}
+
+.coming-soon-chip {
+  color: #475569;
+  background-color: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 // No Results

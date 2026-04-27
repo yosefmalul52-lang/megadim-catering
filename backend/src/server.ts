@@ -68,6 +68,8 @@ import settingsRoutes from './routes/settings.routes';
 import deliveryRoutes from './routes/delivery.routes';
 import couponRoutes from './routes/coupon.routes';
 import userRoutes from './routes/user.routes';
+import campaignRoutes from './routes/campaign.routes';
+import customerRoutes from './routes/customer.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -123,7 +125,7 @@ app.use(cors({
     callback(null, false); // disallow: no Access-Control-Allow-Origin sent
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
@@ -212,6 +214,8 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/campaign', campaignRoutes);
 
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler);

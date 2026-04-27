@@ -189,7 +189,14 @@ export class LoginComponent {
     this.authService.login({ username: phone, password }).subscribe({
       next: (result) => {
         if (result.success) {
-          this.router.navigate(['/']);
+          const role = String(result.user?.role || '').toLowerCase();
+          if (role === 'admin') {
+            this.router.navigate(['/admin']);
+          } else if (role === 'driver') {
+            this.router.navigate(['/admin/delivery']);
+          } else {
+            this.router.navigate(['/']);
+          }
         } else {
           this.errorMessage = result.message || 'שגיאה בהתחברות. נסה שוב.';
         }

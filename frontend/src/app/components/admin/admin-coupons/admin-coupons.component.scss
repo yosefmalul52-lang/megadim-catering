@@ -273,3 +273,41 @@ $border: #e5e7eb;
     font-size: 0.95rem;
   }
 }
+
+/* Visual Standard Refresh - Coupons */
+.admin-coupons-page {
+  background: #f3f4f6;
+}
+
+.admin-coupons-page .stat-card,
+.admin-coupons-page .card,
+.admin-coupons-page .table-container {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.admin-coupons-page .btn-create {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  border: none;
+  color: #fff;
+}
+
+.admin-coupons-page .btn-create:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.28);
+}
+
+.admin-coupons-page .input:focus {
+  border-color: rgba(245, 158, 11, 0.72);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+}
+
+.admin-coupons-page .stat-card,
+.admin-coupons-page .card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-coupons-page .stat-card:hover,
+.admin-coupons-page .card:hover {
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}

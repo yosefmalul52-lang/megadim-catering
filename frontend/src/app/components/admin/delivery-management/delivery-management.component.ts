@@ -4,10 +4,15 @@ import { OrderService } from '../../../services/order.service';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ShippingService } from '../../../services/shipping.service';
+import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../../services/auth.service';
+import { DriverUser, UsersService } from '../../../services/users.service';
 
 interface DeliveryOrder {
   _id: string;
   status?: string;
+  assignedDriverId?: string | null;
+  assignedDriverName?: string;
   customerDetails: { name: string; phone: string };
   deliveryDetails: { address: string; city: string; floor: string | null; comments: string | null };
   totalPrice: number;
@@ -34,7 +39,7 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
 @Component({
   selector: 'app-delivery-management',
   standalone: true,
-  imports: [CommonModule, MatDatepickerModule, MatNativeDateModule],
+  imports: [CommonModule, FormsModule, MatDatepickerModule, MatNativeDateModule],
   template: `
     <div class="delivery-management-page">
       <div class="container">
@@ -195,6 +200,19 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
                         <span *ngIf="order.isPaid" class="payment-badge paid">שולם</span>
                       </div>
                       <div class="order-column actions-column" (click)="$event.stopPropagation()">
+                        <div *ngIf="isAdmin" class="assign-driver-wrap">
+                          <select
+                            class="driver-select"
+                            [disabled]="assigningOrderId === order._id"
+                            [value]="order.assignedDriverId || ''"
+                            (change)="assignDriver(order._id, $any($event.target).value)"
+                          >
+                            <option value="">לא משויך</option>
+                            <option *ngFor="let d of driverUsers" [value]="d._id">
+                              {{ d.fullName || d.username }}
+                            </option>
+                          </select>
+                        </div>
                         <div class="action-buttons">
                           <a [href]="getWazeLink(order.deliveryDetails.address)" target="_blank" class="action-btn waze-btn" title="Waze"><i class="fab fa-waze"></i></a>
                           <button type="button" class="action-btn whatsapp-btn" (click)="openWhatsapp(order)" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
@@ -248,6 +266,19 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
                         <span *ngIf="order.isPaid" class="payment-badge paid">שולם</span>
                       </div>
                       <div class="order-column actions-column" (click)="$event.stopPropagation()">
+                        <div *ngIf="isAdmin" class="assign-driver-wrap">
+                          <select
+                            class="driver-select"
+                            [disabled]="assigningOrderId === order._id"
+                            [value]="order.assignedDriverId || ''"
+                            (change)="assignDriver(order._id, $any($event.target).value)"
+                          >
+                            <option value="">לא משויך</option>
+                            <option *ngFor="let d of driverUsers" [value]="d._id">
+                              {{ d.fullName || d.username }}
+                            </option>
+                          </select>
+                        </div>
                         <div class="action-buttons">
                           <button type="button" class="action-btn whatsapp-btn" (click)="openWhatsapp(order)" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>
                           <a [href]="'tel:' + order.customerDetails.phone" class="action-btn call-btn" title="התקשר"><i class="fas fa-phone"></i></a>
@@ -1016,6 +1047,21 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
       align-items: flex-end;
     }
 
+    .assign-driver-wrap {
+      margin-bottom: 0.5rem;
+    }
+
+    .driver-select {
+      width: 100%;
+      min-width: 150px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 0.35rem 0.5rem;
+      background: #fff;
+      color: #111827;
+      font-size: 0.85rem;
+    }
+
     .action-buttons {
       display: flex;
       gap: 0.75rem;
@@ -1268,6 +1314,8 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
 export class DeliveryManagementComponent implements OnInit {
   orderService = inject(OrderService);
   private shippingService = inject(ShippingService);
+  private authService = inject(AuthService);
+  private usersService = inject(UsersService);
 
   daysByDate: Record<string, { deliveryByCity: CityGroup[]; pickupByTime: PickupGroup[] }> = {};
   fromDate: Date = new Date();
@@ -1278,6 +1326,10 @@ export class DeliveryManagementComponent implements OnInit {
   errorMessage = '';
   isMarkingDelivered: string | null = null;
   successMessage: string | null = null;
+  assigningOrderId: string | null = null;
+  isAdmin = false;
+  isDriver = false;
+  driverUsers: DriverUser[] = [];
   /** Dates that the admin allowed for orders (YYYY-MM-DD) – used to highlight calendar cells. */
   openDates: Set<string> = new Set();
 
@@ -1365,8 +1417,26 @@ export class DeliveryManagementComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const role = String(this.authService.currentUser?.role || '');
+    this.isAdmin = role === 'admin';
+    this.isDriver = role === 'driver';
+    if (this.isAdmin) {
+      this.loadDriverUsers();
+    }
     this.loadWeek();
     this.loadOpenDates();
+  }
+
+  loadDriverUsers(): void {
+    this.usersService.getDriverUsers().subscribe({
+      next: (drivers) => {
+        this.driverUsers = drivers || [];
+      },
+      error: (err) => {
+        console.error('Failed loading drivers:', err);
+        this.driverUsers = [];
+      }
+    });
   }
 
   /** Load openDates from global delivery settings so the calendar shows which dates are enabled. */
@@ -1417,6 +1487,44 @@ export class DeliveryManagementComponent implements OnInit {
         this.errorMessage = 'שגיאה בטעינת דוח המשלוחים';
         this.isLoading = false;
       }
+    });
+  }
+
+  assignDriver(orderId: string, driverId: string): void {
+    if (!this.isAdmin || !orderId) return;
+    this.assigningOrderId = orderId;
+    this.orderService.assignOrderToDriver(orderId, { driverId: driverId || null }).subscribe({
+      next: (updated) => {
+        this.assigningOrderId = null;
+        this.patchOrderAssignmentLocally(orderId, updated.assignedDriverId || null, updated.assignedDriverName || '');
+        this.successMessage = driverId ? 'המשלוח שויך לנהג' : 'שיוך נהג הוסר';
+        setTimeout(() => (this.successMessage = null), 2500);
+      },
+      error: (err) => {
+        this.assigningOrderId = null;
+        alert(err?.error?.message || 'שגיאה בשיוך נהג');
+      }
+    });
+  }
+
+  private patchOrderAssignmentLocally(orderId: string, assignedDriverId: string | null, assignedDriverName: string): void {
+    Object.values(this.daysByDate).forEach((day) => {
+      (day.deliveryByCity || []).forEach((group) => {
+        group.orders.forEach((o) => {
+          if (o._id === orderId) {
+            o.assignedDriverId = assignedDriverId;
+            o.assignedDriverName = assignedDriverName;
+          }
+        });
+      });
+      (day.pickupByTime || []).forEach((group) => {
+        group.orders.forEach((o) => {
+          if (o._id === orderId) {
+            o.assignedDriverId = assignedDriverId;
+            o.assignedDriverName = assignedDriverName;
+          }
+        });
+      });
     });
   }
 

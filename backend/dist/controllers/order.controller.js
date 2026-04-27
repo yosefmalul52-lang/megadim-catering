@@ -130,9 +130,9 @@ class OrderController {
             let couponIdToIncrement = null;
             if (body.couponCode && typeof body.couponCode === 'string' && body.couponCode.trim()) {
                 const cartTotal = (Number(body.subtotal) || 0) + (Number(body.deliveryFee) || 0);
-                const couponResult = yield (0, coupon_service_1.validateAndApplyCoupon)(body.couponCode.trim(), cartTotal);
+                const couponResult = yield (0, coupon_service_1.validateAndApplyCoupon)(body.couponCode.trim(), cartTotal, body.phone);
                 if (!couponResult.valid) {
-                    throw (0, errorHandler_1.createValidationError)(COUPON_VAGUE_ERROR);
+                    throw (0, errorHandler_1.createValidationError)(couponResult.message || COUPON_VAGUE_ERROR);
                 }
                 body.totalAmount = couponResult.newTotal;
                 couponIdToIncrement = couponResult.couponId;
@@ -144,7 +144,7 @@ class OrderController {
             const orderForWebhook = typeof savedOrder.toObject === 'function' ? savedOrder.toObject() : savedOrder;
             void (0, webhook_util_1.fireWebhook)(process.env.N8N_ORDER_WEBHOOK_URL, orderForWebhook);
             if (couponIdToIncrement) {
-                yield (0, coupon_service_1.incrementCouponUsage)(couponIdToIncrement);
+                yield (0, coupon_service_1.incrementCouponUsage)(couponIdToIncrement, body.phone);
             }
             // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
             try {
@@ -336,7 +336,7 @@ class OrderController {
             const { id } = req.params;
             const user = req.user;
             const userId = (user === null || user === void 0 ? void 0 : user.id) || (user === null || user === void 0 ? void 0 : user._id);
-            const isAdmin = (user === null || user === void 0 ? void 0 : user.role) === 'admin';
+            const role = String((user === null || user === void 0 ? void 0 : user.role) || '');
             if (!id) {
                 throw (0, errorHandler_1.createValidationError)('Order ID is required');
             }
@@ -346,9 +346,11 @@ class OrderController {
                     message: 'Authentication required'
                 });
             }
-            const order = isAdmin
+            const order = role === 'admin'
                 ? yield this.orderService.getOrderByIdForAdmin(id)
-                : yield this.orderService.getOrderById(id, userId);
+                : role === 'driver'
+                    ? yield this.orderService.getOrderByIdForDriver(id, String(userId))
+                    : yield this.orderService.getOrderById(id, String(userId));
             if (!order) {
                 throw (0, errorHandler_1.createNotFoundError)('Order');
             }
@@ -358,25 +360,46 @@ class OrderController {
                 timestamp: new Date().toISOString()
             });
         }));
-        // Update order status (Admin only)
+        // Update order status (Admin + limited driver scope)
         this.updateOrderStatus = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q, _z, _2, _3;
             const { id } = req.params;
             const { status, deliveryDate, notes } = req.body;
+            if (((_k = (_j = req.body) === null || _j === void 0 ? void 0 : _j.customerDetails) === null || _k === void 0 ? void 0 : _k.email) || ((_q = req.body) === null || _q === void 0 ? void 0 : _q.email)) {
+                console.warn('Ignoring customer email fields in admin status update payload');
+            }
             if (!id) {
                 throw (0, errorHandler_1.createValidationError)('Order ID is required');
             }
             if (!status) {
                 throw (0, errorHandler_1.createValidationError)('Status is required');
             }
-            const validStatuses = ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'];
-            if (!validStatuses.includes(status)) {
-                throw (0, errorHandler_1.createValidationError)('Invalid status value');
+            const role = String(((_z = req.user) === null || _z === void 0 ? void 0 : _z.role) || '');
+            let updatedOrder;
+            if (role === 'driver') {
+                updatedOrder = yield this.orderService.updateOrderStatusForDriver(id, String(((_2 = req.user) === null || _2 === void 0 ? void 0 : _2.id) || ((_3 = req.user) === null || _3 === void 0 ? void 0 : _3._id)), status);
             }
-            const updatedOrder = yield this.orderService.updateOrderStatus(id, {
-                status,
-                deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
-                notes
-            });
+            else {
+                const validStatuses = [
+                    'pending',
+                    'processing',
+                    'ready',
+                    'cancelled',
+                    'new',
+                    'in-progress',
+                    'out_for_delivery',
+                    'delivery_failed',
+                    'delivered'
+                ];
+                if (!validStatuses.includes(status)) {
+                    throw (0, errorHandler_1.createValidationError)('Invalid status value');
+                }
+                updatedOrder = yield this.orderService.updateOrderStatus(id, {
+                    status,
+                    deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
+                    notes
+                });
+            }
             if (!updatedOrder) {
                 throw (0, errorHandler_1.createNotFoundError)('Order');
             }
@@ -397,10 +420,13 @@ class OrderController {
         }));
         /** PATCH/PUT /api/order/:id/date – update order event/delivery date (Admin). */
         this.updateOrderDate = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            var _j, _k, _q;
+            var _j, _k, _q, _z, _2, _3;
             try {
                 const { id } = req.params;
-                const newDate = (_k = (_j = req.body) === null || _j === void 0 ? void 0 : _j.eventDate) !== null && _k !== void 0 ? _k : (_q = req.body) === null || _q === void 0 ? void 0 : _q.newDate;
+                if (((_k = (_j = req.body) === null || _j === void 0 ? void 0 : _j.customerDetails) === null || _k === void 0 ? void 0 : _k.email) || ((_q = req.body) === null || _q === void 0 ? void 0 : _q.email)) {
+                    console.warn('Ignoring customer email fields in admin date update payload');
+                }
+                const newDate = (_2 = (_z = req.body) === null || _z === void 0 ? void 0 : _z.eventDate) !== null && _2 !== void 0 ? _2 : (_3 = req.body) === null || _3 === void 0 ? void 0 : _3.newDate;
                 if (!id) {
                     throw (0, errorHandler_1.createValidationError)('Order ID is required');
                 }
@@ -426,9 +452,12 @@ class OrderController {
         }));
         /** PUT /api/order/admin/:id/items – replace order items and recalculate total from DB prices (Admin). */
         this.updateOrderItems = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            var _j;
+            var _j, _k, _q, _z;
             const { id } = req.params;
-            const items = (_j = req.body) === null || _j === void 0 ? void 0 : _j.items;
+            if (((_k = (_j = req.body) === null || _j === void 0 ? void 0 : _j.customerDetails) === null || _k === void 0 ? void 0 : _k.email) || ((_q = req.body) === null || _q === void 0 ? void 0 : _q.email)) {
+                console.warn('Ignoring customer email fields in admin items update payload');
+            }
+            const items = (_z = req.body) === null || _z === void 0 ? void 0 : _z.items;
             if (!id) {
                 throw (0, errorHandler_1.createValidationError)('Order ID is required');
             }
@@ -556,6 +585,42 @@ class OrderController {
                 data: stats
             });
         }));
+        // Get analytics: revenue grouped by marketing source (utm_source)
+        this.getRevenueBySource = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+            const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+            const startDate = from ? new Date(from) : undefined;
+            const endDate = to ? new Date(to) : undefined;
+            const includeArchived = req.query.includeArchived === '1' || req.query.includeArchived === 'true';
+            const data = yield this.orderService.getRevenueBySource({
+                startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+                endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
+                includeArchived
+            });
+            res.status(200).json({
+                success: true,
+                data,
+                timestamp: new Date().toISOString()
+            });
+        }));
+        // Get analytics: monthly revenue growth
+        this.getMonthlyRevenue = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+            const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+            const startDate = from ? new Date(from) : undefined;
+            const endDate = to ? new Date(to) : undefined;
+            const includeArchived = req.query.includeArchived === '1' || req.query.includeArchived === 'true';
+            const data = yield this.orderService.getMonthlyRevenue({
+                startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+                endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
+                includeArchived
+            });
+            res.status(200).json({
+                success: true,
+                data,
+                timestamp: new Date().toISOString()
+            });
+        }));
         // Get kitchen preparation report
         this.getKitchenReport = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             try {
@@ -599,13 +664,18 @@ class OrderController {
         }));
         // Get delivery/dispatch report - ?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD (range) or ?date=YYYY-MM-DD (single)
         this.getDeliveryReport = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q;
             try {
                 const from = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
                 const to = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
                 const single = typeof req.query.date === 'string' ? req.query.date : undefined;
                 const fromDate = from || (single && !to ? single : undefined);
                 const toDate = to || (single && !from ? single : undefined);
-                const report = yield this.orderService.getDeliveryReport(fromDate, toDate);
+                const role = String(((_j = req.user) === null || _j === void 0 ? void 0 : _j.role) || '');
+                const driverId = role === 'driver'
+                    ? String(((_k = req.user) === null || _k === void 0 ? void 0 : _k.id) || ((_q = req.user) === null || _q === void 0 ? void 0 : _q._id))
+                    : undefined;
+                const report = yield this.orderService.getDeliveryReport(fromDate, toDate, driverId);
                 res.status(200).json({
                     success: true,
                     data: report
@@ -621,6 +691,38 @@ class OrderController {
                     error: process.env.NODE_ENV === 'development' ? error.stack : undefined
                 });
             }
+        }));
+        this.getDriverMyOrders = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const user = req.user;
+            const driverId = String((user === null || user === void 0 ? void 0 : user.id) || (user === null || user === void 0 ? void 0 : user._id) || '');
+            if (!driverId) {
+                throw (0, errorHandler_1.createValidationError)('Driver authentication required');
+            }
+            const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
+            const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
+            const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
+            const data = yield this.orderService.getDriverAssignedOrders(driverId, { fromDate, toDate, limit });
+            res.status(200).json({ success: true, data });
+        }));
+        this.assignOrderToDriver = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            const { id } = req.params;
+            const driverId = String(((_j = req.body) === null || _j === void 0 ? void 0 : _j.driverId) || '').trim();
+            if (!id)
+                throw (0, errorHandler_1.createValidationError)('Order ID is required');
+            let driver = null;
+            if (driverId) {
+                const User = require('../models/User');
+                const d = yield User.findById(driverId).select('_id fullName username role isActive').lean();
+                if (!d || String(d.role) !== 'driver' || d.isActive === false) {
+                    throw (0, errorHandler_1.createValidationError)('Selected driver is invalid');
+                }
+                driver = { _id: String(d._id), fullName: d.fullName, username: d.username };
+            }
+            const updated = yield this.orderService.assignOrderToDriver(id, driver);
+            if (!updated)
+                throw (0, errorHandler_1.createNotFoundError)('Order');
+            res.status(200).json({ success: true, data: updated });
         }));
         this.orderService = new order_service_1.OrderService();
     }

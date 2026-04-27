@@ -392,6 +392,48 @@ $border-color: #e2e8f0;
   }
 }
 
+/* Visual Standard Refresh - Settings */
+.admin-settings {
+  background: #f3f4f6;
+}
+
+.admin-settings .settings-card {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.admin-settings .settings-header {
+  background: linear-gradient(135deg, #ffffff, #f4fbff);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.admin-settings .btn-save {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  border: none;
+  color: #fff;
+}
+
+.admin-settings .btn-save:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.28);
+}
+
+.admin-settings .form-input:focus {
+  border-color: rgba(14, 165, 233, 0.7);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
+}
+
+.admin-settings .settings-card,
+.admin-settings .settings-header {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.admin-settings .settings-card:hover {
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+
 // Responsive
 @media (max-width: 768px) {
   .container {

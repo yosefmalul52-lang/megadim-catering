@@ -78,6 +78,8 @@ const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
 const delivery_routes_1 = __importDefault(require("./routes/delivery.routes"));
 const coupon_routes_1 = __importDefault(require("./routes/coupon.routes"));
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
+const campaign_routes_1 = __importDefault(require("./routes/campaign.routes"));
+const customer_routes_1 = __importDefault(require("./routes/customer.routes"));
 // Import 404 handler
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
 const email_service_1 = require("./services/email.service");
@@ -125,7 +127,7 @@ app.use((0, cors_1.default)({
         callback(null, false); // disallow: no Access-Control-Allow-Origin sent
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 // Security headers: Helmet – explicit X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP
@@ -206,6 +208,8 @@ app.use('/api/gallery', gallery_routes_1.default);
 app.use('/api/videos', video_routes_1.default);
 app.use('/api/coupons', coupon_routes_1.default);
 app.use('/api/users', user_routes_1.default);
+app.use('/api/customers', customer_routes_1.default);
+app.use('/api/campaign', campaign_routes_1.default);
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler_1.notFoundHandler);
 // Global Error Handler (must be last)

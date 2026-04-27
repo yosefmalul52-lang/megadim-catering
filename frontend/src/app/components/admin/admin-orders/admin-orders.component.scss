@@ -340,6 +340,38 @@ $border: #e2e8f0;
   color: $brand-dark;
 }
 
+.customer-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.customer-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.customer-badge.badge-vip {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.customer-badge.badge-returning {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
 .phone-cell {
   font-family: monospace;
   color: #6c757d;
@@ -678,6 +710,10 @@ $border: #e2e8f0;
   font-weight: 600;
   color: $brand-dark;
   margin: 0 0 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .order-card-meta {
@@ -1237,4 +1273,35 @@ $border: #e2e8f0;
   .stats-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Visual Standard Refresh - Orders */
+.admin-orders-page {
+  background: #f3f4f6;
+}
+
+.admin-orders-page .stat-card {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+.admin-orders-page .tabs-nav .tab-btn.active,
+.admin-orders-page .source-tabs .source-tab-btn.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(14, 165, 233, 0.1));
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.admin-orders-page .table-container {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+}
+
+.admin-orders-page .btn-create-order:hover,
+.admin-orders-page .btn-kitchen-report:hover,
+.admin-orders-page .btn-refresh:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(59, 130, 246, 0.2);
+}
+
+.admin-orders-page .orders-table tbody tr:hover {
+  background: linear-gradient(90deg, #f8fbff, #f1f6ff);
 }

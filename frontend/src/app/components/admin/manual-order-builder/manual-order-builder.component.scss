@@ -305,6 +305,35 @@ $radius: 12px;
   box-shadow: 0 4px 12px rgba(197, 160, 89, 0.35);
 }
 
+/* Visual Standard Refresh - Manual Order Builder */
+.order-builder-page {
+  background: #f3f4f6;
+}
+
+.order-builder-page .card {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.24);
+}
+
+.order-builder-page .btn-submit {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  color: #fff;
+}
+
+.order-builder-page .input:focus {
+  border-color: rgba(59, 130, 246, 0.7);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+.order-builder-page .card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.order-builder-page .card:hover {
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+
 .btn-submit:hover:not(:disabled) {
   filter: brightness(0.95);
   transform: translateY(-1px);

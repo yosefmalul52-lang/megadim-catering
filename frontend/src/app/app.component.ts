@@ -78,6 +78,7 @@ import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 
     <!-- Floating WhatsApp Button (bottom-left so it doesn't overlap accessibility on the right) -->
     <a
+      *ngIf="!isLoginOrAdminPage"
       [href]="whatsappHref"
       target="_blank"
       rel="noopener noreferrer"

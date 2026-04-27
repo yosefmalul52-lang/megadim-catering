@@ -74,7 +74,17 @@ const OrderSchema = new mongoose_1.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'],
+        enum: [
+            'pending',
+            'processing',
+            'ready',
+            'cancelled',
+            'new',
+            'in-progress',
+            'out_for_delivery',
+            'delivery_failed',
+            'delivered'
+        ],
         default: 'pending'
     },
     isDeleted: {
@@ -97,6 +107,21 @@ const OrderSchema = new mongoose_1.Schema({
         utm_campaign: { type: String, trim: true },
         utm_term: { type: String, trim: true },
         utm_content: { type: String, trim: true }
+    },
+    assignedDriverId: {
+        type: mongoose_1.default.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        index: true
+    },
+    assignedDriverName: {
+        type: String,
+        trim: true,
+        default: ''
+    },
+    assignedAt: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true,

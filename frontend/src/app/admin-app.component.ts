@@ -13,9 +13,17 @@ import { RouterOutlet } from '@angular/router';
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
     .admin-app-container {
       min-height: 100vh;
+      max-width: 100%;
+      overflow-x: hidden;
       background-color: #f5f5f5;
+      box-sizing: border-box;
     }
   `]
 })

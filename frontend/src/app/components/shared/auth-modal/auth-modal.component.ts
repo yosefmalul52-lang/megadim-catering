@@ -246,6 +246,14 @@ export class AuthModalComponent implements OnInit, OnDestroy {
           
           setTimeout(() => {
             this.closeModal();
+            const role = String(response.user?.role || '').toLowerCase();
+            if (role === 'admin') {
+              this.router.navigate(['/admin']);
+            } else if (role === 'driver') {
+              this.router.navigate(['/admin/delivery']);
+            } else {
+              this.router.navigate(['/']);
+            }
           }, 500);
         } else {
           // Show error but keep modal open

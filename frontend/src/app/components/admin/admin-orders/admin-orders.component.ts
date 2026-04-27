@@ -52,6 +52,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   /** Optional filter from query params when navigating from customers page */
   customerFilter: { email?: string; phone?: string } = {};
+  /** Frequency map by normalized phone for VIP/returning badges. */
+  private phoneFrequency: Record<string, number> = {};
 
   orders: Order[] = [];
   archiveOrders: Order[] = [];
@@ -172,6 +174,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           setTimeout(() => (this.successMessage = ''), 5000);
         }
         this.orders = orders;
+        this.rebuildPhoneFrequency();
         this.previousOrderCount = orders.length;
         this.isLoading = false;
         this.isRefreshing = false;
@@ -190,6 +193,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.orderService.getAllOrders(true).subscribe({
       next: (list) => {
         this.archiveOrders = list;
+        this.rebuildPhoneFrequency();
         this.isLoadingArchive = false;
       },
       error: () => {
@@ -213,9 +217,61 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   private matchesCustomerFilter(order: Order): boolean {
     if (!this.customerFilter.email && !this.customerFilter.phone) return true;
     const cd = order.customerDetails || {};
-    const emailMatch = !this.customerFilter.email || (!!cd.email && String(cd.email).toLowerCase() === String(this.customerFilter.email).toLowerCase());
-    const phoneMatch = !this.customerFilter.phone || (!!cd.phone && String(cd.phone).trim() === String(this.customerFilter.phone).trim());
+    const emailMatch =
+      !this.customerFilter.email ||
+      (!!cd.email && String(cd.email).toLowerCase() === String(this.customerFilter.email).toLowerCase());
+    const phoneMatch =
+      !this.customerFilter.phone ||
+      (!!cd.phone &&
+        this.normalizePhone(String(cd.phone)) === this.normalizePhone(String(this.customerFilter.phone)));
     return Boolean(emailMatch && phoneMatch);
+  }
+
+  /**
+   * Normalize Israeli phone numbers for matching:
+   * - remove non-digits
+   * - convert +972 / 972 prefix to local 0-prefix when possible
+   */
+  normalizePhone(raw: string | undefined | null): string {
+    let digits = String(raw || '').replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('972')) {
+      digits = digits.slice(3);
+      if (!digits.startsWith('0')) digits = `0${digits}`;
+    } else if (digits.startsWith('00972')) {
+      digits = digits.slice(5);
+      if (!digits.startsWith('0')) digits = `0${digits}`;
+    }
+    return digits;
+  }
+
+  private getOrderPhoneKey(order: Order): string {
+    return this.normalizePhone(order.customerDetails?.phone);
+  }
+
+  private rebuildPhoneFrequency(): void {
+    const map: Record<string, number> = {};
+    const all = [...this.orders, ...this.archiveOrders];
+    for (const order of all) {
+      const key = this.getOrderPhoneKey(order);
+      if (!key) continue;
+      map[key] = (map[key] || 0) + 1;
+    }
+    this.phoneFrequency = map;
+  }
+
+  isReturningCustomer(order: Order): boolean {
+    const key = this.getOrderPhoneKey(order);
+    return !!key && (this.phoneFrequency[key] || 0) > 1;
+  }
+
+  getCustomerBadge(order: Order): 'VIP' | 'Returning' | null {
+    const key = this.getOrderPhoneKey(order);
+    if (!key) return null;
+    const count = this.phoneFrequency[key] || 0;
+    if (count >= 3) return 'VIP';
+    if (count >= 2) return 'Returning';
+    return null;
   }
 
   /** True if order is from catering/events (saved with orderType or catering-specific fields). */
@@ -297,6 +353,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       next: () => {
         this.orders = this.orders.filter((o) => (o._id || o.id) !== orderId);
         this.archiveOrders = [...this.archiveOrders, { ...order, isDeleted: true }];
+        this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה הועברה לארכיון בהצלחה';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
@@ -319,6 +376,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       next: (restored) => {
         this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
         this.orders = [restored, ...this.orders];
+        this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה שוחזרה בהצלחה והועברה לטאב ממתינים';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
@@ -344,6 +402,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.orderService.hardDeleteOrder(orderId).subscribe({
       next: () => {
         this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
+        this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה נמחקה לצמיתות';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;

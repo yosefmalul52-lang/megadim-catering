@@ -18,6 +18,7 @@ const menuItem_1 = __importDefault(require("../models/menuItem"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const webhook_util_1 = require("../utils/webhook.util");
 const email_service_1 = require("./email.service");
+const customer_service_1 = require("./customer.service");
 class OrderService {
     constructor() {
         // Categories that should only show units, not calculated weight
@@ -72,6 +73,14 @@ class OrderService {
                 const savedOrder = yield order.save();
                 console.log('✅ OrderService: Order saved successfully:', savedOrder._id);
                 console.log('✅ OrderService: Saved order userId:', savedOrder.userId);
+                // Sync Single Source of Truth customer profile (fail-open).
+                try {
+                    yield (0, customer_service_1.upsertCustomerFromOrder)(savedOrder);
+                }
+                catch (err) {
+                    console.error('⚠️ Customer upsert failed after order save');
+                    console.error('Upsert Error:', err);
+                }
                 // Send order email to owner immediately after save
                 try {
                     yield email_service_1.emailService.sendOrderEmail(savedOrder);
@@ -134,6 +143,13 @@ class OrderService {
             const order = new Order_1.default(Object.assign({ userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null, orderNumber: this.generateOrderNumber(), customerDetails, items: orderItems, totalPrice: payload.totalAmount, status }, (marketingData ? { marketingData } : {})));
             const savedOrder = yield order.save();
             console.log('✅ OrderService: Checkout order saved:', savedOrder._id);
+            try {
+                yield (0, customer_service_1.upsertCustomerFromOrder)(savedOrder);
+            }
+            catch (err) {
+                console.error('⚠️ Customer upsert failed for checkout order');
+                console.error('Upsert Error:', err);
+            }
             // Admin email is sent from order.controller createOrder (nodemailer) so failures don't affect response
             return savedOrder;
         });
@@ -230,6 +246,26 @@ class OrderService {
             }
         });
     }
+    getOrderByIdForDriver(orderId, driverUserId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            try {
+                const order = yield Order_1.default.findOne({
+                    _id: orderId,
+                    assignedDriverId: driverUserId,
+                    isDeleted: { $ne: true }
+                }).lean();
+                if (!order || !((_j = order.items) === null || _j === void 0 ? void 0 : _j.length))
+                    return order;
+                yield this.enrichOrderItemsImageUrlPublic(order.items);
+                return order;
+            }
+            catch (error) {
+                console.error('Error fetching order by ID (driver):', error);
+                throw error;
+            }
+        });
+    }
     /** Fills imageUrl on each item from MenuItem when missing. Accepts productId as string or ObjectId. */
     enrichOrderItemsImageUrlPublic(items) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -273,6 +309,57 @@ class OrderService {
                 console.error('Error updating order status:', error);
                 throw error;
             }
+        });
+    }
+    updateOrderStatusForDriver(orderId, driverUserId, status) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const allowed = new Set(['out_for_delivery', 'delivered', 'delivery_failed']);
+            if (!allowed.has(String(status || '').trim().toLowerCase())) {
+                throw new Error('Driver status is not allowed');
+            }
+            const updated = yield Order_1.default.findOneAndUpdate({
+                _id: orderId,
+                assignedDriverId: driverUserId,
+                isDeleted: { $ne: true }
+            }, { $set: { status } }, { new: true }).lean();
+            return updated;
+        });
+    }
+    getDriverAssignedOrders(driverUserId, opts) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const query = {
+                assignedDriverId: driverUserId,
+                isDeleted: { $ne: true }
+            };
+            if ((opts === null || opts === void 0 ? void 0 : opts.fromDate) || (opts === null || opts === void 0 ? void 0 : opts.toDate)) {
+                query['customerDetails.eventDate'] = {};
+                if (opts.fromDate)
+                    query['customerDetails.eventDate'].$gte = opts.fromDate;
+                if (opts.toDate)
+                    query['customerDetails.eventDate'].$lte = opts.toDate;
+            }
+            const rows = yield Order_1.default.find(query)
+                .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
+                .limit(Math.max(1, Math.min(Number((opts === null || opts === void 0 ? void 0 : opts.limit) || 300), 1000)))
+                .lean();
+            return rows;
+        });
+    }
+    assignOrderToDriver(orderId, driver) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const set = {};
+            if (!driver) {
+                set.assignedDriverId = null;
+                set.assignedDriverName = '';
+                set.assignedAt = null;
+            }
+            else {
+                set.assignedDriverId = driver._id;
+                set.assignedDriverName = String(driver.fullName || driver.username || '').trim();
+                set.assignedAt = new Date();
+            }
+            const updated = yield Order_1.default.findByIdAndUpdate(orderId, { $set: set }, { new: true }).lean();
+            return updated;
         });
     }
     /**
@@ -672,6 +759,118 @@ class OrderService {
             }
         });
     }
+    /**
+     * Aggregate revenue by marketing source (utm_source).
+     * Missing/empty sources are bucketed as "direct".
+     */
+    getRevenueBySource(filters) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const match = {
+                    status: { $ne: 'cancelled' }
+                };
+                if (!(filters === null || filters === void 0 ? void 0 : filters.includeArchived)) {
+                    match.isDeleted = { $ne: true };
+                }
+                if ((filters === null || filters === void 0 ? void 0 : filters.startDate) || (filters === null || filters === void 0 ? void 0 : filters.endDate)) {
+                    match.createdAt = {};
+                    if (filters.startDate)
+                        match.createdAt.$gte = filters.startDate;
+                    if (filters.endDate)
+                        match.createdAt.$lte = filters.endDate;
+                }
+                const rows = yield Order_1.default.aggregate([
+                    { $match: match },
+                    {
+                        $project: {
+                            totalPrice: 1,
+                            source: {
+                                $let: {
+                                    vars: { src: { $ifNull: ['$marketingData.utm_source', ''] } },
+                                    in: {
+                                        $cond: [
+                                            { $gt: [{ $strLenCP: { $trim: { input: '$$src' } } }, 0] },
+                                            { $toLower: { $trim: { input: '$$src' } } },
+                                            'direct'
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        $group: {
+                            _id: '$source',
+                            totalRevenue: { $sum: '$totalPrice' },
+                            ordersCount: { $sum: 1 }
+                        }
+                    },
+                    { $sort: { totalRevenue: -1 } },
+                    {
+                        $project: {
+                            _id: 0,
+                            source: '$_id',
+                            totalRevenue: 1,
+                            ordersCount: 1
+                        }
+                    }
+                ]);
+                return rows;
+            }
+            catch (error) {
+                console.error('Error fetching revenue by source:', error);
+                throw error;
+            }
+        });
+    }
+    /**
+     * Aggregate monthly revenue growth (YYYY-MM buckets).
+     */
+    getMonthlyRevenue(filters) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                const match = {
+                    status: { $ne: 'cancelled' }
+                };
+                if (!(filters === null || filters === void 0 ? void 0 : filters.includeArchived)) {
+                    match.isDeleted = { $ne: true };
+                }
+                if ((filters === null || filters === void 0 ? void 0 : filters.startDate) || (filters === null || filters === void 0 ? void 0 : filters.endDate)) {
+                    match.createdAt = {};
+                    if (filters.startDate)
+                        match.createdAt.$gte = filters.startDate;
+                    if (filters.endDate)
+                        match.createdAt.$lte = filters.endDate;
+                }
+                const rows = yield Order_1.default.aggregate([
+                    { $match: match },
+                    {
+                        $group: {
+                            _id: {
+                                $dateToString: { format: '%Y-%m', date: '$createdAt' }
+                            },
+                            totalRevenue: { $sum: '$totalPrice' },
+                            ordersCount: { $sum: 1 }
+                        }
+                    },
+                    { $sort: { _id: 1 } },
+                    {
+                        $project: {
+                            _id: 0,
+                            month: '$_id',
+                            totalRevenue: 1,
+                            ordersCount: 1
+                        }
+                    }
+                ]);
+                return rows;
+            }
+            catch (error) {
+                console.error('Error fetching monthly revenue:', error);
+                throw error;
+            }
+        });
+    }
     // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
     // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
     getKitchenReport(targetDate) {
@@ -971,13 +1170,16 @@ class OrderService {
         return '-';
     }
     /** Build delivery+pickup groups for a single day's orders. */
-    getDeliveryReportForOneDay(dateStr) {
+    getDeliveryReportForOneDay(dateStr, assignedDriverId) {
         return __awaiter(this, void 0, void 0, function* () {
             const query = {
                 status: { $ne: 'cancelled' },
                 isDeleted: { $ne: true },
                 'customerDetails.eventDate': dateStr
             };
+            if (assignedDriverId) {
+                query.assignedDriverId = assignedDriverId;
+            }
             const activeOrders = yield Order_1.default.find(query).lean();
             const cityMap = {};
             const pickupTimeMap = {};
@@ -997,6 +1199,8 @@ class OrderService {
                 const orderSummary = {
                     _id: order._id.toString(),
                     status: order.status || 'pending',
+                    assignedDriverId: order.assignedDriverId ? String(order.assignedDriverId) : null,
+                    assignedDriverName: order.assignedDriverName || '',
                     customerDetails: {
                         name: customerDetails.fullName || 'לא צוין',
                         phone: customerDetails.phone || 'לא צוין'
@@ -1037,7 +1241,7 @@ class OrderService {
         });
     }
     /** Get delivery report for a single day or a date range. Returns days keyed by YYYY-MM-DD. */
-    getDeliveryReport(fromDate, toDate) {
+    getDeliveryReport(fromDate, toDate, assignedDriverId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const norm = (d) => (d && d.indexOf('T') >= 0 ? d.slice(0, 10) : d) || '';
@@ -1056,7 +1260,7 @@ class OrderService {
                 }
                 const days = {};
                 for (const dateStr of dateStrings) {
-                    days[dateStr] = yield this.getDeliveryReportForOneDay(dateStr);
+                    days[dateStr] = yield this.getDeliveryReportForOneDay(dateStr, assignedDriverId);
                 }
                 console.log('🚚 Delivery report: days', Object.keys(days).length);
                 return { days };

@@ -145,9 +145,9 @@ export class OrderController {
     let couponIdToIncrement: string | null = null;
     if (body.couponCode && typeof body.couponCode === 'string' && body.couponCode.trim()) {
       const cartTotal = (Number(body.subtotal) || 0) + (Number(body.deliveryFee) || 0);
-      const couponResult = await validateAndApplyCoupon(body.couponCode.trim(), cartTotal);
+      const couponResult = await validateAndApplyCoupon(body.couponCode.trim(), cartTotal, body.phone);
       if (!couponResult.valid) {
-        throw createValidationError(COUPON_VAGUE_ERROR);
+        throw createValidationError((couponResult as any).message || COUPON_VAGUE_ERROR);
       }
       body.totalAmount = (couponResult as any).newTotal;
       couponIdToIncrement = (couponResult as any).couponId;
@@ -163,7 +163,7 @@ export class OrderController {
     void fireWebhook(process.env.N8N_ORDER_WEBHOOK_URL, orderForWebhook);
 
     if (couponIdToIncrement) {
-      await incrementCouponUsage(couponIdToIncrement);
+      await incrementCouponUsage(couponIdToIncrement, body.phone);
     }
 
     // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
@@ -386,7 +386,7 @@ export class OrderController {
     const { id } = req.params;
     const user = (req as any).user;
     const userId = user?.id || user?._id;
-    const isAdmin = user?.role === 'admin';
+    const role = String(user?.role || '');
 
     if (!id) {
       throw createValidationError('Order ID is required');
@@ -399,9 +399,12 @@ export class OrderController {
       });
     }
 
-    const order = isAdmin
-      ? await this.orderService.getOrderByIdForAdmin(id)
-      : await this.orderService.getOrderById(id, userId);
+    const order =
+      role === 'admin'
+        ? await this.orderService.getOrderByIdForAdmin(id)
+        : role === 'driver'
+          ? await this.orderService.getOrderByIdForDriver(id, String(userId))
+          : await this.orderService.getOrderById(id, String(userId));
 
     if (!order) {
       throw createNotFoundError('Order');
@@ -414,10 +417,13 @@ export class OrderController {
     });
   });
 
-  // Update order status (Admin only)
+  // Update order status (Admin + limited driver scope)
   updateOrderStatus = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, deliveryDate, notes } = req.body;
+    if ((req.body as any)?.customerDetails?.email || (req.body as any)?.email) {
+      console.warn('Ignoring customer email fields in admin status update payload');
+    }
 
     if (!id) {
       throw createValidationError('Order ID is required');
@@ -427,16 +433,35 @@ export class OrderController {
       throw createValidationError('Status is required');
     }
 
-    const validStatuses = ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'];
-    if (!validStatuses.includes(status)) {
-      throw createValidationError('Invalid status value');
+    const role = String((req as any).user?.role || '');
+    let updatedOrder: any;
+    if (role === 'driver') {
+      updatedOrder = await this.orderService.updateOrderStatusForDriver(
+        id,
+        String((req as any).user?.id || (req as any).user?._id),
+        status
+      );
+    } else {
+      const validStatuses = [
+        'pending',
+        'processing',
+        'ready',
+        'cancelled',
+        'new',
+        'in-progress',
+        'out_for_delivery',
+        'delivery_failed',
+        'delivered'
+      ];
+      if (!validStatuses.includes(status)) {
+        throw createValidationError('Invalid status value');
+      }
+      updatedOrder = await this.orderService.updateOrderStatus(id, {
+        status,
+        deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
+        notes
+      });
     }
-
-    const updatedOrder = await this.orderService.updateOrderStatus(id, {
-      status,
-      deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
-      notes
-    });
 
     if (!updatedOrder) {
       throw createNotFoundError('Order');
@@ -462,6 +487,9 @@ export class OrderController {
   updateOrderDate = asyncHandler(async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      if ((req.body as any)?.customerDetails?.email || (req.body as any)?.email) {
+        console.warn('Ignoring customer email fields in admin date update payload');
+      }
       const newDate = req.body?.eventDate ?? req.body?.newDate;
 
       if (!id) {
@@ -493,6 +521,9 @@ export class OrderController {
   /** PUT /api/order/admin/:id/items – replace order items and recalculate total from DB prices (Admin). */
   updateOrderItems = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
+    if ((req.body as any)?.customerDetails?.email || (req.body as any)?.email) {
+      console.warn('Ignoring customer email fields in admin items update payload');
+    }
     const items = req.body?.items;
 
     if (!id) {
@@ -650,6 +681,48 @@ export class OrderController {
     });
   });
 
+  // Get analytics: revenue grouped by marketing source (utm_source)
+  getRevenueBySource = asyncHandler(async (req: Request, res: Response) => {
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    const startDate = from ? new Date(from) : undefined;
+    const endDate = to ? new Date(to) : undefined;
+    const includeArchived = req.query.includeArchived === '1' || req.query.includeArchived === 'true';
+
+    const data = await this.orderService.getRevenueBySource({
+      startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+      endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
+      includeArchived
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Get analytics: monthly revenue growth
+  getMonthlyRevenue = asyncHandler(async (req: Request, res: Response) => {
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    const startDate = from ? new Date(from) : undefined;
+    const endDate = to ? new Date(to) : undefined;
+    const includeArchived = req.query.includeArchived === '1' || req.query.includeArchived === 'true';
+
+    const data = await this.orderService.getMonthlyRevenue({
+      startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+      endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
+      includeArchived
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Get kitchen preparation report
   getKitchenReport = asyncHandler(async (req: Request, res: Response) => {
     try {
@@ -705,7 +778,12 @@ export class OrderController {
       const single = typeof req.query.date === 'string' ? req.query.date : undefined;
       const fromDate = from || (single && !to ? single : undefined);
       const toDate = to || (single && !from ? single : undefined);
-      const report = await this.orderService.getDeliveryReport(fromDate, toDate);
+      const role = String((req as any).user?.role || '');
+      const driverId =
+        role === 'driver'
+          ? String((req as any).user?.id || (req as any).user?._id)
+          : undefined;
+      const report = await this.orderService.getDeliveryReport(fromDate, toDate, driverId);
 
       res.status(200).json({
         success: true,
@@ -722,5 +800,38 @@ export class OrderController {
         error: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
+  });
+
+  getDriverMyOrders = asyncHandler(async (req: Request, res: Response) => {
+    const user = (req as any).user;
+    const driverId = String(user?.id || user?._id || '');
+    if (!driverId) {
+      throw createValidationError('Driver authentication required');
+    }
+    const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
+    const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
+    const data = await this.orderService.getDriverAssignedOrders(driverId, { fromDate, toDate, limit });
+    res.status(200).json({ success: true, data });
+  });
+
+  assignOrderToDriver = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const driverId = String(req.body?.driverId || '').trim();
+    if (!id) throw createValidationError('Order ID is required');
+
+    let driver: { _id: string; fullName?: string; username?: string } | null = null;
+    if (driverId) {
+      const User = require('../models/User');
+      const d = await User.findById(driverId).select('_id fullName username role isActive').lean();
+      if (!d || String(d.role) !== 'driver' || d.isActive === false) {
+        throw createValidationError('Selected driver is invalid');
+      }
+      driver = { _id: String(d._id), fullName: d.fullName, username: d.username };
+    }
+
+    const updated = await this.orderService.assignOrderToDriver(id, driver);
+    if (!updated) throw createNotFoundError('Order');
+    res.status(200).json({ success: true, data: updated });
   });
 }

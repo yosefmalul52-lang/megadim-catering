@@ -13,6 +13,8 @@ export interface Coupon {
   maxUses: number;
   currentUses: number;
   isActive: boolean;
+  isVipOnly?: boolean;
+  targetCustomerCategory?: 'all' | 'returning' | 'sleeping' | 'vip';
   createdAt?: string;
   updatedAt?: string;
 }

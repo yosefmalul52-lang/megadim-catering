@@ -17,6 +17,8 @@ import videoRoutes from './routes/video.routes';
 import settingsRoutes from './routes/settings.routes';
 import deliveryRoutes from './routes/delivery.routes';
 import userRoutes from './routes/user.routes';
+import campaignRoutes from './routes/campaign.routes';
+import customerRoutes from './routes/customer.routes';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -133,6 +135,8 @@ app.use('/api/videos', videoRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/campaign', campaignRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

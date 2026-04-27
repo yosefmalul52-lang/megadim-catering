@@ -168,5 +168,55 @@ class ContactService {
                 .filter((c) => c !== null);
         });
     }
+    /**
+     * Aggregate leads volume by marketing source (utm_source).
+     * Missing/empty values are bucketed as "direct".
+     */
+    getLeadsBySource(filters) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const match = {};
+            if ((filters === null || filters === void 0 ? void 0 : filters.startDate) || (filters === null || filters === void 0 ? void 0 : filters.endDate)) {
+                match.createdAt = {};
+                if (filters.startDate)
+                    match.createdAt['$gte'] = filters.startDate;
+                if (filters.endDate)
+                    match.createdAt['$lte'] = filters.endDate;
+            }
+            const rows = yield Contact_1.default.aggregate([
+                { $match: match },
+                {
+                    $project: {
+                        source: {
+                            $let: {
+                                vars: { src: { $ifNull: ['$marketingData.utm_source', ''] } },
+                                in: {
+                                    $cond: [
+                                        { $gt: [{ $strLenCP: { $trim: { input: '$$src' } } }, 0] },
+                                        { $toLower: { $trim: { input: '$$src' } } },
+                                        'direct'
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$source',
+                        leadsCount: { $sum: 1 }
+                    }
+                },
+                { $sort: { leadsCount: -1 } },
+                {
+                    $project: {
+                        _id: 0,
+                        source: '$_id',
+                        leadsCount: 1
+                    }
+                }
+            ]);
+            return rows;
+        });
+    }
 }
 exports.ContactService = ContactService;

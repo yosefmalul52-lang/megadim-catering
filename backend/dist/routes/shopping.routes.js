@@ -8,7 +8,8 @@ const shopping_controller_1 = require("../controllers/shopping.controller");
 const router = express_1.default.Router();
 const shoppingController = new shopping_controller_1.ShoppingController();
 // Import authenticate middleware
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireCapability, CAP } = require('../config/role-access');
 // Admin-only: shopping list
-router.get('/', authenticate, authorize('admin'), shoppingController.getShoppingList);
+router.get('/', authenticate, requireCapability(CAP.SHOPPING_LIST), shoppingController.getShoppingList);
 exports.default = router;

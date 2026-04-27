@@ -3,6 +3,14 @@ import Coupon, { ICoupon } from '../models/coupon.model';
 import { validateAndApplyCoupon } from '../services/coupon.service';
 import { createValidationError } from '../middleware/errorHandler';
 
+function parseTargetCustomerCategory(raw: unknown): 'all' | 'returning' | 'sleeping' | 'vip' {
+  const value = String(raw ?? 'all')
+    .trim()
+    .toLowerCase();
+  if (value === 'returning' || value === 'sleeping' || value === 'vip') return value;
+  return 'all';
+}
+
 export async function listCoupons(_req: Request, res: Response): Promise<void> {
   try {
     const coupons = await Coupon.find({}).sort({ createdAt: -1 }).lean();
@@ -35,24 +43,28 @@ export async function createCoupon(req: Request, res: Response): Promise<void> {
     if (typeof minOrderValue !== 'number' || isNaN(minOrderValue) || minOrderValue < 0) {
       throw createValidationError('minOrderValue must be a non-negative number');
     }
-    const expiryDate = body.expiryDate ? new Date(body.expiryDate) : null;
-    if (!expiryDate || isNaN(expiryDate.getTime())) {
-      throw createValidationError('expiryDate is required and must be a valid date');
+    const expiresAt = body.expiresAt || body.expiryDate ? new Date(body.expiresAt || body.expiryDate) : null;
+    if (expiresAt && isNaN(expiresAt.getTime())) {
+      throw createValidationError('expiresAt must be a valid date');
     }
-    const maxUses = Number(body.maxUses);
-    if (typeof maxUses !== 'number' || isNaN(maxUses) || maxUses < 1) {
-      throw createValidationError('maxUses must be at least 1');
+    const maxUses = body.maxUses == null || body.maxUses === '' ? null : Number(body.maxUses);
+    if (maxUses !== null && (typeof maxUses !== 'number' || isNaN(maxUses) || maxUses < 1)) {
+      throw createValidationError('maxUses must be null or at least 1');
     }
+    const targetCustomerCategory = parseTargetCustomerCategory(body.targetCustomerCategory);
 
     const coupon = new Coupon({
       code,
       discountType,
       discountValue,
       minOrderValue: minOrderValue || 0,
-      expiryDate,
+      expiresAt,
       maxUses,
-      currentUses: 0,
-      isActive: body.isActive !== false
+      usageCount: 0,
+      usedByPhones: [],
+      isActive: body.isActive !== false,
+      isVipOnly: body.isVipOnly === true,
+      targetCustomerCategory
     });
     await coupon.save();
     res.status(201).json(coupon.toObject ? coupon.toObject() : coupon);
@@ -93,19 +105,30 @@ export async function updateCoupon(req: Request, res: Response): Promise<void> {
       if (isNaN(v) || v < 0) throw createValidationError('minOrderValue must be a non-negative number');
       coupon.minOrderValue = v;
     }
-    if (body.expiryDate !== undefined) {
-      const d = new Date(body.expiryDate);
-      if (isNaN(d.getTime())) throw createValidationError('expiryDate must be a valid date');
-      coupon.expiryDate = d;
+    if (body.expiresAt !== undefined || body.expiryDate !== undefined) {
+      const raw = body.expiresAt !== undefined ? body.expiresAt : body.expiryDate;
+      if (raw === null || raw === '') {
+        coupon.expiresAt = null;
+      } else {
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) throw createValidationError('expiresAt must be a valid date');
+        coupon.expiresAt = d;
+      }
     }
     if (body.maxUses !== undefined) {
-      const v = Number(body.maxUses);
-      if (isNaN(v) || v < 1) throw createValidationError('maxUses must be at least 1');
-      if (v < coupon.currentUses) throw createValidationError('maxUses cannot be less than currentUses');
+      const v = body.maxUses === null || body.maxUses === '' ? null : Number(body.maxUses);
+      if (v !== null && (isNaN(v) || v < 1)) throw createValidationError('maxUses must be null or at least 1');
+      if (v !== null && v < coupon.usageCount) throw createValidationError('maxUses cannot be less than usageCount');
       coupon.maxUses = v;
     }
     if (typeof body.isActive === 'boolean') {
       coupon.isActive = body.isActive;
+    }
+    if (typeof body.isVipOnly === 'boolean') {
+      coupon.isVipOnly = body.isVipOnly;
+    }
+    if (body.targetCustomerCategory !== undefined) {
+      coupon.targetCustomerCategory = parseTargetCustomerCategory(body.targetCustomerCategory);
     }
 
     await coupon.save();
@@ -119,7 +142,7 @@ export async function updateCoupon(req: Request, res: Response): Promise<void> {
 
 export async function applyCoupon(req: Request, res: Response): Promise<void> {
   try {
-    const { code, cartTotal } = req.body || {};
+    const { code, cartTotal, customerPhone } = req.body || {};
     const codeStr = typeof code === 'string' ? code.trim() : '';
     const total = Number(cartTotal);
     if (!codeStr) {
@@ -131,7 +154,7 @@ export async function applyCoupon(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const result = await validateAndApplyCoupon(codeStr, total);
+    const result = await validateAndApplyCoupon(codeStr, total, customerPhone);
     if (!result.valid) {
       res.status(404).json({ success: false, message: (result as any).message });
       return;

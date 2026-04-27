@@ -1,0 +1,83 @@
+<div class="admin-leads-page">
+  <div class="container">
+    <div class="header-row">
+      <div class="title-wrap">
+        <h2>ניהול לידים</h2>
+        <p>צפייה ועדכון סטטוס של פניות צור קשר כולל מקור שיווקי</p>
+      </div>
+
+      <div class="filter-wrap">
+        <label for="statusFilter">סינון לפי סטטוס:</label>
+        <select id="statusFilter" [(ngModel)]="statusFilter" (change)="onFilterChange()">
+          <option value="all">הכל</option>
+          <option value="new">חדש</option>
+          <option value="read">בטיפול/נקרא</option>
+          <option value="handled">טופל/סגור</option>
+        </select>
+      </div>
+    </div>
+
+    @if (errorMessage) {
+      <div class="banner error">{{ errorMessage }}</div>
+    }
+
+    @if (isLoading) {
+      <div class="state-box loading">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <span>טוען לידים...</span>
+      </div>
+    } @else if (leads.length === 0) {
+      <div class="state-box empty">לא נמצאו לידים</div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="leads-table">
+          <thead>
+            <tr>
+              <th>תאריך</th>
+              <th>שם</th>
+              <th>אימייל</th>
+              <th>טלפון</th>
+              <th>מקור (UTM)</th>
+              <th>מדיה (UTM)</th>
+              <th>סטטוס</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let lead of leads; trackBy: trackByLead">
+              <td>{{ lead.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ lead.name }}</td>
+              <td>
+                <a [href]="'mailto:' + lead.email">{{ lead.email }}</a>
+              </td>
+              <td>
+                <a [href]="'tel:' + lead.phone">{{ lead.phone }}</a>
+              </td>
+              <td>{{ getUtmSource(lead) }}</td>
+              <td>{{ getUtmMedium(lead) }}</td>
+              <td>
+                <select
+                  class="status-select"
+                  [disabled]="isUpdatingId === lead.id"
+                  [ngModel]="lead.status"
+                  (ngModelChange)="changeStatus(lead, $event)"
+                >
+                  <option *ngFor="let s of statusOptions" [value]="s.value">{{ s.label }}</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <button type="button" (click)="onPageChange(-pageSize)" [disabled]="offset === 0">
+          הקודם
+        </button>
+        <span>מציג {{ offset + 1 }}-{{ offset + leads.length }} מתוך {{ total }}</span>
+        <button type="button" (click)="onPageChange(pageSize)" [disabled]="!hasMore">
+          הבא
+        </button>
+      </div>
+    }
+  </div>
+</div>

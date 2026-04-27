@@ -59,11 +59,23 @@
               <span class="field-error">לפחות 1</span>
             }
           </div>
+          <div class="field">
+            <label for="targetCustomerCategory">קטגוריית יעד</label>
+            <select id="targetCustomerCategory" formControlName="targetCustomerCategory" class="input">
+              @for (opt of categoryOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
         </div>
         <div class="form-row form-row-actions">
           <label class="checkbox-label">
             <input type="checkbox" formControlName="isActive" />
             <span>פעיל</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="isVipOnly" />
+            <span>VIP Only (Returning Customers)</span>
           </label>
           <button type="submit" class="btn-create" [disabled]="isSubmitting">
             @if (isSubmitting) { יוצר... } @else { צור קופון חדש }
@@ -94,6 +106,7 @@
               <th>מינימום הזמנה</th>
               <th>תוקף</th>
               <th>שימושים (נוכחי/מקס)</th>
+              <th>קהל</th>
               <th>סטטוס</th>
             </tr>
           </thead>
@@ -105,6 +118,7 @@
                 <td class="min-cell">₪{{ c.minOrderValue | number:'1.0-0' }}</td>
                 <td class="date-cell">{{ c.expiryDate | date:'dd/MM/yyyy' }}</td>
                 <td class="uses-cell">{{ c.currentUses }} / {{ c.maxUses }}</td>
+                <td>{{ getAudienceLabel(c) }}</td>
                 <td class="active-cell">
                   <button type="button" class="toggle-btn" [class.active]="c.isActive" (click)="toggleActive(c)" [attr.aria-label]="c.isActive ? 'כבה קופון' : 'הפעל קופון'">
                     {{ c.isActive ? 'פעיל' : 'כבוי' }}

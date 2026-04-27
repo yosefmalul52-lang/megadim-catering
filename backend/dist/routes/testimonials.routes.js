@@ -17,7 +17,8 @@ const errorHandler_1 = require("../middleware/errorHandler");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const uuid_1 = require("uuid");
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../config/role-access');
 const router = (0, express_1.Router)();
 // Load testimonials from JSON file
 const loadTestimonials = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -69,7 +70,7 @@ router.get('/featured', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter
     });
 })));
 // Admin-only: get all testimonials (including unpublished)
-router.get('/admin/all', authenticate, authorize('admin'), (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.get('/admin/all', authenticate, requireAdmin, (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const testimonials = yield loadTestimonials();
     res.status(200).json({
         success: true,
@@ -79,7 +80,7 @@ router.get('/admin/all', authenticate, authorize('admin'), (0, errorHandler_1.as
     });
 })));
 // Admin-only: create new testimonial
-router.post('/', authenticate, authorize('admin'), (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.post('/', authenticate, requireAdmin, (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { name, event, quote, rating, location, imageUrl } = req.body;
     if (!name || !event || !quote) {
         throw (0, errorHandler_1.createValidationError)('Name, event, and quote are required');
@@ -112,7 +113,7 @@ router.post('/', authenticate, authorize('admin'), (0, errorHandler_1.asyncHandl
     });
 })));
 // Admin-only: update testimonial
-router.put('/:id', authenticate, authorize('admin'), (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.put('/:id', authenticate, requireAdmin, (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const updateData = req.body;
     if (!id) {
@@ -133,7 +134,7 @@ router.put('/:id', authenticate, authorize('admin'), (0, errorHandler_1.asyncHan
     });
 })));
 // Admin-only: delete testimonial
-router.delete('/:id', authenticate, authorize('admin'), (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.delete('/:id', authenticate, requireAdmin, (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     if (!id) {
         throw (0, errorHandler_1.createValidationError)('Testimonial ID is required');
@@ -151,7 +152,7 @@ router.delete('/:id', authenticate, authorize('admin'), (0, errorHandler_1.async
     });
 })));
 // Admin-only: testimonial statistics
-router.get('/stats', authenticate, authorize('admin'), (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.get('/stats', authenticate, requireAdmin, (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const testimonials = yield loadTestimonials();
     const total = testimonials.length;
     const published = testimonials.filter((t) => t.isPublished).length;

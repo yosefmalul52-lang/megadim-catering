@@ -20,6 +20,12 @@ export class AdminCouponsComponent implements OnInit {
   successMessage = '';
   createForm!: FormGroup;
   isSubmitting = false;
+  readonly categoryOptions: Array<{ value: 'all' | 'returning' | 'sleeping' | 'vip'; label: string }> = [
+    { value: 'all', label: 'כל הלקוחות' },
+    { value: 'returning', label: 'לקוחות חוזרים' },
+    { value: 'sleeping', label: 'לקוחות ישנים' },
+    { value: 'vip', label: 'לקוחות VIP' }
+  ];
 
   ngOnInit(): void {
     this.createForm = this.fb.group({
@@ -29,7 +35,9 @@ export class AdminCouponsComponent implements OnInit {
       minOrderValue: [0, [Validators.required, Validators.min(0)]],
       expiryDate: ['', [Validators.required]],
       maxUses: [100, [Validators.required, Validators.min(1)]],
-      isActive: [true]
+      isActive: [true],
+      isVipOnly: [false],
+      targetCustomerCategory: ['all', [Validators.required]]
     });
     this.loadCoupons();
   }
@@ -52,6 +60,15 @@ export class AdminCouponsComponent implements OnInit {
   getDiscountLabel(c: Coupon): string {
     if (c.discountType === 'percentage') return `${c.discountValue}%`;
     return `₪${c.discountValue}`;
+  }
+
+  getAudienceLabel(c: Coupon): string {
+    const target = c.targetCustomerCategory || 'all';
+    if (target === 'returning') return 'לקוחות חוזרים';
+    if (target === 'sleeping') return 'לקוחות ישנים';
+    if (target === 'vip') return 'לקוחות VIP';
+    if (c.isVipOnly) return 'VIP בלבד';
+    return 'כללי';
   }
 
   toggleActive(coupon: Coupon): void {
@@ -83,7 +100,9 @@ export class AdminCouponsComponent implements OnInit {
       minOrderValue: Number(v.minOrderValue) || 0,
       expiryDate: v.expiryDate,
       maxUses: Number(v.maxUses) || 1,
-      isActive: v.isActive !== false
+      isActive: v.isActive !== false,
+      isVipOnly: v.isVipOnly === true,
+      targetCustomerCategory: v.targetCustomerCategory || 'all'
     }).subscribe({
       next: () => {
         this.isSubmitting = false;
@@ -94,7 +113,9 @@ export class AdminCouponsComponent implements OnInit {
           minOrderValue: 0,
           expiryDate: '',
           maxUses: 100,
-          isActive: true
+          isActive: true,
+          isVipOnly: false,
+          targetCustomerCategory: 'all'
         });
         this.loadCoupons();
         this.showSuccess('קופון נוצר בהצלחה');

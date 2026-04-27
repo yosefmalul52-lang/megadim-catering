@@ -240,6 +240,8 @@ export class LoginComponent implements OnInit {
           setTimeout(() => {
             if (user?.role === 'admin') {
               this.router.navigate(['/admin']);
+            } else if (user?.role === 'driver') {
+              this.router.navigate(['/admin/delivery']);
             } else {
               // Regular user - go to home or my-orders
               this.router.navigate(['/']);

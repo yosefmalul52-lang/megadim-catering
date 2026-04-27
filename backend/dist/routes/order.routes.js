@@ -32,7 +32,8 @@ const checkoutLimiter = (0, express_rate_limit_1.default)({
     }
 });
 // Import authenticate middleware (using require for JS file)
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin, requireCapability, CAP } = require('../config/role-access');
 // Optional authentication middleware - doesn't fail if no token (for guest orders)
 const optionalAuthenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _j;
@@ -92,24 +93,28 @@ router.post('/checkout', checkoutLimiter, optionalAuthenticate, orderController.
 router.post('/send', checkoutLimiter, orderController.sendOrder);
 // Customer routes (authenticated; returns only current user's orders)
 router.get('/my-orders', authenticate, orderController.getMyOrders);
-// Admin-only: list all orders and business reports (GET / returns all orders; customers use /my-orders)
-router.get('/', authenticate, authorize('admin'), orderController.getAllOrders);
-router.get('/stats', authenticate, authorize('admin'), orderController.getOrderStatistics);
-router.get('/stats/revenue', authenticate, authorize('admin'), orderController.getRevenueStats);
-router.get('/kitchen-report', authenticate, authorize('admin'), orderController.getKitchenReport);
-router.get('/delivery-report', authenticate, authorize('admin'), orderController.getDeliveryReport);
-router.get('/recent', authenticate, authorize('admin'), orderController.getRecentOrders);
-router.get('/search', authenticate, authorize('admin'), orderController.searchOrders);
-router.get('/dashboard-stats', authenticate, authorize('admin'), orderController.getDashboardStats);
+// Staff: list / reports — driver has subset (see role-access)
+router.get('/', authenticate, requireCapability(CAP.ORDERS_LIST), orderController.getAllOrders);
+router.get('/analytics/revenue-by-source', authenticate, requireCapability(CAP.ORDERS_ANALYTICS), orderController.getRevenueBySource);
+router.get('/analytics/monthly-revenue', authenticate, requireCapability(CAP.ORDERS_ANALYTICS), orderController.getMonthlyRevenue);
+router.get('/stats', authenticate, requireCapability(CAP.ORDERS_STATS), orderController.getOrderStatistics);
+router.get('/stats/revenue', authenticate, requireCapability(CAP.ORDERS_STATS_REVENUE), orderController.getRevenueStats);
+router.get('/kitchen-report', authenticate, requireAdmin, orderController.getKitchenReport);
+router.get('/delivery-report', authenticate, requireCapability(CAP.DELIVERIES_MY_LIST), orderController.getDeliveryReport);
+router.get('/recent', authenticate, requireCapability(CAP.ORDERS_RECENT), orderController.getRecentOrders);
+router.get('/search', authenticate, requireCapability(CAP.ORDERS_SEARCH), orderController.searchOrders);
+router.get('/dashboard-stats', authenticate, requireCapability(CAP.ORDERS_DASHBOARD_STATS), orderController.getDashboardStats);
+router.get('/driver/my', authenticate, requireCapability(CAP.DELIVERIES_MY_LIST), orderController.getDriverMyOrders);
+router.patch('/:id/assign-driver', authenticate, requireAdmin, orderController.assignOrderToDriver);
 // Get order by ID (authenticate only; controller restricts to own order for non-admin)
 router.get('/:id', authenticate, orderController.getOrderById);
-// Admin-only: mutate orders
-router.put('/:id/restore', authenticate, authorize('admin'), orderController.restoreOrder);
-router.delete('/:id/permanent', authenticate, authorize('admin'), orderController.permanentDeleteOrder);
-router.put('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
-router.patch('/:id/status', authenticate, authorize('admin'), orderController.updateOrderStatus);
-router.patch('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
-router.put('/:id/date', authenticate, authorize('admin'), orderController.updateOrderDate);
-router.put('/admin/:id/items', authenticate, authorize('admin'), orderController.updateOrderItems);
-router.delete('/:id', authenticate, authorize('admin'), orderController.deleteOrder);
+// Mutate orders — sensitive ops admin only
+router.put('/:id/restore', authenticate, requireAdmin, orderController.restoreOrder);
+router.delete('/:id/permanent', authenticate, requireAdmin, orderController.permanentDeleteOrder);
+router.put('/:id/status', authenticate, requireCapability(CAP.DELIVERIES_MY_UPDATE_STATUS), orderController.updateOrderStatus);
+router.patch('/:id/status', authenticate, requireCapability(CAP.DELIVERIES_MY_UPDATE_STATUS), orderController.updateOrderStatus);
+router.patch('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
+router.put('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
+router.put('/admin/:id/items', authenticate, requireAdmin, orderController.updateOrderItems);
+router.delete('/:id', authenticate, requireAdmin, orderController.deleteOrder);
 exports.default = router;

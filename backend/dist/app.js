@@ -21,6 +21,8 @@ const video_routes_1 = __importDefault(require("./routes/video.routes"));
 const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
 const delivery_routes_1 = __importDefault(require("./routes/delivery.routes"));
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
+const campaign_routes_1 = __importDefault(require("./routes/campaign.routes"));
+const customer_routes_1 = __importDefault(require("./routes/customer.routes"));
 // Import middleware
 const errorHandler_1 = require("./middleware/errorHandler");
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
@@ -122,6 +124,8 @@ app.use('/api/videos', video_routes_1.default);
 app.use('/api/settings', settings_routes_1.default);
 app.use('/api/delivery', delivery_routes_1.default);
 app.use('/api/users', user_routes_1.default);
+app.use('/api/customers', customer_routes_1.default);
+app.use('/api/campaign', campaign_routes_1.default);
 // Root endpoint
 app.get('/', (req, res) => {
     res.json({

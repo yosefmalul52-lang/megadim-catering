@@ -166,7 +166,16 @@
                   <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
-                  <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
+                  <td class="customer-cell">
+                    <div class="customer-with-badge">
+                      <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                      @if (getCustomerBadge(order) === 'VIP') {
+                        <span class="customer-badge badge-vip">VIP</span>
+                      } @else if (getCustomerBadge(order) === 'Returning') {
+                        <span class="customer-badge badge-returning">לקוח חוזר</span>
+                      }
+                    </div>
+                  </td>
                   <td class="phone-cell">{{ order.customerDetails?.phone || 'לא צוין' }}</td>
                   <td class="total-cell">₪{{ order.totalPrice | number:'1.2-2' }}</td>
                   <td class="status-cell">
@@ -227,7 +236,14 @@
                 <span class="order-card-total">₪{{ order.totalPrice | number:'1.2-2' }}</span>
               </div>
               <div class="order-card-body">
-                <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
+                <p class="order-card-customer">
+                  <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                  @if (getCustomerBadge(order) === 'VIP') {
+                    <span class="customer-badge badge-vip">VIP</span>
+                  } @else if (getCustomerBadge(order) === 'Returning') {
+                    <span class="customer-badge badge-returning">לקוח חוזר</span>
+                  }
+                </p>
                 <p class="order-card-meta">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }} · {{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</p>
               </div>
               <div class="status-action-wrapper order-card-status-actions">
@@ -291,7 +307,16 @@
               @for (order of filteredOrders; track order._id || order.id || $index) {
                 <tr>
                   <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
-                  <td class="customer-cell">{{ order.customerDetails?.fullName || 'לא צוין' }}</td>
+                  <td class="customer-cell">
+                    <div class="customer-with-badge">
+                      <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                      @if (getCustomerBadge(order) === 'VIP') {
+                        <span class="customer-badge badge-vip">VIP</span>
+                      } @else if (getCustomerBadge(order) === 'Returning') {
+                        <span class="customer-badge badge-returning">לקוח חוזר</span>
+                      }
+                    </div>
+                  </td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="portions-cell">{{ order.numberOfPortions ?? '—' }}</td>
                   <td class="meal-types-cell">{{ getMealTypesLabel(order) }}</td>
@@ -351,7 +376,14 @@
                 <span class="order-card-id">#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</span>
               </div>
               <div class="order-card-body">
-                <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
+                <p class="order-card-customer">
+                  <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                  @if (getCustomerBadge(order) === 'VIP') {
+                    <span class="customer-badge badge-vip">VIP</span>
+                  } @else if (getCustomerBadge(order) === 'Returning') {
+                    <span class="customer-badge badge-returning">לקוח חוזר</span>
+                  }
+                </p>
                 <p class="order-card-meta">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }} · {{ order.numberOfPortions ?? '—' }} מנות</p>
                 <p class="order-card-meta">{{ getMealTypesLabel(order) }}</p>
               </div>

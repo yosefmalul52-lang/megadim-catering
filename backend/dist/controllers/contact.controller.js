@@ -117,6 +117,22 @@ class ContactController {
                 timestamp: new Date().toISOString()
             });
         }));
+        // Get leads analytics by marketing source (Admin only)
+        this.getLeadsBySource = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+            const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+            const startDate = from ? new Date(from) : undefined;
+            const endDate = to ? new Date(to) : undefined;
+            const data = yield this.contactService.getLeadsBySource({
+                startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+                endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined
+            });
+            res.status(200).json({
+                success: true,
+                data,
+                timestamp: new Date().toISOString()
+            });
+        }));
         // Delete contact request (Admin only)
         this.deleteContactRequest = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             const { id } = req.params;

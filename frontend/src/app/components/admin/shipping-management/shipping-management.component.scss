@@ -561,3 +561,43 @@ $border: #e2e8f0;
 .save-all-error {
   margin: 0;
 }
+
+/* Visual Standard Refresh - Shipping */
+.shipping-page {
+  background: #f3f4f6;
+}
+
+.shipping-page .section-card,
+.shipping-page .table-wrap,
+.shipping-page .modal-content {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.24);
+}
+
+.shipping-page .btn-save-all,
+.shipping-page .btn-primary {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: none;
+  color: #fff;
+}
+
+.shipping-page .btn-save-all:hover:not(:disabled),
+.shipping-page .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.28);
+}
+
+.shipping-page .field-input:focus,
+.shipping-page .test-input:focus,
+.shipping-page .search-input:focus {
+  border-color: rgba(34, 197, 94, 0.7);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.shipping-page .section-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.shipping-page .section-card:hover {
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}

@@ -1,0 +1,167 @@
+<div class="admin-marketing-page">
+  <div class="container">
+    <section class="campaign-placeholder">
+      <h2>משגר הקמפיינים</h2>
+      <p>צור ושגר קמפיין ממוקד לקהלי יעד קיימים.</p>
+      <div class="launcher-form">
+        <div class="field full">
+          <label for="campaignMessage">תוכן הקמפיין</label>
+          <textarea
+            id="campaignMessage"
+            [(ngModel)]="campaignMessage"
+            rows="4"
+            placeholder="כתוב כאן את הודעת הקמפיין..."
+          ></textarea>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>קהל יעד</label>
+            <div class="audience-group">
+              <label><input type="radio" name="audience" value="vip" [(ngModel)]="campaignAudience" /> VIP חוזרים</label>
+              <label><input type="radio" name="audience" value="all" [(ngModel)]="campaignAudience" /> כל הלקוחות</label>
+              <label><input type="radio" name="audience" value="leads" [(ngModel)]="campaignAudience" /> לידים</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>ערוצי שליחה</label>
+            <div class="channels-group">
+              <label><input type="checkbox" [(ngModel)]="campaignChannels.whatsapp" /> WhatsApp</label>
+              <label><input type="checkbox" [(ngModel)]="campaignChannels.email" /> Email</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="couponCode">קופון מצורף (אופציונלי)</label>
+            <select id="couponCode" [(ngModel)]="selectedCouponCode">
+              <option value="">ללא קופון</option>
+              <option *ngFor="let c of coupons" [value]="c.code">
+                {{ c.code }} {{ c.isVipOnly ? '(VIP בלבד)' : '' }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="launch-btn" [disabled]="isLaunching" (click)="launchCampaign()">
+            @if (isLaunching) { משגר... } @else { שגר קמפיין }
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="tabs-header">
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="activeTab === 'leads'"
+        (click)="setTab('leads')"
+      >
+        מקורות לידים
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="activeTab === 'orders'"
+        (click)="setTab('orders')"
+      >
+        מקורות רכישה
+      </button>
+    </div>
+
+    <div class="panel" *ngIf="isLoading">
+      <div class="loading">
+        <i class="fas fa-spinner fa-spin"></i>
+        טוען נתוני שיווק...
+      </div>
+    </div>
+
+    <ng-container *ngIf="!isLoading">
+      <div class="panel" *ngIf="activeTab === 'leads'">
+        <div class="panel-grid">
+          <div class="chart-card">
+            <h3>לידים לפי מקור</h3>
+            <div class="chart-box" *ngIf="hasLeadsData; else emptyLeadsChart">
+              <canvas baseChart [data]="leadsChartData" [options]="leadsChartOptions" [type]="'bar'"></canvas>
+            </div>
+            <ng-template #emptyLeadsChart>
+              <div class="empty-state">אין עדיין נתוני לידים ממקור שיווקי</div>
+            </ng-template>
+          </div>
+
+          <div class="table-card">
+            <h3>סיכום מקורות לידים</h3>
+            <table *ngIf="hasLeadsData; else emptyLeadsTable">
+              <thead>
+                <tr>
+                  <th>מקור</th>
+                  <th>כמות לידים</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of leadsBySource">
+                  <td>{{ row.source }}</td>
+                  <td>{{ row.leadsCount }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>סה"כ</td>
+                  <td>{{ totalLeads }}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <ng-template #emptyLeadsTable>
+              <div class="empty-state">אין נתונים להצגה</div>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" *ngIf="activeTab === 'orders'">
+        <div class="panel-grid">
+          <div class="chart-card">
+            <h3>הכנסות לפי מקור הגעה</h3>
+            <div class="chart-box" *ngIf="hasRevenueData; else emptyRevenueChart">
+              <canvas baseChart [data]="revenueChartData" [options]="revenueChartOptions" [type]="'pie'"></canvas>
+            </div>
+            <ng-template #emptyRevenueChart>
+              <div class="empty-state">אין עדיין נתוני הכנסות משיווק</div>
+            </ng-template>
+          </div>
+
+          <div class="table-card">
+            <h3>סיכום מקורות רכישה</h3>
+            <table *ngIf="hasRevenueData; else emptyRevenueTable">
+              <thead>
+                <tr>
+                  <th>מקור</th>
+                  <th>סה"כ הזמנות</th>
+                  <th>סה"כ הכנסות</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of revenueBySource">
+                  <td>{{ row.source }}</td>
+                  <td>{{ row.ordersCount }}</td>
+                  <td>₪{{ row.totalRevenue | number:'1.0-0' }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>סה"כ</td>
+                  <td>{{ revenueBySource.length }}</td>
+                  <td>₪{{ totalRevenue | number:'1.0-0' }}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <ng-template #emptyRevenueTable>
+              <div class="empty-state">אין נתונים להצגה</div>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>

@@ -141,6 +141,25 @@ export class ContactController {
     });
   });
 
+  // Get leads analytics by marketing source (Admin only)
+  getLeadsBySource = asyncHandler(async (req: Request, res: Response) => {
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    const startDate = from ? new Date(from) : undefined;
+    const endDate = to ? new Date(to) : undefined;
+
+    const data = await this.contactService.getLeadsBySource({
+      startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+      endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined
+    });
+
+    res.status(200).json({
+      success: true,
+      data,
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Delete contact request (Admin only)
   deleteContactRequest = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;

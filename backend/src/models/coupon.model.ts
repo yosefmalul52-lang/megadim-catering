@@ -5,10 +5,13 @@ export interface ICoupon extends Document {
   discountType: 'percentage' | 'fixedAmount';
   discountValue: number;
   minOrderValue: number;
-  expiryDate: Date;
-  maxUses: number;
-  currentUses: number;
+  expiresAt: Date | null;
+  maxUses: number | null;
+  usageCount: number;
+  usedByPhones: string[];
   isActive: boolean;
+  isVipOnly: boolean;
+  targetCustomerCategory: 'all' | 'returning' | 'sleeping' | 'vip';
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,28 +38,42 @@ const CouponSchema: Schema<ICoupon> = new Schema(
       type: Number,
       default: 0
     },
-    expiryDate: {
+    expiresAt: {
       type: Date,
-      required: true
+      default: null
     },
     maxUses: {
       type: Number,
-      required: true
+      default: null
     },
-    currentUses: {
+    usageCount: {
       type: Number,
       default: 0
+    },
+    usedByPhones: {
+      type: [String],
+      default: []
     },
     isActive: {
       type: Boolean,
       default: true
+    },
+    isVipOnly: {
+      type: Boolean,
+      default: false
+    },
+    targetCustomerCategory: {
+      type: String,
+      enum: ['all', 'returning', 'sleeping', 'vip'],
+      default: 'all'
     }
   },
   { timestamps: true, collection: 'coupons' }
 );
 
 CouponSchema.index({ code: 1 });
-CouponSchema.index({ isActive: 1, expiryDate: 1 });
+CouponSchema.index({ isActive: 1, expiresAt: 1 });
+CouponSchema.index({ usedByPhones: 1 });
 
 const Coupon: Model<ICoupon> = mongoose.model<ICoupon>('Coupon', CouponSchema);
 export default Coupon;

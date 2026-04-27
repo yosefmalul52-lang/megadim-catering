@@ -1,9 +1,10 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { MenuService } from '../../../services/menu.service';
-import { OrderService } from '../../../services/order.service';
+import { OrderService, RevenueBySourcePoint, MonthlyRevenuePoint } from '../../../services/order.service';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData, ChartOptions, Chart, registerables } from 'chart.js';
 
@@ -72,6 +73,46 @@ Chart.register(...registerables);
         </div>
 
         <!-- Revenue Trend Chart -->
+        <div class="analytics-grid" *ngIf="!isLoadingStats">
+          <div class="chart-container analytics-card">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <i class="fas fa-chart-pie"></i>
+                הכנסות לפי מקור הגעה
+              </h3>
+            </div>
+            <div class="chart-wrapper pie-wrapper" *ngIf="hasMarketingSourceData; else noMarketingData">
+              <canvas baseChart
+                      [data]="revenueBySourceChartData"
+                      [options]="revenueBySourceChartOptions"
+                      [type]="'pie'">
+              </canvas>
+            </div>
+            <ng-template #noMarketingData>
+              <div class="empty-chart-state">אין עדיין נתוני הכנסות משיווק</div>
+            </ng-template>
+          </div>
+
+          <div class="chart-container analytics-card">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <i class="fas fa-chart-column"></i>
+                צמיחה חודשית בהכנסות
+              </h3>
+            </div>
+            <div class="chart-wrapper" *ngIf="hasMonthlyRevenueData; else noMonthlyData">
+              <canvas baseChart
+                      [data]="monthlyRevenueChartData"
+                      [options]="monthlyRevenueChartOptions"
+                      [type]="'bar'">
+              </canvas>
+            </div>
+            <ng-template #noMonthlyData>
+              <div class="empty-chart-state">אין עדיין נתוני הכנסות חודשיים</div>
+            </ng-template>
+          </div>
+        </div>
+
         <div class="chart-container" *ngIf="!isLoadingStats">
           <div class="chart-header">
             <h3 class="chart-title">
@@ -134,15 +175,21 @@ Chart.register(...registerables);
     $icon-warning: #ea580c; // Orange icon
 
     .admin-dashboard {
-      padding: 2rem 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 1rem 0 2rem;
       min-height: 60vh;
+      overflow-x: hidden;
       background-color: $bg-light; // Cool Light Gray (#f3f4f6)
     }
 
     .container {
-      max-width: 1400px;
+      width: 100%;
+      max-width: min(1400px, 100%);
       margin: 0 auto;
-      padding: 0 2rem;
+      padding: 0 1rem;
+      box-sizing: border-box;
     }
 
     .dashboard-header {
@@ -159,9 +206,13 @@ Chart.register(...registerables);
     // Stats Cards Grid
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
       gap: 1.5rem;
       margin-bottom: 3rem;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
     }
 
     .stat-card {
@@ -232,9 +283,13 @@ Chart.register(...registerables);
     // Quick Actions Grid
     .admin-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
       gap: 2rem;
       margin-top: 2rem;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
     }
 
     .admin-card {
@@ -304,6 +359,9 @@ Chart.register(...registerables);
       padding: 2rem;
       margin-bottom: 2rem;
       margin-top: 2rem;
+      max-width: 100%;
+      overflow-x: hidden;
+      box-sizing: border-box;
     }
 
     .chart-header {
@@ -331,6 +389,42 @@ Chart.register(...registerables);
     .chart-wrapper {
       height: 300px;
       position: relative;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      min-width: 0;
+    }
+
+    .analytics-card {
+      margin: 0;
+    }
+
+    .pie-wrapper {
+      min-height: 340px;
+      max-height: 340px;
+    }
+
+    .empty-chart-state {
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-weight: 600;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      background: #f8fafc;
     }
     
     // Responsive
@@ -340,6 +434,10 @@ Chart.register(...registerables);
       }
 
       .admin-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .analytics-grid {
         grid-template-columns: 1fr;
       }
 
@@ -455,9 +553,159 @@ export class AdminDashboardComponent implements OnInit {
     }
   };
 
+  revenueBySourceChartData: ChartData<'pie'> = {
+    labels: [],
+    datasets: [{ data: [] }]
+  };
+  revenueBySourceChartOptions: ChartOptions<'pie'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          usePointStyle: true,
+          boxWidth: 10,
+          color: '#334155'
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const value = Number(context.parsed || 0);
+            const total = (context.dataset.data as number[]).reduce((acc, cur) => acc + Number(cur || 0), 0);
+            const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+            return `${context.label}: ₪${value.toLocaleString('he-IL')} (${pct}%)`;
+          }
+        }
+      }
+    }
+  };
+  hasMarketingSourceData = false;
+
+  monthlyRevenueChartData: ChartData<'bar'> = {
+    labels: [],
+    datasets: [{ data: [], label: 'הכנסות' }]
+  };
+  monthlyRevenueChartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => `₪${Number(context.parsed.y || 0).toLocaleString('he-IL')}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b' },
+        grid: { display: false }
+      },
+      y: {
+        ticks: {
+          color: '#64748b',
+          callback: (value) => `₪${Number(value).toLocaleString('he-IL')}`
+        }
+      }
+    }
+  };
+  hasMonthlyRevenueData = false;
+
   ngOnInit(): void {
     this.loadStatistics();
     this.loadRevenueData();
+    this.loadMarketingAnalytics();
+  }
+
+  private loadMarketingAnalytics(): void {
+    forkJoin({
+      bySource: this.orderService.getRevenueBySource(),
+      monthly: this.orderService.getMonthlyRevenue()
+    }).subscribe({
+      next: ({ bySource, monthly }) => {
+        this.updateRevenueBySourceChart(bySource);
+        this.updateMonthlyRevenueChart(monthly);
+      },
+      error: (error) => {
+        console.error('Error loading marketing analytics:', error);
+        this.hasMarketingSourceData = false;
+        this.hasMonthlyRevenueData = false;
+      }
+    });
+  }
+
+  private updateRevenueBySourceChart(rows: RevenueBySourcePoint[]): void {
+    const cleaned = (rows || []).filter((r) => Number(r.totalRevenue) > 0);
+    this.hasMarketingSourceData = cleaned.length > 0;
+    if (!this.hasMarketingSourceData) {
+      this.revenueBySourceChartData = { labels: [], datasets: [{ data: [] }] };
+      return;
+    }
+
+    const labels = cleaned.map((r) => (r.source || 'direct').trim());
+    const values = cleaned.map((r) => Number(r.totalRevenue) || 0);
+    const backgroundColor = labels.map((_, idx) => this.sourceColorByIndex(idx));
+
+    this.revenueBySourceChartData = {
+      labels,
+      datasets: [
+        {
+          data: values,
+          backgroundColor,
+          borderColor: '#ffffff',
+          borderWidth: 2
+        }
+      ]
+    };
+  }
+
+  private updateMonthlyRevenueChart(rows: MonthlyRevenuePoint[]): void {
+    const cleaned = (rows || []).filter((r) => Number(r.totalRevenue) > 0);
+    this.hasMonthlyRevenueData = cleaned.length > 0;
+    if (!this.hasMonthlyRevenueData) {
+      this.monthlyRevenueChartData = { labels: [], datasets: [{ data: [], label: 'הכנסות' }] };
+      return;
+    }
+
+    const labels = cleaned.map((r) => this.formatMonthLabel(r.month));
+    const values = cleaned.map((r) => Number(r.totalRevenue) || 0);
+    this.monthlyRevenueChartData = {
+      labels,
+      datasets: [
+        {
+          label: 'הכנסות',
+          data: values,
+          backgroundColor: 'rgba(59, 130, 246, 0.75)',
+          borderRadius: 6,
+          maxBarThickness: 42
+        }
+      ]
+    };
+  }
+
+  private formatMonthLabel(ym: string): string {
+    const [y, m] = String(ym || '').split('-');
+    const year = Number(y);
+    const month = Number(m);
+    if (!year || !month || month < 1 || month > 12) return ym;
+    const d = new Date(year, month - 1, 1);
+    return d.toLocaleDateString('he-IL', { month: 'short', year: 'numeric' });
+  }
+
+  private sourceColorByIndex(index: number): string {
+    const palette = [
+      '#3b82f6',
+      '#10b981',
+      '#f59e0b',
+      '#8b5cf6',
+      '#ef4444',
+      '#14b8a6',
+      '#ec4899',
+      '#6366f1'
+    ];
+    return palette[index % palette.length];
   }
 
   private loadRevenueData(): void {

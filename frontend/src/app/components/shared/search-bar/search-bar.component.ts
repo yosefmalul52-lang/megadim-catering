@@ -78,13 +78,11 @@ import { LanguageService } from '../../../services/language.service';
               <div class="results-list">
                 <div
                   *ngFor="let result of dishResults"
-                  class="result-item dish-result"
-                  (click)="selectResult(result)"
-                  tabindex="0"
-                  role="button"
-                  [attr.aria-label]="'בחר מנה: ' + result.name"
-                  (keydown.enter)="selectResult(result)"
-                  (keydown.space)="selectResult(result)"
+                  class="result-item dish-result is-coming-soon"
+                  tabindex="-1"
+                  role="note"
+                  title="בקרוב"
+                  [attr.aria-label]="result.name + ' - בקרוב'"
                 >
                   <div class="result-image">
                     <img
@@ -99,6 +97,7 @@ import { LanguageService } from '../../../services/language.service';
                     <div class="result-meta">
                       <span class="result-category">{{ result.category }}</span>
                       <span class="result-price" *ngIf="result.price">₪{{ result.price }}</span>
+                      <span class="coming-soon-chip">בקרוב</span>
                     </div>
                   </div>
                 </div>
@@ -240,12 +239,4 @@ export class SearchBarComponent implements OnInit, OnDestroy {
     this.clearSearch();
   }
 
-  selectResult(result: SearchResult): void {
-    if (result.type === 'dish') {
-      // For dish results, you might want to add to cart or navigate to menu
-      console.log('Selected dish:', result);
-      // TODO: Implement dish selection logic (e.g., add to cart modal)
-    }
-    this.closeSearch();
-  }
 }

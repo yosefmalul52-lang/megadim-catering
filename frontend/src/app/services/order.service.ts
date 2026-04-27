@@ -65,10 +65,22 @@ export interface Order {
   };
   items: OrderItem[];
   totalPrice: number;
-  status: 'pending' | 'processing' | 'ready' | 'cancelled' | 'new' | 'in-progress' | 'delivered';
+  status:
+    | 'pending'
+    | 'processing'
+    | 'ready'
+    | 'cancelled'
+    | 'new'
+    | 'in-progress'
+    | 'out_for_delivery'
+    | 'delivery_failed'
+    | 'delivered';
   createdAt: string | Date;
   updatedAt?: string | Date;
   isDeleted?: boolean;
+  assignedDriverId?: string | null;
+  assignedDriverName?: string;
+  assignedAt?: string | Date | null;
   /** Catering-specific: number of portions. */
   numberOfPortions?: number | string;
   /** Catering-specific: e.g. evening, morning, both. */
@@ -77,10 +89,26 @@ export interface Order {
   mealTypes?: string;
 }
 
+export interface DriverOrderAssignmentPayload {
+  driverId: string | null;
+}
+
 export interface DashboardStats {
   pendingCount: number;
   eventsTodayCount: number;
   monthlyRevenue: number;
+}
+
+export interface RevenueBySourcePoint {
+  source: string;
+  totalRevenue: number;
+  ordersCount: number;
+}
+
+export interface MonthlyRevenuePoint {
+  month: string;
+  totalRevenue: number;
+  ordersCount: number;
 }
 
 @Injectable({
@@ -224,6 +252,34 @@ export class OrderService {
     );
   }
 
+  getDriverMyOrders(params?: { fromDate?: string; toDate?: string; limit?: number }): Observable<Order[]> {
+    const query: Record<string, string> = {};
+    if (params?.fromDate) query['fromDate'] = params.fromDate;
+    if (params?.toDate) query['toDate'] = params.toDate;
+    if (params?.limit) query['limit'] = String(params.limit);
+    return this.http
+      .get<{ success: boolean; data: Order[] }>(`${environment.apiUrl}/order/driver/my`, { params: query })
+      .pipe(
+        map((res) => (res?.data || []).map((order) => ({ ...order, id: order._id || order.id }))),
+        catchError((err) => {
+          console.error('Error fetching driver orders:', err);
+          return of([]);
+        })
+      );
+  }
+
+  assignOrderToDriver(orderId: string, payload: DriverOrderAssignmentPayload): Observable<Order> {
+    return this.http
+      .patch<{ success: boolean; data: Order }>(`${environment.apiUrl}/order/${orderId}/assign-driver`, payload)
+      .pipe(
+        map((res) => ({ ...res.data, id: res.data._id || res.data.id })),
+        catchError((err) => {
+          console.error('Error assigning driver:', err);
+          throw err;
+        })
+      );
+  }
+
   /** Update order event/delivery date (Admin). */
   updateOrderDate(orderId: string, newDate: string | Date): Observable<Order> {
     const dateStr = typeof newDate === 'string' ? newDate : new Date(newDate).toISOString().slice(0, 10);
@@ -335,6 +391,56 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
         return of([]);
       })
     );
+  }
+
+  getRevenueBySource(params?: {
+    from?: string;
+    to?: string;
+    includeArchived?: boolean;
+  }): Observable<RevenueBySourcePoint[]> {
+    const query: Record<string, string> = {};
+    if (params?.from) query['from'] = params.from;
+    if (params?.to) query['to'] = params.to;
+    if (typeof params?.includeArchived === 'boolean') {
+      query['includeArchived'] = String(params.includeArchived);
+    }
+    return this.http
+      .get<{ success: boolean; data: RevenueBySourcePoint[] }>(
+        `${environment.apiUrl}/order/analytics/revenue-by-source`,
+        { params: query }
+      )
+      .pipe(
+        map((res) => res.data || []),
+        catchError((error) => {
+          console.error('Error fetching revenue by source:', error);
+          return of([]);
+        })
+      );
+  }
+
+  getMonthlyRevenue(params?: {
+    from?: string;
+    to?: string;
+    includeArchived?: boolean;
+  }): Observable<MonthlyRevenuePoint[]> {
+    const query: Record<string, string> = {};
+    if (params?.from) query['from'] = params.from;
+    if (params?.to) query['to'] = params.to;
+    if (typeof params?.includeArchived === 'boolean') {
+      query['includeArchived'] = String(params.includeArchived);
+    }
+    return this.http
+      .get<{ success: boolean; data: MonthlyRevenuePoint[] }>(
+        `${environment.apiUrl}/order/analytics/monthly-revenue`,
+        { params: query }
+      )
+      .pipe(
+        map((res) => res.data || []),
+        catchError((error) => {
+          console.error('Error fetching monthly revenue analytics:', error);
+          return of([]);
+        })
+      );
   }
 
   // Get kitchen preparation report

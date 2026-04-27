@@ -10,6 +10,11 @@ interface ContactFilters {
   offset?: number;
 }
 
+interface ContactAnalyticsFilters {
+  startDate?: Date;
+  endDate?: Date;
+}
+
 type LeanContactDoc = {
   _id: mongoose.Types.ObjectId;
   name?: string;
@@ -206,5 +211,54 @@ export class ContactService {
     return docs
       .map((d) => leanToContactRequest(d as LeanContactDoc))
       .filter((c): c is ContactRequest => c !== null);
+  }
+
+  /**
+   * Aggregate leads volume by marketing source (utm_source).
+   * Missing/empty values are bucketed as "direct".
+   */
+  async getLeadsBySource(filters?: ContactAnalyticsFilters): Promise<Array<{ source: string; leadsCount: number }>> {
+    const match: Record<string, unknown> = {};
+    if (filters?.startDate || filters?.endDate) {
+      match.createdAt = {};
+      if (filters.startDate) (match.createdAt as Record<string, Date>)['$gte'] = filters.startDate;
+      if (filters.endDate) (match.createdAt as Record<string, Date>)['$lte'] = filters.endDate;
+    }
+
+    const rows = await Contact.aggregate([
+      { $match: match },
+      {
+        $project: {
+          source: {
+            $let: {
+              vars: { src: { $ifNull: ['$marketingData.utm_source', ''] } },
+              in: {
+                $cond: [
+                  { $gt: [{ $strLenCP: { $trim: { input: '$$src' } } }, 0] },
+                  { $toLower: { $trim: { input: '$$src' } } },
+                  'direct'
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$source',
+          leadsCount: { $sum: 1 }
+        }
+      },
+      { $sort: { leadsCount: -1 } },
+      {
+        $project: {
+          _id: 0,
+          source: '$_id',
+          leadsCount: 1
+        }
+      }
+    ]);
+
+    return rows as Array<{ source: string; leadsCount: number }>;
   }
 }

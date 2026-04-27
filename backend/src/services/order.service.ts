@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { CreateOrderRequest, CreateCheckoutOrderRequest, OrderResponse } from '../models/order.model';
 import { sanitizeMarketingData } from '../utils/webhook.util';
 import { emailService } from './email.service';
+import { upsertCustomerFromOrder } from './customer.service';
 
 export class OrderService {
   // Categories that should only show units, not calculated weight
@@ -62,6 +63,14 @@ export class OrderService {
       const savedOrder = await order.save();
       console.log('✅ OrderService: Order saved successfully:', savedOrder._id);
       console.log('✅ OrderService: Saved order userId:', savedOrder.userId);
+
+      // Sync Single Source of Truth customer profile (fail-open).
+      try {
+        await upsertCustomerFromOrder(savedOrder as any);
+      } catch (err: any) {
+        console.error('⚠️ Customer upsert failed after order save');
+        console.error('Upsert Error:', err);
+      }
 
       // Send order email to owner immediately after save
       try {
@@ -135,6 +144,12 @@ export class OrderService {
 
     const savedOrder = await order.save();
     console.log('✅ OrderService: Checkout order saved:', savedOrder._id);
+    try {
+      await upsertCustomerFromOrder(savedOrder as any);
+    } catch (err: any) {
+      console.error('⚠️ Customer upsert failed for checkout order');
+      console.error('Upsert Error:', err);
+    }
     // Admin email is sent from order.controller createOrder (nodemailer) so failures don't affect response
     return savedOrder;
   }
@@ -234,6 +249,22 @@ export class OrderService {
     }
   }
 
+  async getOrderByIdForDriver(orderId: string, driverUserId: string): Promise<IOrder | null> {
+    try {
+      const order = await Order.findOne({
+        _id: orderId,
+        assignedDriverId: driverUserId,
+        isDeleted: { $ne: true }
+      }).lean();
+      if (!order || !order.items?.length) return order as IOrder | null;
+      await this.enrichOrderItemsImageUrlPublic(order.items);
+      return order as IOrder | null;
+    } catch (error: any) {
+      console.error('Error fetching order by ID (driver):', error);
+      throw error;
+    }
+  }
+
   /** Fills imageUrl on each item from MenuItem when missing. Accepts productId as string or ObjectId. */
   async enrichOrderItemsImageUrlPublic(items: any[]): Promise<void> {
     if (!items?.length) return;
@@ -276,6 +307,65 @@ export class OrderService {
       console.error('Error updating order status:', error);
       throw error;
     }
+  }
+
+  async updateOrderStatusForDriver(
+    orderId: string,
+    driverUserId: string,
+    status: string
+  ): Promise<IOrder | null> {
+    const allowed = new Set(['out_for_delivery', 'delivered', 'delivery_failed']);
+    if (!allowed.has(String(status || '').trim().toLowerCase())) {
+      throw new Error('Driver status is not allowed');
+    }
+    const updated = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        assignedDriverId: driverUserId,
+        isDeleted: { $ne: true }
+      },
+      { $set: { status } },
+      { new: true }
+    ).lean();
+    return updated as IOrder | null;
+  }
+
+  async getDriverAssignedOrders(
+    driverUserId: string,
+    opts?: { limit?: number; fromDate?: string; toDate?: string }
+  ): Promise<IOrder[]> {
+    const query: Record<string, any> = {
+      assignedDriverId: driverUserId,
+      isDeleted: { $ne: true }
+    };
+    if (opts?.fromDate || opts?.toDate) {
+      query['customerDetails.eventDate'] = {};
+      if (opts.fromDate) query['customerDetails.eventDate'].$gte = opts.fromDate;
+      if (opts.toDate) query['customerDetails.eventDate'].$lte = opts.toDate;
+    }
+    const rows = await Order.find(query)
+      .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
+      .limit(Math.max(1, Math.min(Number(opts?.limit || 300), 1000)))
+      .lean();
+    return rows as IOrder[];
+  }
+
+  async assignOrderToDriver(
+    orderId: string,
+    driver: { _id: string; fullName?: string; username?: string } | null
+  ): Promise<IOrder | null> {
+    const set: Record<string, any> = {};
+    if (!driver) {
+      set.assignedDriverId = null;
+      set.assignedDriverName = '';
+      set.assignedAt = null;
+    } else {
+      set.assignedDriverId = driver._id;
+      set.assignedDriverName = String(driver.fullName || driver.username || '').trim();
+      set.assignedAt = new Date();
+    }
+    const updated = await Order.findByIdAndUpdate(orderId, { $set: set }, { new: true }).lean();
+    return updated as IOrder | null;
   }
 
   /**
@@ -710,6 +800,122 @@ export class OrderService {
     }
   }
 
+  /**
+   * Aggregate revenue by marketing source (utm_source).
+   * Missing/empty sources are bucketed as "direct".
+   */
+  async getRevenueBySource(filters?: {
+    startDate?: Date;
+    endDate?: Date;
+    includeArchived?: boolean;
+  }): Promise<Array<{ source: string; totalRevenue: number; ordersCount: number }>> {
+    try {
+      const match: Record<string, any> = {
+        status: { $ne: 'cancelled' }
+      };
+      if (!filters?.includeArchived) {
+        match.isDeleted = { $ne: true };
+      }
+      if (filters?.startDate || filters?.endDate) {
+        match.createdAt = {};
+        if (filters.startDate) match.createdAt.$gte = filters.startDate;
+        if (filters.endDate) match.createdAt.$lte = filters.endDate;
+      }
+
+      const rows = await Order.aggregate([
+        { $match: match },
+        {
+          $project: {
+            totalPrice: 1,
+            source: {
+              $let: {
+                vars: { src: { $ifNull: ['$marketingData.utm_source', ''] } },
+                in: {
+                  $cond: [
+                    { $gt: [{ $strLenCP: { $trim: { input: '$$src' } } }, 0] },
+                    { $toLower: { $trim: { input: '$$src' } } },
+                    'direct'
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: '$source',
+            totalRevenue: { $sum: '$totalPrice' },
+            ordersCount: { $sum: 1 }
+          }
+        },
+        { $sort: { totalRevenue: -1 } },
+        {
+          $project: {
+            _id: 0,
+            source: '$_id',
+            totalRevenue: 1,
+            ordersCount: 1
+          }
+        }
+      ]);
+
+      return rows as Array<{ source: string; totalRevenue: number; ordersCount: number }>;
+    } catch (error: any) {
+      console.error('Error fetching revenue by source:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Aggregate monthly revenue growth (YYYY-MM buckets).
+   */
+  async getMonthlyRevenue(filters?: {
+    startDate?: Date;
+    endDate?: Date;
+    includeArchived?: boolean;
+  }): Promise<Array<{ month: string; totalRevenue: number; ordersCount: number }>> {
+    try {
+      const match: Record<string, any> = {
+        status: { $ne: 'cancelled' }
+      };
+      if (!filters?.includeArchived) {
+        match.isDeleted = { $ne: true };
+      }
+      if (filters?.startDate || filters?.endDate) {
+        match.createdAt = {};
+        if (filters.startDate) match.createdAt.$gte = filters.startDate;
+        if (filters.endDate) match.createdAt.$lte = filters.endDate;
+      }
+
+      const rows = await Order.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m', date: '$createdAt' }
+            },
+            totalRevenue: { $sum: '$totalPrice' },
+            ordersCount: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } },
+        {
+          $project: {
+            _id: 0,
+            month: '$_id',
+            totalRevenue: 1,
+            ordersCount: 1
+          }
+        }
+      ]);
+
+      return rows as Array<{ month: string; totalRevenue: number; ordersCount: number }>;
+    } catch (error: any) {
+      console.error('Error fetching monthly revenue:', error);
+      throw error;
+    }
+  }
+
   // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
   // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
   async getKitchenReport(targetDate?: string): Promise<{ 
@@ -1068,7 +1274,10 @@ export class OrderService {
   }
 
   /** Build delivery+pickup groups for a single day's orders. */
-  private async getDeliveryReportForOneDay(dateStr: string): Promise<{
+  private async getDeliveryReportForOneDay(
+    dateStr: string,
+    assignedDriverId?: string
+  ): Promise<{
     deliveryByCity: { city: string; orders: any[] }[];
     pickupByTime: { time: string; orders: any[] }[];
   }> {
@@ -1077,6 +1286,9 @@ export class OrderService {
       isDeleted: { $ne: true },
       'customerDetails.eventDate': dateStr
     };
+    if (assignedDriverId) {
+      query.assignedDriverId = assignedDriverId;
+    }
     const activeOrders = await Order.find(query).lean();
     const cityMap: { [key: string]: any[] } = {};
     const pickupTimeMap: { [key: string]: any[] } = {};
@@ -1097,6 +1309,8 @@ export class OrderService {
       const orderSummary = {
         _id: (order as any)._id.toString(),
         status: (order as any).status || 'pending',
+        assignedDriverId: (order as any).assignedDriverId ? String((order as any).assignedDriverId) : null,
+        assignedDriverName: (order as any).assignedDriverName || '',
         customerDetails: {
           name: customerDetails.fullName || 'לא צוין',
           phone: customerDetails.phone || 'לא צוין'
@@ -1136,7 +1350,7 @@ export class OrderService {
   }
 
   /** Get delivery report for a single day or a date range. Returns days keyed by YYYY-MM-DD. */
-  async getDeliveryReport(fromDate?: string, toDate?: string): Promise<{
+  async getDeliveryReport(fromDate?: string, toDate?: string, assignedDriverId?: string): Promise<{
     days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }>;
   }> {
     try {
@@ -1157,7 +1371,7 @@ export class OrderService {
 
       const days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }> = {};
       for (const dateStr of dateStrings) {
-        days[dateStr] = await this.getDeliveryReportForOneDay(dateStr);
+        days[dateStr] = await this.getDeliveryReportForOneDay(dateStr, assignedDriverId);
       }
       console.log('🚚 Delivery report: days', Object.keys(days).length);
       return { days };

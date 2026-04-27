@@ -1,39 +1,56 @@
 <div class="admin-customers-page">
   <div class="container">
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">ניהול לקוחות (CRM)</h1>
-        <p class="page-description">צפה וניהול לקוחות, תגיות, הערות ומגבלות תזונה</p>
-      </div>
-    </div>
-
     <div class="stats-row">
       <div class="stat-card">
         <span class="stat-value">{{ countAll }}</span>
         <span class="stat-label">סה״כ לקוחות</span>
       </div>
       <div class="stat-card">
+        <span class="stat-value">{{ countReturning }}</span>
+        <span class="stat-label">לקוחות חוזרים</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ countSleeping }}</span>
+        <span class="stat-label">ישנים (30+ ימים)</span>
+      </div>
+      <div class="stat-card">
         <span class="stat-value">{{ countVip }}</span>
         <span class="stat-label">VIP</span>
       </div>
       <div class="stat-card">
-        <span class="stat-value">{{ countDormant }}</span>
-        <span class="stat-label">רדומים (60+ ימים)</span>
+        <span class="stat-value">{{ countRegistered }}</span>
+        <span class="stat-label">רשומים (משתמש)</span>
       </div>
     </div>
 
-    <!-- Smart filters -->
-    <div class="filters-bar">
-      @for (opt of filterOptions; track opt.value) {
-        <button
-          type="button"
-          class="filter-btn"
-          [class.active]="currentFilter === opt.value"
-          (click)="setFilter(opt.value)"
-        >
-          {{ opt.label }}
-        </button>
-      }
+    <!-- Smart filters + audit -->
+    <div class="filters-toolbar">
+      <div class="filters-bar">
+        @for (opt of filterOptions; track opt.value) {
+          <button
+            type="button"
+            class="filter-btn"
+            [class.active]="currentFilter === opt.value"
+            (click)="setFilter(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+      <button
+        type="button"
+        class="btn-audit"
+        [disabled]="isAuditLoading"
+        (click)="runAudit()"
+        title="השוואת CRM מול הזמנות (דה־דופליקציה לפי מספר הזמנה)"
+      >
+        @if (isAuditLoading) {
+          <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+        }
+        הרץ ביקורת נתונים
+      </button>
     </div>
 
     @if (successMessage) {
@@ -49,61 +66,74 @@
         <span>טוען לקוחות...</span>
       </div>
     } @else {
-      <div class="table-container">
-        <table class="customers-table">
+      <div class="customers-table-shell" [class.has-pagination]="hasPagination">
+        <div class="table-container table-responsive">
+          <table class="customers-table">
           <thead>
             <tr>
+              <th>#</th>
               <th>שם הלקוח</th>
               <th>טלפון</th>
               <th>אימייל</th>
-              <th>תאריך הצטרפות</th>
-              <th>הזמנה אחרונה</th>
-              <th>תגיות</th>
+              <th>מספר הזמנות</th>
+              <th>סך הכל הוצאות</th>
+              <th>קטגוריית לקוח</th>
               <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
-            @for (user of filteredUsers; track user._id) {
+            @for (user of pagedUsers; track user._id; let i = $index) {
               <tr
                 class="clickable-row"
                 [class.selected]="selectedUser?._id === user._id"
                 (click)="openPanel(user)"
               >
+                <td class="date-cell">{{ getRowNumber(i) }}</td>
                 <td class="name-cell">{{ user.fullName || '—' }}</td>
                 <td class="phone-cell">{{ user.phone || 'לא הוזן' }}</td>
                 <td class="email-cell">{{ user.username || '—' }}</td>
-                <td class="date-cell">{{ user.createdAt | date:'dd/MM/yyyy' }}</td>
-                <td class="date-cell">
-                  @if (user.lastOrderDate) {
-                    {{ user.lastOrderDate | date:'dd/MM/yyyy' }}
-                  } @else {
-                    —
-                  }
-                </td>
-                <td class="tags-cell">
-                  @for (tag of (user.tags || []).slice(0, 3); track tag) {
-                    <span class="tag-pill">{{ tag }}</span>
-                  }
-                  @if ((user.tags?.length ?? 0) > 3) {
-                    <span class="tag-pill tag-more">+{{ (user.tags?.length ?? 0) - 3 }}</span>
-                  }
-                  @if (!user.tags?.length) {
-                    <span class="tag-none">—</span>
-                  }
+                <td class="date-cell">{{ user.orderCount || 0 }}</td>
+                <td class="date-cell">{{ (user.totalSpent || 0) | currency:'ILS':'symbol-narrow':'1.0-0' }}</td>
+                <td class="status-cell" (click)="$event.stopPropagation()">
+                  <select
+                    class="status-select"
+                    [ngModel]="user.customerCategory || 'all'"
+                    (ngModelChange)="updateCustomerCategory(user, $event)"
+                    [disabled]="statusUpdatingId === user._id"
+                  >
+                    @for (opt of customerCategoryOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
                 </td>
                 <td class="actions-cell" (click)="$event.stopPropagation()">
-                  <a [href]="getWhatsAppLink(user)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ">
-                    <i class="fab fa-whatsapp"></i>
-                  </a>
-                  <a [routerLink]="getOrdersLink(user)" class="btn-action btn-orders" title="צפה בהזמנות">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>הזמנות</span>
-                  </a>
+                  <button
+                    type="button"
+                    class="btn-action btn-manage"
+                    title="ניהול לקוח"
+                    aria-label="ניהול לקוח"
+                    (click)="openPanel(user)"
+                  >
+                    <i class="fas fa-ellipsis-h"></i>
+                    <span>ניהול לקוח</span>
+                  </button>
                 </td>
               </tr>
             }
           </tbody>
         </table>
+        </div>
+
+        @if (hasPagination) {
+          <div class="pagination-row">
+            <div class="pagination-meta">מציג {{ displayRangeStart }}-{{ displayRangeEnd }} מתוך {{ filteredUsers.length }}</div>
+            <div class="pagination-controls">
+              <button type="button" class="pagination-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">הקודם</button>
+              <span class="pagination-page">{{ currentPage }} / {{ totalPages }}</span>
+              <button type="button" class="pagination-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">הבא</button>
+            </div>
+          </div>
+        }
       </div>
 
       @if (filteredUsers.length === 0) {
@@ -121,72 +151,155 @@
     <div class="panel-overlay" (click)="closePanel()" role="button" tabindex="0" (keydown.enter)="closePanel()"></div>
     <aside class="crm-panel" role="dialog" aria-label="פרטי לקוח">
       <div class="panel-header">
-        <h2 class="panel-title">{{ selectedUser.fullName || 'לקוח' }}</h2>
+        <div class="panel-header-text">
+          <span class="panel-header-eyebrow">ניהול לקוח</span>
+          <h2 class="panel-title">{{ selectedUser.fullName || 'לקוח' }}</h2>
+        </div>
         <button type="button" class="btn-close-panel" (click)="closePanel()" aria-label="סגור">
           <i class="fas fa-times"></i>
         </button>
       </div>
       <div class="panel-body">
-        <p class="panel-meta">{{ selectedUser.phone || 'לא הוזן' }} · {{ selectedUser.username || '—' }}</p>
-        <p class="panel-meta">כתובת: {{ selectedUser?.address || 'לא הוזן' }}</p>
+        <div class="panel-summary-card">
+          <div class="panel-summary-row">
+            <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-phone-alt"></i></span>
+            <span>{{ selectedUser.phone || 'לא הוזן' }}</span>
+          </div>
+          <div class="panel-summary-row">
+            <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
+            <span class="panel-summary-ellipsis">{{ selectedUser.username || '—' }}</span>
+          </div>
+          <div class="panel-summary-row">
+            <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-map-marker-alt"></i></span>
+            <span class="panel-summary-ellipsis">{{ selectedUser?.address || 'לא הוזן' }}</span>
+          </div>
+          <div class="panel-summary-row">
+            <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-user-clock"></i></span>
+            <span>תאריך הצטרפות: {{ selectedUser.createdAt | date:'dd/MM/yyyy' }}</span>
+          </div>
+          <div class="panel-summary-row">
+            <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
+            <span>
+              הזמנה אחרונה:
+              @if (selectedUser.lastOrderDate) {
+                {{ selectedUser.lastOrderDate | date:'dd/MM/yyyy' }}
+              } @else {
+                —
+              }
+            </span>
+          </div>
+        </div>
+
         <div class="panel-actions-inline">
           <a [href]="getWhatsAppLink(selectedUser)" target="_blank" rel="noopener noreferrer" class="btn-panel btn-whatsapp">
             <i class="fab fa-whatsapp"></i> וואטסאפ
           </a>
-          <a [routerLink]="getOrdersLink(selectedUser)" class="btn-panel btn-orders">צפה בהזמנות</a>
+          <button type="button" class="btn-panel btn-orders" (click)="openOrderHistory(selectedUser)">היסטוריית הזמנות</button>
+          <button
+            type="button"
+            class="btn-panel btn-delete"
+            [disabled]="deletingCustomerId === selectedUser._id"
+            (click)="deleteCustomer(selectedUser)"
+          >
+            מחק לקוח
+          </button>
         </div>
 
-        <div class="panel-section">
-          <label class="panel-label">הערות פנימיות (Admin)</label>
-          <textarea
-            class="panel-textarea"
-            [(ngModel)]="panelAdminNotes"
-            rows="4"
-            placeholder="הערות שמורות רק למנהל..."
-          ></textarea>
-        </div>
-
-        <div class="panel-section">
-          <label class="panel-label">מגבלות תזונה / אלרגיות</label>
-          <input
-            type="text"
-            class="panel-input"
-            [(ngModel)]="panelDietaryInfo"
-            placeholder="למשל: גלוטן, אלרגיה לבוטנים..."
-          />
-        </div>
-
-        <div class="panel-section">
-          <label class="panel-label">תגיות</label>
-          <div class="tags-preset">
-            @for (tag of presetTags; track tag) {
+        @if (selectedUser.isRegistered) {
+          <div class="panel-section-group site-user-section">
+            <h3 class="panel-section-title">חשבון באתר והרשאות</h3>
+            @if (linkedUserLoading) {
+              <div class="linked-user-status">
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                <span>טוען פרטי משתמש...</span>
+              </div>
+            } @else if (linkedUserError) {
+              <div class="message error-message compact">{{ linkedUserError }}</div>
+              <button type="button" class="btn-panel btn-orders" (click)="fetchLinkedSiteUser()">נסה שוב</button>
+            } @else if (linkedSiteUser) {
+              <p class="linked-user-meta">
+                <strong>{{ linkedSiteUser.fullName || '—' }}</strong>
+                <span class="linked-username">{{ linkedSiteUser.username }}</span>
+                @if (linkedSiteUser.isActive === false) {
+                  <span class="badge-inactive">לא פעיל</span>
+                }
+              </p>
+              <div class="panel-section">
+                <label class="panel-label">תפקיד במערכת (אתר / ניהול)</label>
+                <select class="panel-input" [(ngModel)]="panelSiteRole">
+                  @for (opt of siteRoleOptions; track opt.value) {
+                    <option [ngValue]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+              </div>
               <button
                 type="button"
-                class="tag-pill tag-btn"
-                [class.active]="panelTags.includes(tag)"
-                (click)="panelTags.includes(tag) ? removeTag(tag) : addTag(tag)"
+                class="btn-save-crm secondary"
+                [disabled]="isSavingSiteRole || panelSiteRole === linkedSiteUser.role"
+                (click)="saveSiteRole()"
               >
-                {{ tag }}
+                @if (isSavingSiteRole) {
+                  <i class="fas fa-spinner fa-spin"></i> שומר...
+                } @else {
+                  עדכן תפקיד באתר
+                }
               </button>
             }
           </div>
-          <div class="tag-add-row">
+        }
+
+        <div class="panel-section-group">
+          <h3 class="panel-section-title">פרטי קשר</h3>
+          <div class="panel-section">
+            <label class="panel-label">שם מלא</label>
+            <input type="text" class="panel-input" [(ngModel)]="panelFullName" placeholder="שם הלקוח" />
+          </div>
+
+          <div class="panel-section">
+            <label class="panel-label">טלפון</label>
+            <input type="text" class="panel-input" [(ngModel)]="panelPhone" placeholder="טלפון" />
+          </div>
+
+          <div class="panel-section">
+            <label class="panel-label">אימייל</label>
+            <input type="email" class="panel-input" [(ngModel)]="panelEmail" placeholder="אימייל" />
+          </div>
+
+          <div class="panel-section">
+            <label class="panel-label">כתובת</label>
+            <input type="text" class="panel-input" [(ngModel)]="panelAddress" placeholder="כתובת" />
+          </div>
+        </div>
+
+        <div class="panel-section-group">
+          <h3 class="panel-section-title">קטגוריה והערות</h3>
+          <div class="panel-section">
+            <label class="panel-label">קטגוריית לקוח</label>
+            <select class="panel-input" [(ngModel)]="panelCustomerCategory">
+              @for (opt of customerCategoryOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="panel-section">
+            <label class="panel-label">הערות פנימיות (Admin)</label>
+            <textarea
+              class="panel-textarea"
+              [(ngModel)]="panelAdminNotes"
+              rows="4"
+              placeholder="הערות שמורות רק למנהל..."
+            ></textarea>
+          </div>
+
+          <div class="panel-section">
+            <label class="panel-label">מגבלות תזונה / אלרגיות</label>
             <input
               type="text"
-              class="panel-input tag-input"
-              [(ngModel)]="tagInput"
-              placeholder="תגית מותאמת..."
-              (keydown.enter)="addTag(''); $event.preventDefault()"
+              class="panel-input"
+              [(ngModel)]="panelDietaryInfo"
+              placeholder="למשל: גלוטן, אלרגיה לבוטנים..."
             />
-            <button type="button" class="btn-add-tag" (click)="addTag('')">הוסף</button>
-          </div>
-          <div class="tags-current">
-            @for (tag of panelTags; track tag) {
-              <span class="tag-pill">
-                {{ tag }}
-                <button type="button" class="tag-remove" (click)="removeTag(tag)" aria-label="הסר">×</button>
-              </span>
-            }
           </div>
         </div>
 
@@ -197,6 +310,142 @@
             <i class="fas fa-check"></i> שמור שינויים
           }
         </button>
+      </div>
+    </aside>
+  }
+
+  @if (isHistoryModalOpen) {
+    <div class="panel-overlay" (click)="closeOrderHistory()"></div>
+    <aside class="orders-history-modal" role="dialog" aria-label="היסטוריית הזמנות לקוח">
+      <div class="panel-header">
+        <h2 class="panel-title">היסטוריית הזמנות - {{ historyCustomer?.fullName || 'לקוח' }}</h2>
+        <button type="button" class="btn-close-panel" (click)="closeOrderHistory()" aria-label="סגור">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="panel-body">
+        @if (isLoadingOrderHistory) {
+          <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>טוען הזמנות...</span>
+          </div>
+        } @else if (orderHistoryError) {
+          <div class="message error-message">{{ orderHistoryError }}</div>
+        } @else if (customerOrders.length === 0) {
+          <div class="empty-state compact">
+            <i class="fas fa-inbox"></i>
+            <h3>אין הזמנות ללקוח זה</h3>
+          </div>
+        } @else {
+          <div class="history-list">
+            @for (order of customerOrders; track order._id || order.id || $index) {
+              <article class="history-card">
+                <div class="history-card-header">
+                  <strong>#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '---' }}</strong>
+                  <span>{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="history-items">
+                  @for (item of order.items; track $index) {
+                    <div class="history-item-row">
+                      <span>{{ item.name }} x{{ item.quantity }}</span>
+                      <span>₪{{ (item.price * item.quantity) | number:'1.0-0' }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="history-total">
+                  <span>סה"כ הזמנה</span>
+                  <strong>{{ getOrderRowTotal(order) | currency:'ILS':'symbol-narrow':'1.0-0' }}</strong>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </div>
+    </aside>
+  }
+
+  @if (isAuditModalOpen) {
+    <div class="panel-overlay" (click)="closeAuditModal()"></div>
+    <aside class="audit-modal" role="dialog" aria-label="ביקורת נתוני CRM">
+      <div class="panel-header">
+        <div class="panel-header-text">
+          <span class="panel-header-eyebrow">אדמין</span>
+          <h2 class="panel-title">ביקורת סנכרון CRM</h2>
+          @if (auditReport?.generatedAt) {
+            <span class="audit-generated">{{ auditReport!.generatedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          }
+        </div>
+        <button type="button" class="btn-close-panel" (click)="closeAuditModal()" aria-label="סגור">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="panel-body audit-modal-body">
+        @if (isAuditLoading) {
+          <div class="loading">
+            <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            <span>מריץ ביקורת מול אוסף ההזמנות...</span>
+          </div>
+        } @else if (auditError) {
+          <div class="message error-message">{{ auditError }}</div>
+        } @else if (auditReport) {
+          <div class="audit-summary-grid">
+            <div class="audit-summary-chip">
+              <span class="audit-summary-num">{{ auditReport.summary.totalIssues }}</span>
+              <span class="audit-summary-label">סה״כ אירועים</span>
+            </div>
+            <div class="audit-summary-chip warn">
+              <span class="audit-summary-num">{{ auditReport.summary.orderCountMismatches }}</span>
+              <span class="audit-summary-label">הפרשי מספר הזמנות</span>
+            </div>
+            <div class="audit-summary-chip warn">
+              <span class="audit-summary-num">{{ auditReport.summary.totalSpentMismatches }}</span>
+              <span class="audit-summary-label">הפרשי סכום</span>
+            </div>
+            <div class="audit-summary-chip">
+              <span class="audit-summary-num">{{ auditReport.summary.identityFlags }}</span>
+              <span class="audit-summary-label">זהות (אימייל)</span>
+            </div>
+            <div class="audit-summary-chip critical">
+              <span class="audit-summary-num">{{ auditReport.summary.orphans }}</span>
+              <span class="audit-summary-label">יתומים (אין רשומת לקוח)</span>
+            </div>
+            <div class="audit-summary-chip">
+              <span class="audit-summary-num">{{ auditReport.summary.nameConflicts }}</span>
+              <span class="audit-summary-label">התנגשות שם</span>
+            </div>
+          </div>
+          @if (auditReport.issues.length === 0) {
+            <div class="audit-empty-ok">
+              <i class="fas fa-check-circle" aria-hidden="true"></i>
+              <p>אין חוסר התאמה בין ה-CRM להזמנות (לפי כללי האמת שהוגדרו).</p>
+            </div>
+          } @else {
+            <div class="audit-table-wrap">
+              <table class="audit-table">
+                <thead>
+                  <tr>
+                    <th>טלפון</th>
+                    <th>סוג בעיה</th>
+                    <th>ב-CRM</th>
+                    <th>מההזמנות / מקור</th>
+                    <th>הערה</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of auditReport.issues; track row.phone + row.issueType + $index) {
+                    <tr>
+                      <td class="audit-phone">{{ row.phone }}</td>
+                      <td><span class="audit-issue-pill">{{ row.issueType }}</span></td>
+                      <td class="audit-json-cell"><code>{{ row.valueInCRM | json }}</code></td>
+                      <td class="audit-json-cell"><code>{{ row.valueInOrders | json }}</code></td>
+                      <td class="audit-detail">{{ row.detail || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
       </div>
     </aside>
   }

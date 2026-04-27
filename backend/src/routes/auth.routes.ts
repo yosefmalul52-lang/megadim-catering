@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
+import Customer from '../models/Customer';
+import { normalizePhone } from '../services/customer.service';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -39,6 +41,25 @@ const User = require('../models/User');
 // Import Employee model
 const Employee = require('../models/Employee');
 const { authenticate } = require('../middleware/auth');
+
+async function syncCustomerRegistrationStatus(
+  username: unknown,
+  phone: unknown
+): Promise<void> {
+  const emailKey = String(username || '')
+    .trim()
+    .toLowerCase();
+  const orClause: Array<{ email?: string; normalizedPhone?: string }> = [];
+  if (emailKey) {
+    orClause.push({ email: emailKey });
+  }
+  if (phone != null && String(phone).trim() !== '') {
+    const np = normalizePhone(phone);
+    if (np) orClause.push({ normalizedPhone: np });
+  }
+  if (orClause.length === 0) return;
+  await Customer.updateMany({ $or: orClause }, { $set: { isRegistered: true } });
+}
 
 // Login Route (with strict rate limiting)
 router.post('/login', loginLimiter, async (req: Request, res: Response) => {
@@ -108,6 +129,12 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
       ? { id: (userResponse as any)._id, fullName: (userResponse as any).fullName, username: (userResponse as any).username, role: (userResponse as any).role }
       : { id: user._id, fullName: user.fullName, username: user.username, role: user.role };
 
+    try {
+      await syncCustomerRegistrationStatus(user.username, user.phone);
+    } catch (crmErr) {
+      console.error('Customer isRegistered after login:', crmErr);
+    }
+
     res.cookie(COOKIE_NAME, token, cookieOptions());
     return res.json({
       success: true,
@@ -153,6 +180,12 @@ router.post('/register', async (req: Request, res: Response) => {
     user = new User(userData);
 
     await user.save();
+
+    try {
+      await syncCustomerRegistrationStatus(username, phone);
+    } catch (crmErr) {
+      console.error('Customer isRegistered after register:', crmErr);
+    }
 
     // Create Token (7 days)
     const payload = { id: user._id, role: user.role };

@@ -4,7 +4,8 @@ import { asyncHandler } from '../middleware/errorHandler';
 import * as couponController from '../controllers/coupon.controller';
 
 const router = express.Router();
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../config/role-access');
 
 const applyCouponLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -19,8 +20,8 @@ const applyCouponLimiter = rateLimit({
 
 router.post('/apply', applyCouponLimiter, couponController.applyCoupon);
 
-router.get('/', authenticate, authorize('admin'), couponController.listCoupons);
-router.post('/', authenticate, authorize('admin'), asyncHandler(couponController.createCoupon as any));
-router.put('/:id', authenticate, authorize('admin'), asyncHandler(couponController.updateCoupon as any));
+router.get('/', authenticate, requireAdmin, couponController.listCoupons);
+router.post('/', authenticate, requireAdmin, asyncHandler(couponController.createCoupon as any));
+router.put('/:id', authenticate, requireAdmin, asyncHandler(couponController.updateCoupon as any));
 
 export default router;

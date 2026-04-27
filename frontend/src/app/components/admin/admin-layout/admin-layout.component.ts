@@ -1,8 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule, Location } from '@angular/common';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet, ActivatedRoute, NavigationEnd } from '@angular/router';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter, map } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth.service';
+import { ADMIN_NAV_ITEMS, canSeeNavItem, type AdminNavItem } from '../../../config/admin-staff-nav';
 
 @Component({
   selector: 'app-admin-layout',
@@ -20,106 +21,18 @@ import { AuthService } from '../../../services/auth.service';
         </div>
         
         <nav class="sidebar-nav">
-          <a 
-            routerLink="/admin/dashboard" 
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{exact: true}"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-chart-line"></i>
-            <span>לוח בקרה</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/menu" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-utensils"></i>
-            <span>ניהול תפריט</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/orders" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-shopping-cart"></i>
-            <span>הזמנות</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/customers" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-users"></i>
-            <span>לקוחות</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/coupons" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-ticket-alt"></i>
-            <span>ניהול קופונים</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/shipping" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-money-bill-wave"></i>
-            <span>מחירי משלוח ואזורים</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/delivery" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-truck"></i>
-            <span>סידור משלוחים</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/shopping" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-shopping-basket"></i>
-            <span>רשימת קניות</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/gallery" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-images"></i>
-            <span>ניהול גלריה</span>
-          </a>
-          
-          <a 
-            routerLink="/admin/settings" 
-            routerLinkActive="active"
-            class="nav-link"
-            (click)="closeSidebarOnMobile()"
-          >
-            <i class="fas fa-cog"></i>
-            <span>הגדרות אתר</span>
-          </a>
+          @for (item of visibleNavItems; track item.routerLink) {
+            <a
+              [routerLink]="item.routerLink"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="item.routerLink === '/admin/dashboard' ? { exact: true } : { exact: false }"
+              class="nav-link"
+              (click)="closeSidebarOnMobile()"
+            >
+              <i [class]="item.iconClass"></i>
+              <span>{{ item.label }}</span>
+            </a>
+          }
         </nav>
         
         <div class="sidebar-footer">
@@ -148,7 +61,6 @@ import { AuthService } from '../../../services/auth.service';
       
       <!-- Main Content Area -->
       <div class="admin-main">
-        <!-- Header with Back Button -->
         <header class="admin-header">
           <div class="header-left">
             <button 
@@ -157,16 +69,6 @@ import { AuthService } from '../../../services/auth.service';
               aria-label="תפריט"
             >
               <i class="fas fa-bars"></i>
-            </button>
-            
-            <button 
-              *ngIf="showBackButton" 
-              class="back-btn"
-              (click)="goBack()"
-              title="חזור"
-            >
-              <i class="fas fa-arrow-right"></i>
-              <span>חזור</span>
             </button>
           </div>
           
@@ -201,6 +103,8 @@ import { AuthService } from '../../../services/auth.service';
     .admin-layout {
       display: flex;
       min-height: 100vh;
+      max-width: 100%;
+      overflow-x: hidden;
       background-color: $bg-light;
       direction: rtl;
     }
@@ -244,6 +148,30 @@ import { AuthService } from '../../../services/auth.service';
       flex: 1;
       padding: 1rem 0;
       overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.55) rgba(31, 41, 55, 0.4);
+    }
+
+    .sidebar-nav::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.25);
+      border-radius: 999px;
+      margin: 6px 0;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(148, 163, 184, 0.65), rgba(100, 116, 139, 0.85));
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(96, 165, 250, 0.85), rgba(59, 130, 246, 0.95));
+      background-clip: padding-box;
     }
 
     .nav-link {
@@ -328,10 +256,12 @@ import { AuthService } from '../../../services/auth.service';
     // Main Content Area
     .admin-main {
       flex: 1;
+      min-width: 0;
       margin-right: 250px;
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      overflow-x: hidden;
       transition: margin-right 0.3s ease;
     }
 
@@ -371,32 +301,6 @@ import { AuthService } from '../../../services/auth.service';
       background: $bg-light;
     }
 
-    .back-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: $bg-light;
-      color: $text-dark; // Dark Slate
-      border: 1px solid #e0e0e0;
-      border-radius: 0.5rem;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .back-btn:hover {
-      background: $primary-blue; // Royal Blue
-      color: $white;
-      border-color: $primary-blue;
-      transform: translateX(-2px);
-    }
-
-    .back-btn i {
-      font-size: 0.875rem;
-    }
-
     .page-title {
       margin: 0;
       font-size: 1.75rem;
@@ -407,11 +311,13 @@ import { AuthService } from '../../../services/auth.service';
       font-family: 'Inter', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    // Content Area
+    // Content Area — single scroll on document; no inner scroll container
     .admin-content {
-      flex: 1;
+      flex: 1 1 auto;
+      min-width: 0;
       padding: 2rem;
-      overflow-y: auto;
+      overflow-x: hidden;
+      overflow-y: visible;
     }
 
     // Mobile Overlay
@@ -466,43 +372,50 @@ import { AuthService } from '../../../services/auth.service';
       .page-title {
         font-size: 1.1rem;
       }
-
-      .back-btn span {
-        display: none;
-      }
     }
   `]
 })
 export class AdminLayoutComponent implements OnInit {
   private router = inject(Router);
-  private route = inject(ActivatedRoute);
-  private location = inject(Location);
   private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   sidebarOpen = false;
   pageTitle = 'לוח בקרה';
-  showBackButton = false;
   userName: string | null = null;
+  /** For sidebar filtering (kept in sync with session). */
+  private staffRole: string | undefined = this.authService.currentUser?.role;
 
   // Page titles mapping
   private pageTitles: { [key: string]: string } = {
     '/admin/dashboard': 'לוח בקרה',
     '/admin/menu': 'ניהול תפריט',
     '/admin/orders': 'הזמנות',
-    '/admin/customers': 'לקוחות',
+    '/admin/leads': 'לידים',
+    '/admin/marketing': 'ניהול קמפיינים',
+    '/admin/customers': 'ניהול לקוחות (CRM)',
     '/admin/coupons': 'ניהול קופונים',
     '/admin/shipping': 'מחירי משלוח ואזורים',
+    '/admin/delivery': 'סידור משלוחים',
+    '/admin/delivery-pricing': 'תמחור משלוחים',
+    '/admin/shopping': 'רשימת קניות',
     '/admin/gallery': 'ניהול גלריה',
     '/admin/settings': 'הגדרות אתר'
   };
 
+  /** Sidebar links filtered by `AuthService` role */
+  get visibleNavItems(): AdminNavItem[] {
+    return ADMIN_NAV_ITEMS.filter((item) => canSeeNavItem(this.staffRole, item));
+  }
+
   ngOnInit(): void {
-    // Get current user
-    this.authService.currentUser$.subscribe(user => {
+    this.authService.currentUser$.subscribe((user) => {
       this.userName = user?.username || null;
+      this.staffRole = user?.role;
+      this.cdr.markForCheck();
     });
 
-    // Track route changes to update page title and back button
+    // Track route changes to update page title
     this.router.events
       .pipe(
         filter(event => event instanceof NavigationEnd),
@@ -524,9 +437,6 @@ export class AdminLayoutComponent implements OnInit {
     // Set page title
     const fullPath = '/admin' + adminPath;
     this.pageTitle = this.pageTitles[fullPath] || this.pageTitles[adminPath] || 'לוח בקרה';
-
-    // Show back button if not on dashboard
-    this.showBackButton = adminPath !== '' && adminPath !== '/' && adminPath !== '/dashboard';
   }
 
   toggleSidebar(): void {
@@ -541,10 +451,6 @@ export class AdminLayoutComponent implements OnInit {
     if (window.innerWidth <= 768) {
       this.sidebarOpen = false;
     }
-  }
-
-  goBack(): void {
-    this.location.back();
   }
 
   logout(): void {

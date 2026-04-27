@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const Customer_1 = __importDefault(require("../models/Customer"));
+const customer_service_1 = require("../services/customer.service");
 const router = express_1.default.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -47,6 +49,25 @@ const User = require('../models/User');
 // Import Employee model
 const Employee = require('../models/Employee');
 const { authenticate } = require('../middleware/auth');
+function syncCustomerRegistrationStatus(username, phone) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const emailKey = String(username || '')
+            .trim()
+            .toLowerCase();
+        const orClause = [];
+        if (emailKey) {
+            orClause.push({ email: emailKey });
+        }
+        if (phone != null && String(phone).trim() !== '') {
+            const np = (0, customer_service_1.normalizePhone)(phone);
+            if (np)
+                orClause.push({ normalizedPhone: np });
+        }
+        if (orClause.length === 0)
+            return;
+        yield Customer_1.default.updateMany({ $or: orClause }, { $set: { isRegistered: true } });
+    });
+}
 // Login Route (with strict rate limiting)
 router.post('/login', loginLimiter, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -106,6 +127,12 @@ router.post('/login', loginLimiter, (req, res) => __awaiter(void 0, void 0, void
         const safeUser = userResponse
             ? { id: userResponse._id, fullName: userResponse.fullName, username: userResponse.username, role: userResponse.role }
             : { id: user._id, fullName: user.fullName, username: user.username, role: user.role };
+        try {
+            yield syncCustomerRegistrationStatus(user.username, user.phone);
+        }
+        catch (crmErr) {
+            console.error('Customer isRegistered after login:', crmErr);
+        }
         res.cookie(COOKIE_NAME, token, cookieOptions());
         return res.json({
             success: true,
@@ -147,6 +174,12 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
             userData.phone = String(phone).trim();
         user = new User(userData);
         yield user.save();
+        try {
+            yield syncCustomerRegistrationStatus(username, phone);
+        }
+        catch (crmErr) {
+            console.error('Customer isRegistered after register:', crmErr);
+        }
         // Create Token (7 days)
         const payload = { id: user._id, role: user.role };
         const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: '7d' });

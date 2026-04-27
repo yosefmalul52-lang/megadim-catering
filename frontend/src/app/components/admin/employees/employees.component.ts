@@ -33,9 +33,16 @@ interface Employee {
             <i class="fas fa-users"></i>
             ניהול צוות
           </h1>
-          <button class="btn-add-employee" (click)="openAddModal()">
+          <button
+            class="btn-add-employee is-coming-soon"
+            type="button"
+            disabled
+            title="בקרוב"
+            aria-label="בקרוב"
+          >
             <i class="fas fa-plus"></i>
             עובד חדש
+            <span class="coming-soon-badge">בקרוב</span>
           </button>
         </div>
 
@@ -99,7 +106,13 @@ interface Employee {
 
             <!-- Action Footer -->
             <div class="employee-actions">
-              <button class="action-btn" (click)="editEmployee(employee)" title="ערוך">
+              <button
+                class="action-btn is-coming-soon"
+                type="button"
+                disabled
+                title="בקרוב"
+                aria-label="עריכה בקרוב"
+              >
                 <i class="fas fa-edit"></i>
               </button>
               <button class="action-btn" (click)="viewHistory(employee)" title="היסטוריה">
@@ -168,6 +181,15 @@ interface Employee {
       background: #059669;
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .coming-soon-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.45rem;
+      background: rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      line-height: 1;
     }
 
     /* Loading & Error States */
@@ -376,6 +398,16 @@ interface Employee {
       background: #e2e8f0;
       color: #1e293b;
       transform: scale(1.05);
+    }
+
+    .is-coming-soon {
+      cursor: not-allowed !important;
+      opacity: 0.7;
+    }
+
+    .is-coming-soon:hover {
+      transform: none !important;
+      box-shadow: none !important;
     }
 
     /* Empty State */

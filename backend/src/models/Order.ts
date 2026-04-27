@@ -22,6 +22,9 @@ export interface IOrder extends Document {
     utm_term?: string;
     utm_content?: string;
   };
+  assignedDriverId?: mongoose.Types.ObjectId | null;
+  assignedDriverName?: string;
+  assignedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -66,7 +69,17 @@ const OrderSchema: Schema<IOrder> = new Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'processing', 'ready', 'cancelled', 'new', 'in-progress', 'delivered'],
+    enum: [
+      'pending',
+      'processing',
+      'ready',
+      'cancelled',
+      'new',
+      'in-progress',
+      'out_for_delivery',
+      'delivery_failed',
+      'delivered'
+    ],
     default: 'pending'
   },
   isDeleted: {
@@ -89,6 +102,21 @@ const OrderSchema: Schema<IOrder> = new Schema({
     utm_campaign: { type: String, trim: true },
     utm_term: { type: String, trim: true },
     utm_content: { type: String, trim: true }
+  },
+  assignedDriverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
+  assignedDriverName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  assignedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true,

@@ -1,0 +1,175 @@
+.admin-leads-page {
+  min-height: 70vh;
+  background: #f3f4f6;
+  padding: 1.5rem 0;
+  direction: rtl;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.title-wrap h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.title-wrap p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+
+.filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.filter-wrap select,
+.status-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  padding: 0.4rem 0.6rem;
+}
+
+.banner {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.banner.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.state-box {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  color: #475569;
+}
+
+.state-box.loading i {
+  margin-left: 0.5rem;
+}
+
+.table-wrapper {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.leads-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+.leads-table th,
+.leads-table td {
+  text-align: right;
+  padding: 0.8rem 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.leads-table th {
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.leads-table td {
+  color: #334155;
+}
+
+.leads-table tr:last-child td {
+  border-bottom: none;
+}
+
+.leads-table a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.leads-table a:hover {
+  text-decoration: underline;
+}
+
+.pager {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* Visual Standard Refresh - Leads */
+.admin-leads-page {
+  background: #f3f4f6;
+}
+
+.admin-leads-page .header-row {
+  background: linear-gradient(135deg, #ffffff, #f8fffb);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.admin-leads-page .table-wrapper {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.admin-leads-page .status-select:focus {
+  border-color: rgba(16, 185, 129, 0.75);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+
+.pager button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pager button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 1rem;
+  }
+
+  .header-row {
+    align-items: stretch;
+  }
+}
