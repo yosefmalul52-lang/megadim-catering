@@ -9,7 +9,7 @@ import { VideoPlayerModalComponent } from './video-player-modal.component';
 @Component({
   selector: 'app-video-section',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, VideoPlayerModalComponent],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
   templateUrl: './video-section.component.html',
   styleUrls: ['./video-section.component.scss']
 })

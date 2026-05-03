@@ -4,6 +4,17 @@
     "outDir": "./out-tsc/app",
     "types": []
   },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true,
+    "extendedDiagnostics": {
+      "checks": {
+        "optionalChainNotNullable": "suppress"
+      }
+    }
+  },
   "files": [
     "src/main.ts",
     "src/polyfills.ts"
@@ -11,5 +22,28 @@
   "include": [
     "src/**/*.d.ts",
     "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/admin-main.ts",
+    "src/app/admin-app.component.ts",
+    "src/app/admin-app.routes.ts",
+    "src/app/services/auth-modal.service.ts",
+    "src/app/components/shared/auth-modal/**",
+    "src/app/components/shared/chat-agent/**",
+    "src/app/components/shared/header-top-bar/**",
+    "src/app/components/shared/main-navbar/**",
+    "src/app/components/testimonials/**",
+    "src/app/components/admin/admin-login/**",
+    "src/app/components/admin/chat-summaries/**",
+    "src/app/components/admin/employee-details/**",
+    "src/app/components/admin/employees/**",
+    "src/app/components/admin/manual-order-dialog/**",
+    "src/app/components/chat-widget/**",
+    "src/app/components/gallery/**",
+    "src/app/components/order/**",
+    "src/app/components/pages/about/**",
+    "src/app/components/pages/auth/login/**",
+    "src/app/components/shared/optimized-image/**"
   ]
 }

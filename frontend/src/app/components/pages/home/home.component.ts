@@ -4,8 +4,6 @@ import { RouterLink, Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { OptimizedImageComponent } from '../../shared/optimized-image/optimized-image.component';
-
 import { LanguageService } from '../../../services/language.service';
 import { CartService } from '../../../services/cart.service';
 import { MenuService } from '../../../services/menu.service';
@@ -20,7 +18,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, NgOptimizedImage, FeaturedMenuComponent, AboutComponent, VideoSectionComponent, PagePopupComponent, OptimizedImageComponent],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatButtonModule, MatIconModule, NgOptimizedImage, FeaturedMenuComponent, AboutComponent, VideoSectionComponent, PagePopupComponent],
   template: `
     <div class="home-page">
       <!-- Hero Section: priority img for LCP -->
