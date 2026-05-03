@@ -11,6 +11,7 @@ export interface AdminUser {
   email?: string;
   phone?: string;
   address?: string;
+  city?: string;
   role: string;
   isActive?: boolean;
   createdAt: string;
@@ -32,6 +33,7 @@ export interface UpdateCrmPayload {
   email?: string;
   phone?: string;
   address?: string;
+  city?: string;
   tags?: string[];
   adminNotes?: string;
   dietaryInfo?: string;
@@ -43,6 +45,14 @@ export interface DeleteCustomerResponse {
   success: boolean;
   message?: string;
   _id?: string;
+}
+
+export interface CreateCustomerPayload {
+  fullName: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  city?: string;
 }
 
 export interface MigrateLegacyCustomersResponse {
@@ -108,12 +118,32 @@ export class UsersService {
   private customersApiUrl = `${environment.apiUrl}/customers`;
   private usersApiUrl = `${environment.apiUrl}/users`;
 
-  getUsers(): Observable<AdminUser[]> {
-    return this.http.get<AdminUser[]>(`${this.customersApiUrl}?limit=1000`, { withCredentials: true });
+  getUsers(filters?: {
+    limit?: number;
+    city?: string;
+    minTotalSpent?: number;
+    lastOrderBeforeDays?: number;
+  }): Observable<AdminUser[]> {
+    const query = new URLSearchParams();
+    query.set('limit', String(filters?.limit || 1000));
+    if (filters?.city?.trim()) query.set('city', filters.city.trim());
+    if (typeof filters?.minTotalSpent === 'number' && filters.minTotalSpent > 0) {
+      query.set('minTotalSpent', String(filters.minTotalSpent));
+    }
+    if (typeof filters?.lastOrderBeforeDays === 'number' && filters.lastOrderBeforeDays > 0) {
+      query.set('lastOrderBeforeDays', String(filters.lastOrderBeforeDays));
+    }
+    return this.http.get<AdminUser[]>(`${this.customersApiUrl}?${query.toString()}`, { withCredentials: true });
   }
 
   updateUserCrm(userId: string, payload: UpdateCrmPayload): Observable<AdminUser> {
     return this.http.put<AdminUser>(`${this.customersApiUrl}/${userId}/crm`, payload, {
+      withCredentials: true
+    });
+  }
+
+  createCustomer(payload: CreateCustomerPayload): Observable<AdminUser> {
+    return this.http.post<AdminUser>(`${this.customersApiUrl}`, payload, {
       withCredentials: true
     });
   }

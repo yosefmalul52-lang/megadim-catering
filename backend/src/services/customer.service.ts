@@ -1,10 +1,12 @@
 import Customer from '../models/Customer';
 
 type OrderLike = {
+  _id?: unknown;
   customerDetails?: {
     fullName?: unknown;
     email?: unknown;
     phone?: unknown;
+    address?: unknown;
   };
   totalPrice?: unknown;
   createdAt?: unknown;
@@ -61,6 +63,19 @@ function isDuplicateNormalizedPhoneError(err: unknown): boolean {
   return msg.includes('normalizedphone');
 }
 
+function extractCityFromAddress(rawAddress: unknown): string {
+  const text = String(rawAddress || '').trim();
+  if (!text) return '';
+  const firstChunk = text.split(',')[0]?.trim() || '';
+  if (!firstChunk) return '';
+  // If address starts with street and then city, prefer the second chunk.
+  if (/\d/.test(firstChunk) && text.includes(',')) {
+    const secondChunk = text.split(',')[1]?.trim() || '';
+    return secondChunk || firstChunk;
+  }
+  return firstChunk;
+}
+
 /**
  * Upserts a single Customer document from an order payload/document.
  * This function is fail-open by design and should not break order flow.
@@ -77,6 +92,7 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
     const fullName = String(customer.fullName ?? '').trim();
     const rawEmail = String(customer.email ?? '').trim().toLowerCase();
     const email = isBusinessEmail(rawEmail) ? '' : rawEmail;
+    const city = extractCityFromAddress(customer.address);
 
     const totalPriceNum = Number(orderData?.totalPrice);
     const totalSpentDelta = Number.isFinite(totalPriceNum) ? Math.max(0, totalPriceNum) : 0;
@@ -87,6 +103,10 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
     const set: Record<string, unknown> = {};
     if (fullName) set.fullName = fullName;
     if (email) set.email = email;
+    if (city) set.city = city;
+
+    const rawOrderId = String(orderData?._id || '').trim();
+    const orderId = rawOrderId && /^[a-f0-9]{24}$/i.test(rawOrderId) ? rawOrderId : '';
 
     const updateDoc: Record<string, unknown> = {
       $setOnInsert: {
@@ -95,31 +115,56 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
         customerCategory: 'all',
         tags: [],
         adminNotes: '',
-        dietaryInfo: ''
-      },
-      $inc: {
-        totalSpent: totalSpentDelta,
-        orderCount: 1
+        dietaryInfo: '',
+        city: city || '',
+        orderHistory: []
       },
       $max: {
         lastOrderDate
       }
     };
 
+    if (orderId) {
+      updateDoc.$addToSet = { orderHistory: orderId };
+      updateDoc.$inc = {
+        totalSpent: totalSpentDelta,
+        orderCount: 1
+      };
+    } else {
+      updateDoc.$inc = {
+        totalSpent: totalSpentDelta,
+        orderCount: 1
+      };
+    }
+
     if (Object.keys(set).length > 0) {
       updateDoc.$set = set;
     }
 
-    await Customer.findOneAndUpdate(
-      { normalizedPhone: phoneForWrite },
-      updateDoc,
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-        runValidators: true
+    if (orderId) {
+      await Customer.findOneAndUpdate(
+        { normalizedPhone: phoneForWrite, orderHistory: { $ne: orderId } },
+        updateDoc,
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+          runValidators: true
+        }
+      );
+      // Always keep profile fields fresh even if this order was already counted.
+      if (Object.keys(set).length > 0) {
+        await Customer.updateOne({ normalizedPhone: phoneForWrite }, { $set: set }, { runValidators: true });
       }
-    );
+      return;
+    }
+
+    await Customer.findOneAndUpdate({ normalizedPhone: phoneForWrite }, updateDoc, {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+      runValidators: true
+    });
   } catch (err) {
     if (!isDuplicateNormalizedPhoneError(err)) {
       console.error('Upsert Error:', err);
@@ -135,6 +180,7 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
       const fullName = String(customer.fullName ?? '').trim();
       const rawEmail = String(customer.email ?? '').trim().toLowerCase();
       const email = isBusinessEmail(rawEmail) ? '' : rawEmail;
+      const city = extractCityFromAddress(customer.address);
 
       const totalPriceNum = Number(orderData?.totalPrice);
       const totalSpentDelta = Number.isFinite(totalPriceNum) ? Math.max(0, totalPriceNum) : 0;
@@ -144,21 +190,38 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
       const mergeSet: Record<string, unknown> = {};
       if (fullName) mergeSet.fullName = fullName;
       if (email) mergeSet.email = email;
+      if (city) mergeSet.city = city;
+      const rawOrderId = String(orderData?._id || '').trim();
+      const orderId = rawOrderId && /^[a-f0-9]{24}$/i.test(rawOrderId) ? rawOrderId : '';
 
       const mergeUpdate: Record<string, unknown> = {
-        $inc: {
-          totalSpent: totalSpentDelta,
-          orderCount: 1
-        },
         $max: {
           lastOrderDate
         }
+      };
+      if (orderId) {
+        mergeUpdate.$addToSet = { orderHistory: orderId };
+      }
+      mergeUpdate.$inc = {
+        totalSpent: totalSpentDelta,
+        orderCount: 1
       };
       if (Object.keys(mergeSet).length > 0) {
         mergeUpdate.$set = mergeSet;
       }
 
-      await Customer.updateOne({ normalizedPhone: phoneForMerge }, mergeUpdate, { runValidators: true });
+      if (orderId) {
+        await Customer.updateOne(
+          { normalizedPhone: phoneForMerge, orderHistory: { $ne: orderId } },
+          mergeUpdate,
+          { runValidators: true }
+        );
+        if (Object.keys(mergeSet).length > 0) {
+          await Customer.updateOne({ normalizedPhone: phoneForMerge }, { $set: mergeSet }, { runValidators: true });
+        }
+      } else {
+        await Customer.updateOne({ normalizedPhone: phoneForMerge }, mergeUpdate, { runValidators: true });
+      }
     } catch (mergeErr) {
       // Fail-open: checkout/order creation must not crash due to CRM sync races.
       console.error('Upsert duplicate-merge fallback error:', mergeErr);

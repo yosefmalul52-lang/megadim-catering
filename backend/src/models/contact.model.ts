@@ -6,8 +6,19 @@ export interface ContactRequest {
   email: string;
   message: string;
   source?: string;
-  status?: 'new' | 'read' | 'handled';
+  status?:
+    | 'new'
+    | 'attempted_contact'
+    | 'qualified'
+    | 'unqualified'
+    | 'won'
+    | 'lost';
   notes?: string;
+  leadScore?: 'A' | 'B' | 'C' | number;
+  lastContactAt?: Date | string;
+  nextFollowUpAt?: Date | string;
+  outcomeReason?: string;
+  ownerNotes?: string;
   /** Optional UTM / campaign attribution from the client. */
   marketingData?: Record<string, string>;
   createdAt?: Date;
@@ -21,6 +32,17 @@ export interface ContactResponse {
 }
 
 export interface UpdateContactRequest {
-  status?: 'new' | 'read' | 'handled';
+  status?:
+    | 'new'
+    | 'attempted_contact'
+    | 'qualified'
+    | 'unqualified'
+    | 'won'
+    | 'lost';
   notes?: string;
+  leadScore?: 'A' | 'B' | 'C' | number;
+  lastContactAt?: Date | string | null;
+  nextFollowUpAt?: Date | string | null;
+  outcomeReason?: string;
+  ownerNotes?: string;
 }

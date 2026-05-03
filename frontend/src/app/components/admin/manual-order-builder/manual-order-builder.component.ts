@@ -2,6 +2,7 @@ import { Component, inject, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormArray, Validators, ReactiveFormsModule } from '@angular/forms';
 import { OrderService } from '../../../services/order.service';
+import { MenuService, MenuItem } from '../../../services/menu.service';
 
 @Component({
   selector: 'app-manual-order-builder',
@@ -13,6 +14,7 @@ import { OrderService } from '../../../services/order.service';
 export class ManualOrderBuilderComponent {
   private fb = inject(FormBuilder);
   private orderService = inject(OrderService);
+  private menuService = inject(MenuService);
 
   @Output() back = new EventEmitter<void>();
   @Output() orderCreated = new EventEmitter<void>();
@@ -20,6 +22,7 @@ export class ManualOrderBuilderComponent {
   form: FormGroup;
   isSubmitting = false;
   errorMessage = '';
+  availableMenuItems: MenuItem[] = [];
 
   constructor() {
     this.form = this.fb.group({
@@ -35,6 +38,9 @@ export class ManualOrderBuilderComponent {
       paymentStatus: ['unpaid', Validators.required],
       adminNotes: [''],
       items: this.fb.array([this.createItemRow()])
+    });
+    this.menuService.getMenuItems().subscribe((items) => {
+      this.availableMenuItems = (items || []).filter((i) => !!(i._id || i.id));
     });
 
     this.form.get('deliveryMethod')?.valueChanges.subscribe((method: string) => {
@@ -62,9 +68,22 @@ export class ManualOrderBuilderComponent {
 
   createItemRow(): FormGroup {
     return this.fb.group({
+      productId: [''],
+      useFreeText: [false],
       productName: ['', Validators.required],
       quantity: [1, [Validators.required, Validators.min(1)]],
       price: [0, [Validators.required, Validators.min(0)]]
+    });
+  }
+
+  onSelectMenuItem(index: number, value: string): void {
+    const item = this.items.at(index) as FormGroup;
+    const selected = this.availableMenuItems.find((m) => String(m._id || m.id) === String(value || ''));
+    if (!selected) return;
+    item.patchValue({
+      productId: String(selected._id || selected.id || ''),
+      productName: String(selected.name || '').trim(),
+      price: Number(selected.price || 0)
     });
   }
 
@@ -108,16 +127,31 @@ export class ManualOrderBuilderComponent {
     const totalAmount = Number(v.totalAmount) ?? subtotal;
     const deliveryFee = 0;
 
-    const items = (v.items as Array<{ productName: string; quantity: number; price: number }>).map((item, i) => ({
+    const items = (v.items as Array<{ productName: string; quantity: number; price: number; productId?: string; useFreeText?: boolean }>).map((item, i) => ({
       id: `manual-${i}-${Date.now()}`,
       name: (item.productName || '').trim(),
       quantity: Number(item.quantity) || 1,
-      price: Number(item.price) || 0
+      price: Number(item.price) || 0,
+      category: this.availableMenuItems.find((m) => String(m._id || m.id) === String(item.productId || ''))?.category
     })).filter(item => item.name);
 
     if (items.length === 0) {
       this.errorMessage = 'יש להוסיף לפחות פריט אחד';
       return;
+    }
+
+    const phoneDigits = String(v.phone || '').replace(/\D/g, '');
+    if (phoneDigits.length < 9) {
+      this.errorMessage = 'יש להזין מספר טלפון תקין';
+      return;
+    }
+    if (Number(totalAmount) < Number(subtotal)) {
+      this.errorMessage = 'הסכום הסופי לא יכול להיות קטן מסיכום הביניים';
+      return;
+    }
+    if (String(v.paymentStatus) === 'unpaid') {
+      const ok = window.confirm('ההזמנה מוגדרת כ"לא שולם". להמשיך?');
+      if (!ok) return;
     }
 
     this.isSubmitting = true;

@@ -31,13 +31,13 @@ function normalizePhone(raw: unknown): string {
 const SLEEPING_DAYS = 30;
 const SLEEPING_MS = SLEEPING_DAYS * 24 * 60 * 60 * 1000;
 
-type CustomerCategory = 'all' | 'returning' | 'sleeping' | 'vip' | 'registered';
+type CustomerCategory = 'all' | 'returning' | 'sleeping' | 'vip' | 'registered' | 'new';
 
 function toCategory(raw: unknown): CustomerCategory {
   const value = String(raw || '')
     .trim()
     .toLowerCase();
-  if (value === 'returning' || value === 'sleeping' || value === 'vip' || value === 'registered') {
+  if (value === 'returning' || value === 'sleeping' || value === 'vip' || value === 'registered' || value === 'new') {
     return value;
   }
   return 'all';
@@ -139,9 +139,16 @@ export async function validateAndApplyCoupon(
       return { valid: false, message: 'לקוח זה חסום לשימוש בקופונים' };
     }
 
-    const effectiveCategory = getEffectiveCustomerCategory(customer);
-    if (effectiveCategory !== targetCustomerCategory) {
-      return { valid: false, message: 'הקופון לא תקף לקטגוריית הלקוח הנוכחית' };
+    if (targetCustomerCategory === 'new') {
+      const orderCount = Number(customer?.orderCount || 0);
+      if (orderCount > 0) {
+        return { valid: false, message: 'הקופון זמין ללקוחות חדשים בלבד' };
+      }
+    } else {
+      const effectiveCategory = getEffectiveCustomerCategory(customer);
+      if (effectiveCategory !== targetCustomerCategory) {
+        return { valid: false, message: 'הקופון לא תקף לקטגוריית הלקוח הנוכחית' };
+      }
     }
   }
 
@@ -162,8 +169,12 @@ export async function validateAndApplyCoupon(
     }
   }
 
-  if (normalizedPhone && Array.isArray(coupon.usedByPhones) && coupon.usedByPhones.includes(normalizedPhone)) {
-    return { valid: false, message: 'קופון זה כבר מומש עבור מספר טלפון זה' };
+  if (normalizedPhone && Array.isArray(coupon.usedByPhones)) {
+    const usesByPhone = coupon.usedByPhones.filter((p) => p === normalizedPhone).length;
+    const perCustomerLimit = Math.max(1, Number((coupon as any).maxUsesPerCustomer || 1));
+    if (usesByPhone >= perCustomerLimit) {
+      return { valid: false, message: 'חרגת ממכסת השימוש האישית בקופון זה' };
+    }
   }
 
   let discountAmount: number;
@@ -189,26 +200,50 @@ export async function validateAndApplyCoupon(
  */
 export async function incrementCouponUsage(couponId: string, customerPhone?: string): Promise<void> {
   const normalizedPhone = normalizePhone(customerPhone || '');
+  const perCustomerLimitExpr =
+    normalizedPhone
+      ? {
+          $lt: [
+            {
+              $size: {
+                $filter: {
+                  input: '$usedByPhones',
+                  as: 'p',
+                  cond: { $eq: ['$$p', normalizedPhone] }
+                }
+              }
+            },
+            { $ifNull: ['$maxUsesPerCustomer', 1] }
+          ]
+        }
+      : true;
   const filter: Record<string, unknown> = {
     _id: couponId,
     isActive: true,
-    $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
-    ...(normalizedPhone ? { usedByPhones: { $ne: normalizedPhone } } : {})
+    $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }]
   };
   filter.$expr = {
-    $or: [
-      { $eq: ['$maxUses', null] },
-      { $lt: ['$usageCount', '$maxUses'] }
+    $and: [
+      {
+        $or: [{ $eq: ['$maxUses', null] }, { $lt: ['$usageCount', '$maxUses'] }]
+      },
+      perCustomerLimitExpr
     ]
   };
 
   const update: Record<string, unknown> = {
     $inc: { usageCount: 1 },
-    ...(normalizedPhone ? { $addToSet: { usedByPhones: normalizedPhone } } : {})
+    ...(normalizedPhone ? { $push: { usedByPhones: normalizedPhone } } : {})
   };
 
   const result = await Coupon.updateOne(filter, update);
   if (result.modifiedCount !== 1) {
     throw new Error('Coupon usage update failed due to limits or duplicate phone');
   }
+}
+
+export async function updateCouponRevenue(couponId: string, orderAmount: number): Promise<void> {
+  const amount = Number(orderAmount || 0);
+  if (!couponId || !Number.isFinite(amount) || amount <= 0) return;
+  await Coupon.updateOne({ _id: couponId }, { $inc: { totalRevenueGenerated: amount } });
 }

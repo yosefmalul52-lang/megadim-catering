@@ -1,53 +1,241 @@
 <div class="admin-marketing-page">
   <div class="container">
-    <section class="campaign-placeholder">
-      <h2>משגר הקמפיינים</h2>
-      <p>צור ושגר קמפיין ממוקד לקהלי יעד קיימים.</p>
-      <div class="launcher-form">
-        <div class="field full">
-          <label for="campaignMessage">תוכן הקמפיין</label>
-          <textarea
-            id="campaignMessage"
-            [(ngModel)]="campaignMessage"
-            rows="4"
-            placeholder="כתוב כאן את הודעת הקמפיין..."
-          ></textarea>
-        </div>
+    <section class="campaign-launcher">
+      <h2>Campaigns - Facebook / Instagram</h2>
+      <p>יצירה ושיגור קמפיין עם מעקב אוטומטי וקבלת סטטוס מ־n8n</p>
 
-        <div class="row">
+      @if (launchError) {
+        <div class="inline-alert error">{{ launchError }}</div>
+      }
+      @if (launchSuccessMessage) {
+        <div class="inline-alert success">{{ launchSuccessMessage }}</div>
+      }
+
+      <div class="launcher-grid">
+        <div class="composer-panel">
           <div class="field">
-            <label>קהל יעד</label>
-            <div class="audience-group">
-              <label><input type="radio" name="audience" value="vip" [(ngModel)]="campaignAudience" /> VIP חוזרים</label>
-              <label><input type="radio" name="audience" value="all" [(ngModel)]="campaignAudience" /> כל הלקוחות</label>
-              <label><input type="radio" name="audience" value="leads" [(ngModel)]="campaignAudience" /> לידים</label>
+            <label for="campaignTitle">כותרת קמפיין</label>
+            <input
+              id="campaignTitle"
+              type="text"
+              [(ngModel)]="campaignTitle"
+              placeholder="לדוגמה: מבצע סוף שבוע חם"
+            />
+          </div>
+
+          <div class="field">
+            <label for="campaignContent">תוכן הפוסט</label>
+            <textarea
+              id="campaignContent"
+              [(ngModel)]="campaignContent"
+              rows="6"
+              placeholder="כתוב כאן את תוכן הקמפיין כולל לינקים..."
+            ></textarea>
+            <small class="helper-note">הלינקים יקבלו אוטומטית source=campaign לפני השיגור.</small>
+          </div>
+
+          <div class="field">
+            <label for="campaignMediaUrl">לינק למדיה (תמונה/וידאו)</label>
+            <input
+              id="campaignMediaUrl"
+              type="text"
+              [(ngModel)]="campaignMediaUrl"
+              placeholder="https://...jpg / ...mp4"
+            />
+          </div>
+
+          <div class="field">
+            <label for="campaignScheduledAt">תזמון (אופציונלי)</label>
+            <input id="campaignScheduledAt" type="datetime-local" [(ngModel)]="campaignScheduledAt" />
+          </div>
+
+          <div class="field">
+            <label>פלטפורמות יעד</label>
+            <div class="platform-toggles">
+              <button
+                type="button"
+                class="platform-btn"
+                [class.active]="isPlatformSelected('facebook')"
+                (click)="togglePlatform('facebook')"
+              >
+                Facebook
+              </button>
+              <button
+                type="button"
+                class="platform-btn"
+                [class.active]="isPlatformSelected('instagram')"
+                (click)="togglePlatform('instagram')"
+              >
+                Instagram
+              </button>
             </div>
           </div>
 
-          <div class="field">
-            <label>ערוצי שליחה</label>
-            <div class="channels-group">
-              <label><input type="checkbox" [(ngModel)]="campaignChannels.whatsapp" /> WhatsApp</label>
-              <label><input type="checkbox" [(ngModel)]="campaignChannels.email" /> Email</label>
+          <div class="actions">
+            <button type="button" class="launch-btn" [disabled]="!canLaunchCampaign" (click)="launchCampaign()">
+              @if (isLaunching) { משגר קמפיין... } @else { שגר קמפיין }
+            </button>
+          </div>
+        </div>
+
+        <div class="preview-panel">
+          <div class="preview-panel-header">
+            <h3>תצוגה מקדימה</h3>
+            <div class="preview-mode-toggles" role="group" aria-label="מצב תצוגה">
+              <button
+                type="button"
+                class="mode-btn"
+                [class.active]="previewMode === 'story'"
+                (click)="setPreviewMode('story')"
+              >
+                סטורי 9:16
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                [class.active]="previewMode === 'feed11'"
+                (click)="setPreviewMode('feed11')"
+              >
+                פיד 1:1
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                [class.active]="previewMode === 'feed45'"
+                (click)="setPreviewMode('feed45')"
+              >
+                פיד 4:5
+              </button>
             </div>
           </div>
+          <p class="preview-mode-hint">{{ previewModeLabel }}</p>
 
-          <div class="field">
-            <label for="couponCode">קופון מצורף (אופציונלי)</label>
-            <select id="couponCode" [(ngModel)]="selectedCouponCode">
-              <option value="">ללא קופון</option>
-              <option *ngFor="let c of coupons" [value]="c.code">
-                {{ c.code }} {{ c.isVipOnly ? '(VIP בלבד)' : '' }}
-              </option>
-            </select>
+          <div class="phone-frame">
+            <div class="phone-side-button top"></div>
+            <div class="phone-side-button bottom"></div>
+            <div class="phone-topbar">
+              <div class="phone-camera"></div>
+              <div class="phone-speaker"></div>
+            </div>
+            <div
+              class="phone-screen"
+              cdkDropList
+              id="phone-drop"
+              [cdkDropListData]="phoneScratch"
+              [cdkDropListConnectedTo]="['ready-strip']"
+              (cdkDropListDropped)="onPhoneDrop($event)"
+              [class.drop-active]="phoneDropActive"
+              aria-label="גרור לכאן פוסט מוכן מהרצועה למטה"
+            >
+              <div class="phone-statusbar">
+                <span>09:41</span>
+                <span class="status-icons">5G 92%</span>
+              </div>
+              <div class="phone-viewport" [ngClass]="viewportAspectClass">
+                <div class="phone-viewport-inner">
+                  <div class="preview-meta">
+                    <span class="pill">{{ selectedPlatformsLabel }}</span>
+                    @if (campaignScheduledAt) {
+                      <span class="pill muted">מתוזמן</span>
+                    }
+                  </div>
+                  <h4 class="preview-title">{{ campaignTitle || 'כותרת' }}</h4>
+                  @if (isImageUrl(campaignMediaUrl)) {
+                    <div class="preview-media-img-wrap">
+                      <img [src]="campaignMediaUrl" alt="" class="preview-media-img" />
+                    </div>
+                  }
+                  <p class="preview-body">{{ campaignPreviewText }}</p>
+                  @if (campaignMediaUrl && !isImageUrl(campaignMediaUrl)) {
+                    <div class="preview-media-url">{{ campaignMediaUrl }}</div>
+                  }
+                  @if (!campaignMediaUrl) {
+                    <div class="preview-media-empty">ללא מדיה</div>
+                  }
+                  <div class="drop-hint">גרור לכאן פוסט מוכן</div>
+                </div>
+              </div>
+              <div class="phone-home-indicator"></div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="actions">
-          <button type="button" class="launch-btn" [disabled]="isLaunching" (click)="launchCampaign()">
-            @if (isLaunching) { משגר... } @else { שגר קמפיין }
-          </button>
+      <div class="ready-strip-section">
+        <h4 class="ready-strip-title">פוסטים מוכנים</h4>
+        <p class="ready-strip-hint">גרור כרטיס למסך הפלאפון, או לחץ על כרטיס להחלה</p>
+        <div
+          cdkDropList
+          id="ready-strip"
+          [cdkDropListData]="readyPostStrip"
+          [cdkDropListConnectedTo]="['phone-drop']"
+          cdkDropListOrientation="horizontal"
+          class="ready-strip"
+          (cdkDropListDropped)="onReadyStripDrop($event)"
+        >
+          @for (post of readyPostStrip; track post.id) {
+            <div
+              class="ready-card"
+              cdkDrag
+              [cdkDragData]="post"
+              (cdkDragStarted)="phoneDropActive = true"
+              (cdkDragEnded)="phoneDropActive = false"
+              tabindex="0"
+              role="button"
+              (click)="applyReadyPost(post)"
+              (keydown.enter)="applyReadyPost(post)"
+              (keydown.space)="$event.preventDefault(); applyReadyPost(post)"
+            >
+              <div class="ready-card-thumb" *ngIf="isImageUrl(post.mediaUrl); else noThumb">
+                <img [src]="post.mediaUrl" alt="" />
+              </div>
+              <ng-template #noThumb>
+                <div class="ready-card-thumb placeholder">טקסט</div>
+              </ng-template>
+              <div class="ready-card-body">
+                <span class="ready-card-label" *ngIf="post.label">{{ post.label }}</span>
+                <strong class="ready-card-title">{{ post.title }}</strong>
+              </div>
+            </div>
+          }
         </div>
+      </div>
+
+      <div class="history-panel">
+        <div class="history-header">
+          <h3>קמפיינים קודמים</h3>
+          <button type="button" class="refresh-btn" (click)="loadCampaigns()">רענן</button>
+        </div>
+        @if (isLoadingCampaigns) {
+          <div class="empty-state">טוען קמפיינים...</div>
+        } @else if (!campaigns.length) {
+          <div class="empty-state">אין עדיין קמפיינים שמורים</div>
+        } @else {
+          <div class="campaigns-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>כותרת</th>
+                  <th>פלטפורמות</th>
+                  <th>סטטוס</th>
+                  <th>נוצר</th>
+                  <th>מתוזמן</th>
+                  <th>תגובה אחרונה</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let campaign of campaigns">
+                  <td>{{ campaign.title }}</td>
+                  <td>{{ campaign.platforms.join(' + ') }}</td>
+                  <td><span class="status-pill" [class]="getStatusClass(campaign.status)">{{ getStatusLabel(campaign.status) }}</span></td>
+                  <td>{{ campaign.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td>{{ campaign.scheduledAt ? (campaign.scheduledAt | date:'dd/MM/yyyy HH:mm') : '-' }}</td>
+                  <td>{{ getCampaignResponseSummary(campaign) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     </section>
 

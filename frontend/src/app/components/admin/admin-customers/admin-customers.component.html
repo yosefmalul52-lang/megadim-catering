@@ -25,7 +25,114 @@
 
     <!-- Smart filters + audit -->
     <div class="filters-toolbar">
-      <div class="filters-bar">
+      <div class="filters-top-row">
+        <div class="findability-tools">
+          <label class="search-input-wrap" for="crmSearchInput">
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input
+              id="crmSearchInput"
+              type="search"
+              class="search-input"
+              [ngModel]="searchTerm"
+              (ngModelChange)="onSearchTermChange($event)"
+              placeholder="חיפוש לפי שם / טלפון / אימייל / כתובת"
+            />
+          </label>
+          <select class="sort-select" [ngModel]="sortField" (ngModelChange)="setSort($event)">
+            <option value="createdAt">מיון: תאריך יצירה</option>
+            <option value="lastOrderDate">מיון: הזמנה אחרונה</option>
+            <option value="orderCount">מיון: מספר הזמנות</option>
+            <option value="totalSpent">מיון: סך הוצאות</option>
+            <option value="fullName">מיון: שם לקוח</option>
+          </select>
+          <button type="button" class="sort-dir-btn" (click)="setSort(sortField)">
+            {{ sortDirection === 'desc' ? 'סדר יורד' : 'סדר עולה' }}
+          </button>
+          <button type="button" class="clear-btn" [disabled]="!hasActiveQuery" (click)="clearFiltersAndSearch()">
+            נקה סינון
+          </button>
+          <button type="button" class="clear-btn" (click)="exportFilteredCustomersCsv()">
+            ייצוא CSV
+          </button>
+        </div>
+        <div class="filters-actions">
+          <button type="button" class="btn-reconcile" (click)="openAddCustomerModal()">
+            <i class="fas fa-user-plus" aria-hidden="true"></i>
+            הוסף לקוח
+          </button>
+          <button
+            type="button"
+            class="btn-audit"
+            [disabled]="selectedCount === 0"
+            (click)="deleteSelectedCustomers()"
+          >
+            מחיקת נבחרים ({{ selectedCount }})
+          </button>
+          <button
+            type="button"
+            class="btn-reconcile"
+            [disabled]="isReconciling || isAuditLoading"
+            (click)="runReconcileAndAudit()"
+            title="מחשב מחדש לקוחות לפי ההזמנות ואז מריץ ביקורת"
+          >
+            @if (isReconciling) {
+              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            } @else {
+              <i class="fas fa-sync-alt" aria-hidden="true"></i>
+            }
+            Reconcile CRM from Orders
+          </button>
+          <button
+            type="button"
+            class="btn-audit"
+            [disabled]="isAuditLoading"
+            (click)="runAudit()"
+            title="השוואת CRM מול הזמנות (דה־דופליקציה לפי מספר הזמנה)"
+          >
+            @if (isAuditLoading) {
+              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            } @else {
+              <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+            }
+            הרץ ביקורת נתונים
+          </button>
+        </div>
+      </div>
+      <div class="server-filters-row">
+        <label class="select-all-wrap">
+          <input
+            type="checkbox"
+            [checked]="areAllFilteredSelected"
+            (change)="toggleSelectAllFiltered($any($event.target).checked)"
+          />
+          בחר הכל (מסונן)
+        </label>
+        <input
+          type="text"
+          class="server-filter-input"
+          placeholder="עיר"
+          [(ngModel)]="cityFilter"
+          (keyup.enter)="applyServerFilters()"
+        />
+        <input
+          type="number"
+          class="server-filter-input"
+          placeholder="מינימום הוצאה (₪)"
+          [(ngModel)]="minSpentFilter"
+          min="0"
+          (keyup.enter)="applyServerFilters()"
+        />
+        <input
+          type="number"
+          class="server-filter-input"
+          placeholder="ללא הזמנה בימים אחרונים"
+          [(ngModel)]="lastOrderBeforeDaysFilter"
+          min="1"
+          (keyup.enter)="applyServerFilters()"
+        />
+        <button type="button" class="filter-btn" (click)="applyServerFilters()">החל פילטרים</button>
+      </div>
+      <div class="filters-bar category-filters-row">
         @for (opt of filterOptions; track opt.value) {
           <button
             type="button"
@@ -37,21 +144,12 @@
           </button>
         }
       </div>
-      <button
-        type="button"
-        class="btn-audit"
-        [disabled]="isAuditLoading"
-        (click)="runAudit()"
-        title="השוואת CRM מול הזמנות (דה־דופליקציה לפי מספר הזמנה)"
-      >
-        @if (isAuditLoading) {
-          <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-        } @else {
-          <i class="fas fa-clipboard-check" aria-hidden="true"></i>
-        }
-        הרץ ביקורת נתונים
-      </button>
     </div>
+    @if (canShowTruncationNotice) {
+      <div class="message truncate-message">
+        מוצגות עד {{ usersFetchLimit }} רשומות. מומלץ לצמצם בחיפוש/סינון לקבלת תוצאות מדויקות יותר.
+      </div>
+    }
 
     @if (successMessage) {
       <div class="message success-message">{{ successMessage }}</div>
@@ -66,15 +164,24 @@
         <span>טוען לקוחות...</span>
       </div>
     } @else {
+      @if (filteredUsers.length === 0) {
+        <div class="empty-state">
+          <i class="fas fa-users" aria-hidden="true"></i>
+          <h3>אין תוצאות</h3>
+          <p>@if (hasActiveQuery) { נסה לשנות חיפוש או סינון } @else { אין לקוחות רשומים }</p>
+        </div>
+      } @else {
       <div class="customers-table-shell" [class.has-pagination]="hasPagination">
         <div class="table-container table-responsive">
           <table class="customers-table">
           <thead>
             <tr>
+              <th class="select-col">בחירה</th>
               <th>#</th>
               <th>שם הלקוח</th>
               <th>טלפון</th>
               <th>אימייל</th>
+              <th>תזונה</th>
               <th>מספר הזמנות</th>
               <th>סך הכל הוצאות</th>
               <th>קטגוריית לקוח</th>
@@ -88,10 +195,26 @@
                 [class.selected]="selectedUser?._id === user._id"
                 (click)="openPanel(user)"
               >
+                <td class="select-col" (click)="$event.stopPropagation()">
+                  <input
+                    type="checkbox"
+                    [checked]="isCustomerSelected(user._id)"
+                    (change)="toggleCustomerSelection(user._id, $any($event.target).checked)"
+                  />
+                </td>
                 <td class="date-cell">{{ getRowNumber(i) }}</td>
                 <td class="name-cell">{{ user.fullName || '—' }}</td>
                 <td class="phone-cell">{{ user.phone || 'לא הוזן' }}</td>
                 <td class="email-cell">{{ user.username || '—' }}</td>
+                <td class="dietary-cell">
+                  @if (user.dietaryInfo) {
+                    <span class="dietary-indicator" [title]="user.dietaryInfo">
+                      <i class="fas fa-leaf" aria-hidden="true"></i>
+                    </span>
+                  } @else {
+                    <span class="dietary-none">—</span>
+                  }
+                </td>
                 <td class="date-cell">{{ user.orderCount || 0 }}</td>
                 <td class="date-cell">{{ (user.totalSpent || 0) | currency:'ILS':'symbol-narrow':'1.0-0' }}</td>
                 <td class="status-cell" (click)="$event.stopPropagation()">
@@ -135,13 +258,6 @@
           </div>
         }
       </div>
-
-      @if (filteredUsers.length === 0) {
-        <div class="empty-state">
-          <i class="fas fa-users" aria-hidden="true"></i>
-          <h3>אין תוצאות</h3>
-          <p>@if (currentFilter !== 'all') { נסה לשנות סינון } @else { אין לקוחות רשומים }</p>
-        </div>
       }
     }
   </div>
@@ -171,7 +287,7 @@
           </div>
           <div class="panel-summary-row">
             <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-map-marker-alt"></i></span>
-            <span class="panel-summary-ellipsis">{{ selectedUser?.address || 'לא הוזן' }}</span>
+            <span class="panel-summary-ellipsis">{{ selectedUser.address || 'לא הוזן' }}</span>
           </div>
           <div class="panel-summary-row">
             <span class="panel-summary-icon" aria-hidden="true"><i class="fas fa-user-clock"></i></span>
@@ -269,10 +385,22 @@
             <label class="panel-label">כתובת</label>
             <input type="text" class="panel-input" [(ngModel)]="panelAddress" placeholder="כתובת" />
           </div>
+          <div class="panel-section">
+            <label class="panel-label">עיר</label>
+            <input type="text" class="panel-input" [(ngModel)]="panelCity" placeholder="עיר" />
+          </div>
         </div>
 
         <div class="panel-section-group">
           <h3 class="panel-section-title">קטגוריה והערות</h3>
+          <div class="panel-section">
+            <label class="panel-label">סטטוס ידני</label>
+            <select class="panel-input" [(ngModel)]="panelManualStatus">
+              <option [value]="'NONE'">ללא</option>
+              <option [value]="'VIP'">VIP</option>
+              <option [value]="'BLACKLIST'">Blacklist</option>
+            </select>
+          </div>
           <div class="panel-section">
             <label class="panel-label">קטגוריית לקוח</label>
             <select class="panel-input" [(ngModel)]="panelCustomerCategory">
@@ -303,7 +431,7 @@
           </div>
         </div>
 
-        <button type="button" class="btn-save-crm" (click)="saveCrm()" [disabled]="isSavingCrm">
+        <button type="button" class="btn-save-crm" (click)="saveCrm()" [disabled]="!canSaveCrm">
           @if (isSavingCrm) {
             <i class="fas fa-spinner fa-spin"></i> שומר...
           } @else {
@@ -331,6 +459,7 @@
           </div>
         } @else if (orderHistoryError) {
           <div class="message error-message">{{ orderHistoryError }}</div>
+          <button type="button" class="btn-panel btn-orders" (click)="retryOrderHistory()">נסה שוב</button>
         } @else if (customerOrders.length === 0) {
           <div class="empty-state compact">
             <i class="fas fa-inbox"></i>
@@ -446,6 +575,53 @@
             </div>
           }
         }
+      </div>
+    </aside>
+  }
+
+  @if (isAddingCustomer) {
+    <div class="panel-overlay" (click)="closeAddCustomerModal()"></div>
+    <aside class="crm-panel" role="dialog" aria-label="הוספת לקוח">
+      <div class="panel-header">
+        <div class="panel-header-text">
+          <span class="panel-header-eyebrow">ניהול לקוחות</span>
+          <h2 class="panel-title">הוספת לקוח חדש</h2>
+        </div>
+        <button type="button" class="btn-close-panel" (click)="closeAddCustomerModal()" aria-label="סגור">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-section-group">
+          <div class="panel-section">
+            <label class="panel-label">שם מלא</label>
+            <input type="text" class="panel-input" [(ngModel)]="newCustomerFullName" placeholder="שם הלקוח" />
+          </div>
+          <div class="panel-section">
+            <label class="panel-label">טלפון</label>
+            <input type="text" class="panel-input" [(ngModel)]="newCustomerPhone" placeholder="טלפון" />
+          </div>
+          <div class="panel-section">
+            <label class="panel-label">אימייל</label>
+            <input type="email" class="panel-input" [(ngModel)]="newCustomerEmail" placeholder="אימייל" />
+          </div>
+          <div class="panel-section">
+            <label class="panel-label">כתובת</label>
+            <input type="text" class="panel-input" [(ngModel)]="newCustomerAddress" placeholder="כתובת" />
+          </div>
+          <div class="panel-section">
+            <label class="panel-label">עיר</label>
+            <input type="text" class="panel-input" [(ngModel)]="newCustomerCity" placeholder="עיר" />
+          </div>
+        </div>
+
+        <button type="button" class="btn-save-crm" [disabled]="isCreatingCustomer" (click)="createCustomer()">
+          @if (isCreatingCustomer) {
+            <i class="fas fa-spinner fa-spin"></i> מוסיף...
+          } @else {
+            <i class="fas fa-user-plus"></i> הוסף לקוח
+          }
+        </button>
       </div>
     </aside>
   }

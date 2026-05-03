@@ -1,6 +1,12 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type ContactStatus = 'new' | 'read' | 'handled';
+export type ContactStatus =
+  | 'new'
+  | 'attempted_contact'
+  | 'qualified'
+  | 'unqualified'
+  | 'won'
+  | 'lost';
 
 export interface IContact extends Document {
   name: string;
@@ -12,6 +18,11 @@ export interface IContact extends Document {
   source?: string;
   /** Admin notes when updating status. */
   notes?: string;
+  leadScore?: 'A' | 'B' | 'C' | number;
+  lastContactAt?: Date | null;
+  nextFollowUpAt?: Date | null;
+  outcomeReason?: string;
+  ownerNotes?: string;
   /** Client-captured UTM / campaign params (optional). */
   marketingData?: {
     utm_source?: string;
@@ -51,7 +62,7 @@ const ContactSchema = new Schema<IContact>(
     },
     status: {
       type: String,
-      enum: ['new', 'read', 'handled'],
+      enum: ['new', 'attempted_contact', 'qualified', 'unqualified', 'won', 'lost'],
       default: 'new',
       index: true
     },
@@ -61,6 +72,27 @@ const ContactSchema = new Schema<IContact>(
       default: 'website'
     },
     notes: {
+      type: String,
+      trim: true
+    },
+    leadScore: {
+      type: Schema.Types.Mixed
+    },
+    lastContactAt: {
+      type: Date,
+      default: null,
+      index: true
+    },
+    nextFollowUpAt: {
+      type: Date,
+      default: null,
+      index: true
+    },
+    outcomeReason: {
+      type: String,
+      trim: true
+    },
+    ownerNotes: {
       type: String,
       trim: true
     },
@@ -79,6 +111,7 @@ const ContactSchema = new Schema<IContact>(
 );
 
 ContactSchema.index({ createdAt: -1 });
+ContactSchema.index({ 'marketingData.utm_source': 1, createdAt: -1 });
 
 export default (mongoose.models.Contact as Model<IContact>) ||
   mongoose.model<IContact>('Contact', ContactSchema);

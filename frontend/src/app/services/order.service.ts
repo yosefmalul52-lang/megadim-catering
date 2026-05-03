@@ -111,6 +111,20 @@ export interface MonthlyRevenuePoint {
   ordersCount: number;
 }
 
+export interface KitchenReportMeta {
+  generatedAt: string;
+  activeOrdersCount: number;
+  appliedDate?: string;
+}
+
+export type BulkOrderAction = 'status' | 'archive' | 'restore' | 'permanent_delete';
+
+export interface BulkOrderResult {
+  matchedCount: number;
+  modifiedCount: number;
+  deletedCount: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -175,9 +189,10 @@ export class OrderService {
   }
 
   // Admin methods for order management. archive=true for archived/cancelled orders.
-  getAllOrders(archive = false): Observable<Order[]> {
+  getAllOrders(archive = false, limit?: number): Observable<Order[]> {
     const params: Record<string, string> = {};
     if (archive) params['archive'] = '1';
+    if (typeof limit === 'number' && limit > 0) params['limit'] = String(limit);
     return this.http.get<{ success: boolean; data: Order[] }>(`${environment.apiUrl}/order`, { params }).pipe(
       map((response: { success: boolean; data: Order[] }) => {
         const data = response.data || [];
@@ -325,6 +340,22 @@ export class OrderService {
     );
   }
 
+  bulkUpdateOrders(payload: {
+    orderIds: string[];
+    action: BulkOrderAction;
+    status?: Order['status'];
+  }): Observable<BulkOrderResult> {
+    return this.http
+      .post<{ success: boolean; data: BulkOrderResult }>(`${environment.apiUrl}/order/bulk`, payload)
+      .pipe(
+        map((res) => res.data),
+        catchError((error: any) => {
+          console.error('Error updating orders in bulk:', error);
+          throw error;
+        })
+      );
+  }
+
   // Get user's own orders (Customer)
   getMyOrders(): Observable<Order[]> {
     return this.http.get<Order[]>(`${environment.apiUrl}/orders/myorders`).pipe(
@@ -444,19 +475,25 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
   }
 
   // Get kitchen preparation report
-  getKitchenReport(date?: string): Observable<{ 
-    productName: string;
-    category: string;
-    totalPackages: number; 
-    totalWeightRaw: number; 
-    displayWeight: string;
-    unit?: string;
-    isUnitOnly?: boolean;
-  }[]> {
+  getKitchenReport(date?: string): Observable<{
+    items: {
+      productName: string;
+      category: string;
+      totalPackages: number;
+      totalWeightRaw: number;
+      displayWeight: string;
+      unit?: string;
+      isUnitOnly?: boolean;
+      prepWindow?: 'now' | 'soon' | 'later';
+      prepWindowLabel?: string;
+      prepSortOrder?: number;
+    }[];
+    meta: KitchenReportMeta | null;
+  }> {
     const params = date ? { date } : undefined;
     return this.http.get<{ 
       success: boolean; 
-      data: { 
+      data: {
         productName: string;
         category: string;
         totalPackages: number; 
@@ -464,15 +501,22 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
         displayWeight: string;
         unit?: string;
         isUnitOnly?: boolean;
-      }[] 
+        prepWindow?: 'now' | 'soon' | 'later';
+        prepWindowLabel?: string;
+        prepSortOrder?: number;
+      }[];
+      meta?: KitchenReportMeta;
     }>(
       `${environment.apiUrl}/order/kitchen-report`,
       { params }
     ).pipe(
-      map(response => response.data),
+      map(response => ({
+        items: response.data || [],
+        meta: response.meta || null
+      })),
       catchError(error => {
         console.error('Error fetching kitchen report:', error);
-        return of([]);
+        return of({ items: [], meta: null });
       })
     );
   }

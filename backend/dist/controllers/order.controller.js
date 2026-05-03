@@ -145,6 +145,7 @@ class OrderController {
             void (0, webhook_util_1.fireWebhook)(process.env.N8N_ORDER_WEBHOOK_URL, orderForWebhook);
             if (couponIdToIncrement) {
                 yield (0, coupon_service_1.incrementCouponUsage)(couponIdToIncrement, body.phone);
+                yield (0, coupon_service_1.updateCouponRevenue)(couponIdToIncrement, body.totalAmount);
             }
             // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
             try {
@@ -577,6 +578,36 @@ class OrderController {
                 timestamp: new Date().toISOString()
             });
         }));
+        this.bulkUpdateOrders = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q;
+            const action = String(((_j = req.body) === null || _j === void 0 ? void 0 : _j.action) || '').trim();
+            const status = ((_k = req.body) === null || _k === void 0 ? void 0 : _k.status) ? String(req.body.status).trim() : undefined;
+            const orderIds = Array.isArray((_q = req.body) === null || _q === void 0 ? void 0 : _q.orderIds) ? req.body.orderIds : [];
+            if (!action) {
+                throw (0, errorHandler_1.createValidationError)('action is required');
+            }
+            if (!orderIds.length) {
+                throw (0, errorHandler_1.createValidationError)('orderIds must be a non-empty array');
+            }
+            const allowedActions = new Set(['status', 'archive', 'restore', 'permanent_delete']);
+            if (!allowedActions.has(action)) {
+                throw (0, errorHandler_1.createValidationError)('Invalid bulk action');
+            }
+            if (action === 'status' && !status) {
+                throw (0, errorHandler_1.createValidationError)('status is required for bulk status update');
+            }
+            const result = yield this.orderService.bulkApplyAction({
+                orderIds,
+                action: action,
+                status
+            });
+            res.status(200).json({
+                success: true,
+                data: result,
+                message: 'Bulk order action completed successfully',
+                timestamp: new Date().toISOString()
+            });
+        }));
         // Get revenue statistics
         this.getRevenueStats = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             const stats = yield this.orderService.getRevenueStats();
@@ -625,35 +656,15 @@ class OrderController {
         this.getKitchenReport = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             try {
                 const targetDate = typeof req.query.date === 'string' ? req.query.date : undefined;
-                // DIAGNOSTIC LOG: Check what orders exist in DB
-                const OrderModel = require('../models/Order').default;
-                const allOrders = yield OrderModel.find({}, 'status items').lean();
-                console.log('🔍 TOTAL ORDERS FOUND:', allOrders.length);
-                console.log('🔍 SAMPLE STATUSES:', allOrders.map((o) => o.status));
-                console.log('🔍 UNIQUE STATUSES:', [...new Set(allOrders.map((o) => o.status))]);
-                console.log('🔍 ORDERS WITH ITEMS:', allOrders.filter((o) => o.items && o.items.length > 0).length);
-                // Log sample order structure
-                if (allOrders.length > 0) {
-                    console.log('🔍 SAMPLE ORDER:', JSON.stringify(allOrders[0], null, 2));
-                    if (allOrders[0].items && allOrders[0].items.length > 0) {
-                        console.log('🔍 SAMPLE ORDER ITEM:', JSON.stringify(allOrders[0].items[0], null, 2));
-                        console.log('🔍 SAMPLE ITEM PRODUCTID:', allOrders[0].items[0].productId);
-                        console.log('🔍 SAMPLE ITEM PRODUCTID TYPE:', typeof allOrders[0].items[0].productId);
-                    }
-                }
                 const report = yield this.orderService.getKitchenReport(targetDate);
-                // Log the final result
-                console.log('🥗 KITCHEN REPORT RESULT:', report);
-                console.log('🥗 KITCHEN REPORT RESULT COUNT:', report.length);
                 res.status(200).json({
                     success: true,
-                    data: report
+                    data: report.items,
+                    meta: report.meta
                 });
             }
             catch (error) {
-                console.error('❌ Controller Error in getKitchenReport:', error);
-                console.error('❌ Error message:', error.message);
-                console.error('❌ Error stack:', error.stack);
+                console.error('Controller error in getKitchenReport:', error);
                 // Return detailed error to frontend
                 res.status(500).json({
                     success: false,

@@ -30,6 +30,11 @@ function leanToContactRequest(doc) {
         status: doc.status || 'new',
         source: doc.source != null ? String(doc.source) : undefined,
         notes: doc.notes != null ? String(doc.notes) : undefined,
+        leadScore: doc.leadScore,
+        lastContactAt: doc.lastContactAt || undefined,
+        nextFollowUpAt: doc.nextFollowUpAt || undefined,
+        outcomeReason: doc.outcomeReason != null ? String(doc.outcomeReason) : undefined,
+        ownerNotes: doc.ownerNotes != null ? String(doc.ownerNotes) : undefined,
         marketingData: doc.marketingData,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt
@@ -66,7 +71,8 @@ class ContactService {
         return __awaiter(this, arguments, void 0, function* (filters = {}) {
             var _j, _k;
             const query = {};
-            if (filters.status && ['new', 'read', 'handled'].includes(filters.status)) {
+            if (filters.status &&
+                ['new', 'attempted_contact', 'qualified', 'unqualified', 'won', 'lost'].includes(filters.status)) {
                 query.status = filters.status;
             }
             const limit = Math.min(Math.max((_j = filters.limit) !== null && _j !== void 0 ? _j : 50, 1), 200);
@@ -91,15 +97,32 @@ class ContactService {
     }
     updateContactStatus(id, updateData) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!updateData.status)
-                return null;
             if (!mongoose_1.default.Types.ObjectId.isValid(id))
                 return null;
+            const set = {};
+            if (updateData.status)
+                set.status = updateData.status;
+            if (updateData.notes !== undefined)
+                set.notes = updateData.notes;
+            if (updateData.leadScore !== undefined)
+                set.leadScore = updateData.leadScore;
+            if (updateData.lastContactAt !== undefined) {
+                set.lastContactAt = updateData.lastContactAt ? new Date(updateData.lastContactAt) : null;
+            }
+            if (updateData.nextFollowUpAt !== undefined) {
+                set.nextFollowUpAt = updateData.nextFollowUpAt ? new Date(updateData.nextFollowUpAt) : null;
+            }
+            if (updateData.outcomeReason !== undefined)
+                set.outcomeReason = updateData.outcomeReason;
+            if (updateData.ownerNotes !== undefined)
+                set.ownerNotes = updateData.ownerNotes;
+            if (!Object.keys(set).length)
+                return null;
             const doc = yield Contact_1.default.findByIdAndUpdate(id, {
-                $set: Object.assign({ status: updateData.status }, (updateData.notes !== undefined ? { notes: updateData.notes } : {}))
+                $set: set
             }, { new: true, runValidators: true }).lean();
             if (doc) {
-                console.log(`📝 Contact ${id} status updated to ${updateData.status}`);
+                console.log(`📝 Contact ${id} updated`);
             }
             return leanToContactRequest(doc);
         });
@@ -138,8 +161,8 @@ class ContactService {
             const weekAgo = new Date();
             weekAgo.setDate(weekAgo.getDate() - 7);
             const recentCount = yield Contact_1.default.countDocuments({ createdAt: { $gt: weekAgo } });
-            const handled = byStatus['handled'] || 0;
-            const conversionRate = total > 0 ? Math.round((handled / total) * 10000) / 100 : 0;
+            const won = byStatus['won'] || 0;
+            const conversionRate = total > 0 ? Math.round((won / total) * 10000) / 100 : 0;
             return {
                 total,
                 byStatus,
@@ -197,13 +220,21 @@ class ContactService {
                                     ]
                                 }
                             }
-                        }
+                        },
+                        status: 1,
+                        createdAt: 1
                     }
                 },
                 {
                     $group: {
                         _id: '$source',
-                        leadsCount: { $sum: 1 }
+                        leadsCount: { $sum: 1 },
+                        qualifiedCount: {
+                            $sum: { $cond: [{ $in: ['$status', ['qualified', 'won']] }, 1, 0] }
+                        },
+                        wonCount: {
+                            $sum: { $cond: [{ $eq: ['$status', 'won'] }, 1, 0] }
+                        }
                     }
                 },
                 { $sort: { leadsCount: -1 } },
@@ -211,7 +242,15 @@ class ContactService {
                     $project: {
                         _id: 0,
                         source: '$_id',
-                        leadsCount: 1
+                        leadsCount: 1,
+                        qualifiedCount: 1,
+                        wonCount: 1,
+                        qualifiedRate: {
+                            $cond: [{ $gt: ['$leadsCount', 0] }, { $multiply: [{ $divide: ['$qualifiedCount', '$leadsCount'] }, 100] }, 0]
+                        },
+                        wonRate: {
+                            $cond: [{ $gt: ['$leadsCount', 0] }, { $multiply: [{ $divide: ['$wonCount', '$leadsCount'] }, 100] }, 0]
+                        }
                     }
                 }
             ]);

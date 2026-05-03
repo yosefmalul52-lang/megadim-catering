@@ -24,6 +24,11 @@ type LeanContactDoc = {
   status?: string;
   source?: string;
   notes?: string;
+  leadScore?: 'A' | 'B' | 'C' | number;
+  lastContactAt?: Date | null;
+  nextFollowUpAt?: Date | null;
+  outcomeReason?: string;
+  ownerNotes?: string;
   marketingData?: Record<string, string>;
   createdAt?: Date;
   updatedAt?: Date;
@@ -40,6 +45,11 @@ function leanToContactRequest(doc: LeanContactDoc | null): ContactRequest | null
     status: (doc.status as ContactRequest['status']) || 'new',
     source: doc.source != null ? String(doc.source) : undefined,
     notes: doc.notes != null ? String(doc.notes) : undefined,
+    leadScore: doc.leadScore as ContactRequest['leadScore'],
+    lastContactAt: doc.lastContactAt || undefined,
+    nextFollowUpAt: doc.nextFollowUpAt || undefined,
+    outcomeReason: doc.outcomeReason != null ? String(doc.outcomeReason) : undefined,
+    ownerNotes: doc.ownerNotes != null ? String(doc.ownerNotes) : undefined,
     marketingData: doc.marketingData,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt
@@ -90,7 +100,10 @@ export class ContactService {
     total: number;
   }> {
     const query: Record<string, string> = {};
-    if (filters.status && ['new', 'read', 'handled'].includes(filters.status)) {
+    if (
+      filters.status &&
+      ['new', 'attempted_contact', 'qualified', 'unqualified', 'won', 'lost'].includes(filters.status)
+    ) {
       query.status = filters.status;
     }
 
@@ -116,22 +129,32 @@ export class ContactService {
   }
 
   async updateContactStatus(id: string, updateData: UpdateContactRequest): Promise<ContactRequest | null> {
-    if (!updateData.status) return null;
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
+
+    const set: Record<string, unknown> = {};
+    if (updateData.status) set.status = updateData.status;
+    if (updateData.notes !== undefined) set.notes = updateData.notes;
+    if (updateData.leadScore !== undefined) set.leadScore = updateData.leadScore;
+    if (updateData.lastContactAt !== undefined) {
+      set.lastContactAt = updateData.lastContactAt ? new Date(updateData.lastContactAt) : null;
+    }
+    if (updateData.nextFollowUpAt !== undefined) {
+      set.nextFollowUpAt = updateData.nextFollowUpAt ? new Date(updateData.nextFollowUpAt) : null;
+    }
+    if (updateData.outcomeReason !== undefined) set.outcomeReason = updateData.outcomeReason;
+    if (updateData.ownerNotes !== undefined) set.ownerNotes = updateData.ownerNotes;
+    if (!Object.keys(set).length) return null;
 
     const doc = await Contact.findByIdAndUpdate(
       id,
       {
-        $set: {
-          status: updateData.status,
-          ...(updateData.notes !== undefined ? { notes: updateData.notes } : {})
-        }
+        $set: set
       },
       { new: true, runValidators: true }
     ).lean();
 
     if (doc) {
-      console.log(`📝 Contact ${id} status updated to ${updateData.status}`);
+      console.log(`📝 Contact ${id} updated`);
     }
 
     return leanToContactRequest(doc as LeanContactDoc | null);
@@ -181,8 +204,8 @@ export class ContactService {
     weekAgo.setDate(weekAgo.getDate() - 7);
     const recentCount = await Contact.countDocuments({ createdAt: { $gt: weekAgo } });
 
-    const handled = byStatus['handled'] || 0;
-    const conversionRate = total > 0 ? Math.round((handled / total) * 10000) / 100 : 0;
+    const won = byStatus['won'] || 0;
+    const conversionRate = total > 0 ? Math.round((won / total) * 10000) / 100 : 0;
 
     return {
       total,
@@ -217,7 +240,16 @@ export class ContactService {
    * Aggregate leads volume by marketing source (utm_source).
    * Missing/empty values are bucketed as "direct".
    */
-  async getLeadsBySource(filters?: ContactAnalyticsFilters): Promise<Array<{ source: string; leadsCount: number }>> {
+  async getLeadsBySource(filters?: ContactAnalyticsFilters): Promise<
+    Array<{
+      source: string;
+      leadsCount: number;
+      qualifiedCount: number;
+      wonCount: number;
+      qualifiedRate: number;
+      wonRate: number;
+    }>
+  > {
     const match: Record<string, unknown> = {};
     if (filters?.startDate || filters?.endDate) {
       match.createdAt = {};
@@ -240,13 +272,21 @@ export class ContactService {
                 ]
               }
             }
-          }
+          },
+          status: 1,
+          createdAt: 1
         }
       },
       {
         $group: {
           _id: '$source',
-          leadsCount: { $sum: 1 }
+          leadsCount: { $sum: 1 },
+          qualifiedCount: {
+            $sum: { $cond: [{ $in: ['$status', ['qualified', 'won']] }, 1, 0] }
+          },
+          wonCount: {
+            $sum: { $cond: [{ $eq: ['$status', 'won'] }, 1, 0] }
+          }
         }
       },
       { $sort: { leadsCount: -1 } },
@@ -254,11 +294,26 @@ export class ContactService {
         $project: {
           _id: 0,
           source: '$_id',
-          leadsCount: 1
+          leadsCount: 1,
+          qualifiedCount: 1,
+          wonCount: 1,
+          qualifiedRate: {
+            $cond: [{ $gt: ['$leadsCount', 0] }, { $multiply: [{ $divide: ['$qualifiedCount', '$leadsCount'] }, 100] }, 0]
+          },
+          wonRate: {
+            $cond: [{ $gt: ['$leadsCount', 0] }, { $multiply: [{ $divide: ['$wonCount', '$leadsCount'] }, 100] }, 0]
+          }
         }
       }
     ]);
 
-    return rows as Array<{ source: string; leadsCount: number }>;
+    return rows as Array<{
+      source: string;
+      leadsCount: number;
+      qualifiedCount: number;
+      wonCount: number;
+      qualifiedRate: number;
+      wonRate: number;
+    }>;
   }
 }

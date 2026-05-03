@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import SiteSettings from '../models/siteSettings.model';
 import { OrderService } from '../services/order.service';
 import { emailService, OrderEmailData } from '../services/email.service';
-import { validateAndApplyCoupon, incrementCouponUsage } from '../services/coupon.service';
+import { validateAndApplyCoupon, incrementCouponUsage, updateCouponRevenue } from '../services/coupon.service';
 import { asyncHandler, createValidationError, createNotFoundError } from '../middleware/errorHandler';
 import { CreateOrderRequest, CreateCheckoutOrderRequest } from '../models/order.model';
 import { fireWebhook } from '../utils/webhook.util';
@@ -164,6 +164,7 @@ export class OrderController {
 
     if (couponIdToIncrement) {
       await incrementCouponUsage(couponIdToIncrement, body.phone);
+      await updateCouponRevenue(couponIdToIncrement, body.totalAmount);
     }
 
     // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
@@ -671,6 +672,42 @@ export class OrderController {
     });
   });
 
+  bulkUpdateOrders = asyncHandler(async (req: Request, res: Response) => {
+    const action = String(req.body?.action || '').trim();
+    const status = req.body?.status ? String(req.body.status).trim() : undefined;
+    const orderIds = Array.isArray(req.body?.orderIds) ? req.body.orderIds : [];
+
+    if (!action) {
+      throw createValidationError('action is required');
+    }
+
+    if (!orderIds.length) {
+      throw createValidationError('orderIds must be a non-empty array');
+    }
+
+    const allowedActions = new Set(['status', 'archive', 'restore', 'permanent_delete']);
+    if (!allowedActions.has(action)) {
+      throw createValidationError('Invalid bulk action');
+    }
+
+    if (action === 'status' && !status) {
+      throw createValidationError('status is required for bulk status update');
+    }
+
+    const result = await this.orderService.bulkApplyAction({
+      orderIds,
+      action: action as 'status' | 'archive' | 'restore' | 'permanent_delete',
+      status
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Bulk order action completed successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   // Get revenue statistics
   getRevenueStats = asyncHandler(async (req: Request, res: Response) => {
     const stats = await this.orderService.getRevenueStats();
@@ -727,39 +764,15 @@ export class OrderController {
   getKitchenReport = asyncHandler(async (req: Request, res: Response) => {
     try {
       const targetDate = typeof req.query.date === 'string' ? req.query.date : undefined;
-
-      // DIAGNOSTIC LOG: Check what orders exist in DB
-      const OrderModel = require('../models/Order').default;
-      const allOrders = await OrderModel.find({}, 'status items').lean();
-      console.log('🔍 TOTAL ORDERS FOUND:', allOrders.length);
-      console.log('🔍 SAMPLE STATUSES:', allOrders.map((o: any) => o.status));
-      console.log('🔍 UNIQUE STATUSES:', [...new Set(allOrders.map((o: any) => o.status))]);
-      console.log('🔍 ORDERS WITH ITEMS:', allOrders.filter((o: any) => o.items && o.items.length > 0).length);
-      
-      // Log sample order structure
-      if (allOrders.length > 0) {
-        console.log('🔍 SAMPLE ORDER:', JSON.stringify(allOrders[0], null, 2));
-        if (allOrders[0].items && allOrders[0].items.length > 0) {
-          console.log('🔍 SAMPLE ORDER ITEM:', JSON.stringify(allOrders[0].items[0], null, 2));
-          console.log('🔍 SAMPLE ITEM PRODUCTID:', allOrders[0].items[0].productId);
-          console.log('🔍 SAMPLE ITEM PRODUCTID TYPE:', typeof allOrders[0].items[0].productId);
-        }
-      }
-
       const report = await this.orderService.getKitchenReport(targetDate);
-      
-      // Log the final result
-      console.log('🥗 KITCHEN REPORT RESULT:', report);
-      console.log('🥗 KITCHEN REPORT RESULT COUNT:', report.length);
 
       res.status(200).json({
         success: true,
-        data: report
+        data: report.items,
+        meta: report.meta
       });
     } catch (error: any) {
-      console.error('❌ Controller Error in getKitchenReport:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
+      console.error('Controller error in getKitchenReport:', error);
       
       // Return detailed error to frontend
       res.status(500).json({

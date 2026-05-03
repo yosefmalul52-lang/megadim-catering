@@ -23,5 +23,6 @@ router.post('/apply', applyCouponLimiter, couponController.applyCoupon);
 router.get('/', authenticate, requireAdmin, couponController.listCoupons);
 router.post('/', authenticate, requireAdmin, asyncHandler(couponController.createCoupon as any));
 router.put('/:id', authenticate, requireAdmin, asyncHandler(couponController.updateCoupon as any));
+router.delete('/:id', authenticate, requireAdmin, asyncHandler(couponController.deleteCoupon as any));
 
 export default router;

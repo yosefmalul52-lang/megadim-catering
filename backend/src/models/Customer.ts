@@ -8,9 +8,11 @@ export interface ICustomer extends Document {
   fullName?: string;
   email?: string;
   address?: string;
+  city?: string;
   totalSpent: number;
   orderCount: number;
   lastOrderDate?: Date | null;
+  orderHistory: mongoose.Types.ObjectId[];
   manualStatus: CustomerManualStatus;
   customerCategory: CustomerCategory;
   tags: string[];
@@ -45,6 +47,12 @@ const CustomerSchema: Schema<ICustomer> = new Schema(
       trim: true,
       default: ''
     },
+    city: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true
+    },
     totalSpent: {
       type: Number,
       default: 0
@@ -56,6 +64,10 @@ const CustomerSchema: Schema<ICustomer> = new Schema(
     lastOrderDate: {
       type: Date,
       default: null
+    },
+    orderHistory: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'Order' }],
+      default: []
     },
     manualStatus: {
       type: String,

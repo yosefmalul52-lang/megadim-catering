@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   auditCustomersSync,
+  createCustomer,
   deleteCustomer,
   getCustomers,
   migrateLegacyData,
@@ -12,6 +13,7 @@ const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../config/role-access');
 
 router.get('/', authenticate, requireAdmin, getCustomers);
+router.post('/', authenticate, requireAdmin, createCustomer);
 router.post('/migrate', authenticate, requireAdmin, migrateLegacyData);
 router.post('/audit', authenticate, requireAdmin, auditCustomersSync);
 router.put('/:id/crm', authenticate, requireAdmin, updateCustomerCrm);

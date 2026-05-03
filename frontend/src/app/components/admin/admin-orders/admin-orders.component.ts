@@ -80,6 +80,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   availableMenuItems: MenuItem[] = [];
   searchTerm = '';
   isSavingItems = false;
+  activeOrderMenuId: string | null = null;
+  selectedOrderIds = new Set<string>();
+  isBulkUpdating = false;
+  bulkStatusTarget: Order['status'] = 'processing';
+  private readonly KPI_STORAGE_KEY = 'admin_orders_kpi_v1';
 
   readonly statusOptions = [
     { value: 'pending', label: 'ממתין' },
@@ -110,6 +115,17 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   loadStats(): void {
     this.orderService.getDashboardStats().subscribe((s) => (this.stats = s));
+  }
+
+  private trackKpi(eventName: string): void {
+    try {
+      const current = localStorage.getItem(this.KPI_STORAGE_KEY);
+      const parsed = current ? JSON.parse(current) as Record<string, number> : {};
+      parsed[eventName] = Number(parsed[eventName] || 0) + 1;
+      localStorage.setItem(this.KPI_STORAGE_KEY, JSON.stringify(parsed));
+    } catch {
+      // Keep UX resilient even when storage is unavailable.
+    }
   }
 
   private startAutoRefresh(): void {
@@ -161,6 +177,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   manualRefresh(): void {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
+    this.trackKpi('orders_manual_refresh');
     this.loadOrders();
     if (this.currentTab === 'archive') this.loadArchiveOrders();
   }
@@ -174,6 +191,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           setTimeout(() => (this.successMessage = ''), 5000);
         }
         this.orders = orders;
+        this.pruneSelection();
         this.rebuildPhoneFrequency();
         this.previousOrderCount = orders.length;
         this.isLoading = false;
@@ -193,6 +211,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.orderService.getAllOrders(true).subscribe({
       next: (list) => {
         this.archiveOrders = list;
+        this.pruneSelection();
         this.rebuildPhoneFrequency();
         this.isLoadingArchive = false;
       },
@@ -206,7 +225,23 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'archive'): void {
     this.currentTab = tab;
+    this.activeOrderMenuId = null;
+    this.clearSelection();
     if (tab === 'archive') this.loadArchiveOrders();
+  }
+
+  toggleOrderMenu(order: Order): void {
+    const id = String(order._id || order.id || '');
+    if (!id) return;
+    this.activeOrderMenuId = this.activeOrderMenuId === id ? null : id;
+  }
+
+  closeOrderMenu(): void {
+    this.activeOrderMenuId = null;
+  }
+
+  isOrderMenuOpen(order: Order): boolean {
+    return this.activeOrderMenuId === String(order._id || order.id || '');
   }
 
   /** Called when archive list might have changed so the view updates immediately */
@@ -317,6 +352,109 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return list.filter((o) => this.matchesCustomerFilter(o));
   }
 
+  private getOrderId(order: Order): string {
+    return String(order._id || order.id || '').trim();
+  }
+
+  private pruneSelection(): void {
+    const allowedIds = new Set(
+      [...this.orders, ...this.archiveOrders]
+        .map((order) => this.getOrderId(order))
+        .filter(Boolean)
+    );
+    const next = new Set<string>();
+    this.selectedOrderIds.forEach((id) => {
+      if (allowedIds.has(id)) next.add(id);
+    });
+    this.selectedOrderIds = next;
+  }
+
+  clearSelection(): void {
+    this.selectedOrderIds = new Set<string>();
+  }
+
+  isOrderSelected(order: Order): boolean {
+    return this.selectedOrderIds.has(this.getOrderId(order));
+  }
+
+  toggleOrderSelection(order: Order, checked: boolean): void {
+    const id = this.getOrderId(order);
+    if (!id) return;
+    const next = new Set(this.selectedOrderIds);
+    if (checked) next.add(id);
+    else next.delete(id);
+    this.selectedOrderIds = next;
+  }
+
+  get areAllVisibleSelected(): boolean {
+    const ids = this.filteredOrders.map((order) => this.getOrderId(order)).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => this.selectedOrderIds.has(id));
+  }
+
+  get selectedVisibleCount(): number {
+    let count = 0;
+    for (const order of this.filteredOrders) {
+      if (this.selectedOrderIds.has(this.getOrderId(order))) count += 1;
+    }
+    return count;
+  }
+
+  toggleSelectAllVisible(checked: boolean): void {
+    const next = new Set(this.selectedOrderIds);
+    const visibleIds = this.filteredOrders.map((order) => this.getOrderId(order)).filter(Boolean);
+    for (const id of visibleIds) {
+      if (checked) next.add(id);
+      else next.delete(id);
+    }
+    this.selectedOrderIds = next;
+  }
+
+  private executeBulkAction(action: 'status' | 'archive' | 'restore' | 'permanent_delete', status?: Order['status']): void {
+    const orderIds = Array.from(this.selectedOrderIds);
+    if (!orderIds.length || this.isBulkUpdating) return;
+
+    this.isBulkUpdating = true;
+    this.orderService.bulkUpdateOrders({ orderIds, action, status }).subscribe({
+      next: (result) => {
+        const affectedCount = action === 'permanent_delete' ? result.deletedCount : result.modifiedCount;
+        this.clearSelection();
+        this.loadOrders();
+        this.loadArchiveOrders();
+        this.loadStats();
+        this.successMessage = `עודכנו ${affectedCount} הזמנות בהצלחה`;
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.isBulkUpdating = false;
+      },
+      error: (err) => {
+        this.errorMessage = err?.error?.message || 'שגיאה בביצוע פעולה קבוצתית';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+        this.isBulkUpdating = false;
+      }
+    });
+  }
+
+  applyBulkStatus(): void {
+    if (!this.selectedOrderIds.size) return;
+    this.executeBulkAction('status', this.bulkStatusTarget);
+  }
+
+  bulkArchiveSelected(): void {
+    if (!this.selectedOrderIds.size) return;
+    if (!window.confirm(`להעביר ${this.selectedOrderIds.size} הזמנות לארכיון?`)) return;
+    this.executeBulkAction('archive');
+  }
+
+  bulkRestoreSelected(): void {
+    if (!this.selectedOrderIds.size) return;
+    this.executeBulkAction('restore');
+  }
+
+  bulkPermanentDeleteSelected(): void {
+    if (!this.selectedOrderIds.size) return;
+    if (!window.confirm(`למחוק לצמיתות ${this.selectedOrderIds.size} הזמנות? פעולה זו אינה ניתנת לביטול.`)) return;
+    this.executeBulkAction('permanent_delete');
+  }
+
   get countPending(): number {
     const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
     return list.filter((o) => this.isPending(o.status)).length;
@@ -349,9 +487,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const confirmed = window.confirm('להעביר הזמנה זו לארכיון? לא תימחק לצמיתות.');
     if (!confirmed) return;
     this.statusUpdatingId = orderId;
+    this.trackKpi('orders_archived');
     this.orderService.deleteOrder(orderId).subscribe({
       next: () => {
         this.orders = this.orders.filter((o) => (o._id || o.id) !== orderId);
+        this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
         this.archiveOrders = [...this.archiveOrders, { ...order, isDeleted: true }];
         this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה הועברה לארכיון בהצלחה';
@@ -372,9 +512,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const orderId = (order._id || order.id)?.toString();
     if (!orderId) return;
     this.statusUpdatingId = orderId;
+    this.trackKpi('orders_restored');
     this.orderService.restoreOrder(orderId).subscribe({
       next: (restored) => {
         this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
+        this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
         this.orders = [restored, ...this.orders];
         this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה שוחזרה בהצלחה והועברה לטאב ממתינים';
@@ -399,9 +541,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     );
     if (!confirmDelete) return;
     this.statusUpdatingId = orderId;
+    this.trackKpi('orders_deleted_permanent');
     this.orderService.hardDeleteOrder(orderId).subscribe({
       next: () => {
         this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
+        this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
         this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה נמחקה לצמיתות';
         setTimeout(() => (this.successMessage = ''), 3000);
@@ -529,6 +673,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   changeStatus(order: Order, newStatus: Order['status']): void {
+    this.applyStatusForOrder(order, newStatus);
+  }
+
+  private applyStatusForOrder(order: Order, newStatus: Order['status']): void {
     const orderId = (order._id || order.id)?.toString();
     if (!orderId) return;
     this.statusUpdatingId = orderId;
@@ -544,6 +692,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             : `סטטוס עודכן ל-${this.getStatusLabel(newStatus)}`;
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
+        this.trackKpi('orders_status_updated');
         this.loadStats();
         this.previousOrderCount = this.orders.length;
       },
@@ -558,6 +707,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   openStatusEdit(order: Order): void {
     this.orderToEditStatus = order;
+    this.closeOrderMenu();
   }
 
   closeStatusEdit(): void {
@@ -569,50 +719,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     if (!order) return;
     const orderId = order._id || order.id || '';
     if (!orderId) return;
-    const prev = order.status;
-    order.status = value as Order['status'];
-    this.orderService.updateOrderStatus(orderId, value as Order['status']).subscribe({
-      next: (updated) => {
-        const idx = this.orders.findIndex((o) => (o._id || o.id) === orderId);
-        if (idx > -1) this.orders[idx] = updated;
-        this.successMessage = `סטטוס עודכן ל-${this.getStatusLabel(value)}`;
-        setTimeout(() => (this.successMessage = ''), 3000);
-        this.closeStatusEdit();
-        this.loadStats();
-      },
-      error: () => {
-        order.status = prev;
-        this.errorMessage = 'שגיאה בעדכון סטטוס';
-        setTimeout(() => (this.errorMessage = ''), 3000);
-      }
-    });
+    this.closeStatusEdit();
+    this.applyStatusForOrder(order, value as Order['status']);
   }
 
   updateStatus(order: Order, event: Event): void {
     const select = event.target as HTMLSelectElement;
     const newStatus = select.value as Order['status'];
-    const orderId = order._id || order.id || '';
-    if (!orderId) {
-      this.errorMessage = 'שגיאה: מזהה הזמנה חסר';
-      return;
-    }
-    const originalStatus = order.status;
-    order.status = newStatus;
-    this.orderService.updateOrderStatus(orderId, newStatus).subscribe({
-      next: (updatedOrder: Order) => {
-        const index = this.orders.findIndex((o) => (o._id || o.id) === orderId);
-        if (index > -1) this.orders[index] = updatedOrder;
-        this.successMessage = `סטטוס ההזמנה עודכן ל-${this.getStatusLabel(newStatus)}`;
-        setTimeout(() => (this.successMessage = ''), 3000);
-        this.loadStats();
-      },
-      error: () => {
-        order.status = originalStatus;
-        select.value = originalStatus;
-        this.errorMessage = 'שגיאה בעדכון סטטוס ההזמנה';
-        setTimeout(() => (this.errorMessage = ''), 3000);
-      }
-    });
+    this.applyStatusForOrder(order, newStatus);
   }
 
   viewOrderDetails(order: Order): void {
@@ -908,11 +1022,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.loadOrders();
     this.loadStats();
     this.successMessage = 'הזמנה טלפונית נוספה בהצלחה';
+    this.trackKpi('orders_manual_created');
     setTimeout(() => (this.successMessage = ''), 5000);
   }
 
   openKitchenReport(): void {
     this.showKitchenReport = true;
+    this.trackKpi('orders_kitchen_report_opened');
   }
 
   closeKitchenReport(): void {

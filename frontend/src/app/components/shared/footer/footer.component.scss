@@ -226,6 +226,20 @@ $darker-navy: #082030;
     align-items: center;
     color: #888;
     font-size: 0.9rem;
+
+    .copyright {
+      margin: 0;
+
+      a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+
+        &:hover {
+          color: $gold;
+        }
+      }
+    }
     
     .bottom-links {
       a {

@@ -70,6 +70,18 @@ function normalizePhone(raw: unknown): string {
   return digits;
 }
 
+function extractCityFromAddress(rawAddress: unknown): string {
+  const text = String(rawAddress || '').trim();
+  if (!text) return '';
+  const firstChunk = text.split(',')[0]?.trim() || '';
+  if (!firstChunk) return '';
+  if (/\d/.test(firstChunk) && text.includes(',')) {
+    const secondChunk = text.split(',')[1]?.trim() || '';
+    return secondChunk || firstChunk;
+  }
+  return firstChunk;
+}
+
 function buildUserPhoneCandidates(phone: string): string[] {
   const normalized = normalizePhone(phone);
   if (!normalized) return [];
@@ -310,6 +322,9 @@ export async function getCustomers(req: Request, res: Response): Promise<void> {
     const search = String(req.query.search || '').trim();
     const manualStatus = String(req.query.manualStatus || '').trim();
     const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 1000);
+    const city = String(req.query.city || '').trim();
+    const minTotalSpent = Number(req.query.minTotalSpent || 0);
+    const lastOrderBeforeDays = Number(req.query.lastOrderBeforeDays || 0);
 
     const filter: Record<string, any> = {};
     if (manualStatus && ['NONE', 'VIP', 'BLACKLIST'].includes(manualStatus)) {
@@ -319,9 +334,25 @@ export async function getCustomers(req: Request, res: Response): Promise<void> {
     if (isRegisteredQ === 'true') {
       filter.isRegistered = true;
     }
+    const andFilters: Record<string, unknown>[] = [];
     if (search) {
       const rx = new RegExp(escapeRegex(search), 'i');
-      filter.$or = [{ fullName: rx }, { email: rx }, { normalizedPhone: rx }];
+      andFilters.push({ $or: [{ fullName: rx }, { email: rx }, { normalizedPhone: rx }, { city: rx }] });
+    }
+    if (city) {
+      filter.city = new RegExp(`^${escapeRegex(city)}$`, 'i');
+    }
+    if (Number.isFinite(minTotalSpent) && minTotalSpent > 0) {
+      filter.totalSpent = { ...(filter.totalSpent || {}), $gte: minTotalSpent };
+    }
+    if (Number.isFinite(lastOrderBeforeDays) && lastOrderBeforeDays > 0) {
+      const cutoff = new Date(Date.now() - lastOrderBeforeDays * 24 * 60 * 60 * 1000);
+      andFilters.push({
+        $or: [{ lastOrderDate: { $lt: cutoff } }, { lastOrderDate: null }]
+      });
+    }
+    if (andFilters.length > 0) {
+      filter.$and = andFilters;
     }
 
     const customers = await Customer.find(filter)
@@ -355,6 +386,7 @@ export async function getCustomers(req: Request, res: Response): Promise<void> {
       email: c.email || '',
       phone: c.normalizedPhone || '',
       address: c.address || '',
+      city: c.city || '',
       role: 'customer',
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
@@ -376,6 +408,70 @@ export async function getCustomers(req: Request, res: Response): Promise<void> {
       success: false,
       message: 'שגיאה בטעינת רשימת הלקוחות'
     });
+  }
+}
+
+export async function createCustomer(req: Request, res: Response): Promise<void> {
+  try {
+    const body = req.body || {};
+    const normalizedPhone = normalizePhone(body.phone);
+    if (!normalizedPhone) {
+      res.status(400).json({ success: false, message: 'טלפון לא תקין' });
+      return;
+    }
+    const fullName = String(body.fullName || '').trim();
+    const emailRaw = String(body.email || '')
+      .trim()
+      .toLowerCase();
+    const address = String(body.address || '').trim();
+    const city = String(body.city || '').trim() || extractCityFromAddress(address);
+
+    const existing = await Customer.findOne({ normalizedPhone }).select('_id').lean();
+    if (existing) {
+      res.status(409).json({ success: false, message: 'לקוח עם טלפון זה כבר קיים' });
+      return;
+    }
+
+    const created = await Customer.create({
+      normalizedPhone,
+      fullName,
+      email: isBusinessEmail(emailRaw) ? '' : emailRaw,
+      address,
+      city,
+      totalSpent: 0,
+      orderCount: 0,
+      orderHistory: [],
+      manualStatus: 'NONE',
+      customerCategory: 'all',
+      tags: [],
+      adminNotes: '',
+      dietaryInfo: ''
+    });
+
+    res.status(201).json({
+      _id: String(created._id),
+      fullName: created.fullName || '',
+      username: created.email || '',
+      email: created.email || '',
+      phone: created.normalizedPhone || '',
+      address: created.address || '',
+      city: created.city || '',
+      role: 'customer',
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+      orderCount: created.orderCount || 0,
+      totalSpent: created.totalSpent || 0,
+      lastOrderDate: created.lastOrderDate || null,
+      manualStatus: created.manualStatus || 'NONE',
+      customerCategory: created.customerCategory || 'all',
+      tags: Array.isArray(created.tags) ? created.tags : [],
+      adminNotes: created.adminNotes || '',
+      dietaryInfo: created.dietaryInfo || '',
+      isRegistered: created.isRegistered === true
+    });
+  } catch (err) {
+    console.error('createCustomer error:', err);
+    res.status(500).json({ success: false, message: 'שגיאה ביצירת לקוח' });
   }
 }
 
@@ -401,6 +497,12 @@ export async function updateCustomerCrm(req: Request, res: Response): Promise<vo
     }
     if (body.address !== undefined) {
       update.address = typeof body.address === 'string' ? body.address.trim() : '';
+      if (!body.city) {
+        update.city = extractCityFromAddress(update.address);
+      }
+    }
+    if (body.city !== undefined) {
+      update.city = typeof body.city === 'string' ? body.city.trim() : '';
     }
     if (body.phone !== undefined) {
       const rawPhone = String(body.phone || '').trim();
@@ -531,6 +633,7 @@ export async function updateCustomerCrm(req: Request, res: Response): Promise<vo
       email: customer.email || '',
       phone: customer.normalizedPhone || '',
       address: (customer as any).address || '',
+      city: (customer as any).city || '',
       role: 'customer',
       createdAt: customer.createdAt,
       updatedAt: customer.updatedAt,
@@ -736,8 +839,10 @@ export async function migrateLegacyData(_req: Request, res: Response): Promise<v
       normalizedPhone: string;
       fullName?: string;
       email?: string;
+      city?: string;
       fullNamePriority: 0 | 1 | 2 | 3;
       emailPriority: 0 | 1 | 2 | 3;
+      cityPriority: 0 | 1 | 2 | 3;
       tags?: string[];
       adminNotes?: string;
       dietaryInfo?: string;
@@ -764,6 +869,7 @@ export async function migrateLegacyData(_req: Request, res: Response): Promise<v
         normalizedPhone: phone,
         fullNamePriority: 0,
         emailPriority: 0,
+        cityPriority: 0,
         orderCount: 0,
         totalSpent: 0,
         lastOrderDate: null
@@ -789,6 +895,14 @@ export async function migrateLegacyData(_req: Request, res: Response): Promise<v
       if (priority >= bucket.emailPriority) {
         bucket.email = next;
         bucket.emailPriority = priority;
+      }
+    };
+    const setCity = (bucket: Bucket, value: unknown, priority: 1 | 2 | 3): void => {
+      const next = extractCityFromAddress(value);
+      if (!next) return;
+      if (priority >= bucket.cityPriority) {
+        bucket.city = next;
+        bucket.cityPriority = priority;
       }
     };
 
@@ -821,6 +935,7 @@ export async function migrateLegacyData(_req: Request, res: Response): Promise<v
       const details = order?.customerDetails || {};
       setFullName(bucket, details?.fullName || details?.name, 1);
       setEmail(bucket, details?.email, 1, 'order');
+      setCity(bucket, details?.address, 1);
     }
 
     for (const order of latestOrdersByNumber.values()) {
@@ -897,6 +1012,7 @@ export async function migrateLegacyData(_req: Request, res: Response): Promise<v
             tags: Array.isArray(b.tags) ? b.tags : [],
             adminNotes: b.adminNotes || '',
             dietaryInfo: b.dietaryInfo || '',
+            city: b.city || '',
             orderCount: b.orderCount,
             totalSpent: Math.round((b.totalSpent || 0) * 100) / 100,
             lastOrderDate: b.lastOrderDate,
@@ -922,6 +1038,7 @@ export async function migrateLegacyData(_req: Request, res: Response): Promise<v
             tags: string[];
             adminNotes: string;
             dietaryInfo: string;
+            city: string;
             orderCount: number;
             totalSpent: number;
             lastOrderDate: Date | null;

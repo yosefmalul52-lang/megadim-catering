@@ -3,11 +3,11 @@ import Coupon, { ICoupon } from '../models/coupon.model';
 import { validateAndApplyCoupon } from '../services/coupon.service';
 import { createValidationError } from '../middleware/errorHandler';
 
-function parseTargetCustomerCategory(raw: unknown): 'all' | 'returning' | 'sleeping' | 'vip' {
+function parseTargetCustomerCategory(raw: unknown): 'all' | 'returning' | 'sleeping' | 'vip' | 'new' {
   const value = String(raw ?? 'all')
     .trim()
     .toLowerCase();
-  if (value === 'returning' || value === 'sleeping' || value === 'vip') return value;
+  if (value === 'returning' || value === 'sleeping' || value === 'vip' || value === 'new') return value;
   return 'all';
 }
 
@@ -51,6 +51,13 @@ export async function createCoupon(req: Request, res: Response): Promise<void> {
     if (maxUses !== null && (typeof maxUses !== 'number' || isNaN(maxUses) || maxUses < 1)) {
       throw createValidationError('maxUses must be null or at least 1');
     }
+    const maxUsesPerCustomer =
+      body.maxUsesPerCustomer == null || body.maxUsesPerCustomer === ''
+        ? 1
+        : Number(body.maxUsesPerCustomer);
+    if (typeof maxUsesPerCustomer !== 'number' || isNaN(maxUsesPerCustomer) || maxUsesPerCustomer < 1) {
+      throw createValidationError('maxUsesPerCustomer must be at least 1');
+    }
     const targetCustomerCategory = parseTargetCustomerCategory(body.targetCustomerCategory);
 
     const coupon = new Coupon({
@@ -60,8 +67,10 @@ export async function createCoupon(req: Request, res: Response): Promise<void> {
       minOrderValue: minOrderValue || 0,
       expiresAt,
       maxUses,
+      maxUsesPerCustomer,
       usageCount: 0,
       usedByPhones: [],
+      totalRevenueGenerated: 0,
       isActive: body.isActive !== false,
       isVipOnly: body.isVipOnly === true,
       targetCustomerCategory
@@ -121,6 +130,14 @@ export async function updateCoupon(req: Request, res: Response): Promise<void> {
       if (v !== null && v < coupon.usageCount) throw createValidationError('maxUses cannot be less than usageCount');
       coupon.maxUses = v;
     }
+    if (body.maxUsesPerCustomer !== undefined) {
+      const v =
+        body.maxUsesPerCustomer == null || body.maxUsesPerCustomer === ''
+          ? 1
+          : Number(body.maxUsesPerCustomer);
+      if (isNaN(v) || v < 1) throw createValidationError('maxUsesPerCustomer must be at least 1');
+      coupon.maxUsesPerCustomer = v;
+    }
     if (typeof body.isActive === 'boolean') {
       coupon.isActive = body.isActive;
     }
@@ -169,5 +186,20 @@ export async function applyCoupon(req: Request, res: Response): Promise<void> {
   } catch (err: any) {
     console.error('applyCoupon error:', err);
     res.status(500).json({ success: false, message: 'Invalid or expired coupon' });
+  }
+}
+
+export async function deleteCoupon(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const deleted = await Coupon.findByIdAndDelete(id);
+    if (!deleted) {
+      res.status(404).json({ success: false, message: 'Coupon not found' });
+      return;
+    }
+    res.json({ success: true, message: 'Coupon deleted successfully' });
+  } catch (err: any) {
+    console.error('deleteCoupon error:', err);
+    res.status(500).json({ success: false, message: 'Failed to delete coupon' });
   }
 }

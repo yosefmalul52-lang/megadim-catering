@@ -101,22 +101,26 @@ export class ContactController {
   // Update contact request status (Admin only)
   updateContactStatus = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status } = req.body;
 
     if (!id) {
       throw createValidationError('Contact request ID is required');
     }
 
-    if (!status) {
-      throw createValidationError('Status is required');
-    }
-
-    const validStatuses = ['new', 'read', 'handled'];
-    if (!validStatuses.includes(status)) {
+    const validStatuses = ['new', 'attempted_contact', 'qualified', 'unqualified', 'won', 'lost'];
+    if (status && !validStatuses.includes(status)) {
       throw createValidationError('Invalid status value');
     }
 
-    const updatedContact = await this.contactService.updateContactStatus(id, { status, notes });
+    const updatedContact = await this.contactService.updateContactStatus(id, {
+      status,
+      notes: req.body?.notes,
+      leadScore: req.body?.leadScore,
+      lastContactAt: req.body?.lastContactAt,
+      nextFollowUpAt: req.body?.nextFollowUpAt,
+      outcomeReason: req.body?.outcomeReason,
+      ownerNotes: req.body?.ownerNotes
+    });
 
     if (!updatedContact) {
       throw createValidationError('Contact request not found');

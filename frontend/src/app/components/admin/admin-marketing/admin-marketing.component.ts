@@ -1,30 +1,46 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DragDropModule, CdkDragDrop, transferArrayItem, moveItemInArray } from '@angular/cdk/drag-drop';
 import { BaseChartDirective } from 'ng2-charts';
 import { Chart, ChartData, ChartOptions, registerables } from 'chart.js';
 import { forkJoin } from 'rxjs';
 import { AdminContactsService, LeadsBySourcePoint } from '../../../services/admin-contacts.service';
 import { OrderService, RevenueBySourcePoint } from '../../../services/order.service';
-import { CouponService, Coupon } from '../../../services/coupon.service';
-import { CampaignService, CampaignAudience } from '../../../services/campaign.service';
+import {
+  CampaignItem,
+  CampaignPlatform,
+  CampaignService,
+  CampaignStatus
+} from '../../../services/campaign.service';
 import { ToastService } from '../../../services/toast.service';
 
 Chart.register(...registerables);
 
 type MarketingTab = 'leads' | 'orders';
 
+/** מצבי תצוגה בתוך מוקאפ הפלאפון */
+export type PreviewMode = 'story' | 'feed11' | 'feed45';
+
+/** פוסט מוכן לשיווק — עריכה ידנית של המערך לפי צורך */
+export interface ReadyPost {
+  id: string;
+  title: string;
+  content: string;
+  mediaUrl?: string;
+  label?: string;
+}
+
 @Component({
   selector: 'app-admin-marketing',
   standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective],
+  imports: [CommonModule, FormsModule, DragDropModule, BaseChartDirective],
   templateUrl: './admin-marketing.component.html',
   styleUrls: ['./admin-marketing.component.scss']
 })
 export class AdminMarketingComponent implements OnInit {
   private contactsService = inject(AdminContactsService);
   private orderService = inject(OrderService);
-  private couponService = inject(CouponService);
   private campaignService = inject(CampaignService);
   private toast = inject(ToastService);
 
@@ -65,16 +81,61 @@ export class AdminMarketingComponent implements OnInit {
     }
   };
 
-  campaignMessage = '';
-  campaignAudience: CampaignAudience = 'vip';
-  campaignChannels: { whatsapp: boolean; email: boolean } = { whatsapp: true, email: false };
-  selectedCouponCode = '';
-  coupons: Coupon[] = [];
+  campaignTitle = '';
+  campaignContent = '';
+  campaignMediaUrl = '';
+  campaignScheduledAt = '';
+  selectedPlatforms: CampaignPlatform[] = ['facebook'];
   isLaunching = false;
+  campaigns: CampaignItem[] = [];
+  isLoadingCampaigns = false;
+  launchError = '';
+  launchSuccessMessage = '';
+
+  /** מצב תצוגה בתוך הפלאפון */
+  previewMode: PreviewMode = 'feed45';
+
+  /** תבניות פוסטים מוכנים (מקור) — עריכה כאן; הרצועה לגרירה מתאפסת אחרי כל שחרור */
+  private readonly readyPostsTemplate: ReadyPost[] = [
+    {
+      id: 'sample-shabbat',
+      label: 'שבת',
+      title: 'שבת שלווה עם מגדים',
+      content: 'הזמינו עכשיו את תפריט השבת שלנו.\nhttps://example.com/menu',
+      mediaUrl: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=80'
+    },
+    {
+      id: 'sample-event',
+      label: 'אירוע',
+      title: 'קייטרינג לאירועים',
+      content: 'חוויית אירוח מלאה לכל אירוע.\nhttps://example.com/events',
+      mediaUrl: 'https://images.unsplash.com/photo-1555244162-803834f70033?w=800&q=80'
+    },
+    {
+      id: 'sample-text-only',
+      label: 'טקסט בלבד',
+      title: 'מבצע לזמן מוגבל',
+      content: 'הנחה על הזמנות עד סוף החודש.\nhttps://example.com/order'
+    }
+  ];
+
+  /** עותק לרשימת CDK — מתאפס אחרי גרירה לפלאפון כדי שלא ייעלמו תבניות */
+  readyPostStrip: ReadyPost[] = [];
+
+  /** מערך זמני ל־cdkDropList במסך הפלאפון (ריק; משמש לקבלת drop בלי להעביר את הפוסט מהרשימה) */
+  phoneScratch: ReadyPost[] = [];
+
+  /** הדגשת אזור שחרור בזמן גרירה */
+  phoneDropActive = false;
 
   ngOnInit(): void {
+    this.resetReadyPostStrip();
     this.loadData();
-    this.loadCoupons();
+    this.loadCampaigns();
+  }
+
+  private resetReadyPostStrip(): void {
+    this.readyPostStrip = this.readyPostsTemplate.map((p) => ({ ...p }));
   }
 
   setTab(tab: MarketingTab): void {
@@ -121,55 +182,191 @@ export class AdminMarketingComponent implements OnInit {
     });
   }
 
-  private loadCoupons(): void {
-    this.couponService.getCoupons().subscribe({
-      next: (list) => {
-        this.coupons = (list || []).filter((c) => c.isActive);
-      },
-      error: (err) => {
-        console.error('Error loading coupons for campaign launcher:', err);
-        this.coupons = [];
-      }
-    });
-  }
-
   launchCampaign(): void {
-    const message = this.campaignMessage.trim();
-    const channels = [
-      ...(this.campaignChannels.whatsapp ? ['whatsapp'] : []),
-      ...(this.campaignChannels.email ? ['email'] : [])
-    ];
+    const title = this.campaignTitle.trim();
+    const content = this.campaignContent.trim();
+    const mediaUrl = this.campaignMediaUrl.trim();
+    const platforms = this.selectedPlatforms;
+    const scheduledAt = this.campaignScheduledAt ? new Date(this.campaignScheduledAt) : null;
 
-    if (!message) {
+    this.launchError = '';
+    this.launchSuccessMessage = '';
+
+    if (!title) {
+      this.toast.error('יש להזין כותרת קמפיין');
+      return;
+    }
+    if (!content) {
       this.toast.error('יש להזין תוכן קמפיין');
       return;
     }
-    if (channels.length === 0) {
-      this.toast.error('יש לבחור לפחות ערוץ אחד');
+    if (platforms.length === 0) {
+      this.toast.error('יש לבחור לפחות פלטפורמה אחת');
+      return;
+    }
+    if (scheduledAt && Number.isNaN(scheduledAt.getTime())) {
+      this.toast.error('תאריך תזמון לא תקין');
       return;
     }
 
     this.isLaunching = true;
     this.campaignService
       .launchCampaign({
-        message,
-        audience: this.campaignAudience,
-        channels,
-        ...(this.selectedCouponCode ? { couponCode: this.selectedCouponCode } : {})
+        title,
+        content,
+        ...(mediaUrl ? { mediaUrl } : {}),
+        platforms,
+        ...(scheduledAt ? { scheduledAt: scheduledAt.toISOString() } : {})
       })
       .subscribe({
         next: (res) => {
           this.isLaunching = false;
-          const count = res?.data?.targetsCount ?? 0;
-          this.toast.success(`הקמפיין שוגר בהצלחה (${count} נמענים)`);
-          this.campaignMessage = '';
-          this.selectedCouponCode = '';
+          this.toast.success('הקמפיין שוגר בהצלחה');
+          this.launchSuccessMessage = 'הקמפיין נשמר ונשלח בהצלחה.';
+          this.campaignTitle = '';
+          this.campaignContent = '';
+          this.campaignMediaUrl = '';
+          this.campaignScheduledAt = '';
+          this.selectedPlatforms = ['facebook'];
+          this.loadCampaigns();
         },
         error: (err) => {
           this.isLaunching = false;
-          this.toast.error(err?.error?.message || 'שגיאה בשיגור הקמפיין');
+          const message = err?.error?.message || 'שגיאה בשיגור הקמפיין';
+          const details =
+            err?.error?.data?.n8nResponse?.error ||
+            err?.error?.data?.n8nResponse?.statusText ||
+            '';
+          this.launchError = details ? `${message} - ${details}` : message;
+          this.toast.error(message);
+          this.loadCampaigns();
         }
       });
+  }
+
+  loadCampaigns(): void {
+    this.isLoadingCampaigns = true;
+    this.campaignService.getCampaigns({ limit: 20 }).subscribe({
+      next: (res) => {
+        this.campaigns = res?.data || [];
+        this.isLoadingCampaigns = false;
+      },
+      error: () => {
+        this.campaigns = [];
+        this.isLoadingCampaigns = false;
+      }
+    });
+  }
+
+  togglePlatform(platform: CampaignPlatform): void {
+    if (this.selectedPlatforms.includes(platform)) {
+      this.selectedPlatforms = this.selectedPlatforms.filter((p) => p !== platform);
+      return;
+    }
+    this.selectedPlatforms = [...this.selectedPlatforms, platform];
+  }
+
+  isPlatformSelected(platform: CampaignPlatform): boolean {
+    return this.selectedPlatforms.includes(platform);
+  }
+
+  get selectedPlatformsLabel(): string {
+    if (!this.selectedPlatforms.length) return 'לא נבחרו פלטפורמות';
+    return this.selectedPlatforms
+      .map((p) => (p === 'facebook' ? 'Facebook' : 'Instagram'))
+      .join(' + ');
+  }
+
+  get campaignPreviewText(): string {
+    return this.campaignContent.trim() || 'תצוגה מקדימה של הפוסט תופיע כאן...';
+  }
+
+  setPreviewMode(mode: PreviewMode): void {
+    this.previewMode = mode;
+  }
+
+  get previewModeLabel(): string {
+    const map: Record<PreviewMode, string> = {
+      story: 'סטורי / סטטוס (9:16)',
+      feed11: 'פיד 1:1',
+      feed45: 'פיד 4:5'
+    };
+    return map[this.previewMode];
+  }
+
+  get viewportAspectClass(): string {
+    return `aspect-${this.previewMode}`;
+  }
+
+  applyReadyPost(post: ReadyPost): void {
+    this.campaignTitle = post.title;
+    this.campaignContent = post.content;
+    this.campaignMediaUrl = post.mediaUrl?.trim() || '';
+    this.toast.success('הוחל פוסט מוכן');
+  }
+
+  onPhoneDrop(event: CdkDragDrop<ReadyPost[]>): void {
+    this.phoneDropActive = false;
+    if (event.previousContainer === event.container) {
+      return;
+    }
+    transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, event.currentIndex);
+    const post = event.item.data as ReadyPost | undefined;
+    if (post) {
+      this.applyReadyPost(post);
+    }
+    this.phoneScratch.length = 0;
+    this.resetReadyPostStrip();
+  }
+
+  onReadyStripDrop(event: CdkDragDrop<ReadyPost[]>): void {
+    this.phoneDropActive = false;
+    if (event.previousContainer === event.container) {
+      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
+      return;
+    }
+    transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, event.currentIndex);
+    this.phoneScratch.length = 0;
+  }
+
+  onPhoneDragEnter(): void {
+    this.phoneDropActive = true;
+  }
+
+  onPhoneDragLeave(): void {
+    this.phoneDropActive = false;
+  }
+
+  isImageUrl(url: string | undefined): boolean {
+    if (!url?.trim()) return false;
+    const lower = url.trim().split('?')[0].toLowerCase();
+    return /\.(jpe?g|png|gif|webp)$/i.test(lower);
+  }
+
+  get canLaunchCampaign(): boolean {
+    return !this.isLaunching && !!this.campaignTitle.trim() && !!this.campaignContent.trim() && this.selectedPlatforms.length > 0;
+  }
+
+  getStatusLabel(status: CampaignStatus): string {
+    const map: Record<CampaignStatus, string> = {
+      draft: 'טיוטה',
+      pending: 'ממתין לשיגור',
+      published: 'פורסם',
+      failed: 'נכשל'
+    };
+    return map[status] || status;
+  }
+
+  getStatusClass(status: CampaignStatus): string {
+    return `status-${status}`;
+  }
+
+  getCampaignResponseSummary(campaign: CampaignItem): string {
+    if (!campaign.n8nResponse) return '-';
+    if (campaign.n8nResponse['error']) return String(campaign.n8nResponse['error']);
+    if (campaign.n8nResponse['statusText']) return String(campaign.n8nResponse['statusText']);
+    if (campaign.n8nResponse['message']) return String(campaign.n8nResponse['message']);
+    return 'התקבלה תגובה';
   }
 
   private buildLeadsChart(): void {

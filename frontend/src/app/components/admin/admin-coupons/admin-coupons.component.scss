@@ -41,6 +41,35 @@ $border: #e5e7eb;
   margin-bottom: 2rem;
 }
 
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: $slate;
+  font-weight: 500;
+}
+
+.btn-delete-selected {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+  font-weight: 600;
+  cursor: pointer;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .stat-card {
   background: #fff;
   border: 2px solid rgba($brand-gold, 0.5);
@@ -204,6 +233,11 @@ $border: #e5e7eb;
   }
 }
 
+.select-col {
+  width: 64px;
+  text-align: center !important;
+}
+
 .code-cell {
   font-weight: 700;
   color: $brand-dark;
@@ -217,7 +251,7 @@ $border: #e5e7eb;
 
 .toggle-btn {
   padding: 0.35rem 0.75rem;
-  border-radius: 20px;
+  border-radius: 8px;
   border: 1px solid $border;
   background: #f1f5f9;
   color: $slate;
@@ -287,9 +321,9 @@ $border: #e5e7eb;
 }
 
 .admin-coupons-page .btn-create {
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  border: none;
-  color: #fff;
+  background: $brand-gold;
+  border: 1px solid rgba($brand-gold, 0.35);
+  color: $brand-dark;
 }
 
 .admin-coupons-page .btn-create:hover:not(:disabled) {

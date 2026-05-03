@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CouponService, Coupon } from '../../../services/coupon.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-admin-coupons',
@@ -20,8 +21,11 @@ export class AdminCouponsComponent implements OnInit {
   successMessage = '';
   createForm!: FormGroup;
   isSubmitting = false;
-  readonly categoryOptions: Array<{ value: 'all' | 'returning' | 'sleeping' | 'vip'; label: string }> = [
+  isDeletingSelected = false;
+  selectedCouponIds = new Set<string>();
+  readonly categoryOptions: Array<{ value: 'all' | 'returning' | 'sleeping' | 'vip' | 'new'; label: string }> = [
     { value: 'all', label: 'כל הלקוחות' },
+    { value: 'new', label: 'לקוחות חדשים' },
     { value: 'returning', label: 'לקוחות חוזרים' },
     { value: 'sleeping', label: 'לקוחות ישנים' },
     { value: 'vip', label: 'לקוחות VIP' }
@@ -35,6 +39,7 @@ export class AdminCouponsComponent implements OnInit {
       minOrderValue: [0, [Validators.required, Validators.min(0)]],
       expiryDate: ['', [Validators.required]],
       maxUses: [100, [Validators.required, Validators.min(1)]],
+      maxUsesPerCustomer: [1, [Validators.required, Validators.min(1)]],
       isActive: [true],
       isVipOnly: [false],
       targetCustomerCategory: ['all', [Validators.required]]
@@ -48,6 +53,7 @@ export class AdminCouponsComponent implements OnInit {
     this.couponService.getCoupons().subscribe({
       next: (list) => {
         this.coupons = list;
+        this.retainExistingSelection();
         this.isLoading = false;
       },
       error: (err) => {
@@ -64,11 +70,22 @@ export class AdminCouponsComponent implements OnInit {
 
   getAudienceLabel(c: Coupon): string {
     const target = c.targetCustomerCategory || 'all';
+    if (target === 'new') return 'לקוחות חדשים';
     if (target === 'returning') return 'לקוחות חוזרים';
     if (target === 'sleeping') return 'לקוחות ישנים';
     if (target === 'vip') return 'לקוחות VIP';
     if (c.isVipOnly) return 'VIP בלבד';
     return 'כללי';
+  }
+
+  getUsageDisplay(c: Coupon): string {
+    const currentUses = Number(c.currentUses ?? c.usageCount ?? 0);
+    const maxUses = c.maxUses == null ? 'ללא הגבלה' : String(c.maxUses);
+    return `${currentUses}/${maxUses}`;
+  }
+
+  getExpiryDate(coupon: Coupon): string | null {
+    return coupon.expiryDate || coupon.expiresAt || null;
   }
 
   toggleActive(coupon: Coupon): void {
@@ -78,6 +95,59 @@ export class AdminCouponsComponent implements OnInit {
         this.showSuccess('הקופון עודכן');
       },
       error: () => this.showError('שגיאה בעדכון הקופון')
+    });
+  }
+
+  toggleCouponSelection(couponId: string, checked: boolean): void {
+    if (!couponId) return;
+    if (checked) {
+      this.selectedCouponIds.add(couponId);
+    } else {
+      this.selectedCouponIds.delete(couponId);
+    }
+  }
+
+  isCouponSelected(couponId: string): boolean {
+    return this.selectedCouponIds.has(couponId);
+  }
+
+  toggleSelectAll(checked: boolean): void {
+    if (checked) {
+      for (const c of this.coupons) {
+        if (c?._id) this.selectedCouponIds.add(c._id);
+      }
+      return;
+    }
+    this.selectedCouponIds.clear();
+  }
+
+  get selectedCount(): number {
+    return this.selectedCouponIds.size;
+  }
+
+  get areAllSelected(): boolean {
+    return this.coupons.length > 0 && this.coupons.every((c) => this.selectedCouponIds.has(c._id));
+  }
+
+  deleteSelectedCoupons(): void {
+    if (this.isDeletingSelected || this.selectedCount === 0) return;
+    if (!confirm(`למחוק ${this.selectedCount} קופונים נבחרים?`)) return;
+
+    const selectedIds = Array.from(this.selectedCouponIds);
+    this.isDeletingSelected = true;
+    this.errorMessage = '';
+
+    forkJoin(selectedIds.map((id) => this.couponService.deleteCoupon(id))).subscribe({
+      next: () => {
+        this.isDeletingSelected = false;
+        this.selectedCouponIds.clear();
+        this.showSuccess('הקופונים הנבחרים נמחקו בהצלחה');
+        this.loadCoupons();
+      },
+      error: (err) => {
+        this.isDeletingSelected = false;
+        this.showError(err?.error?.message || 'שגיאה במחיקת קופונים נבחרים');
+      }
     });
   }
 
@@ -100,6 +170,7 @@ export class AdminCouponsComponent implements OnInit {
       minOrderValue: Number(v.minOrderValue) || 0,
       expiryDate: v.expiryDate,
       maxUses: Number(v.maxUses) || 1,
+      maxUsesPerCustomer: Number(v.maxUsesPerCustomer) || 1,
       isActive: v.isActive !== false,
       isVipOnly: v.isVipOnly === true,
       targetCustomerCategory: v.targetCustomerCategory || 'all'
@@ -113,6 +184,7 @@ export class AdminCouponsComponent implements OnInit {
           minOrderValue: 0,
           expiryDate: '',
           maxUses: 100,
+          maxUsesPerCustomer: 1,
           isActive: true,
           isVipOnly: false,
           targetCustomerCategory: 'all'
@@ -128,7 +200,9 @@ export class AdminCouponsComponent implements OnInit {
   }
 
   isExpired(coupon: Coupon): boolean {
-    return new Date(coupon.expiryDate) < new Date();
+    const expiry = this.getExpiryDate(coupon);
+    if (!expiry) return false;
+    return new Date(expiry) < new Date();
   }
 
   private showSuccess(msg: string): void {
@@ -139,5 +213,13 @@ export class AdminCouponsComponent implements OnInit {
   private showError(msg: string): void {
     this.errorMessage = msg;
     setTimeout(() => (this.errorMessage = ''), 5000);
+  }
+
+  private retainExistingSelection(): void {
+    if (this.selectedCouponIds.size === 0) return;
+    const visibleIds = new Set(this.coupons.map((c) => c._id));
+    this.selectedCouponIds.forEach((id) => {
+      if (!visibleIds.has(id)) this.selectedCouponIds.delete(id);
+    });
   }
 }

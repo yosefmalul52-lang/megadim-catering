@@ -14,6 +14,16 @@
       </div>
     </div>
 
+    <div class="bulk-actions">
+      <label class="select-all-label">
+        <input type="checkbox" [checked]="areAllSelected" (change)="toggleSelectAll($any($event.target).checked)" />
+        <span>בחר הכל</span>
+      </label>
+      <button type="button" class="btn-delete-selected" [disabled]="selectedCount === 0 || isDeletingSelected" (click)="deleteSelectedCoupons()">
+        @if (isDeletingSelected) { מוחק... } @else { מחיקת נבחרים ({{ selectedCount }}) }
+      </button>
+    </div>
+
     <section class="create-section card">
       <h2 class="card-title">קופון חדש</h2>
       <form [formGroup]="createForm" (ngSubmit)="onSubmitCreate()" class="create-form">
@@ -60,7 +70,14 @@
             }
           </div>
           <div class="field">
-            <label for="targetCustomerCategory">קטגוריית יעד</label>
+            <label for="maxUsesPerCustomer">מקסימום שימושים ללקוח</label>
+            <input id="maxUsesPerCustomer" type="number" formControlName="maxUsesPerCustomer" class="input" min="1" />
+            @if (createForm.get('maxUsesPerCustomer')?.invalid && createForm.get('maxUsesPerCustomer')?.touched) {
+              <span class="field-error">לפחות 1</span>
+            }
+          </div>
+          <div class="field">
+            <label for="targetCustomerCategory">קהל יעד</label>
             <select id="targetCustomerCategory" formControlName="targetCustomerCategory" class="input">
               @for (opt of categoryOptions; track opt.value) {
                 <option [value]="opt.value">{{ opt.label }}</option>
@@ -101,11 +118,13 @@
         <table class="coupons-table">
           <thead>
             <tr>
+              <th class="select-col">בחירה</th>
               <th>קוד</th>
               <th>הנחה</th>
               <th>מינימום הזמנה</th>
               <th>תוקף</th>
               <th>שימושים (נוכחי/מקס)</th>
+              <th>סה״כ הכנסות</th>
               <th>קהל</th>
               <th>סטטוס</th>
             </tr>
@@ -113,11 +132,20 @@
           <tbody>
             @for (c of coupons; track c._id) {
               <tr [class.expired]="isExpired(c)">
+                <td class="select-col">
+                  <input
+                    type="checkbox"
+                    [checked]="isCouponSelected(c._id)"
+                    (change)="toggleCouponSelection(c._id, $any($event.target).checked)"
+                    [attr.aria-label]="'בחר קופון ' + c.code"
+                  />
+                </td>
                 <td class="code-cell">{{ c.code }}</td>
                 <td class="discount-cell">{{ getDiscountLabel(c) }}</td>
                 <td class="min-cell">₪{{ c.minOrderValue | number:'1.0-0' }}</td>
-                <td class="date-cell">{{ c.expiryDate | date:'dd/MM/yyyy' }}</td>
-                <td class="uses-cell">{{ c.currentUses }} / {{ c.maxUses }}</td>
+                <td class="date-cell">{{ getExpiryDate(c) | date:'dd/MM/yyyy' }}</td>
+                <td class="uses-cell">{{ getUsageDisplay(c) }}</td>
+                <td class="revenue-cell">{{ (c.totalRevenueGenerated || 0) | currency:'ILS':'symbol-narrow':'1.0-0' }}</td>
                 <td>{{ getAudienceLabel(c) }}</td>
                 <td class="active-cell">
                   <button type="button" class="toggle-btn" [class.active]="c.isActive" (click)="toggleActive(c)" [attr.aria-label]="c.isActive ? 'כבה קופון' : 'הפעל קופון'">

@@ -4,7 +4,13 @@ import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
-export type AdminContactStatus = 'new' | 'read' | 'handled';
+export type AdminContactStatus =
+  | 'new'
+  | 'attempted_contact'
+  | 'qualified'
+  | 'unqualified'
+  | 'won'
+  | 'lost';
 
 export interface AdminContact {
   id: string;
@@ -15,6 +21,11 @@ export interface AdminContact {
   status: AdminContactStatus;
   source?: string;
   notes?: string;
+  leadScore?: 'A' | 'B' | 'C' | number;
+  lastContactAt?: string;
+  nextFollowUpAt?: string;
+  outcomeReason?: string;
+  ownerNotes?: string;
   marketingData?: {
     utm_source?: string;
     utm_medium?: string;
@@ -41,6 +52,10 @@ export interface AdminContactsResponse {
 export interface LeadsBySourcePoint {
   source: string;
   leadsCount: number;
+  qualifiedCount: number;
+  wonCount: number;
+  qualifiedRate: number;
+  wonRate: number;
 }
 
 @Injectable({
@@ -102,11 +117,22 @@ export class AdminContactsService {
       );
   }
 
-  updateContactStatus(id: string, status: AdminContactStatus): Observable<AdminContact | null> {
+  updateContactStatus(
+    id: string,
+    payload: {
+      status?: AdminContactStatus;
+      notes?: string;
+      leadScore?: 'A' | 'B' | 'C' | number;
+      lastContactAt?: string | null;
+      nextFollowUpAt?: string | null;
+      outcomeReason?: string;
+      ownerNotes?: string;
+    }
+  ): Observable<AdminContact | null> {
     return this.http
       .patch<{ success: boolean; data: AdminContact & { _id?: string } }>(
         `${environment.apiUrl}/contact/${id}/status`,
-        { status }
+        payload
       )
       .pipe(
         map((res) => {
@@ -140,5 +166,15 @@ export class AdminContactsService {
           return of([]);
         })
       );
+  }
+
+  deleteContact(id: string): Observable<boolean> {
+    return this.http.delete<{ success: boolean }>(`${environment.apiUrl}/contact/${id}`).pipe(
+      map((res) => !!res?.success),
+      catchError((error) => {
+        console.error('Error deleting contact:', error);
+        return of(false);
+      })
+    );
   }
 }

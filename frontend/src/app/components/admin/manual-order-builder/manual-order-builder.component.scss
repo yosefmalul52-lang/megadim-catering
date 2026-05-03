@@ -179,6 +179,22 @@ $radius: 12px;
   flex-shrink: 0;
 }
 
+.btn-toggle-free {
+  height: 40px;
+  padding: 0 0.6rem;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #fff;
+  color: $slate;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.btn-toggle-free:hover {
+  background: #f8fafc;
+}
+
 .btn-remove-item {
   width: 40px;
   height: 40px;

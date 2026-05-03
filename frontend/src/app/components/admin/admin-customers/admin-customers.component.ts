@@ -1,10 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, HostListener } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   UsersService,
   AdminUser,
   UpdateCrmPayload,
+  CreateCustomerPayload,
   CustomerAuditResponse,
   ResolvedSiteUser,
   SiteUserRole
@@ -15,6 +16,8 @@ import { forkJoin } from 'rxjs';
 export type FilterType = 'all' | 'returning' | 'sleeping' | 'vip' | 'registered';
 export type ManualStatus = 'NONE' | 'VIP' | 'BLACKLIST';
 export type CustomerCategory = 'all' | 'returning' | 'sleeping' | 'vip' | 'registered';
+type SortField = 'createdAt' | 'lastOrderDate' | 'orderCount' | 'totalSpent' | 'fullName';
+type SortDirection = 'desc' | 'asc';
 
 @Component({
   selector: 'app-admin-customers',
@@ -55,6 +58,7 @@ export class AdminCustomersComponent implements OnInit {
   panelPhone = '';
   panelEmail = '';
   panelAddress = '';
+  panelCity = '';
   panelManualStatus: ManualStatus = 'NONE';
   panelCustomerCategory: CustomerCategory = 'all';
   isSavingCrm = false;
@@ -66,10 +70,18 @@ export class AdminCustomersComponent implements OnInit {
   historyCustomer: AdminUser | null = null;
   customerOrders: Order[] = [];
   readonly pageSize = 15;
+  readonly usersFetchLimit = 1000;
   currentPage = 1;
+  searchTerm = '';
+  sortField: SortField = 'createdAt';
+  sortDirection: SortDirection = 'desc';
+  cityFilter = '';
+  minSpentFilter: number | null = null;
+  lastOrderBeforeDaysFilter: number | null = null;
 
   isAuditModalOpen = false;
   isAuditLoading = false;
+  isReconciling = false;
   auditError = '';
   auditReport: CustomerAuditResponse | null = null;
 
@@ -78,6 +90,14 @@ export class AdminCustomersComponent implements OnInit {
   linkedUserError = '';
   panelSiteRole: SiteUserRole = 'user';
   isSavingSiteRole = false;
+  selectedCustomerIds = new Set<string>();
+  isAddingCustomer = false;
+  isCreatingCustomer = false;
+  newCustomerFullName = '';
+  newCustomerPhone = '';
+  newCustomerEmail = '';
+  newCustomerAddress = '';
+  newCustomerCity = '';
   readonly siteRoleOptions: { value: SiteUserRole; label: string }[] = [
     { value: 'user', label: 'לקוח (אתר)' },
     { value: 'driver', label: 'נהג / סטאף משלוחים' },
@@ -88,11 +108,34 @@ export class AdminCustomersComponent implements OnInit {
     this.loadUsers();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscapePressed(): void {
+    if (this.isAuditModalOpen) {
+      this.closeAuditModal();
+      return;
+    }
+    if (this.isHistoryModalOpen) {
+      this.closeOrderHistory();
+      return;
+    }
+    if (this.selectedUser) {
+      this.closePanel();
+    }
+  }
+
   loadUsers(): void {
     this.isLoading = true;
     this.errorMessage = '';
-    this.usersService.getUsers().subscribe({
+    this.usersService
+      .getUsers({
+        limit: this.usersFetchLimit,
+        city: this.cityFilter,
+        minTotalSpent: Number(this.minSpentFilter || 0),
+        lastOrderBeforeDays: Number(this.lastOrderBeforeDaysFilter || 0)
+      })
+      .subscribe({
       next: (list) => {
+        this.selectedCustomerIds.clear();
         this.users = (list || []).map((u) => ({
           ...u,
           username: u.username || u.email || '',
@@ -115,29 +158,110 @@ export class AdminCustomersComponent implements OnInit {
     this.currentFilter = filter;
     this.currentPage = 1;
     this.applyFilter();
+    this.selectedCustomerIds.clear();
+  }
+
+  onSearchTermChange(value: string): void {
+    this.searchTerm = value;
+    this.currentPage = 1;
+    this.applyFilter();
+    this.selectedCustomerIds.clear();
+  }
+
+  setSort(field: SortField): void {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'desc' ? 'asc' : 'desc';
+    } else {
+      this.sortField = field;
+      this.sortDirection = field === 'fullName' ? 'asc' : 'desc';
+    }
+    this.applyFilter();
+  }
+
+  clearFiltersAndSearch(): void {
+    this.currentFilter = 'all';
+    this.searchTerm = '';
+    this.sortField = 'createdAt';
+    this.sortDirection = 'desc';
+    this.cityFilter = '';
+    this.minSpentFilter = null;
+    this.lastOrderBeforeDaysFilter = null;
+    this.currentPage = 1;
+    this.loadUsers();
+  }
+
+  applyServerFilters(): void {
+    this.currentPage = 1;
+    this.selectedCustomerIds.clear();
+    this.loadUsers();
   }
 
   private applyFilter(): void {
+    const normalizedSearch = this.normalizeSearch(this.searchTerm);
+    const byCategory = this.users.filter((u) => this.matchesCategoryFilter(u));
+    const bySearch = normalizedSearch
+      ? byCategory.filter((u) => this.matchesSearch(u, normalizedSearch))
+      : byCategory;
+    this.filteredUsers = this.sortUsers(bySearch);
+    this.ensurePageInRange();
+  }
+
+  private matchesCategoryFilter(user: AdminUser): boolean {
     switch (this.currentFilter) {
       case 'returning':
-        this.filteredUsers = this.users.filter((u) => (u.customerCategory || 'all') === 'returning');
-        break;
+        return (user.customerCategory || 'all') === 'returning';
       case 'sleeping':
-        this.filteredUsers = this.users.filter((u) => (u.customerCategory || 'all') === 'sleeping');
-        break;
+        return (user.customerCategory || 'all') === 'sleeping';
       case 'vip':
-        this.filteredUsers = this.users.filter((u) => (u.customerCategory || 'all') === 'vip');
-        break;
+        return (user.customerCategory || 'all') === 'vip';
       case 'registered':
-        this.filteredUsers = this.users.filter(
-          (u) =>
-            u.isRegistered === true || (u.customerCategory || 'all') === 'registered'
-        );
-        break;
+        return user.isRegistered === true || (user.customerCategory || 'all') === 'registered';
       default:
-        this.filteredUsers = [...this.users];
+        return true;
     }
-    this.ensurePageInRange();
+  }
+
+  private matchesSearch(user: AdminUser, normalizedSearch: string): boolean {
+    const candidates = [
+      user.fullName,
+      user.phone,
+      user.email,
+      user.username,
+      user.address,
+      user.city,
+      user.adminNotes
+    ]
+      .map((value) => this.normalizeSearch(String(value || '')))
+      .filter(Boolean);
+    return candidates.some((value) => value.includes(normalizedSearch));
+  }
+
+  private sortUsers(users: AdminUser[]): AdminUser[] {
+    const sorted = [...users];
+    sorted.sort((a, b) => {
+      const direction = this.sortDirection === 'asc' ? 1 : -1;
+      if (this.sortField === 'fullName') {
+        const aVal = String(a.fullName || '').trim().toLowerCase();
+        const bVal = String(b.fullName || '').trim().toLowerCase();
+        return aVal.localeCompare(bVal, 'he') * direction;
+      }
+      if (this.sortField === 'lastOrderDate' || this.sortField === 'createdAt') {
+        const aTime = new Date(String(a[this.sortField] || '')).getTime() || 0;
+        const bTime = new Date(String(b[this.sortField] || '')).getTime() || 0;
+        return (aTime - bTime) * direction;
+      }
+      const aNum = Number(a[this.sortField] || 0);
+      const bNum = Number(b[this.sortField] || 0);
+      return (aNum - bNum) * direction;
+    });
+    return sorted;
+  }
+
+  private normalizeSearch(value: string): string {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
   }
 
   private ensurePageInRange(): void {
@@ -152,6 +276,7 @@ export class AdminCustomersComponent implements OnInit {
     this.panelPhone = user.phone || '';
     this.panelEmail = user.email || user.username || '';
     this.panelAddress = user.address || '';
+    this.panelCity = user.city || '';
     this.panelAdminNotes = user.adminNotes ?? '';
     this.panelDietaryInfo = user.dietaryInfo ?? '';
     this.panelManualStatus = (user.manualStatus || 'NONE') as ManualStatus;
@@ -163,6 +288,52 @@ export class AdminCustomersComponent implements OnInit {
   closePanel(): void {
     this.selectedUser = null;
     this.clearLinkedSiteUser();
+  }
+
+  openAddCustomerModal(): void {
+    this.isAddingCustomer = true;
+    this.newCustomerFullName = '';
+    this.newCustomerPhone = '';
+    this.newCustomerEmail = '';
+    this.newCustomerAddress = '';
+    this.newCustomerCity = '';
+  }
+
+  closeAddCustomerModal(): void {
+    this.isAddingCustomer = false;
+    this.isCreatingCustomer = false;
+  }
+
+  createCustomer(): void {
+    if (this.isCreatingCustomer) return;
+    const fullName = this.newCustomerFullName.trim();
+    const phone = this.newCustomerPhone.trim();
+    if (!fullName || !phone) {
+      this.errorMessage = 'יש להזין שם מלא וטלפון';
+      return;
+    }
+    const payload: CreateCustomerPayload = {
+      fullName,
+      phone,
+      email: this.newCustomerEmail.trim() || undefined,
+      address: this.newCustomerAddress.trim() || undefined,
+      city: this.newCustomerCity.trim() || undefined
+    };
+    this.isCreatingCustomer = true;
+    this.usersService.createCustomer(payload).subscribe({
+      next: (created) => {
+        this.isCreatingCustomer = false;
+        this.closeAddCustomerModal();
+        this.successMessage = 'לקוח חדש נוסף בהצלחה';
+        this.users = [{ ...created, username: created.username || created.email || '' }, ...this.users];
+        this.applyFilter();
+        setTimeout(() => (this.successMessage = ''), 2500);
+      },
+      error: (err) => {
+        this.isCreatingCustomer = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בהוספת לקוח';
+      }
+    });
   }
 
   private clearLinkedSiteUser(): void {
@@ -235,6 +406,7 @@ export class AdminCustomersComponent implements OnInit {
       fullName: this.panelFullName,
       email: this.panelEmail,
       address: this.panelAddress,
+      city: this.panelCity,
       adminNotes: this.panelAdminNotes,
       dietaryInfo: this.panelDietaryInfo,
       manualStatus: this.panelManualStatus,
@@ -253,6 +425,7 @@ export class AdminCustomersComponent implements OnInit {
         this.panelPhone = updated.phone || '';
         this.panelEmail = updated.email || updated.username || '';
         this.panelAddress = updated.address || '';
+        this.panelCity = updated.city || '';
         this.panelAdminNotes = updated.adminNotes ?? '';
         this.panelDietaryInfo = updated.dietaryInfo ?? '';
         this.panelManualStatus = (updated.manualStatus || 'NONE') as ManualStatus;
@@ -272,6 +445,25 @@ export class AdminCustomersComponent implements OnInit {
     });
   }
 
+  get isCrmDirty(): boolean {
+    if (!this.selectedUser) return false;
+    return (
+      this.panelFullName !== (this.selectedUser.fullName || '') ||
+      this.panelPhone !== (this.selectedUser.phone || '') ||
+      this.panelEmail !== (this.selectedUser.email || this.selectedUser.username || '') ||
+      this.panelAddress !== (this.selectedUser.address || '') ||
+      this.panelCity !== (this.selectedUser.city || '') ||
+      this.panelAdminNotes !== (this.selectedUser.adminNotes ?? '') ||
+      this.panelDietaryInfo !== (this.selectedUser.dietaryInfo ?? '') ||
+      this.panelManualStatus !== ((this.selectedUser.manualStatus || 'NONE') as ManualStatus) ||
+      this.panelCustomerCategory !== ((this.selectedUser.customerCategory || 'all') as CustomerCategory)
+    );
+  }
+
+  get canSaveCrm(): boolean {
+    return !!this.selectedUser && !this.isSavingCrm && this.isCrmDirty;
+  }
+
   openOrderHistory(user: AdminUser): void {
     this.historyCustomer = user;
     this.isHistoryModalOpen = true;
@@ -284,16 +476,30 @@ export class AdminCustomersComponent implements OnInit {
       .trim()
       .toLowerCase();
 
-    forkJoin([this.orderService.getAllOrders(false), this.orderService.getAllOrders(true)]).subscribe({
-      next: ([activeOrders, archivedOrders]) => {
-        const all = [...activeOrders, ...archivedOrders];
-        this.customerOrders = all
+    this.orderService.getAllOrders(false, 250).subscribe({
+      next: (activeOrders) => {
+        const fromActive = activeOrders
           .filter((order) => this.isOrderVisibleInHistory(order))
-          .filter((order) => this.isOrderOfCustomer(order, phone, email))
-          .sort(
-            (a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-          );
-        this.isLoadingOrderHistory = false;
+          .filter((order) => this.isOrderOfCustomer(order, phone, email));
+        if (fromActive.length > 0) {
+          this.customerOrders = this.sortOrdersByDate(fromActive);
+          this.isLoadingOrderHistory = false;
+          return;
+        }
+        this.orderService.getAllOrders(true, 250).subscribe({
+          next: (archivedOrders) => {
+            this.customerOrders = this.sortOrdersByDate(
+              archivedOrders
+                .filter((order) => this.isOrderVisibleInHistory(order))
+                .filter((order) => this.isOrderOfCustomer(order, phone, email))
+            );
+            this.isLoadingOrderHistory = false;
+          },
+          error: () => {
+            this.orderHistoryError = 'שגיאה בטעינת היסטוריית הזמנות';
+            this.isLoadingOrderHistory = false;
+          }
+        });
       },
       error: () => {
         this.orderHistoryError = 'שגיאה בטעינת היסטוריית הזמנות';
@@ -302,12 +508,21 @@ export class AdminCustomersComponent implements OnInit {
     });
   }
 
+  private sortOrdersByDate(orders: Order[]): Order[] {
+    return [...orders].sort((a, b) => new Date(String(b.createdAt || '')).getTime() - new Date(String(a.createdAt || '')).getTime());
+  }
+
   closeOrderHistory(): void {
     this.isHistoryModalOpen = false;
     this.isLoadingOrderHistory = false;
     this.orderHistoryError = '';
     this.historyCustomer = null;
     this.customerOrders = [];
+  }
+
+  retryOrderHistory(): void {
+    if (!this.historyCustomer) return;
+    this.openOrderHistory(this.historyCustomer);
   }
 
   getOrderRowTotal(order: Order): number {
@@ -402,6 +617,50 @@ export class AdminCustomersComponent implements OnInit {
     });
   }
 
+  runReconcileAndAudit(): void {
+    if (this.isReconciling) return;
+    this.isReconciling = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.usersService.migrateLegacyCustomers().subscribe({
+      next: (res) => {
+        this.successMessage =
+          res?.message || 'בוצע Reconcile ללקוחות. מריץ ביקורת נתונים מעודכנת...';
+        this.loadUsers();
+        this.runAudit();
+        this.isReconciling = false;
+      },
+      error: (err) => {
+        this.isReconciling = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בהרצת Reconcile ללקוחות';
+      }
+    });
+  }
+
+  exportFilteredCustomersCsv(): void {
+    const headers = ['שם', 'טלפון', 'אימייל', 'סך הוצאות'];
+    const rows = this.filteredUsers.map((u) => [
+      u.fullName || '',
+      u.phone || '',
+      u.email || u.username || '',
+      String(Number(u.totalSpent || 0))
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `crm-customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   closeAuditModal(): void {
     this.isAuditModalOpen = false;
     this.auditError = '';
@@ -488,6 +747,69 @@ export class AdminCustomersComponent implements OnInit {
         this.errorMessage = err?.error?.message || 'שגיאה במחיקת הלקוח';
       }
     });
+  }
+
+  toggleCustomerSelection(userId: string, checked: boolean): void {
+    if (checked) this.selectedCustomerIds.add(userId);
+    else this.selectedCustomerIds.delete(userId);
+  }
+
+  isCustomerSelected(userId: string): boolean {
+    return this.selectedCustomerIds.has(userId);
+  }
+
+  toggleSelectAllFiltered(checked: boolean): void {
+    if (checked) {
+      this.filteredUsers.forEach((u) => this.selectedCustomerIds.add(u._id));
+      return;
+    }
+    this.selectedCustomerIds.clear();
+  }
+
+  get areAllFilteredSelected(): boolean {
+    return this.filteredUsers.length > 0 && this.filteredUsers.every((u) => this.selectedCustomerIds.has(u._id));
+  }
+
+  get selectedCount(): number {
+    return this.selectedCustomerIds.size;
+  }
+
+  deleteSelectedCustomers(): void {
+    const ids = Array.from(this.selectedCustomerIds);
+    if (ids.length === 0) return;
+    const ok = window.confirm(`למחוק ${ids.length} לקוחות נבחרים? פעולה זו אינה ניתנת לשחזור.`);
+    if (!ok) return;
+    this.errorMessage = '';
+    forkJoin(ids.map((id) => this.usersService.deleteUser(id))).subscribe({
+      next: () => {
+        this.users = this.users.filter((u) => !this.selectedCustomerIds.has(u._id));
+        this.filteredUsers = this.filteredUsers.filter((u) => !this.selectedCustomerIds.has(u._id));
+        if (this.selectedUser && this.selectedCustomerIds.has(this.selectedUser._id)) {
+          this.closePanel();
+        }
+        this.selectedCustomerIds.clear();
+        this.ensurePageInRange();
+        this.successMessage = 'הלקוחות הנבחרים נמחקו בהצלחה';
+        setTimeout(() => (this.successMessage = ''), 2500);
+      },
+      error: (err) => {
+        this.errorMessage = err?.error?.message || 'שגיאה במחיקת לקוחות נבחרים';
+      }
+    });
+  }
+
+  get hasActiveQuery(): boolean {
+    return (
+      this.currentFilter !== 'all' ||
+      !!this.searchTerm.trim() ||
+      !!this.cityFilter.trim() ||
+      Number(this.minSpentFilter || 0) > 0 ||
+      Number(this.lastOrderBeforeDaysFilter || 0) > 0
+    );
+  }
+
+  get canShowTruncationNotice(): boolean {
+    return this.users.length >= this.usersFetchLimit;
   }
 
 }

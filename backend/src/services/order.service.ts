@@ -740,6 +740,81 @@ export class OrderService {
     }
   }
 
+  async bulkApplyAction(input: {
+    orderIds: string[];
+    action: 'status' | 'archive' | 'restore' | 'permanent_delete';
+    status?: string;
+  }): Promise<{ matchedCount: number; modifiedCount: number; deletedCount: number }> {
+    const uniqueIds = Array.from(
+      new Set(
+        (input.orderIds || [])
+          .map((id) => String(id || '').trim())
+          .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      )
+    );
+
+    if (!uniqueIds.length) {
+      return { matchedCount: 0, modifiedCount: 0, deletedCount: 0 };
+    }
+
+    const objectIds = uniqueIds.map((id) => new mongoose.Types.ObjectId(id));
+    const baseFilter = { _id: { $in: objectIds } };
+
+    switch (input.action) {
+      case 'status': {
+        const status = String(input.status || '').trim();
+        const validStatuses = new Set([
+          'pending',
+          'processing',
+          'ready',
+          'cancelled',
+          'new',
+          'in-progress',
+          'out_for_delivery',
+          'delivery_failed',
+          'delivered'
+        ]);
+        if (!validStatuses.has(status)) {
+          throw new Error('Invalid status value');
+        }
+        const result = await Order.updateMany(baseFilter, { $set: { status } });
+        return {
+          matchedCount: Number(result.matchedCount || 0),
+          modifiedCount: Number(result.modifiedCount || 0),
+          deletedCount: 0
+        };
+      }
+      case 'archive': {
+        const result = await Order.updateMany(baseFilter, { $set: { isDeleted: true } });
+        return {
+          matchedCount: Number(result.matchedCount || 0),
+          modifiedCount: Number(result.modifiedCount || 0),
+          deletedCount: 0
+        };
+      }
+      case 'restore': {
+        const result = await Order.updateMany(baseFilter, {
+          $set: { isDeleted: false, status: 'pending' }
+        });
+        return {
+          matchedCount: Number(result.matchedCount || 0),
+          modifiedCount: Number(result.modifiedCount || 0),
+          deletedCount: 0
+        };
+      }
+      case 'permanent_delete': {
+        const result = await Order.deleteMany(baseFilter);
+        return {
+          matchedCount: Number(result.deletedCount || 0),
+          modifiedCount: 0,
+          deletedCount: Number(result.deletedCount || 0)
+        };
+      }
+      default:
+        throw new Error('Invalid bulk action');
+    }
+  }
+
   // Search orders
   async searchOrders(query: string): Promise<IOrder[]> {
     try {
@@ -918,26 +993,37 @@ export class OrderService {
 
   // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
   // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
-  async getKitchenReport(targetDate?: string): Promise<{ 
-    productName: string;
-    category: string;
-    totalPackages: number; 
-    totalWeightRaw: number; 
-    displayWeight: string;
-    unit?: string;
-    isUnitOnly?: boolean; // Flag to indicate if this category should show units only
-  }[]> {
+  async getKitchenReport(targetDate?: string): Promise<{
+    items: Array<{
+      productName: string;
+      category: string;
+      totalPackages: number;
+      totalWeightRaw: number;
+      displayWeight: string;
+      unit?: string;
+      isUnitOnly?: boolean;
+      prepWindow?: 'now' | 'soon' | 'later';
+      prepWindowLabel?: string;
+      prepSortOrder?: number;
+    }>;
+    meta: {
+      generatedAt: string;
+      activeOrdersCount: number;
+      appliedDate?: string;
+    };
+  }> {
     try {
-      // Active order statuses - include all variations
-      const activeStatuses = ['new', 'in-progress', 'ready', 'accepted', 'processing', 'בטיפול', 'חדש', 'New'];
-      
+      // Kitchen report should include only pending/in-progress kitchen work.
+      const activeStatuses = ['pending', 'new', 'processing', 'in-progress'];
+
       const normalizedTargetDate =
         typeof targetDate === 'string' && targetDate.trim()
           ? (targetDate.includes('T') ? targetDate.slice(0, 10) : targetDate.trim())
           : '';
 
       const matchStage: Record<string, any> = {
-        status: { $in: activeStatuses }
+        status: { $in: activeStatuses },
+        isDeleted: { $ne: true }
       };
 
       // Kitchen prep should use the intended delivery/pickup date (customerDetails.eventDate).
@@ -950,12 +1036,7 @@ export class OrderService {
           { 'customerDetails.eventDate': dateRegex }
         ];
       }
-
-      console.log('🔍 OrderService: Starting kitchen report with aggregation pipeline');
-      console.log('🔍 OrderService: Filtering by statuses:', activeStatuses);
-      if (normalizedTargetDate) {
-        console.log('🔍 OrderService: Filtering kitchen report by event date:', normalizedTargetDate);
-      }
+      const activeOrdersCount = await Order.countDocuments(matchStage);
 
       // Use aggregation pipeline with $lookup to populate product details
       const aggregationResult: any[] = await Order.aggregate([
@@ -1025,7 +1106,8 @@ export class OrderService {
                 then: true,
                 else: false
               }
-            }
+            },
+            eventDateRaw: { $ifNull: ['$customerDetails.eventDate', ''] }
           }
         },
         
@@ -1047,7 +1129,8 @@ export class OrderService {
             productName: { $first: '$productName' },
             category: { $first: '$category' },
             weightString: { $first: '$productNameForWeight' },
-            hasProductDetails: { $first: '$hasProductDetails' }
+            hasProductDetails: { $first: '$hasProductDetails' },
+            eventDateMin: { $min: '$eventDateRaw' }
           }
         },
         
@@ -1059,7 +1142,8 @@ export class OrderService {
             category: 1,
             totalPackages: 1,
             weightString: 1,
-            hasProductDetails: 1
+            hasProductDetails: 1,
+            eventDateMin: 1
           }
         },
         
@@ -1072,23 +1156,17 @@ export class OrderService {
         }
       ]);
 
-      console.log('🔍 OrderService: Aggregation result count:', aggregationResult.length);
-      console.log('🔍 OrderService: Sample aggregation result:', JSON.stringify(aggregationResult.slice(0, 3), null, 2));
-      
-      // Debug: Log items that failed lookup
-      const itemsWithoutProduct = aggregationResult.filter((item: any) => !item.hasProductDetails);
-      if (itemsWithoutProduct.length > 0) {
-        console.warn('⚠️ OrderService: Items without product details:', itemsWithoutProduct.length);
-        console.warn('⚠️ OrderService: Sample items without product:', JSON.stringify(itemsWithoutProduct.slice(0, 2), null, 2));
-      }
-
       if (aggregationResult.length === 0) {
-        console.warn('⚠️ OrderService: No items found in active orders');
-        return [];
+        return {
+          items: [],
+          meta: {
+            generatedAt: new Date().toISOString(),
+            activeOrdersCount,
+            ...(normalizedTargetDate ? { appliedDate: normalizedTargetDate } : {})
+          }
+        };
       }
 
-      // Process results: Calculate weights and format output
-      // Add safety checks to prevent crashes
       const kitchenReportItems: Array<{
         productName: string;
         category: string;
@@ -1097,13 +1175,34 @@ export class OrderService {
         displayWeight: string;
         unit?: string;
         isUnitOnly: boolean;
+        prepWindow: 'now' | 'soon' | 'later';
+        prepWindowLabel: string;
+        prepSortOrder: number;
       }> = [];
+
+      const parsePrepAt = (eventDateRaw: unknown): Date | null => {
+        const datePart = String(eventDateRaw || '').trim().slice(0, 10);
+        if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
+        const parsed = new Date(`${datePart}T12:00:00`);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      };
+
+      const derivePrepWindow = (eventDateRaw: unknown): { key: 'now' | 'soon' | 'later'; label: string; sortOrder: number } => {
+        const now = Date.now();
+        const prepAt = parsePrepAt(eventDateRaw);
+        if (!prepAt) {
+          return { key: 'later', label: 'לתכנון מאוחר יותר', sortOrder: 2 };
+        }
+        const earliestTs = prepAt.getTime();
+        const diffHours = (earliestTs - now) / (1000 * 60 * 60);
+        if (diffHours <= 12) return { key: 'now', label: 'עכשיו להכנה', sortOrder: 0 };
+        if (diffHours <= 30) return { key: 'soon', label: 'להכין בקרוב', sortOrder: 1 };
+        return { key: 'later', label: 'לתכנון מאוחר יותר', sortOrder: 2 };
+      };
 
       for (const item of aggregationResult) {
         try {
-          // SAFETY CHECK: Ensure item has required fields
           if (!item || !item.productName) {
-            console.warn('⚠️ Skipping invalid item:', JSON.stringify(item, null, 2));
             continue;
           }
 
@@ -1113,7 +1212,6 @@ export class OrderService {
           
           // Validate totalPackages is a valid number
           if (isNaN(totalPackages) || totalPackages <= 0) {
-            console.warn('⚠️ Skipping item with invalid quantity:', productName, 'quantity:', totalPackages);
             continue;
           }
           
@@ -1135,8 +1233,7 @@ export class OrderService {
           const displayWeight = isUnitOnlyCategory 
             ? '-' 
             : this.formatWeight(totalWeightRaw, weightInfo.unit);
-          
-          console.log(`📊 Processing: "${productName}" (${category}) -> ${totalPackages} packages, ${displayWeight} total weight`);
+          const prepWindow = derivePrepWindow(item.eventDateMin);
           
           kitchenReportItems.push({
             productName: productName,
@@ -1145,18 +1242,63 @@ export class OrderService {
             totalWeightRaw: totalWeightRaw,
             displayWeight: displayWeight,
             unit: weightInfo.unit || undefined,
-            isUnitOnly: isUnitOnlyCategory
+            isUnitOnly: isUnitOnlyCategory,
+            prepWindow: prepWindow.key,
+            prepWindowLabel: prepWindow.label,
+            prepSortOrder: prepWindow.sortOrder
           });
         } catch (itemError: any) {
-          console.error('❌ Error processing item:', itemError);
-          console.error('❌ Item data:', JSON.stringify(item, null, 2));
-          // Continue to next item
+          console.error('Error processing kitchen item:', itemError?.message || itemError);
         }
       }
 
+      // Merge near-duplicate rows from legacy naming/casing differences.
+      const merged = new Map<
+        string,
+        {
+          productName: string;
+          category: string;
+          totalPackages: number;
+          totalWeightRaw: number;
+          displayWeight: string;
+          unit?: string;
+          isUnitOnly: boolean;
+          prepWindow: 'now' | 'soon' | 'later';
+          prepWindowLabel: string;
+          prepSortOrder: number;
+        }
+      >();
+
+      for (const row of kitchenReportItems) {
+        const category = String(row.category || 'תוספות').trim();
+        const productName = String(row.productName || '').trim();
+        if (!productName) continue;
+        const key = `${category.toLowerCase()}::${productName.toLowerCase()}`;
+        const prev = merged.get(key);
+        if (!prev) {
+          merged.set(key, { ...row, category, productName });
+          continue;
+        }
+        const nextTotalPackages = Number(prev.totalPackages || 0) + Number(row.totalPackages || 0);
+        const nextTotalWeightRaw = Number(prev.totalWeightRaw || 0) + Number(row.totalWeightRaw || 0);
+        merged.set(key, {
+          ...prev,
+          totalPackages: nextTotalPackages,
+          totalWeightRaw: nextTotalWeightRaw,
+          displayWeight: prev.isUnitOnly
+            ? '-'
+            : this.formatWeight(nextTotalWeightRaw, (prev.unit as any) || null)
+        });
+      }
+
+      const finalItems = Array.from(merged.values());
+
       // Final sort by category order
       const categoryOrder = ['מנות עיקריות', 'סלטים', 'דגים', 'קינוחים'];
-      kitchenReportItems.sort((a, b) => {
+      finalItems.sort((a, b) => {
+        if (a.prepSortOrder !== b.prepSortOrder) {
+          return a.prepSortOrder - b.prepSortOrder;
+        }
         const categoryAIndex = categoryOrder.indexOf(a.category);
         const categoryBIndex = categoryOrder.indexOf(b.category);
 
@@ -1170,16 +1312,16 @@ export class OrderService {
         }
         return a.productName.localeCompare(b.productName);
       });
-
-      const kitchenReport = kitchenReportItems;
-
-      console.log('🍳 OrderService: Kitchen report generated:', JSON.stringify(kitchenReport, null, 2));
-      console.log('🍳 OrderService: Report items count:', kitchenReport.length);
-
-      return kitchenReport;
+      return {
+        items: finalItems,
+        meta: {
+          generatedAt: new Date().toISOString(),
+          activeOrdersCount,
+          ...(normalizedTargetDate ? { appliedDate: normalizedTargetDate } : {})
+        }
+      };
     } catch (error: any) {
-      console.error('❌ Error generating kitchen report:', error);
-      console.error('❌ Error stack:', error.stack);
+      console.error('Error generating kitchen report:', error);
       throw new Error(`Failed to generate kitchen report: ${error.message}`);
     }
   }

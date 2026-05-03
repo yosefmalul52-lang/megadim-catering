@@ -1,151 +1,210 @@
 import { Request, Response } from 'express';
-import Order from '../models/Order';
-import Contact from '../models/Contact';
 import { asyncHandler, createValidationError } from '../middleware/errorHandler';
+import Campaign, { CampaignPlatform, CampaignStatus } from '../models/Campaign';
 
-type Audience = 'vip' | 'all' | 'leads';
 type LaunchBody = {
-  message: string;
-  audience: Audience;
-  channels: string[];
-  couponCode?: string;
+  title: string;
+  content: string;
+  mediaUrl?: string;
+  platforms: CampaignPlatform[];
+  scheduledAt?: string;
 };
 
-type CampaignTarget = {
-  name: string;
-  phone: string;
-  email?: string;
-  ordersCount?: number;
+type CampaignListFilters = {
+  status?: CampaignStatus;
+  limit?: number;
 };
 
-function normalizePhone(raw: unknown): string {
-  let digits = String(raw || '').replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('00972')) digits = digits.slice(5);
-  else if (digits.startsWith('972')) digits = digits.slice(3);
-  if (!digits.startsWith('0')) digits = `0${digits}`;
-  return digits;
-}
-
-async function getOrderTargets(requireReturning: boolean): Promise<CampaignTarget[]> {
-  const docs = await Order.find(
-    { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } },
-    {
-      customerDetails: 1
+function appendSourceParam(urlStr: string): string {
+  try {
+    const url = new URL(urlStr);
+    if (!url.searchParams.has('source')) {
+      url.searchParams.set('source', 'campaign');
     }
-  ).lean();
-
-  const map = new Map<string, CampaignTarget & { count: number }>();
-  for (const d of docs) {
-    const cd = (d as any)?.customerDetails || {};
-    const phoneRaw = cd.phone;
-    const phone = normalizePhone(phoneRaw);
-    if (!phone) continue;
-    const prev = map.get(phone);
-    if (!prev) {
-      map.set(phone, {
-        name: String(cd.fullName || '').trim() || 'לקוח',
-        phone,
-        email: cd.email ? String(cd.email).trim() : undefined,
-        count: 1
-      });
-    } else {
-      prev.count += 1;
-      if (!prev.name && cd.fullName) prev.name = String(cd.fullName).trim();
-      if (!prev.email && cd.email) prev.email = String(cd.email).trim();
-      map.set(phone, prev);
-    }
+    return url.toString();
+  } catch {
+    return urlStr;
   }
-
-  const rows = Array.from(map.values())
-    .filter((r) => (requireReturning ? r.count > 1 : true))
-    .map((r) => ({
-      name: r.name || 'לקוח',
-      phone: r.phone,
-      email: r.email,
-      ordersCount: r.count
-    }));
-  return rows;
 }
 
-async function getLeadTargets(): Promise<CampaignTarget[]> {
-  const docs = await Contact.find({}).select('name phone email').lean();
-  const map = new Map<string, CampaignTarget>();
-  for (const d of docs) {
-    const phone = normalizePhone((d as any)?.phone);
-    if (!phone) continue;
-    if (!map.has(phone)) {
-      map.set(phone, {
-        name: String((d as any)?.name || '').trim() || 'ליד',
-        phone,
-        email: (d as any)?.email ? String((d as any).email).trim() : undefined
-      });
-    }
-  }
-  return Array.from(map.values());
+function processCampaignContent(content: string): string {
+  const urlRegex = /https?:\/\/[^\s)]+/gi;
+  return content.replace(urlRegex, (url) => appendSourceParam(url));
 }
+
+function normalizePlatforms(value: unknown): CampaignPlatform[] {
+  const items = Array.isArray(value) ? value : [];
+  const normalized = items
+    .map((p) => String(p || '').trim().toLowerCase())
+    .filter((p): p is CampaignPlatform => p === 'facebook' || p === 'instagram');
+  return Array.from(new Set(normalized));
+}
+
+export const getCampaigns = asyncHandler(async (req: Request, res: Response) => {
+  const filters: CampaignListFilters = {
+    status:
+      typeof req.query.status === 'string' &&
+      ['draft', 'pending', 'published', 'failed'].includes(req.query.status)
+        ? (req.query.status as CampaignStatus)
+        : undefined,
+    limit: typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20
+  };
+
+  const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100);
+  const query: Record<string, unknown> = {};
+  if (filters.status) query.status = filters.status;
+
+  const docs = await Campaign.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+
+  res.status(200).json({
+    success: true,
+    data: docs,
+    timestamp: new Date().toISOString()
+  });
+});
 
 export const launchCampaign = asyncHandler(async (req: Request, res: Response) => {
   const body = (req.body || {}) as LaunchBody;
-  const message = String(body.message || '').trim();
-  const audience = body.audience;
-  const channels = Array.isArray(body.channels) ? body.channels.filter((c) => typeof c === 'string' && c.trim()) : [];
-  const couponCode = body.couponCode ? String(body.couponCode).trim().toUpperCase() : undefined;
+  const title = String(body.title || '').trim();
+  const content = String(body.content || '').trim();
+  const mediaUrl = body.mediaUrl ? String(body.mediaUrl).trim() : undefined;
+  const platforms = normalizePlatforms(body.platforms);
+  const scheduledAtRaw = body.scheduledAt ? new Date(body.scheduledAt) : null;
+  const scheduledAt =
+    scheduledAtRaw && !Number.isNaN(scheduledAtRaw.getTime()) ? scheduledAtRaw : null;
 
-  if (!message) {
-    throw createValidationError('message is required');
+  if (!title) {
+    throw createValidationError('title is required');
   }
-  if (!audience || !['vip', 'all', 'leads'].includes(audience)) {
-    throw createValidationError('audience must be one of: vip, all, leads');
+  if (!content) {
+    throw createValidationError('content is required');
   }
-  if (channels.length === 0) {
-    throw createValidationError('channels must include at least one channel');
-  }
-
-  let targets: CampaignTarget[] = [];
-  if (audience === 'vip') {
-    targets = await getOrderTargets(true);
-  } else if (audience === 'all') {
-    targets = await getOrderTargets(false);
-  } else {
-    targets = await getLeadTargets();
+  if (platforms.length === 0) {
+    throw createValidationError('platforms must include at least one of: facebook, instagram');
   }
 
+  const processedContent = processCampaignContent(content);
+
+  const campaign = await Campaign.create({
+    title,
+    content: processedContent,
+    mediaUrl: mediaUrl || undefined,
+    platforms,
+    status: 'pending',
+    scheduledAt
+  });
+
+  const campaignId = String(campaign._id);
   const webhookUrl = (process.env.N8N_CAMPAIGN_WEBHOOK_URL || 'https://example.com/n8n-campaign-webhook').trim();
+
   const payload = {
-    message,
-    audience,
-    channels,
-    couponCode,
-    targetsCount: targets.length,
-    targets
+    campaignId,
+    title,
+    content: processedContent,
+    mediaUrl: mediaUrl || null,
+    platforms,
+    scheduledAt: scheduledAt ? scheduledAt.toISOString() : null
   };
 
-  let forwarded = false;
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) {
-      console.error('Campaign webhook responded with non-OK:', response.status, response.statusText);
-    } else {
-      forwarded = true;
+
+    let responseJson: Record<string, unknown> | null = null;
+    try {
+      responseJson = (await response.json()) as Record<string, unknown>;
+    } catch {
+      responseJson = null;
     }
+
+    if (!response.ok) {
+      const failurePayload = {
+        statusCode: response.status,
+        statusText: response.statusText,
+        body: responseJson
+      };
+      const failed = await Campaign.findByIdAndUpdate(
+        campaignId,
+        { $set: { status: 'failed', n8nResponse: failurePayload } },
+        { new: true }
+      ).lean();
+
+      return res.status(502).json({
+        success: false,
+        message: 'Webhook returned an error response',
+        data: failed,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const published = await Campaign.findByIdAndUpdate(
+      campaignId,
+      {
+        $set: {
+          status: 'published',
+          n8nResponse: responseJson || { ok: true }
+        }
+      },
+      { new: true }
+    ).lean();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Campaign launched successfully',
+      data: published,
+      timestamp: new Date().toISOString()
+    });
   } catch (err) {
-    console.error('Campaign webhook failed:', err);
+    const failurePayload = {
+      error: err instanceof Error ? err.message : 'Webhook request failed'
+    };
+    const failed = await Campaign.findByIdAndUpdate(
+      campaignId,
+      { $set: { status: 'failed', n8nResponse: failurePayload } },
+      { new: true }
+    ).lean();
+
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to reach campaign webhook',
+      data: failed,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+export const createDraftCampaign = asyncHandler(async (req: Request, res: Response) => {
+  const body = (req.body || {}) as LaunchBody;
+  const title = String(body.title || '').trim();
+  const content = String(body.content || '').trim();
+  const mediaUrl = body.mediaUrl ? String(body.mediaUrl).trim() : undefined;
+  const platforms = normalizePlatforms(body.platforms);
+  const scheduledAtRaw = body.scheduledAt ? new Date(body.scheduledAt) : null;
+  const scheduledAt =
+    scheduledAtRaw && !Number.isNaN(scheduledAtRaw.getTime()) ? scheduledAtRaw : null;
+
+  if (!title) throw createValidationError('title is required');
+  if (!content) throw createValidationError('content is required');
+  if (!platforms.length) {
+    throw createValidationError('platforms must include at least one of: facebook, instagram');
   }
 
-  res.status(200).json({
+  const draft = await Campaign.create({
+    title,
+    content: processCampaignContent(content),
+    mediaUrl: mediaUrl || undefined,
+    platforms,
+    scheduledAt,
+    status: 'draft'
+  });
+
+  res.status(201).json({
     success: true,
-    message: 'Campaign launch accepted',
-    data: {
-      audience,
-      channels,
-      targetsCount: targets.length,
-      forwarded
-    },
+    message: 'Campaign draft created',
+    data: draft,
     timestamp: new Date().toISOString()
   });
 });

@@ -85,19 +85,25 @@ class ContactController {
         }));
         // Update contact request status (Admin only)
         this.updateContactStatus = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q, _z, _2, _3;
             const { id } = req.params;
-            const { status, notes } = req.body;
+            const { status } = req.body;
             if (!id) {
                 throw (0, errorHandler_1.createValidationError)('Contact request ID is required');
             }
-            if (!status) {
-                throw (0, errorHandler_1.createValidationError)('Status is required');
-            }
-            const validStatuses = ['new', 'read', 'handled'];
-            if (!validStatuses.includes(status)) {
+            const validStatuses = ['new', 'attempted_contact', 'qualified', 'unqualified', 'won', 'lost'];
+            if (status && !validStatuses.includes(status)) {
                 throw (0, errorHandler_1.createValidationError)('Invalid status value');
             }
-            const updatedContact = yield this.contactService.updateContactStatus(id, { status, notes });
+            const updatedContact = yield this.contactService.updateContactStatus(id, {
+                status,
+                notes: (_j = req.body) === null || _j === void 0 ? void 0 : _j.notes,
+                leadScore: (_k = req.body) === null || _k === void 0 ? void 0 : _k.leadScore,
+                lastContactAt: (_q = req.body) === null || _q === void 0 ? void 0 : _q.lastContactAt,
+                nextFollowUpAt: (_z = req.body) === null || _z === void 0 ? void 0 : _z.nextFollowUpAt,
+                outcomeReason: (_2 = req.body) === null || _2 === void 0 ? void 0 : _2.outcomeReason,
+                ownerNotes: (_3 = req.body) === null || _3 === void 0 ? void 0 : _3.ownerNotes
+            });
             if (!updatedContact) {
                 throw (0, errorHandler_1.createValidationError)('Contact request not found');
             }

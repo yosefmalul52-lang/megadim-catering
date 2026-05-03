@@ -95,9 +95,22 @@
             <div formArrayName="items" class="items-list">
               @for (item of items.controls; track $index) {
                 <div [formGroupName]="$index" class="item-row">
-                  <input formControlName="productName" placeholder="שם פריט" class="input input-item-name" />
+                  @if (!item.get('useFreeText')?.value) {
+                    <select class="input input-item-name" formControlName="productId" (change)="onSelectMenuItem($index, $any($event.target).value)">
+                      <option value="">בחר מוצר מהתפריט</option>
+                      @for (m of availableMenuItems; track m._id || m.id || $index) {
+                        <option [value]="m._id || m.id">{{ m.name }}</option>
+                      }
+                    </select>
+                  }
+                  @if (item.get('useFreeText')?.value) {
+                    <input formControlName="productName" placeholder="שם פריט חופשי" class="input input-item-name" />
+                  }
                   <input formControlName="quantity" type="number" min="1" class="input input-qty" />
                   <input formControlName="price" type="number" min="0" step="0.01" placeholder="מחיר" class="input input-price" />
+                  <button type="button" class="btn-toggle-free" (click)="item.get('useFreeText')?.setValue(!item.get('useFreeText')?.value)">
+                    @if (item.get('useFreeText')?.value) { מהתפריט } @else { פריט חופשי }
+                  </button>
                   <button type="button" class="btn-remove-item" (click)="removeItem($index)" [disabled]="items.length === 1" aria-label="הסר פריט">
                     <i class="fas fa-trash"></i>
                   </button>

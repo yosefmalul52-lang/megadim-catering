@@ -3,17 +3,116 @@
     <div class="header-row">
       <div class="title-wrap">
         <h2>ניהול לידים</h2>
-        <p>צפייה ועדכון סטטוס של פניות צור קשר כולל מקור שיווקי</p>
+        <p>ניהול לידים ממוקד ROI שיווקי עם זרימת עבודה לאחראי יחיד</p>
       </div>
 
       <div class="filter-wrap">
         <label for="statusFilter">סינון לפי סטטוס:</label>
         <select id="statusFilter" [(ngModel)]="statusFilter" (change)="onFilterChange()">
           <option value="all">הכל</option>
-          <option value="new">חדש</option>
-          <option value="read">בטיפול/נקרא</option>
-          <option value="handled">טופל/סגור</option>
+          <option *ngFor="let s of statusOptions" [value]="s.value">{{ s.label }}</option>
         </select>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <span class="kpi-value">{{ newTodayCount }}</span>
+        <span class="kpi-label">לידים חדשים היום</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">{{ overdueFollowupsCount }}</span>
+        <span class="kpi-label">מעקבים בפיגור</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">{{ wonThisWeekCount }}</span>
+        <span class="kpi-label">נסגרו השבוע</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">{{ avgFirstResponseHours }}</span>
+        <span class="kpi-label">שעות לתגובה ראשונה (ממוצע)</span>
+      </div>
+    </div>
+
+    <div class="filters-row">
+      <input
+        type="text"
+        class="search-input"
+        [(ngModel)]="searchTerm"
+        placeholder="חיפוש לפי שם/טלפון/אימייל/מקור"
+      />
+      <select [(ngModel)]="sourceFilter">
+        <option value="all">כל המקורות</option>
+        <option *ngFor="let src of getSourceOptions()" [value]="src">{{ src }}</option>
+      </select>
+      <select [(ngModel)]="followupFilter">
+        <option value="all">כל המעקבים</option>
+        <option value="overdue">מעקב בפיגור</option>
+        <option value="today">מעקב להיום</option>
+      </select>
+    </div>
+
+    <div class="bulk-actions-bar">
+      <label class="bulk-select">
+        <input
+          type="checkbox"
+          [checked]="allVisibleSelected"
+          (change)="toggleSelectAllVisible($any($event.target).checked)"
+        />
+        <span>בחר הכל בתצוגה</span>
+      </label>
+      <span class="selected-meta">נבחרו {{ selectedCount }}</span>
+      <button type="button" class="btn-danger-outline" [disabled]="selectedCount === 0 || isBulkDeleting" (click)="deleteSelectedLeads()">
+        מחק נבחרים
+      </button>
+      <button type="button" class="btn-danger-ghost" [disabled]="filteredLeads.length === 0 || isBulkDeleting" (click)="deleteAllVisibleLeads()">
+        מחק את כל התצוגה
+      </button>
+      <button type="button" class="btn-ghost" [disabled]="selectedCount === 0" (click)="clearSelection()">
+        נקה בחירה
+      </button>
+    </div>
+
+    <div class="roi-row">
+      <div class="roi-card">
+        <h3>Top 3 מקורות</h3>
+        @if (isLoadingRoi) {
+          <p>טוען נתוני ROI...</p>
+        } @else if (topSources.length === 0) {
+          <p>אין נתונים</p>
+        } @else {
+          <ul>
+            <li *ngFor="let row of topSources">
+              <strong>{{ row.source }}</strong>
+              <span>Won: {{ row.wonRate | number:'1.0-1' }}%</span>
+              <span>Qualified: {{ row.qualifiedRate | number:'1.0-1' }}%</span>
+            </li>
+          </ul>
+        }
+      </div>
+      <div class="roi-card">
+        <h3>Bottom 3 מקורות</h3>
+        @if (isLoadingRoi) {
+          <p>טוען נתוני ROI...</p>
+        } @else if (bottomSources.length === 0) {
+          <p>אין נתונים</p>
+        } @else {
+          <ul>
+            <li *ngFor="let row of bottomSources">
+              <strong>{{ row.source }}</strong>
+              <span>Won: {{ row.wonRate | number:'1.0-1' }}%</span>
+              <span>המלצה: לבדוק מסר/קהל</span>
+            </li>
+          </ul>
+        }
+      </div>
+      <div class="roi-card">
+        <h3>KPI אימוץ</h3>
+        <ul>
+          <li>כיסוי מעקבים: {{ adoptionSummary.followupCoveragePct }}%</li>
+          <li>כיסוי הערות: {{ adoptionSummary.notesCoveragePct }}%</li>
+          <li>שינויי סטטוס בסשן: {{ adoptionSummary.statusChanges }}</li>
+        </ul>
       </div>
     </div>
 
@@ -26,54 +125,213 @@
         <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
         <span>טוען לידים...</span>
       </div>
-    } @else if (leads.length === 0) {
+    } @else if (filteredLeads.length === 0) {
       <div class="state-box empty">לא נמצאו לידים</div>
     } @else {
-      <div class="table-wrapper">
+      @if (!isMobileView) {
+      <div class="table-wrapper desktop-table">
         <table class="leads-table">
           <thead>
             <tr>
+              <th class="select-col"></th>
               <th>תאריך</th>
               <th>שם</th>
-              <th>אימייל</th>
               <th>טלפון</th>
               <th>מקור (UTM)</th>
-              <th>מדיה (UTM)</th>
+              <th>ציון</th>
               <th>סטטוס</th>
+              <th>מעקב הבא</th>
+              <th>הערת אחראי</th>
+              <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let lead of leads; trackBy: trackByLead">
+            <tr *ngFor="let lead of filteredLeads; trackBy: trackByLead">
+              <td class="select-col">
+                <input
+                  type="checkbox"
+                  [checked]="isLeadSelected(lead.id)"
+                  (change)="toggleLeadSelection(lead.id, $any($event.target).checked)"
+                />
+              </td>
               <td>{{ lead.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
               <td>{{ lead.name }}</td>
               <td>
-                <a [href]="'mailto:' + lead.email">{{ lead.email }}</a>
-              </td>
-              <td>
                 <a [href]="'tel:' + lead.phone">{{ lead.phone }}</a>
+                <div class="lead-email"><a [href]="'mailto:' + lead.email">{{ lead.email }}</a></div>
               </td>
               <td>{{ getUtmSource(lead) }}</td>
-              <td>{{ getUtmMedium(lead) }}</td>
               <td>
                 <select
                   class="status-select"
                   [disabled]="isUpdatingId === lead.id"
-                  [ngModel]="lead.status"
+                  [ngModel]="getDraft(lead).leadScore"
+                  (ngModelChange)="updateLeadScore(lead, $event)"
+                >
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </td>
+              <td>
+                <select
+                  class="status-select"
+                  [disabled]="isUpdatingId === lead.id"
+                  [ngModel]="getDraft(lead).status"
                   (ngModelChange)="changeStatus(lead, $event)"
                 >
                   <option *ngFor="let s of statusOptions" [value]="s.value">{{ s.label }}</option>
                 </select>
               </td>
+              <td>
+                <input
+                  type="date"
+                  class="followup-input"
+                  [ngModel]="getDraft(lead).nextFollowUpAt"
+                  (ngModelChange)="saveFollowUp(lead, $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="text"
+                  class="notes-input"
+                  [ngModel]="getDraft(lead).ownerNotes"
+                  (ngModelChange)="saveOwnerNotes(lead, $event)"
+                  placeholder="סיכום שיחה / פעולה הבאה"
+                />
+              </td>
+              <td>
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="btn-save"
+                    [disabled]="isUpdatingId === lead.id || !hasUnsavedChanges(lead)"
+                    (click)="saveLeadChanges(lead)"
+                  >
+                    שמור
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-delete"
+                    [disabled]="isDeletingId === lead.id"
+                    (click)="deleteLead(lead)"
+                  >
+                    מחק
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
+      } @else {
+      <div class="mobile-cards">
+        <article class="lead-card" *ngFor="let lead of filteredLeads; trackBy: trackByLead">
+          <div class="lead-card-header">
+            <label class="card-check">
+              <input
+                type="checkbox"
+                [checked]="isLeadSelected(lead.id)"
+                (change)="toggleLeadSelection(lead.id, $any($event.target).checked)"
+              />
+            </label>
+            <div>
+              <h4>{{ lead.name }}</h4>
+              <div class="lead-meta">{{ lead.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+            </div>
+            <span class="status-badge">{{ getStatusLabel(lead.status) }}</span>
+          </div>
+
+          <div class="lead-grid">
+            <div class="field">
+              <label>טלפון</label>
+              <a [href]="'tel:' + lead.phone">{{ lead.phone }}</a>
+            </div>
+            <div class="field">
+              <label>אימייל</label>
+              <a [href]="'mailto:' + lead.email">{{ lead.email }}</a>
+            </div>
+            <div class="field">
+              <label>מקור</label>
+              <span>{{ getUtmSource(lead) }}</span>
+            </div>
+          </div>
+
+          <div class="mobile-actions-grid">
+            <div class="field">
+              <label>ציון</label>
+              <select
+                class="status-select"
+                [disabled]="isUpdatingId === lead.id"
+                [ngModel]="getDraft(lead).leadScore"
+                (ngModelChange)="updateLeadScore(lead, $event)"
+              >
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>סטטוס</label>
+              <select
+                class="status-select"
+                [disabled]="isUpdatingId === lead.id"
+                [ngModel]="getDraft(lead).status"
+                (ngModelChange)="changeStatus(lead, $event)"
+              >
+                <option *ngFor="let s of statusOptions" [value]="s.value">{{ s.label }}</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>מעקב הבא</label>
+              <input
+                type="date"
+                class="followup-input"
+                [ngModel]="getDraft(lead).nextFollowUpAt"
+                (ngModelChange)="saveFollowUp(lead, $event)"
+              />
+            </div>
+          </div>
+
+          <div class="field full-width">
+            <label>הערת אחראי</label>
+            <input
+              type="text"
+              class="notes-input"
+              [ngModel]="getDraft(lead).ownerNotes"
+              (ngModelChange)="saveOwnerNotes(lead, $event)"
+              placeholder="סיכום שיחה / פעולה הבאה"
+            />
+          </div>
+          <div class="card-actions">
+            <button
+              type="button"
+              class="btn-save"
+              [disabled]="isUpdatingId === lead.id || !hasUnsavedChanges(lead)"
+              (click)="saveLeadChanges(lead)"
+            >
+              שמור
+            </button>
+            <button
+              type="button"
+              class="btn-delete"
+              [disabled]="isDeletingId === lead.id"
+              (click)="deleteLead(lead)"
+            >
+              מחק
+            </button>
+          </div>
+        </article>
+      </div>
+      }
 
       <div class="pager">
         <button type="button" (click)="onPageChange(-pageSize)" [disabled]="offset === 0">
           הקודם
         </button>
-        <span>מציג {{ offset + 1 }}-{{ offset + leads.length }} מתוך {{ total }}</span>
+        <span>מציג {{ visibleFrom }}-{{ visibleTo }} מתוך {{ total }}</span>
         <button type="button" (click)="onPageChange(pageSize)" [disabled]="!hasMore">
           הבא
         </button>

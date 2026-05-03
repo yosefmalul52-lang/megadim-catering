@@ -86,6 +86,40 @@
       </button>
     </nav>
 
+    <div class="bulk-actions-bar">
+      <label class="bulk-select-all">
+        <input
+          type="checkbox"
+          [checked]="areAllVisibleSelected"
+          (change)="toggleSelectAllVisible($any($event.target).checked)"
+        />
+        <span>בחר הכל (בתצוגה)</span>
+      </label>
+      <span class="bulk-selected-count">נבחרו {{ selectedVisibleCount }} הזמנות</span>
+
+      <div class="bulk-actions-controls">
+        <select
+          class="bulk-status-select"
+          [ngModel]="bulkStatusTarget"
+          (ngModelChange)="bulkStatusTarget = $event"
+          [disabled]="isBulkUpdating || selectedVisibleCount === 0"
+        >
+          <option value="pending">ממתין</option>
+          <option value="processing">בטיפול</option>
+          <option value="ready">מוכן</option>
+          <option value="cancelled">בוטל</option>
+        </select>
+        <button type="button" class="btn-bulk" (click)="applyBulkStatus()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">עדכן סטטוס</button>
+        @if (currentTab !== 'archive') {
+          <button type="button" class="btn-bulk" (click)="bulkArchiveSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">העבר לארכיון</button>
+        } @else {
+          <button type="button" class="btn-bulk" (click)="bulkRestoreSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">שחזר</button>
+          <button type="button" class="btn-bulk danger" (click)="bulkPermanentDeleteSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">מחיקה לצמיתות</button>
+        }
+        <button type="button" class="btn-bulk subtle" (click)="clearSelection()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">נקה בחירה</button>
+      </div>
+    </div>
+
     <!-- Status tab bar -->
     <nav class="tabs-nav" role="tablist">
       <button
@@ -150,6 +184,14 @@
           <table class="orders-table">
             <thead>
               <tr>
+                <th class="select-col">
+                  <input
+                    type="checkbox"
+                    [checked]="areAllVisibleSelected"
+                    (change)="toggleSelectAllVisible($any($event.target).checked)"
+                    aria-label="בחר הכל"
+                  />
+                </th>
                 <th>מספר הזמנה</th>
                 <th>תאריך הזמנה</th>
                 <th>תאריך אירוע</th>
@@ -163,64 +205,49 @@
             <tbody>
               @for (order of filteredOrders; track order._id || order.id || $index) {
                 <tr>
+                  <td class="select-col">
+                    <input
+                      type="checkbox"
+                      [checked]="isOrderSelected(order)"
+                      (change)="toggleOrderSelection(order, $any($event.target).checked)"
+                      aria-label="בחר הזמנה"
+                    />
+                  </td>
                   <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="customer-cell">
-                    <div class="customer-with-badge">
-                      <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
-                      @if (getCustomerBadge(order) === 'VIP') {
-                        <span class="customer-badge badge-vip">VIP</span>
-                      } @else if (getCustomerBadge(order) === 'Returning') {
-                        <span class="customer-badge badge-returning">לקוח חוזר</span>
-                      }
-                    </div>
+                    <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
                   </td>
                   <td class="phone-cell">{{ order.customerDetails?.phone || 'לא צוין' }}</td>
                   <td class="total-cell">₪{{ order.totalPrice | number:'1.2-2' }}</td>
                   <td class="status-cell">
-                    <div class="status-action-wrapper">
-                      <span class="status-badge" [ngClass]="'status-' + order.status">
-                        {{ getStatusLabel(order.status) }}
-                      </span>
-                      <div class="action-buttons-container">
-                        @if (isPending(order.status) && !order.isDeleted) {
-                          <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')" title="אשר הזמנה ושלח מייל">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
-                            אשר הזמנה
-                          </button>
-                        }
-                        @if (isProcessing(order.status) && !order.isDeleted) {
-                          <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')" title="סמן כהושלם">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
-                            סמן כמוכן
-                          </button>
-                        }
-                        @if (!order.isDeleted) {
-                          <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)" title="העבר לארכיון">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
-                            מחק/ארכיון
-                          </button>
-                        }
-                        @if (order.isDeleted) {
-                          <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)" title="שחזר הזמנה">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
-                            שחזר הזמנה
-                          </button>
-                          <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)" title="מחק לצמיתות (לא ניתן לביטול)">
-                            <i class="fas fa-trash-alt"></i> מחק לצמיתות
-                          </button>
-                        }
-                      </div>
-                    </div>
+                    <span class="status-badge" [ngClass]="'status-' + order.status">
+                      {{ getStatusLabel(order.status) }}
+                    </span>
                   </td>
                   <td class="actions-cell">
-                    <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ"><i class="fab fa-whatsapp"></i></a>
-                    <button type="button" class="btn-action btn-print" (click)="printOrder(order)" title="הדפס"><i class="fas fa-print"></i></button>
-                    <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)" title="פרטים"><i class="fas fa-eye"></i></button>
-                    @if (currentTab !== 'archive') {
-                      <button type="button" class="btn-action btn-edit" (click)="openStatusEdit(order)" title="עדכן סטטוס"><i class="fas fa-edit"></i></button>
-                    }
+                    <div class="row-actions">
+                      <button type="button" class="btn-action btn-edit" (click)="viewOrderDetails(order)" title="עריכה">
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button type="button" class="btn-action btn-menu" (click)="toggleOrderMenu(order)" title="אפשרויות">
+                        <i class="fas fa-ellipsis-v"></i>
+                      </button>
+                      @if (isOrderMenuOpen(order)) {
+                        <div class="order-action-menu">
+                          <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
+                          <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
+                          <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (!order.isDeleted) {
+                            <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                          } @else {
+                            <button type="button" (click)="restoreOrder(order)">שחזר הזמנה</button>
+                            <button type="button" class="danger" (click)="permanentlyDeleteOrder(order)">מחיקה לצמיתות</button>
+                          }
+                        </div>
+                      }
+                    </div>
                   </td>
                 </tr>
               }
@@ -232,51 +259,25 @@
         <div class="order-cards orders-mobile">
           @for (order of filteredOrders; track order._id || order.id || $index) {
             <div class="order-card">
+              <label class="card-select-box">
+                <input
+                  type="checkbox"
+                  [checked]="isOrderSelected(order)"
+                  (change)="toggleOrderSelection(order, $any($event.target).checked)"
+                  aria-label="בחר הזמנה"
+                />
+              </label>
               <div class="order-card-header">
                 <span class="order-card-total">₪{{ order.totalPrice | number:'1.2-2' }}</span>
               </div>
               <div class="order-card-body">
                 <p class="order-card-customer">
                   <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
-                  @if (getCustomerBadge(order) === 'VIP') {
-                    <span class="customer-badge badge-vip">VIP</span>
-                  } @else if (getCustomerBadge(order) === 'Returning') {
-                    <span class="customer-badge badge-returning">לקוח חוזר</span>
-                  }
                 </p>
                 <p class="order-card-meta">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }} · {{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</p>
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
-                <div class="action-buttons-container">
-                  @if (isPending(order.status) && !order.isDeleted) {
-                    <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')">
-                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
-                      אשר הזמנה
-                    </button>
-                  }
-                  @if (isProcessing(order.status) && !order.isDeleted) {
-                    <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')">
-                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
-                      סמן כמוכן
-                    </button>
-                  }
-                  @if (!order.isDeleted) {
-                    <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)">
-                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
-                      מחק/ארכיון
-                    </button>
-                  }
-                  @if (order.isDeleted) {
-                    <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)">
-                      @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
-                      שחזר הזמנה
-                    </button>
-                    <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)">
-                      <i class="fas fa-trash-alt"></i> מחק לצמיתות
-                    </button>
-                  }
-                </div>
               </div>
               <div class="order-card-links">
                 <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
@@ -294,6 +295,14 @@
           <table class="orders-table orders-table-catering">
             <thead>
               <tr>
+                <th class="select-col">
+                  <input
+                    type="checkbox"
+                    [checked]="areAllVisibleSelected"
+                    (change)="toggleSelectAllVisible($any($event.target).checked)"
+                    aria-label="בחר הכל"
+                  />
+                </th>
                 <th>מספר הזמנה</th>
                 <th>לקוח</th>
                 <th>תאריך אירוע</th>
@@ -306,61 +315,46 @@
             <tbody>
               @for (order of filteredOrders; track order._id || order.id || $index) {
                 <tr>
+                  <td class="select-col">
+                    <input
+                      type="checkbox"
+                      [checked]="isOrderSelected(order)"
+                      (change)="toggleOrderSelection(order, $any($event.target).checked)"
+                      aria-label="בחר הזמנה"
+                    />
+                  </td>
                   <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="customer-cell">
-                    <div class="customer-with-badge">
-                      <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
-                      @if (getCustomerBadge(order) === 'VIP') {
-                        <span class="customer-badge badge-vip">VIP</span>
-                      } @else if (getCustomerBadge(order) === 'Returning') {
-                        <span class="customer-badge badge-returning">לקוח חוזר</span>
-                      }
-                    </div>
+                    <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
                   </td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="portions-cell">{{ order.numberOfPortions ?? '—' }}</td>
                   <td class="meal-types-cell">{{ getMealTypesLabel(order) }}</td>
                   <td class="status-cell">
-                    <div class="status-action-wrapper">
-                      <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
-                      <div class="action-buttons-container">
-                        @if (isPending(order.status) && !order.isDeleted) {
-                          <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')" title="אשר הזמנה">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
-                            אשר הזמנה
-                          </button>
-                        }
-                        @if (isProcessing(order.status) && !order.isDeleted) {
-                          <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')" title="סמן כמוכן">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-box"></i> }
-                            סמן כמוכן
-                          </button>
-                        }
-                        @if (!order.isDeleted) {
-                          <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)" title="העבר לארכיון">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-trash"></i> }
-                            מחק/ארכיון
-                          </button>
-                        }
-                        @if (order.isDeleted) {
-                          <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)" title="שחזר הזמנה">
-                            @if (statusUpdatingId === (order._id || order.id)) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-undo"></i> }
-                            שחזר הזמנה
-                          </button>
-                          <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)" title="מחק לצמיתות">
-                            <i class="fas fa-trash-alt"></i> מחק לצמיתות
-                          </button>
-                        }
-                      </div>
-                    </div>
+                    <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
                   </td>
                   <td class="actions-cell">
-                    <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp" title="וואטסאפ"><i class="fab fa-whatsapp"></i></a>
-                    <button type="button" class="btn-action btn-print" (click)="printOrder(order)" title="הדפס"><i class="fas fa-print"></i></button>
-                    <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)" title="פרטים"><i class="fas fa-eye"></i></button>
-                    @if (currentTab !== 'archive') {
-                      <button type="button" class="btn-action btn-edit" (click)="openStatusEdit(order)" title="עדכן סטטוס"><i class="fas fa-edit"></i></button>
-                    }
+                    <div class="row-actions">
+                      <button type="button" class="btn-action btn-edit" (click)="viewOrderDetails(order)" title="עריכה">
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button type="button" class="btn-action btn-menu" (click)="toggleOrderMenu(order)" title="אפשרויות">
+                        <i class="fas fa-ellipsis-v"></i>
+                      </button>
+                      @if (isOrderMenuOpen(order)) {
+                        <div class="order-action-menu">
+                          <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
+                          <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
+                          <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (!order.isDeleted) {
+                            <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                          } @else {
+                            <button type="button" (click)="restoreOrder(order)">שחזר הזמנה</button>
+                            <button type="button" class="danger" (click)="permanentlyDeleteOrder(order)">מחיקה לצמיתות</button>
+                          }
+                        </div>
+                      }
+                    </div>
                   </td>
                 </tr>
               }
@@ -372,38 +366,26 @@
         <div class="order-cards orders-mobile">
           @for (order of filteredOrders; track order._id || order.id || $index) {
             <div class="order-card order-card-catering">
+              <label class="card-select-box">
+                <input
+                  type="checkbox"
+                  [checked]="isOrderSelected(order)"
+                  (change)="toggleOrderSelection(order, $any($event.target).checked)"
+                  aria-label="בחר הזמנה"
+                />
+              </label>
               <div class="order-card-header">
                 <span class="order-card-id">#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</span>
               </div>
               <div class="order-card-body">
                 <p class="order-card-customer">
                   <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
-                  @if (getCustomerBadge(order) === 'VIP') {
-                    <span class="customer-badge badge-vip">VIP</span>
-                  } @else if (getCustomerBadge(order) === 'Returning') {
-                    <span class="customer-badge badge-returning">לקוח חוזר</span>
-                  }
                 </p>
                 <p class="order-card-meta">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }} · {{ order.numberOfPortions ?? '—' }} מנות</p>
                 <p class="order-card-meta">{{ getMealTypesLabel(order) }}</p>
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
-                <div class="action-buttons-container">
-                  @if (isPending(order.status) && !order.isDeleted) {
-                    <button type="button" class="btn-action approve" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'processing')">אשר</button>
-                  }
-                  @if (isProcessing(order.status) && !order.isDeleted) {
-                    <button type="button" class="btn-action ready" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="changeStatus(order, 'ready')">מוכן</button>
-                  }
-                  @if (!order.isDeleted) {
-                    <button type="button" class="btn-action delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="archiveOrder(order)">ארכיון</button>
-                  }
-                  @if (order.isDeleted) {
-                    <button type="button" class="btn-action restore" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="restoreOrder(order)">שחזר</button>
-                    <button type="button" class="btn-action permanent-delete" [disabled]="statusUpdatingId === (order._id || order.id)" (click)="permanentlyDeleteOrder(order)">מחק לצמיתות</button>
-                  }
-                </div>
               </div>
               <div class="order-card-links">
                 <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>

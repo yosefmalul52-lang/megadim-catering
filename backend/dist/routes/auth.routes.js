@@ -25,10 +25,11 @@ if (!JWT_SECRET) {
 // Strict rate limit for login endpoints (brute-force protection)
 const loginLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts per window per IP
+    max: 10, // allow more retries before temporary lock
     message: { success: false, message: 'Too many login attempts from this IP, please try again after 15 minutes.' },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    skipSuccessfulRequests: true // successful login should not keep user locked out
 });
 const COOKIE_NAME = 'token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

@@ -7,11 +7,13 @@ export interface ICoupon extends Document {
   minOrderValue: number;
   expiresAt: Date | null;
   maxUses: number | null;
+  maxUsesPerCustomer: number;
   usageCount: number;
   usedByPhones: string[];
+  totalRevenueGenerated: number;
   isActive: boolean;
   isVipOnly: boolean;
-  targetCustomerCategory: 'all' | 'returning' | 'sleeping' | 'vip';
+  targetCustomerCategory: 'all' | 'returning' | 'sleeping' | 'vip' | 'new';
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -46,6 +48,10 @@ const CouponSchema: Schema<ICoupon> = new Schema(
       type: Number,
       default: null
     },
+    maxUsesPerCustomer: {
+      type: Number,
+      default: 1
+    },
     usageCount: {
       type: Number,
       default: 0
@@ -58,13 +64,17 @@ const CouponSchema: Schema<ICoupon> = new Schema(
       type: Boolean,
       default: true
     },
+    totalRevenueGenerated: {
+      type: Number,
+      default: 0
+    },
     isVipOnly: {
       type: Boolean,
       default: false
     },
     targetCustomerCategory: {
       type: String,
-      enum: ['all', 'returning', 'sleeping', 'vip'],
+      enum: ['all', 'returning', 'sleeping', 'vip', 'new'],
       default: 'all'
     }
   },
