@@ -1,4 +1,5 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -25,6 +26,7 @@ export interface CartSummary {
 })
 export class CartService {
   private http = inject(HttpClient);
+  private platformId = inject(PLATFORM_ID);
   private cartItemsSubject = new BehaviorSubject<CartItem[]>([]);
   public cartItems$ = this.cartItemsSubject.asObservable();
   
@@ -32,8 +34,9 @@ export class CartService {
   public isCartOpen$ = this.isCartOpenSubject.asObservable();
 
   constructor() {
-    // Load cart from localStorage on service initialization
-    this.loadCartFromStorage();
+    if (isPlatformBrowser(this.platformId)) {
+      this.loadCartFromStorage();
+    }
   }
 
   get currentCart(): CartItem[] {
@@ -168,6 +171,9 @@ export class CartService {
   }
 
   private saveCartToStorage(items: CartItem[]): void {
+    if (!isPlatformBrowser(this.platformId) || typeof localStorage === 'undefined') {
+      return;
+    }
     try {
       localStorage.setItem('megadim-cart', JSON.stringify(items));
     } catch (error) {
@@ -176,6 +182,9 @@ export class CartService {
   }
 
   private loadCartFromStorage(): void {
+    if (!isPlatformBrowser(this.platformId) || typeof localStorage === 'undefined') {
+      return;
+    }
     try {
       const savedCart = localStorage.getItem('megadim-cart');
       if (savedCart) {

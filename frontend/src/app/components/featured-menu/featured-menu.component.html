@@ -23,7 +23,7 @@
         >
           <img 
             [ngSrc]="item.imageUrl || 'assets/images/placeholder.jpg'" 
-            [alt]="item.name"
+            [alt]="(item.name || 'מנה') + ' – מנת בשר כשר למהדרין | קייטרינג מגדים'"
             width="400"
             height="300"
           >

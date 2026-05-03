@@ -1,5 +1,5 @@
-import { Component, inject, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, OnInit, OnDestroy, PLATFORM_ID } from '@angular/core';
+import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -157,8 +157,17 @@ import { LanguageService } from '../../../services/language.service';
 export class SearchBarComponent implements OnInit, OnDestroy {
   searchService = inject(SearchService);
   languageService = inject(LanguageService);
-  
+  private readonly doc = inject(DOCUMENT);
+  private readonly platformId = inject(PLATFORM_ID);
+
   private destroy$ = new Subject<void>();
+  private escapeKeydownBound = false;
+  private readonly onDocumentKeydown = (event: Event): void => {
+    const ke = event as KeyboardEvent;
+    if (ke.key === 'Escape' && this.isSearchOpen) {
+      this.closeSearch();
+    }
+  };
   
   isSearchOpen = false;
   isSearching = false;
@@ -180,9 +189,9 @@ export class SearchBarComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(isOpen => {
         this.isSearchOpen = isOpen;
-        if (isOpen) {
+        if (isOpen && isPlatformBrowser(this.platformId)) {
           setTimeout(() => {
-            const searchInput = document.querySelector('.search-input') as HTMLInputElement;
+            const searchInput = this.doc.querySelector('.search-input') as HTMLInputElement | null;
             if (searchInput) {
               searchInput.focus();
             }
@@ -207,15 +216,17 @@ export class SearchBarComponent implements OnInit, OnDestroy {
     // Load popular searches
     this.popularSearches = this.searchService.getPopularSearches();
     
-    // Close search on escape key
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && this.isSearchOpen) {
-        this.closeSearch();
-      }
-    });
+    if (isPlatformBrowser(this.platformId)) {
+      this.doc.addEventListener('keydown', this.onDocumentKeydown);
+      this.escapeKeydownBound = true;
+    }
   }
 
   ngOnDestroy(): void {
+    if (this.escapeKeydownBound) {
+      this.doc.removeEventListener('keydown', this.onDocumentKeydown);
+      this.escapeKeydownBound = false;
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }

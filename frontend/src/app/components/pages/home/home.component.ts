@@ -26,7 +26,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
       <!-- Hero Section: priority img for LCP -->
       <section class="hero-section">
         <div class="hero-bg-image">
-          <img ngSrc="v1768222488/hero1_ime6hz.png" alt="קייטרינג מגדים" width="1920" height="1080" priority sizes="(max-width: 600px) 100vw, 80vw">
+          <img ngSrc="v1768222488/hero1_ime6hz.png" alt="קייטרינג בשרי כשר למהדרין לאירועים – שולחן ערוך ומנות בשר פרימיום | קייטרינג מגדים" width="1920" height="1080" priority sizes="(max-width: 600px) 100vw, 80vw">
         </div>
         
         <div class="content-container">
@@ -54,7 +54,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
             <div class="card-image card-image--quality">
               <img
                 ngSrc="v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg"
-                alt="קייטרינג לאירועים"
+                alt="קייטרינג לאירועים – תפריט בשרי כשר למהדרין ושולחן חגיגי | קייטרינג מגדים"
                 width="800"
                 height="600"
                 class="card-image__img"
@@ -66,7 +66,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           </div>
           <div class="category-card" routerLink="/shabbat-events">
             <div class="card-image card-image--quality">
-              <img ngSrc="v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg" alt="קייטרינג לאירועי שבת וחג" width="800" height="600" class="card-image__img">
+              <img ngSrc="v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg" alt="קייטרינג לשבת חתן ואירועי שבת וחג – מנות חמות וכשרות למהדרין | קייטרינג מגדים" width="800" height="600" class="card-image__img">
               <div class="card-overlay">
                 <h3 class="gold-text">קייטרינג לאירועי שבת וחג</h3>
               </div>
@@ -74,7 +74,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           </div>
           <div class="category-card" routerLink="/ready-for-shabbat">
             <div class="card-image card-image--quality">
-              <img ngSrc="v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg" alt="אוכל מוכן לשבת וחג" width="800" height="600" class="card-image__img">
+              <img ngSrc="v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg" alt="אוכל מוכן לשבת וחג – מנות ביתיות ובשר כשר למהדרין | קייטרינג מגדים" width="800" height="600" class="card-image__img">
               <div class="card-overlay">
                 <h3 class="gold-text">אוכל מוכן לשבת וחג</h3>
               </div>
@@ -201,7 +201,7 @@ import { PagePopupComponent } from '../../shared/page-popup/page-popup.component
           
           <div class="google-reviews-container">
             <a href="https://www.google.com/search?q=%D7%9E%D7%92%D7%93%D7%99%D7%9D+%D7%A7%D7%99%D7%99%D7%98%D7%A8%D7%99%D7%A0%D7%92&oq=&gs_lcrp=EgZjaHJvbWUqCQgFECMYJxjqAjIJCAAQIxgnGOoCMgkIARAjGCcY6gIyCQgCEC4YJxjqAjIJCAMQIxgnGOoCMgkIBBAjGCcY6gIyCQgFECMYJxjqAjIJCAYQIxgnGOoCMgkIBxAjGCcY6gLSAQkyNjM5ajBqMTWoAgiwAgHxBQPQ0bxGGjtT8QUD0NG8Rho7Uw&sourceid=chrome&ie=UTF-8#lrd=0x151cd528213f4e4b:0xf8f0c7289db20d8f,1,,,," target="_blank" class="google-btn">
-              <img src="assets/images/google-icon.png" alt="G" class="google-icon" onerror="this.style.display='none'">
+              <img src="assets/images/google-icon.png" alt="המלצות גוגל על קייטרינג מגדים" class="google-icon" onerror="this.style.display='none'">
               <mat-icon>reviews</mat-icon>
               לקריאת כל ההמלצות בגוגל
             </a>

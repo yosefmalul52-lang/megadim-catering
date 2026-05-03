@@ -1,8 +1,7 @@
-# Magadim Catering - robots.txt
-# Allow all crawlers; update Sitemap URL to your production domain.
+# Megadim Catering - robots.txt
+# Production: https://www.megadim-catering.com
 
 User-agent: *
 Allow: /
 
-# Sitemap (replace with your production base URL, e.g. https://www.megadim.co.il/sitemap.xml)
-Sitemap: /sitemap.xml
+Sitemap: https://www.megadim-catering.com/sitemap.xml

@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
 
 export type Language = 'he' | 'en';
@@ -91,6 +92,7 @@ export interface LanguageStrings {
   providedIn: 'root'
 })
 export class LanguageService {
+  private readonly platformId = inject(PLATFORM_ID);
   private currentLanguageSubject = new BehaviorSubject<Language>('he');
   public currentLanguage$ = this.currentLanguageSubject.asObservable();
 
@@ -281,8 +283,9 @@ export class LanguageService {
   }
 
   private updateDocumentLanguage(language: Language): void {
-    // Update lang attribute only, NOT dir (html stays ltr for scrollbar position)
-    // The content direction is handled by app.component.ts via textDir property
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
     document.documentElement.setAttribute('lang', language);
   }
 

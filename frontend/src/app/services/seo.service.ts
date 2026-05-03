@@ -11,25 +11,45 @@ export interface SeoTags {
   url?: string;
 }
 
-/** Predefined SEO presets for main pages (Magadim Catering) */
+/** Must stay in sync with `src/index.html` (<title>, meta description, og:title, og:description) to avoid title/description flicker on load. */
+export const SITE_DEFAULT_SEO_TITLE =
+  'קייטרינג מגדים - אירועי פרימיום וכשרות למהדרין | קייטרינג בשרי לאירועים';
+export const SITE_DEFAULT_SEO_DESCRIPTION =
+  'שירותי קייטרינג איכותיים וכשרים למהדרין לכל סוגי האירועים – שבתות חתן, בריתות, ואירועים עסקיים. מטבח עשיר עם טעמים ביתיים וטריות ללא פשרות. הזמינו עכשיו!';
+
+/** Same keywords as `src/index.html` meta keywords when home loads. */
+export const SITE_DEFAULT_SEO_KEYWORDS =
+  'קייטרינג מגדים, קייטרינג כשר למהדרין, קייטרינג בשרי, אירועים, שבת חתן, ברית, קייטרינג עסקי';
+
+/** Production origin for canonical + og:url (avoid localhost/staging in indexed URLs). */
+export const SITE_PUBLIC_ORIGIN = 'https://www.megadim-catering.com';
+
+/** Predefined SEO presets for main pages (Megadim Catering) */
 export const SEO_PAGES: Record<string, SeoTags> = {
   home: {
-    title: 'Magadim Catering - Premium Events | מגדים קייטרינג',
-    description: 'Premium kosher catering for events, Shabbat and holidays. Homemade quality, delivered to you. קייטרינג כשר למהדרין לאירועים, שבתות וחגים.',
-    keywords: 'קייטרינג כשר, אוכל לשבת, צ\'ולנט, אירועים, כשרות מפוקחת, מגדים'
+    title: SITE_DEFAULT_SEO_TITLE,
+    description: SITE_DEFAULT_SEO_DESCRIPTION,
+    keywords: SITE_DEFAULT_SEO_KEYWORDS,
+    image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg',
+    url: `${SITE_PUBLIC_ORIGIN}/`
   },
   menu: {
     title: 'תפריט מוכן לשבת - קייטרינג מגדים | סלטים, דגים, מנות עיקריות, קינוחים',
     description: 'מגוון מנות מוכנות לשבת: סלטים טריים, דגים, מנות עיקריות, תוספות וממולאים, קינוחים. הזמינו אוכל כשר לשבת.',
-    image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg'
+    image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg',
+    url: `${SITE_PUBLIC_ORIGIN}/ready-for-shabbat`
   },
   about: {
-    title: 'About Magadim Catering | אודות מגדים',
-    description: 'Learn about Magadim – premium kosher catering with a passion for quality and tradition. אודות מגדים – קייטרינג כשר ברמה אחרת.'
+    title: 'אודות קייטרינג מגדים | קייטרינג כשר למהדרין ואירועי פרימיום',
+    description:
+      'הכירו את מגדים: קייטרינג בשרי כשר למהדרין, מסורת ואיכות ללא פשרות. סיפור המטבח, הערכים והשירות שמלווים אתכם מאירוע לשבת.',
+    url: `${SITE_PUBLIC_ORIGIN}/about`
   },
   contact: {
-    title: 'Contact Magadim Catering | צור קשר',
-    description: 'Get in touch with Magadim Catering for events, tastings and quotes. צור קשר עם מגדים להזמנות, טעימות והצעות מחיר.'
+    title: 'צור קשר – קייטרינג מגדים | הזמנות, טעימות והצעות מחיר',
+    description:
+      'צרו קשר עם קייטרינג מגדים להזמנות, טעימות והצעות מחיר וליווי אישי. מענה מהיר לקייטרינג כשר למהדרין לאירועים ולשבת.',
+    url: `${SITE_PUBLIC_ORIGIN}/contact`
   }
 };
 
@@ -42,8 +62,8 @@ export class SeoService {
   private doc = inject(DOCUMENT);
   private platformId = inject(PLATFORM_ID);
 
-  private readonly defaultTitle = 'מגדים - קייטרינג כשר ברמה אחרת';
-  private readonly defaultDescription = 'מגדים - שירותי קייטרינג כשר מפוקח ברמה אחרת. אירועים, שבתות וחגים. אוכל ביתי ברמת שף.';
+  private readonly defaultTitle = SITE_DEFAULT_SEO_TITLE;
+  private readonly defaultDescription = SITE_DEFAULT_SEO_DESCRIPTION;
 
   /**
    * Update document title, meta tags (description, keywords), Open Graph (og:title, og:description, og:image, og:url), and canonical link.
@@ -65,16 +85,19 @@ export class SeoService {
     if (imageUrl) {
       this.meta.updateTag({ property: 'og:image', content: imageUrl });
     }
-    const pageUrl = config.url || (isPlatformBrowser(this.platformId) ? this.doc.defaultView?.location?.href : undefined);
-    if (pageUrl) {
+    // Prefer explicit URL (SSR-safe). Browser-only fallback uses window location.
+    const rawPageUrl =
+      config.url ||
+      (isPlatformBrowser(this.platformId) ? this.doc.defaultView?.location?.href : undefined);
+    if (rawPageUrl) {
+      const pageUrl = this.normalizePublicSiteUrl(rawPageUrl);
       this.meta.updateTag({ property: 'og:url', content: pageUrl });
       this.setCanonical(pageUrl);
     }
   }
 
-  /** Set or update the canonical link to prevent duplicate content. */
+  /** Set or update the canonical link (works in browser + SSR; uses injected DOCUMENT). */
   setCanonical(url: string): void {
-    if (!isPlatformBrowser(this.platformId)) return;
     const head = this.doc.getElementsByTagName('head')[0];
     if (!head) return;
     let link = head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
@@ -83,7 +106,26 @@ export class SeoService {
       link.setAttribute('rel', 'canonical');
       head.appendChild(link);
     }
-    link.setAttribute('href', url);
+    link.setAttribute('href', this.normalizePublicSiteUrl(url));
+  }
+
+  /**
+   * Map any absolute URL (e.g. http://localhost:4200/path) to the public production origin
+   * so canonical and og:url always use https://www.megadim-catering.com.
+   */
+  normalizePublicSiteUrl(url: string): string {
+    const trimmed = (url || '').trim();
+    if (!trimmed) return `${SITE_PUBLIC_ORIGIN}/`;
+    try {
+      const u = new URL(trimmed, SITE_PUBLIC_ORIGIN);
+      let path = u.pathname || '/';
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.slice(0, -1);
+      }
+      return `${SITE_PUBLIC_ORIGIN}${path}${u.search}`;
+    } catch {
+      return `${SITE_PUBLIC_ORIGIN}/`;
+    }
   }
 
   private toAbsoluteUrl(value: string | undefined): string | undefined {
@@ -111,6 +153,7 @@ export class SeoService {
   resetToDefaults(): void {
     this.title.setTitle(this.defaultTitle);
     this.meta.updateTag({ name: 'description', content: this.defaultDescription });
+    this.meta.updateTag({ name: 'keywords', content: SITE_DEFAULT_SEO_KEYWORDS });
     this.meta.updateTag({ property: 'og:title', content: this.defaultTitle });
     this.meta.updateTag({ property: 'og:description', content: this.defaultDescription });
   }

@@ -1,5 +1,5 @@
-import { Component, OnInit, inject, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { MatSidenavModule, MatSidenavContainer, MatSidenav } from '@angular/material/sidenav';
@@ -94,6 +94,7 @@ import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 export class AppComponent implements OnInit {
   private languageService = inject(LanguageService);
   private router = inject(Router);
+  private platformId = inject(PLATFORM_ID);
 
   readonly whatsappHref = CONTACT_WHATSAPP_HREF;
 
@@ -118,8 +119,9 @@ export class AppComponent implements OnInit {
     // Subscribe to language changes to update content direction
     this.languageService.currentLanguage$.subscribe(lang => {
       this.textDir = lang === 'he' ? 'rtl' : 'ltr';
-      // Update lang attribute only, NOT dir (html stays ltr for scrollbar)
-      document.documentElement.setAttribute('lang', lang);
+      if (isPlatformBrowser(this.platformId)) {
+        document.documentElement.setAttribute('lang', lang);
+      }
     });
 
     // Check if current route is login or admin

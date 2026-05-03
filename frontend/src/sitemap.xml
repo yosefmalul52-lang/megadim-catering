@@ -1,45 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <!-- Replace https://www.megadim.co.il with your production base URL -->
+  <!-- Production: https://www.megadim-catering.com -->
   <url>
-    <loc>https://www.megadim.co.il/</loc>
+    <loc>https://www.megadim-catering.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/ready-for-shabbat</loc>
+    <loc>https://www.megadim-catering.com/ready-for-shabbat</loc>
     <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.95</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/about</loc>
+    <loc>https://www.megadim-catering.com/about</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/contact</loc>
+    <loc>https://www.megadim-catering.com/contact</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/events-catering</loc>
+    <loc>https://www.megadim-catering.com/events-catering</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/cholent-bar</loc>
+    <loc>https://www.megadim-catering.com/catering</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/cholent-bar</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/shabbat-events</loc>
+    <loc>https://www.megadim-catering.com/shabbat-events</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.megadim.co.il/kosher</loc>
+    <loc>https://www.megadim-catering.com/kosher</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/terms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/accessibility</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/privacy-policy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
   </url>
 </urlset>

@@ -23,7 +23,7 @@
           (click)="openVideoModal(video)"
         >
           <div class="video-thumbnail-wrapper">
-            <img [src]="video.thumbnailUrl" [alt]="video.title" (error)="onImageError($event)">
+            <img [src]="video.thumbnailUrl" [alt]="(video.title || 'סרטון אירוע') + ' – קייטרינג בשרי כשר למהדרין | מגדים'" (error)="onImageError($event)">
             <div class="play-overlay">
               <mat-icon>play_circle_filled</mat-icon>
             </div>
