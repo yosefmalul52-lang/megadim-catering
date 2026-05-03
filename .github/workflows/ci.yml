@@ -21,9 +21,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # Root script: cd frontend && npm install && npm run build → output frontend/dist/frontend
+      # Root script: cd frontend && npm install && npm run build → output frontend/dist/megadim-catering
       - name: Build
         run: npm run build
 
       - name: Verify browser output
-        run: test -f frontend/dist/frontend/index.html
+        run: test -f frontend/dist/megadim-catering/index.html
