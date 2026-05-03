@@ -13,8 +13,9 @@
     "test": "ng test",
     "lint": "ng lint",
     "dev:ssr": "ng run megadim-catering:serve-ssr",
-    "serve:ssr": "node dist/megadim-catering/server/main.js",
-    "build:ssr": "ng build && ng run megadim-catering:server",
+    "serve:ssr": "node dist/frontend/server/main.js",
+    "build:ssr": "ng build --configuration production && ng run megadim-catering:server:production",
+    "vercel-build": "ng build --configuration production && ng run megadim-catering:server:production",
     "prerender": "ng run megadim-catering:prerender"
   },
   "private": true,

@@ -7,10 +7,22 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import bootstrap from './main.server';
 
+/**
+ * Browser build output (must match `outputPath` in angular.json).
+ * Override with ANGULAR_BROWSER_DIST for hosts where `process.cwd()` is not the Angular project root (e.g. Vercel serverless).
+ */
+function resolveBrowserDistFolder(): string {
+  const fromEnv = process.env['ANGULAR_BROWSER_DIST']?.trim();
+  if (fromEnv) {
+    return fromEnv;
+  }
+  return join(process.cwd(), 'dist/frontend/browser');
+}
+
 // The Express app is exported so that it can be used by serverless Functions.
 export function app(): express.Express {
   const server = express();
-  const distFolder = join(process.cwd(), 'dist/megadim-catering/browser');
+  const distFolder = resolveBrowserDistFolder();
   const indexHtml = existsSync(join(distFolder, 'index.original.html'))
     ? join(distFolder, 'index.original.html')
     : join(distFolder, 'index.html');

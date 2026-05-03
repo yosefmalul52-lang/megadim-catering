@@ -24,7 +24,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/megadim-catering/browser",
+            "outputPath": "dist/frontend/browser",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": "src/polyfills.ts",
@@ -110,7 +110,7 @@
         "server": {
           "builder": "@angular-devkit/build-angular:server",
           "options": {
-            "outputPath": "dist/megadim-catering/server",
+            "outputPath": "dist/frontend/server",
             "main": "src/server.ts",
             "tsConfig": "tsconfig.server.json",
             "inlineStyleLanguage": "scss"

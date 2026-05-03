@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist/frontend/browser",
+  "rewrites": [
+    { "source": "/", "destination": "/api" },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/api"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "dist/frontend/**",
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}
