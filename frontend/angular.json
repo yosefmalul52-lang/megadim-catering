@@ -31,7 +31,6 @@
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
-              "src/favicon.ico",
               "src/assets",
               { "glob": "robots.txt", "input": "src", "output": "/" },
               { "glob": "sitemap.xml", "input": "src", "output": "/" }
@@ -98,7 +97,6 @@
             "tsConfig": "tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
             "assets": [
-              "src/favicon.ico",
               "src/assets"
             ],
             "styles": [
