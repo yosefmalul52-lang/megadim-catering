@@ -6,11 +6,27 @@ import { validateAndApplyCoupon, incrementCouponUsage, updateCouponRevenue } fro
 import { asyncHandler, createValidationError, createNotFoundError } from '../middleware/errorHandler';
 import { CreateOrderRequest, CreateCheckoutOrderRequest } from '../models/order.model';
 import { fireWebhook } from '../utils/webhook.util';
+import { calculateDeliveryFee } from '../services/delivery.service';
+import StoreSettings from '../models/store-settings.model';
 
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function extractDeliveryCity(address: CreateCheckoutOrderRequest['address']): string {
+  if (typeof address === 'string') {
+    const parts = address
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return parts.length ? parts[0] : '';
+  }
+  if (address && typeof address === 'object') {
+    return String(address.city || '').trim();
+  }
+  return '';
 }
 
 export interface SendOrderBody {
@@ -30,6 +46,45 @@ export class OrderController {
 
   constructor() {
     this.orderService = new OrderService();
+  }
+
+  private async recalculateDeliveryFeeForCheckout(payload: CreateCheckoutOrderRequest): Promise<number> {
+    if (payload.deliveryMethod !== 'delivery') {
+      return 0;
+    }
+    const destinationCity = extractDeliveryCity(payload.address);
+    if (!destinationCity) {
+      throw createValidationError('city is required for delivery');
+    }
+
+    const subtotal = Number(payload.subtotal) || 0;
+    const result = await calculateDeliveryFee(destinationCity, subtotal);
+    if (!result) {
+      throw createValidationError('מחוץ לאזור המשלוחים');
+    }
+
+    const tierMinOrder = (result as any).minOrderForDelivery;
+    if (typeof tierMinOrder === 'number' && tierMinOrder > 0 && subtotal < tierMinOrder) {
+      throw createValidationError(`מינימום להזמנה למשלוח לאזור זה הוא ${tierMinOrder} ₪`);
+    }
+
+    const storeSettings = await StoreSettings.findOne().lean();
+    const freeShippingThreshold = storeSettings?.freeShippingThreshold ?? 500;
+    const isFreeShippingActive = !!storeSettings?.isFreeShippingActive;
+    let finalFee = result.price;
+
+    const tierThreshold = (result as any).tierFreeShippingThreshold;
+    if (typeof tierThreshold === 'number' && tierThreshold > 0) {
+      if (subtotal >= tierThreshold) {
+        finalFee = 0;
+      }
+    } else if (isFreeShippingActive && typeof freeShippingThreshold === 'number' && freeShippingThreshold > 0) {
+      if (subtotal >= freeShippingThreshold) {
+        finalFee = 0;
+      }
+    }
+
+    return finalFee;
   }
 
   /** POST /send – send order summary to business email (and optionally open WhatsApp from client). */
@@ -142,9 +197,13 @@ export class OrderController {
       throw createValidationError('email must be a valid email address');
     }
 
+    const recalculatedDeliveryFee = await this.recalculateDeliveryFeeForCheckout(body);
+    body.deliveryFee = recalculatedDeliveryFee;
+    body.totalAmount = (Number(body.subtotal) || 0) + recalculatedDeliveryFee;
+
     let couponIdToIncrement: string | null = null;
     if (body.couponCode && typeof body.couponCode === 'string' && body.couponCode.trim()) {
-      const cartTotal = (Number(body.subtotal) || 0) + (Number(body.deliveryFee) || 0);
+      const cartTotal = (Number(body.subtotal) || 0) + recalculatedDeliveryFee;
       const couponResult = await validateAndApplyCoupon(body.couponCode.trim(), cartTotal, body.phone);
       if (!couponResult.valid) {
         throw createValidationError((couponResult as any).message || COUPON_VAGUE_ERROR);

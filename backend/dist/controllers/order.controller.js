@@ -8,6 +8,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrderController = void 0;
 const order_service_1 = require("../services/order.service");
@@ -15,9 +18,24 @@ const email_service_1 = require("../services/email.service");
 const coupon_service_1 = require("../services/coupon.service");
 const errorHandler_1 = require("../middleware/errorHandler");
 const webhook_util_1 = require("../utils/webhook.util");
+const delivery_service_1 = require("../services/delivery.service");
+const store_settings_model_1 = __importDefault(require("../models/store-settings.model"));
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+function extractDeliveryCity(address) {
+    if (typeof address === 'string') {
+        const parts = address
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean);
+        return parts.length ? parts[0] : '';
+    }
+    if (address && typeof address === 'object') {
+        return String(address.city || '').trim();
+    }
+    return '';
 }
 class OrderController {
     constructor() {
@@ -127,9 +145,12 @@ class OrderController {
             if (body.email && !isValidEmail(body.email)) {
                 throw (0, errorHandler_1.createValidationError)('email must be a valid email address');
             }
+            const recalculatedDeliveryFee = yield this.recalculateDeliveryFeeForCheckout(body);
+            body.deliveryFee = recalculatedDeliveryFee;
+            body.totalAmount = (Number(body.subtotal) || 0) + recalculatedDeliveryFee;
             let couponIdToIncrement = null;
             if (body.couponCode && typeof body.couponCode === 'string' && body.couponCode.trim()) {
-                const cartTotal = (Number(body.subtotal) || 0) + (Number(body.deliveryFee) || 0);
+                const cartTotal = (Number(body.subtotal) || 0) + recalculatedDeliveryFee;
                 const couponResult = yield (0, coupon_service_1.validateAndApplyCoupon)(body.couponCode.trim(), cartTotal, body.phone);
                 if (!couponResult.valid) {
                     throw (0, errorHandler_1.createValidationError)(couponResult.message || COUPON_VAGUE_ERROR);
@@ -736,6 +757,43 @@ class OrderController {
             res.status(200).json({ success: true, data: updated });
         }));
         this.orderService = new order_service_1.OrderService();
+    }
+    recalculateDeliveryFeeForCheckout(payload) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _j;
+            if (payload.deliveryMethod !== 'delivery') {
+                return 0;
+            }
+            const destinationCity = extractDeliveryCity(payload.address);
+            if (!destinationCity) {
+                throw (0, errorHandler_1.createValidationError)('city is required for delivery');
+            }
+            const subtotal = Number(payload.subtotal) || 0;
+            const result = yield (0, delivery_service_1.calculateDeliveryFee)(destinationCity, subtotal);
+            if (!result) {
+                throw (0, errorHandler_1.createValidationError)('מחוץ לאזור המשלוחים');
+            }
+            const tierMinOrder = result.minOrderForDelivery;
+            if (typeof tierMinOrder === 'number' && tierMinOrder > 0 && subtotal < tierMinOrder) {
+                throw (0, errorHandler_1.createValidationError)(`מינימום להזמנה למשלוח לאזור זה הוא ${tierMinOrder} ₪`);
+            }
+            const storeSettings = yield store_settings_model_1.default.findOne().lean();
+            const freeShippingThreshold = (_j = storeSettings === null || storeSettings === void 0 ? void 0 : storeSettings.freeShippingThreshold) !== null && _j !== void 0 ? _j : 500;
+            const isFreeShippingActive = !!(storeSettings === null || storeSettings === void 0 ? void 0 : storeSettings.isFreeShippingActive);
+            let finalFee = result.price;
+            const tierThreshold = result.tierFreeShippingThreshold;
+            if (typeof tierThreshold === 'number' && tierThreshold > 0) {
+                if (subtotal >= tierThreshold) {
+                    finalFee = 0;
+                }
+            }
+            else if (isFreeShippingActive && typeof freeShippingThreshold === 'number' && freeShippingThreshold > 0) {
+                if (subtotal >= freeShippingThreshold) {
+                    finalFee = 0;
+                }
+            }
+            return finalFee;
+        });
     }
 }
 exports.OrderController = OrderController;

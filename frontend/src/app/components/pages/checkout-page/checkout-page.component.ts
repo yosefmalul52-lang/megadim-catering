@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -21,6 +21,8 @@ import { CouponService } from '../../../services/coupon.service';
 import { MarketingService } from '../../../services/marketing.service';
 import { toYYYYMMDD } from '../../../utils/date.utils';
 import { environment } from '../../../../environments/environment';
+import { Subject, of } from 'rxjs';
+import { catchError, debounceTime, switchMap, takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-checkout-page',
@@ -41,7 +43,7 @@ import { environment } from '../../../../environments/environment';
   templateUrl: './checkout-page.component.html',
   styleUrls: ['./checkout-page.component.scss']
 })
-export class CheckoutPageComponent implements OnInit {
+export class CheckoutPageComponent implements OnInit, OnDestroy {
   private cartService = inject(CartService);
   private router = inject(Router);
   private http = inject(HttpClient);
@@ -83,6 +85,8 @@ export class CheckoutPageComponent implements OnInit {
   deliveryIneligible = false;
   /** Detailed eligibility message shown under delivery options when ineligible. */
   deliveryEligibilityMessage: string | null = null;
+  private readonly deliveryRecalculate$ = new Subject<void>();
+  private readonly destroy$ = new Subject<void>();
 
   orderForm!: FormGroup;
   cartItems: CartItem[] = [];
@@ -137,16 +141,84 @@ export class CheckoutPageComponent implements OnInit {
     this.orderForm.get('deliveryType')?.valueChanges.subscribe(() => {
       this.updateAddressValidators();
       if (this.orderForm.get('deliveryType')?.value !== 'delivery') {
-        this.deliveryFee = 0;
-        this.isDeliveryFree = false;
-        this.originalDeliveryFee = 0;
+        this.resetDeliveryState();
+        this.orderForm.get('city')?.setValue('');
+        this.orderForm.get('streetAddress')?.setValue('');
+        return;
+      }
+      this.recalculateDeliveryIfNeeded();
+    });
+
+    this.deliveryRecalculate$
+      .pipe(
+        debounceTime(200),
+        switchMap(() => {
+          const deliveryType = this.orderForm.get('deliveryType')?.value;
+          const cityValue = this.orderForm.get('city')?.value;
+          const city = typeof cityValue === 'string' ? cityValue.trim() : '';
+          const cartTotal = Number(this.cartSummary.totalPrice ?? 0) || 0;
+
+          if (deliveryType !== 'delivery' || !city) {
+            this.resetDeliveryState();
+            return of(null);
+          }
+
+          this.deliveryFeeLoading = true;
+          this.deliveryOutOfRange = false;
+          this.deliveryError = null;
+          this.deliveryIneligible = false;
+          this.deliveryEligibilityMessage = null;
+          return this.deliveryService.calculateFee(city, cartTotal).pipe(
+            catchError((err) => of({ __error: err } as any))
+          );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((res: any) => {
+        if (!res) {
+          return;
+        }
+        if (res.__error) {
+          const err = res.__error;
+          this.resetDeliveryState();
+          if (err.status === 400 && err.error?.code === 'OUT_OF_RANGE') {
+            this.deliveryOutOfRange = true;
+            this.deliveryError =
+              err.error?.error || 'היעד מחוץ לאזור החלוקה הרגיל. אנא צרו קשר לתיאום טלפוני.';
+          } else {
+            this.deliveryError =
+              (err.error && typeof err.error === 'object' && err.error.error)
+                ? String(err.error.error)
+                : 'שגיאה בחישוב דמי המשלוח. אנא נסו שנית.';
+          }
+          console.error('Delivery calculation failed:', err);
+          return;
+        }
+        if (res.isEligible === false) {
+          const cartTotal = Number(this.cartSummary.totalPrice ?? 0) || 0;
+          const minRequired = res.minRequired ?? 0;
+          const amountShort = res.amountShort ?? Math.max(0, minRequired - cartTotal);
+          this.deliveryIneligible = true;
+          this.deliveryFee = 0;
+          this.isDeliveryFree = false;
+          this.originalDeliveryFee = 0;
+          this.deliveryOutOfRange = false;
+          this.deliveryFeeLoading = false;
+          this.deliveryEligibilityMessage = `לא ניתן לבצע משלוח לאזור זה. מינימום ההזמנה הנדרש הוא ${minRequired} ₪ (חסר לך ${amountShort} ₪). אנא הוסף מוצרים או בחר באיסוף עצמי.`;
+          this.deliveryError = this.deliveryEligibilityMessage;
+          this.orderForm.get('deliveryType')?.setValue('pickup');
+          this.updateAddressValidators();
+          return;
+        }
+        this.deliveryIneligible = false;
+        this.deliveryEligibilityMessage = null;
+        this.deliveryFee = res.price;
+        this.isDeliveryFree = res.isFree === true;
+        this.originalDeliveryFee = res.originalPrice ?? res.price;
         this.deliveryFeeLoading = false;
         this.deliveryOutOfRange = false;
         this.deliveryError = null;
-        this.orderForm.get('city')?.setValue('');
-        this.orderForm.get('streetAddress')?.setValue('');
-      }
-    });
+      });
 
     this.locationService.getIsraeliCities().subscribe(cities => {
       this.citiesList = cities;
@@ -171,7 +243,28 @@ export class CheckoutPageComponent implements OnInit {
     this.cartService.cartItems$.subscribe(items => {
       this.cartItems = items;
       this.cartSummary = this.cartService.cartSummary;
+      this.recalculateDeliveryIfNeeded();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private recalculateDeliveryIfNeeded(): void {
+    this.deliveryRecalculate$.next();
+  }
+
+  private resetDeliveryState(): void {
+    this.deliveryFee = 0;
+    this.isDeliveryFree = false;
+    this.originalDeliveryFee = 0;
+    this.deliveryFeeLoading = false;
+    this.deliveryOutOfRange = false;
+    this.deliveryError = null;
+    this.deliveryIneligible = false;
+    this.deliveryEligibilityMessage = null;
   }
 
   /** Handle click/keyboard on the Delivery card, respecting eligibility. */
@@ -238,70 +331,10 @@ export class CheckoutPageComponent implements OnInit {
       typeof cityValue !== 'string' ||
       cityValue.trim() === ''
     ) {
-      this.deliveryFee = 0;
-      this.isDeliveryFree = false;
-      this.originalDeliveryFee = 0;
-      this.deliveryError = null;
-      this.deliveryOutOfRange = false;
-      this.deliveryIneligible = false;
-      this.deliveryEligibilityMessage = null;
+      this.resetDeliveryState();
       return;
     }
-    const city = cityValue.trim();
-    // cartTotal must be subtotal before delivery; ensure it's a number (sometimes becomes string/undefined)
-    const cartTotal = Number(this.cartSummary.totalPrice ?? 0) || 0;
-    this.deliveryFeeLoading = true;
-    this.deliveryOutOfRange = false;
-    this.deliveryError = null;
-    this.deliveryIneligible = false;
-    this.deliveryEligibilityMessage = null;
-    this.deliveryService.calculateFee(city, cartTotal).subscribe({
-      next: (res) => {
-        if (res.isEligible === false) {
-          const minRequired = res.minRequired ?? 0;
-          const amountShort = res.amountShort ?? Math.max(0, minRequired - cartTotal);
-          this.deliveryIneligible = true;
-          this.deliveryFee = 0;
-          this.isDeliveryFree = false;
-          this.originalDeliveryFee = 0;
-          this.deliveryOutOfRange = false;
-          this.deliveryFeeLoading = false;
-          this.deliveryEligibilityMessage = `לא ניתן לבצע משלוח לאזור זה. מינימום ההזמנה הנדרש הוא ${minRequired} ₪ (חסר לך ${amountShort} ₪). אנא הוסף מוצרים או בחר באיסוף עצמי.`;
-          this.deliveryError = this.deliveryEligibilityMessage;
-          // Force self pickup so user isn't stuck on an invalid delivery option
-          this.orderForm.get('deliveryType')?.setValue('pickup');
-          this.updateAddressValidators();
-        } else {
-          this.deliveryIneligible = false;
-          this.deliveryEligibilityMessage = null;
-          this.deliveryFee = res.price;
-          this.isDeliveryFree = res.isFree === true;
-          this.originalDeliveryFee = res.originalPrice ?? res.price;
-          this.deliveryFeeLoading = false;
-          this.deliveryOutOfRange = false;
-          this.deliveryError = null;
-        }
-      },
-      error: (err) => {
-        this.deliveryFee = 0;
-        this.isDeliveryFree = false;
-        this.originalDeliveryFee = 0;
-        this.deliveryFeeLoading = false;
-        this.deliveryIneligible = false;
-        this.deliveryEligibilityMessage = null;
-        if (err.status === 400 && err.error?.code === 'OUT_OF_RANGE') {
-          this.deliveryOutOfRange = true;
-          this.deliveryError =
-            err.error?.error || 'היעד מחוץ לאזור החלוקה הרגיל. אנא צרו קשר לתיאום טלפוני.';
-        } else {
-          this.deliveryError =
-            (err.error && typeof err.error === 'object' && err.error.error)
-              ? String(err.error.error)
-              : 'שגיאה בחישוב דמי המשלוח. אנא נסו שנית.';
-        }
-        console.error('Delivery calculation failed:', err);
-      }
-    });
+    this.recalculateDeliveryIfNeeded();
   }
 
   /** Cart total + delivery fee when delivery selected (0 if out of range), minus coupon discount if applied. */
@@ -339,12 +372,14 @@ export class CheckoutPageComponent implements OnInit {
         } else {
           this.couponError = res.message || 'קוד קופון לא תקין או פג תוקף';
         }
+        this.recalculateDeliveryIfNeeded();
       },
       error: (err) => {
         this.couponApplying = false;
         this.appliedCouponCode = null;
         this.couponDiscount = 0;
         this.couponError = err?.error?.message || 'קוד קופון לא תקין או פג תוקף';
+        this.recalculateDeliveryIfNeeded();
       }
     });
   }
@@ -354,6 +389,7 @@ export class CheckoutPageComponent implements OnInit {
     this.couponDiscount = 0;
     this.couponError = '';
     this.couponCodeInput = '';
+    this.recalculateDeliveryIfNeeded();
   }
 
   /** Submit disabled when delivery selected but destination is out of range */
