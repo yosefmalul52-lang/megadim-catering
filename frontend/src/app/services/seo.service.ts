@@ -13,7 +13,7 @@ export interface SeoTags {
 
 /** Must stay in sync with `src/index.html` (<title>, meta description, og:title, og:description) to avoid title/description flicker on load. */
 export const SITE_DEFAULT_SEO_TITLE =
-  'קייטרינג מגדים - אירועי פרימיום וכשרות למהדרין | קייטרינג בשרי לאירועים';
+  'קייטרינג מגדים - אירועי פרימיום בכשרות מהדרין | קייטרינג בשרי לאירועים';
 export const SITE_DEFAULT_SEO_DESCRIPTION =
   'שירותי קייטרינג איכותיים וכשרים למהדרין לכל סוגי האירועים – שבתות חתן, בריתות, ואירועים עסקיים. מטבח עשיר עם טעמים ביתיים וטריות ללא פשרות. הזמינו עכשיו!';
 
