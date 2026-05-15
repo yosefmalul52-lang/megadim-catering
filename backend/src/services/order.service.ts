@@ -1,6 +1,10 @@
 import Order, { IOrder } from '../models/Order';
 import MenuItem from '../models/menuItem';
 import mongoose from 'mongoose';
+import {
+  isHolidayOrderProductId,
+  resolveHolidayOrderProduct
+} from '../utils/holiday-order.utils';
 import { CreateOrderRequest, CreateCheckoutOrderRequest, OrderResponse } from '../models/order.model';
 import { sanitizeMarketingData } from '../utils/webhook.util';
 import { emailService } from './email.service';
@@ -273,6 +277,16 @@ export class OrderService {
       const productId = item.productId;
       if (!productId) continue;
       try {
+        if (isHolidayOrderProductId(String(productId))) {
+          const holiday = await resolveHolidayOrderProduct(String(productId), {
+            name: item.name,
+            imageUrl: item.imageUrl
+          });
+          if (holiday?.imageUrl) {
+            (item as any).imageUrl = String(holiday.imageUrl).trim();
+          }
+          continue;
+        }
         let product = await MenuItem.findById(productId).select('imageUrl').lean();
         if (!product?.imageUrl && typeof productId === 'string') {
           product = await MenuItem.findOne({ _id: productId }).select('imageUrl').lean();
@@ -390,6 +404,41 @@ export class OrderService {
         }
         if (!Number.isFinite(quantity) || quantity <= 0) {
           throw new Error(`items[${index}].quantity must be a positive number`);
+        }
+
+        if (isHolidayOrderProductId(productId)) {
+          const holidayProduct = await resolveHolidayOrderProduct(productId, {
+            name: productName,
+            price: item.price,
+            description: item.description,
+            imageUrl: item.imageUrl,
+            category: item.category
+          });
+          if (!holidayProduct) {
+            throw new Error(
+              `Holiday product not found for items[${index}] (id=${productId})`
+            );
+          }
+          const authenticPrice = Number(holidayProduct.price);
+          if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
+            throw new Error(`Invalid holiday product price for items[${index}]`);
+          }
+          return {
+            productId,
+            name: holidayProduct.name,
+            price: authenticPrice,
+            quantity,
+            category: holidayProduct.category,
+            selectedOption: item?.selectedOption?.label
+              ? {
+                  label: String(item.selectedOption.label).trim(),
+                  amount: String(item.selectedOption.amount || '').trim() || undefined,
+                  price: Number(item.selectedOption.price ?? authenticPrice)
+                }
+              : undefined,
+            imageUrl: holidayProduct.imageUrl,
+            description: holidayProduct.description
+          };
         }
 
         // Prevent CastError crash on invalid ObjectId values.

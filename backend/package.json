@@ -12,7 +12,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "migrate:shavuot": "ts-node scripts/migrate-shavuot-to-holiday.ts",
+    "migrate:shavuot:dry": "ts-node scripts/migrate-shavuot-to-holiday.ts --dry-run"
   },
   "keywords": [
     "catering",

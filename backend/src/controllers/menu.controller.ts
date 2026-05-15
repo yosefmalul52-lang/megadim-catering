@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { asyncHandler, createNotFoundError, createValidationError } from '../middleware/errorHandler';
 import MenuItem from '../models/menuItem';
+import { ARCHIVED_HOLIDAY_CATEGORY } from '../services/shavuot-migration.service';
 export class MenuController {
 
   // Get all menu items
@@ -332,23 +333,31 @@ export class MenuController {
     
     // Build MongoDB query
     const query: any = {};
-    
+    const includeArchived =
+      req.query.includeArchived === 'true' || req.query.includeArchived === '1';
+    const includeUnavailable =
+      req.query.includeUnavailable === 'true' || req.query.includeUnavailable === '1';
+
     if (category) {
       query.category = category;
+    } else if (!includeArchived) {
+      query.category = { $ne: ARCHIVED_HOLIDAY_CATEGORY };
     }
-    
+
     if (tag) {
       query.tags = { $in: [tag] };
     }
-    
+
     if (available !== undefined) {
       query.isAvailable = available === 'true';
+    } else if (!includeUnavailable) {
+      query.isAvailable = { $ne: false };
     }
-    
+
     if (popular !== undefined) {
       query.isPopular = popular === 'true';
     }
-    
+
     const menuItems = await MenuItem.find(query).sort({ order: 1 });
 
     res.status(200).json({
@@ -388,10 +397,13 @@ export class MenuController {
       throw createValidationError('Category is required');
     }
 
-    const menuItems = await MenuItem.find({ 
-      category: category,
-      isAvailable: true 
-    }).sort({ order: 1 });
+    const menuItems =
+      category === ARCHIVED_HOLIDAY_CATEGORY
+        ? []
+        : await MenuItem.find({
+            category,
+            isAvailable: { $ne: false }
+          }).sort({ order: 1 });
 
     res.status(200).json({
       success: true,
@@ -405,10 +417,12 @@ export class MenuController {
   // Get popular menu items
   getPopularMenuItems = asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 6;
-    const popularItems = await MenuItem.find({ 
-      isPopular: true, 
-      isAvailable: true 
-    }).limit(limit);
+    const popularItems = await MenuItem.find({
+      isPopular: true,
+      isAvailable: { $ne: false },
+      category: { $ne: ARCHIVED_HOLIDAY_CATEGORY }
+    })
+      .limit(limit);
 
     res.status(200).json({
       success: true,
@@ -421,7 +435,10 @@ export class MenuController {
   // Get menu categories
   getMenuCategories = asyncHandler(async (req: Request, res: Response) => {
     // Get distinct categories from MongoDB
-    const categoryNames = await MenuItem.distinct('category');
+    const categoryNames = await MenuItem.distinct('category', {
+      category: { $ne: ARCHIVED_HOLIDAY_CATEGORY },
+      isAvailable: { $ne: false }
+    });
     
     // Build category objects
     const categories = categoryNames.map((categoryName: string, index: number) => ({
