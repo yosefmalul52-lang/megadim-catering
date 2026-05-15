@@ -36,6 +36,11 @@ export const readyForShabbatRoutes: Routes = [
         loadComponent: () => import('./stuffed/stuffed.component').then(m => m.StuffedComponent)
       },
       {
+        path: 'holiday',
+        loadComponent: () =>
+          import('./holiday-category/holiday-category.component').then(m => m.HolidayCategoryComponent)
+      },
+      {
         path: 'desserts-new',
         redirectTo: 'desserts',
         pathMatch: 'full'
@@ -81,6 +86,11 @@ export const readyForShabbatRoutes: Routes = [
         path: 'stuffed/:id',
         loadComponent: () => import('./product-details/product-details.component').then(m => m.ProductDetailsComponent),
         data: { category: 'stuffed' }
+      },
+      {
+        path: 'holiday/:id',
+        loadComponent: () => import('./product-details/product-details.component').then(m => m.ProductDetailsComponent),
+        data: { category: 'holiday' }
       },
       // Backward compatibility - old detail paths
       {

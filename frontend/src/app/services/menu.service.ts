@@ -3,6 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, tap, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { HolidayCatalogService } from './holiday-catalog.service';
+import { HolidayEventService } from './holiday-event.service';
+import { mapHolidayEventToMenuItems } from '../utils/holiday-menu.utils';
 
 export interface PriceVariant {
   size: string;  // e.g., "250g", "500g", "small", "large"
@@ -61,6 +64,8 @@ export interface MenuCategory {
 })
 export class MenuService {
   private http = inject(HttpClient);
+  private holidayCatalog = inject(HolidayCatalogService);
+  private holidayEventService = inject(HolidayEventService);
   
   private menuItemsSubject = new BehaviorSubject<MenuItem[]>([]);
   public menuItems$ = this.menuItemsSubject.asObservable();
@@ -326,11 +331,6 @@ export class MenuService {
       id: 'cholent',
       name: 'צ\'ולנט',
       description: 'צ\'ולנט מסורתי לשבת'
-    },
-    {
-      id: 'holiday',
-      name: 'אוכל לחג',
-      description: 'מנות מיוחדות לחגים'
     }
   ];
 
@@ -351,13 +351,19 @@ export class MenuService {
     return this.getMenuItems(menuType);
   }
 
-  loadMenuItems(menuType?: 'shabbat' | 'cholent'): Observable<MenuItem[]> {
+  loadMenuItems(
+    menuType?: 'shabbat' | 'cholent',
+    options?: { includeUnavailable?: boolean }
+  ): Observable<MenuItem[]> {
     this.loadingSubject.next(true);
     
     const apiUrl = `${environment.apiUrl}/menu`;
-    const params: { type?: string } = {};
+    const params: Record<string, string> = {};
     if (menuType === 'shabbat' || menuType === 'cholent') {
       params['type'] = menuType;
+    }
+    if (options?.includeUnavailable) {
+      params['includeUnavailable'] = 'true';
     }
     console.log('🔄 Loading menu items from:', apiUrl, Object.keys(params).length ? params : '(all)');
     
@@ -403,11 +409,18 @@ export class MenuService {
         });
         console.log('📊 Items by category:', categoryCounts);
         
-        const processedItems = items.map(item => ({
-          ...item,
-          id: item._id || item.id || '', // Ensure id is always a string, never undefined
-          imageUrl: this.sanitizeImageUrl(item.imageUrl)
-        })).filter(item => item.id); // Filter out items without valid ID
+        const processedItems = items
+          .map(item => ({
+            ...item,
+            id: item._id || item.id || '', // Ensure id is always a string, never undefined
+            imageUrl: this.sanitizeImageUrl(item.imageUrl)
+          }))
+          .filter(item => item.id)
+          .filter(
+            (item) =>
+              options?.includeUnavailable ||
+              (item.category !== 'archived_holiday' && item.isAvailable !== false)
+          );
         
         console.log('✅ Processed', processedItems.length, 'items total');
         return processedItems;
@@ -529,8 +542,7 @@ export class MenuService {
       'סלטים': 'salads',
       'ממולאים': 'desserts',
       'דגים': 'fish',
-      'צ\'ולנט': 'cholent',
-      'אוכל לחג': 'holiday'
+      'צ\'ולנט': 'cholent'
     };
     
     return categoryMap[categoryName] || categoryName.toLowerCase().replace(/\s+/g, '-');
@@ -543,8 +555,7 @@ export class MenuService {
       'סלטים': '/assets/images/salads/hummus.jpg',
       'ממולאים': '/assets/images/placeholder-dish.jpg',
       'דגים': '/assets/images/Fish-category.jpg',
-      'צ\'ולנט': '/assets/images/placeholder-dish.jpg',
-      'אוכל לחג': '/assets/images/placeholder-dish.jpg'
+      'צ\'ולנט': '/assets/images/placeholder-dish.jpg'
     };
     
     return imageMap[categoryName] || '/assets/images/placeholder-dish.jpg';
@@ -690,6 +701,22 @@ export class MenuService {
     }
 
     console.log('🔍 Searching for product with ID:', id);
+
+    if (id.startsWith('he:')) {
+      const cached = this.holidayCatalog.getById(id);
+      if (cached) {
+        return of(cached);
+      }
+      return this.holidayEventService.getActive().pipe(
+        map((res) => {
+          if (!res?.visible || !res.event) return null;
+          const items = mapHolidayEventToMenuItems(res.event);
+          this.holidayCatalog.setItems(items);
+          return this.holidayCatalog.getById(id);
+        }),
+        catchError(() => of(null))
+      );
+    }
 
     return this.getMenuItems().pipe(
       map<MenuItem[], MenuItem | null>(backendItems => {

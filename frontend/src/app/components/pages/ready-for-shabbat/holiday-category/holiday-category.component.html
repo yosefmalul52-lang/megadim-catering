@@ -1,0 +1,71 @@
+<app-page-banner [message]="pageBannerMessage"></app-page-banner>
+<app-page-popup
+  [show]="showPopup"
+  [title]="(settings?.pageAnnouncements?.['holiday']?.popupTitle) ?? ''"
+  [text]="(settings?.pageAnnouncements?.['holiday']?.popupText) ?? ''"
+  (close)="closePopup()"
+></app-page-popup>
+<div class="category-header-actions">
+  <button class="btn-gold-back" routerLink="/ready-for-shabbat">
+    <i class="fas fa-arrow-right"></i> חזרה לתפריט
+  </button>
+</div>
+
+<header class="luxury-category-header" *ngIf="activeEvent">
+  <span class="decorative-line"></span>
+  <span class="decorative-diamond"></span>
+  <h1>{{ activeEvent.name }}</h1>
+  <span class="decorative-diamond"></span>
+  <span class="decorative-line"></span>
+</header>
+
+<div class="fish-page">
+  <div class="container">
+    <div *ngIf="isLoading" class="loading">
+      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+      <span>טוען מנות חג…</span>
+    </div>
+
+    <div class="product-grid unified-menu-grid" *ngIf="!isLoading">
+      <div *ngFor="let dish of items" class="product-card">
+        <div class="card-image-wrapper">
+          <img
+            [ngSrc]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'"
+            [alt]="dish.name"
+            width="400"
+            height="300"
+            (click)="viewDetails(dish)"
+          />
+          <div class="badge" *ngIf="dish.isPopular === true">מומלץ</div>
+          <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
+        </div>
+
+        <div class="card-content">
+          <h4 class="card-title" (click)="viewDetails(dish)">{{ dish.name }}</h4>
+          <p class="card-desc">{{ dish.description }}</p>
+
+          <div class="card-price">
+            <span class="currency">₪</span>{{ getPrice(dish) }}
+            <span class="unit" *ngIf="dish.pricePer100g"> / ליחידה (משוער)</span>
+          </div>
+
+          <div class="card-actions">
+            <button class="btn-details" (click)="viewDetails(dish)">
+              פרטים
+            </button>
+            <button class="btn-add" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
+              <mat-icon>shopping_cart</mat-icon>
+              הוספה לסל
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="!isLoading && items.length === 0" class="empty-state">
+      <i class="fas fa-utensils" aria-hidden="true"></i>
+      <h3>אין מנות זמינות לחג זה כרגע</h3>
+      <p>אנחנו עובדים על הוספת מנות חדשות. חזור בקרוב!</p>
+    </div>
+  </div>
+</div>

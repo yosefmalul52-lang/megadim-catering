@@ -395,6 +395,7 @@ export class AdminLayoutComponent implements OnInit {
     '/admin/marketing': 'ניהול קמפיינים',
     '/admin/customers': 'ניהול לקוחות (CRM)',
     '/admin/coupons': 'ניהול קופונים',
+    '/admin/holiday-events': 'מלאי זמני לחגים',
     '/admin/shipping': 'מחירי משלוח ואזורים',
     '/admin/delivery': 'סידור משלוחים',
     '/admin/delivery-pricing': 'תמחור משלוחים',

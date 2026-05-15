@@ -1,0 +1,84 @@
+<div class="modal" *ngIf="open" (click)="close($event)">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ editing ? 'עריכת מוצר לחג' : 'הוספת מוצר לחג' }}</h2>
+      <button type="button" class="btn-close" (click)="close()" aria-label="סגור">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form [formGroup]="productForm" (ngSubmit)="onSubmit()" class="modal-body">
+      <div class="form-grid">
+        <div class="form-column form-column-image">
+          <div class="form-group">
+            <label>תמונה</label>
+            <div
+              class="image-upload-box"
+              [class.has-image]="imagePreviewUrl || productForm.get('imageUrl')?.value"
+              [class.uploading]="isUploading"
+              [class.drag-over]="isDragOver"
+              (dragover)="onDragOver($event)"
+              (dragleave)="onDragLeave($event)"
+              (drop)="onDrop($event)"
+            >
+              <input
+                type="file"
+                id="holidayProductImageUpload"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                (change)="onFileSelected($event)"
+                [disabled]="isUploading"
+              />
+              <div class="upload-box-content" *ngIf="!imagePreviewUrl && !productForm.get('imageUrl')?.value">
+                <div class="upload-icon">
+                  <i class="fas" [ngClass]="isUploading ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
+                </div>
+                <p class="upload-text">{{ isUploading ? 'מעלה תמונה…' : 'לחץ להעלאת תמונה' }}</p>
+                <p class="upload-hint">או גרור קובץ לכאן</p>
+              </div>
+              <div class="upload-preview" *ngIf="imagePreviewUrl || productForm.get('imageUrl')?.value">
+                <img [src]="imagePreviewUrl || productForm.get('imageUrl')?.value" alt="תצוגה מקדימה" />
+                <button type="button" class="btn-remove-preview" (click)="removeImagePreview()" title="הסר תמונה">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+            <div class="manual-url-input">
+              <label>או הזן כתובת תמונה (URL)</label>
+              <input type="text" formControlName="imageUrl" class="form-input" placeholder="https://..." />
+              <small>הזן נתיב לתמונה או URL</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-column form-column-fields">
+          <div class="form-group">
+            <label>שם המנה *</label>
+            <input type="text" formControlName="name" class="form-input" placeholder="שם המנה בתפריט" />
+          </div>
+          <div class="form-group">
+            <label>מחיר (₪) *</label>
+            <input type="number" formControlName="price" class="form-input" min="0" step="0.01" />
+          </div>
+          <div class="form-group">
+            <label>תיאור</label>
+            <textarea formControlName="description" class="form-input" rows="4"></textarea>
+          </div>
+          <div class="form-group availability-toggle">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="isAvailable" />
+              <span>זמין להזמנה (יוצג באתר)</span>
+            </label>
+            <small>כיבוי יסתיר את המוצר מהלקוחות בלי למחוק אותו מהמערכת</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" (click)="close()">ביטול</button>
+        <button type="submit" class="btn-save" [disabled]="productForm.invalid">
+          {{ editing ? 'עדכן מוצר' : 'הוסף מוצר' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

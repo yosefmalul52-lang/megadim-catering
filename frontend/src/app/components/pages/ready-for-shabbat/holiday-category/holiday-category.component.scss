@@ -1,0 +1,116 @@
+$navy: #1f3540;
+$gold: #E0C075;
+$white: #FFFFFF;
+
+.category-header-actions {
+  padding: 20px 20px 0 20px;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.luxury-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin: 10px 0 40px 0;
+  width: 100%;
+  padding: 0 20px;
+
+  h1 {
+    color: #1f3540;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .decorative-diamond {
+    width: 8px;
+    height: 8px;
+    background-color: var(--primary-gold);
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+
+  .decorative-line {
+    height: 2px;
+    background-color: var(--primary-gold);
+    flex-grow: 1;
+    max-width: 100px;
+    opacity: 0.6;
+  }
+}
+
+.fish-page {
+  direction: rtl;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: $white;
+  padding: 2rem 0;
+  min-height: 70vh;
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: $navy;
+
+    i {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: $gold;
+      display: block;
+    }
+
+    span {
+      font-size: 1.1rem;
+      display: block;
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: $navy;
+
+    i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: $gold;
+      display: block;
+    }
+
+    h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      font-size: 1rem;
+      color: #666;
+    }
+  }
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  padding: 20px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}

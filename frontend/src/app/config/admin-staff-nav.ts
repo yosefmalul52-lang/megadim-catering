@@ -18,6 +18,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { routerLink: '/admin/marketing', iconClass: 'fas fa-bullhorn', label: 'ניהול קמפיינים', roles: ['admin'] },
   { routerLink: '/admin/customers', iconClass: 'fas fa-users', label: 'ניהול לקוחות (CRM)', roles: ['admin'] },
   { routerLink: '/admin/coupons', iconClass: 'fas fa-ticket-alt', label: 'ניהול קופונים', roles: ['admin'] },
+  { routerLink: '/admin/holiday-events', iconClass: 'fas fa-gift', label: 'מלאי זמני לחגים', roles: ['admin'] },
   { routerLink: '/admin/shipping', iconClass: 'fas fa-money-bill-wave', label: 'מחירי משלוח ואזורים', roles: ['admin'] },
   { routerLink: '/admin/delivery', iconClass: 'fas fa-truck', label: 'סידור משלוחים', roles: ['admin', 'driver'] },
   { routerLink: '/admin/delivery-pricing', iconClass: 'fas fa-map-marked-alt', label: 'תמחור משלוחים', roles: ['admin'] },

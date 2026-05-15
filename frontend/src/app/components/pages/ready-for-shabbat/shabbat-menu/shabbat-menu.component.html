@@ -10,10 +10,11 @@
 <!-- Navigation Cards (Bento Grid) -->
 <section class="categories-nav">
   <div class="container">
-    <div class="nav-cards-grid">
+    <div class="nav-cards-grid" [class.has-holiday-active]="hasActiveHoliday">
       <div 
-        *ngFor="let category of categories; let i = index" 
+        *ngFor="let category of categories; trackBy: trackByCategoryId" 
         class="category-item"
+        [class.item-holiday-hero]="category.id === 'holiday'"
         [class.item-main-dishes]="category.id === 'main'"
         [routerLink]="[category.id]"
         routerLinkActive="active"

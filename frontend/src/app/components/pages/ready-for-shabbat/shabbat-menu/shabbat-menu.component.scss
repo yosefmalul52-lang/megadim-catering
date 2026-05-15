@@ -96,6 +96,10 @@ $white: #FFFFFF;
 }
 
 // === Navigation Cards (BENTO GRID LAYOUT) ===
+$bento-gap: 20px;
+$bento-row-height: 230px;
+$holiday-hero-height: 280px;
+
 .categories-nav {
   background-color: $white;
   padding: 40px 20px;
@@ -111,9 +115,15 @@ $white: #FFFFFF;
   .nav-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-auto-rows: 230px;
-    gap: 20px;
+    grid-auto-rows: $bento-row-height;
+    gap: $bento-gap;
     width: 100%;
+
+    // Dedicated top track for the holiday hero (prevents 280px content in a 230px row)
+    &.has-holiday-active {
+      grid-template-rows: $holiday-hero-height;
+      grid-auto-rows: $bento-row-height;
+    }
   }
 
   // --- CATEGORY ITEM ---
@@ -135,6 +145,34 @@ $white: #FFFFFF;
     // Standard items: span 1 column, 1 row
     grid-column: span 1;
     grid-row: span 1;
+
+    // Holiday: full-width hero banner across the top row
+    &.item-holiday-hero {
+      grid-column: 1 / -1;
+      grid-row: 1;
+      height: 100%;
+      min-height: 0;
+      align-self: stretch;
+      overflow: hidden;
+      border-radius: 0 !important;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+
+      .category-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        border-radius: 0 !important;
+      }
+
+      .category-info h3 {
+        font-size: 1.5rem;
+      }
+
+      &:hover {
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      }
+    }
 
     // Main Dishes: Positioned at column 1-2 (right side in RTL), row 1-2 (Top-Right 2x2 area)
     &.item-main-dishes {
@@ -195,6 +233,17 @@ $white: #FFFFFF;
     }
   }
 
+  // When holiday hero is present, keep bento tiles below row 1
+  .nav-cards-grid.has-holiday-active {
+    .item-holiday-hero {
+      grid-row: 1;
+    }
+
+    .item-main-dishes {
+      grid-row: 2 / span 2;
+    }
+  }
+
   // RESPONSIVE DESIGN
   @media (max-width: 968px) {
     padding: 30px 15px;
@@ -207,6 +256,11 @@ $white: #FFFFFF;
       grid-template-columns: repeat(2, 1fr);
       grid-auto-rows: 200px;
       gap: 15px;
+
+      &.has-holiday-active {
+        grid-template-rows: 240px;
+        grid-auto-rows: 200px;
+      }
     }
 
     .category-item {
@@ -215,6 +269,10 @@ $white: #FFFFFF;
         grid-row: span 1;
         height: 100%;
       }
+    }
+
+    .nav-cards-grid.has-holiday-active .item-main-dishes {
+      grid-row: 2 / span 1;
     }
   }
 
@@ -225,6 +283,11 @@ $white: #FFFFFF;
       grid-template-columns: 1fr;
       grid-auto-rows: 200px;
       gap: 15px;
+
+      &.has-holiday-active {
+        grid-template-rows: 220px;
+        grid-auto-rows: 200px;
+      }
     }
 
     .category-item {
@@ -247,6 +310,10 @@ $white: #FFFFFF;
       &.item-main-dishes .category-info h3 {
         font-size: 1.2rem;
       }
+    }
+
+    .nav-cards-grid.has-holiday-active .item-main-dishes {
+      grid-row: auto;
     }
   }
 }

@@ -1764,7 +1764,7 @@ export class MenuManagementComponent implements OnInit {
     console.log('🔄 Dashboard: Loading menu items...');
     
     // Force reload from backend
-    this.menuService.loadMenuItems().subscribe({
+    this.menuService.loadMenuItems(undefined, { includeUnavailable: true }).subscribe({
       next: (items) => {
         console.log('📥 Dashboard: Received', items?.length || 0, 'items from service');
         

@@ -1,0 +1,207 @@
+<div class="holiday-events-admin menu-management">
+  <div class="container">
+    <header class="page-head">
+      <div>
+        <h2>מלאי זמני לחגים</h2>
+        <p>נהל אירועי חג עם מוצרים ייחודיים (לא מהתפריט הרגיל). אירוע פעיל אחד בכל זמן.</p>
+      </div>
+      <button type="button" class="btn-add" (click)="startNewEvent()">
+        <i class="fas fa-plus" aria-hidden="true"></i>
+        אירוע חג חדש
+      </button>
+    </header>
+
+    <div *ngIf="isLoading" class="loading">
+      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+      טוען אירועי חג…
+    </div>
+
+    <div class="layout" *ngIf="!isLoading">
+      <aside class="events-list panel">
+        <h3 class="panel-title">אירועים</h3>
+        <ul>
+          <li *ngFor="let ev of events">
+            <button
+              type="button"
+              class="event-pick"
+              [class.active]="selectedId === ev._id"
+              (click)="selectEvent(ev._id)"
+            >
+              <span class="event-pick-row">
+                <span
+                  class="traffic-dot"
+                  [class.live]="listVisibilityStatus(ev) === 'live'"
+                  [class.partial]="listVisibilityStatus(ev) === 'partial'"
+                  [class.hidden]="listVisibilityStatus(ev) === 'hidden'"
+                ></span>
+                <span class="ev-name">{{ ev.name }}</span>
+              </span>
+              <span class="ev-meta">
+                {{ eventProductSummary(ev) }} · עד {{ deadlineLabel(ev.orderDeadline) }}
+              </span>
+            </button>
+          </li>
+        </ul>
+        <p class="empty-list" *ngIf="!events.length">אין אירועים — צור אירוע ראשון.</p>
+      </aside>
+
+      <main class="editor panel" [formGroup]="eventForm">
+        <div class="editor-head">
+          <h3>{{ selectedId ? 'עריכת אירוע' : 'אירוע חדש' }}</h3>
+          <div
+            class="visibility-panel"
+            [class.status-live]="editorVisibilityStatus === 'live'"
+            [class.status-partial]="editorVisibilityStatus === 'partial'"
+            [class.status-hidden]="editorVisibilityStatus === 'hidden'"
+          >
+            <div class="visibility-title">
+              <span
+                class="traffic-dot large"
+                [class.live]="editorVisibilityStatus === 'live'"
+                [class.partial]="editorVisibilityStatus === 'partial'"
+                [class.hidden]="editorVisibilityStatus === 'hidden'"
+              ></span>
+              <strong *ngIf="editorVisibilityStatus === 'live'">יוצג באתר</strong>
+              <strong *ngIf="editorVisibilityStatus === 'partial'">לא יוצג — חסרים תנאים</strong>
+              <strong *ngIf="editorVisibilityStatus === 'hidden'">לא יוצג באתר</strong>
+            </div>
+            <ul class="visibility-checklist">
+              <li *ngFor="let check of editorVisibilityChecks" [class.ok]="check.ok" [class.fail]="!check.ok">
+                <i class="fas" [class.fa-check-circle]="check.ok" [class.fa-times-circle]="!check.ok"></i>
+                <span>{{ check.label }}</span>
+                <small *ngIf="check.detail">{{ check.detail }}</small>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="form-group event-cover-upload">
+          <label>תמונת נושא לאירוע (Hero Banner)</label>
+          <div
+            class="image-upload-box cover-upload-box"
+            [class.has-image]="coverImagePreview || eventForm.get('imageUrl')?.value"
+            [class.uploading]="isUploadingCover"
+          >
+            <input
+              type="file"
+              id="holidayEventCoverUpload"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              (change)="onCoverImageSelected($event)"
+              [disabled]="isUploadingCover"
+            />
+            <div class="upload-box-content" *ngIf="!coverImagePreview && !eventForm.get('imageUrl')?.value">
+              <i class="fas" [ngClass]="isUploadingCover ? 'fa-spinner fa-spin' : 'fa-camera'"></i>
+              <p>{{ isUploadingCover ? 'מעלה…' : 'לחץ להעלאת תמונת נושא' }}</p>
+            </div>
+            <div class="upload-preview" *ngIf="coverImagePreview || eventForm.get('imageUrl')?.value">
+              <img [src]="coverImagePreview || eventForm.get('imageUrl')?.value" alt="תמונת נושא לאירוע" />
+              <button type="button" class="btn-remove-preview" (click)="removeCoverImagePreview()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div class="manual-url-input">
+            <label>או URL תמונה</label>
+            <input
+              type="text"
+              formControlName="imageUrl"
+              class="form-input"
+              placeholder="https://..."
+              (input)="markFormDirty()"
+            />
+            <small>מוצגת בכרטיסיית החג בראש תפריט שבת (Bento Hero)</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>שם האירוע *</label>
+          <input type="text" formControlName="name" class="form-input" placeholder="למשל: חג פסח" />
+        </div>
+
+        <div class="form-group checkbox-row">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="isActive" />
+            פעיל באתר (מכבה אוטומטית אירועי חג אחרים)
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label>תאריך יעד להזמנה *</label>
+          <input type="datetime-local" formControlName="orderDeadline" class="form-input" />
+          <small>נשמר לפי שעון מקומי (ישראל)</small>
+        </div>
+
+        <section class="products-section" formArrayName="products">
+          <div class="products-section-head">
+            <div>
+              <h4>מוצרים לאירוע</h4>
+              <p class="hint" *ngIf="productsArray.length === 0">הוסף מוצרים דרך המודל. ניתן להסתיר מוצרים מהאתר בלי למחוק.</p>
+              <p class="hint" *ngIf="productsArray.length > 0">
+                {{ countAvailableProducts() }} זמינים להזמנה מתוך {{ productsArray.length }}
+              </p>
+            </div>
+            <button type="button" class="btn-add-small" (click)="openAddProductModal()">
+              <i class="fas fa-plus"></i> הוסף מוצר חדש
+            </button>
+          </div>
+
+          <div class="product-cards-grid" *ngIf="productsArray.length > 0">
+            <article
+              class="product-summary-card"
+              *ngFor="let productCtrl of productsArray.controls; let i = index"
+              [class.unavailable]="!isProductAvailable(i)"
+            >
+              <div class="product-card-image">
+                <img [src]="productImage(i)" [alt]="productCtrl.get('name')?.value || 'מוצר'" />
+                <span class="availability-badge hidden-badge" *ngIf="!isProductAvailable(i)">מוסתר</span>
+              </div>
+              <div class="product-card-body">
+                <h5>{{ productCtrl.get('name')?.value || 'ללא שם' }}</h5>
+                <p class="product-price">₪{{ productCtrl.get('price')?.value | number: '1.0-2' }}</p>
+                <p class="product-desc" *ngIf="productCtrl.get('description')?.value">
+                  {{ productCtrl.get('description')?.value }}
+                </p>
+              </div>
+              <div class="product-card-actions">
+                <button type="button" class="btn-edit" (click)="openEditProductModal(i)">
+                  <i class="fas fa-pen"></i> ערוך
+                </button>
+                <button type="button" class="btn-delete" (click)="removeProduct(i)">
+                  <i class="fas fa-trash"></i> מחק
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <p class="save-hint" *ngIf="hasUnsavedChanges && !isSaving">
+          <i class="fas fa-exclamation-circle"></i>
+          יש שינויים שלא נשמרו — לחץ «שמור אירוע» כדי לשמור במסד הנתונים
+        </p>
+
+        <div class="form-actions">
+          <button type="button" class="btn-save" (click)="save()" [disabled]="isSaving || eventForm.invalid">
+            {{ isSaving ? 'שומר…' : 'שמור אירוע' }}
+          </button>
+          <button
+            type="button"
+            class="btn-cancel"
+            *ngIf="selectedId"
+            (click)="deleteSelected()"
+            [disabled]="isDeleting"
+          >
+            {{ isDeleting ? 'מוחק…' : 'מחק אירוע' }}
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <app-holiday-product-dialog
+    [open]="productModalOpen"
+    [editing]="productModalEditing"
+    [initialValue]="productModalInitial"
+    (saved)="onProductModalSaved($event)"
+    (closed)="closeProductModal()"
+  ></app-holiday-product-dialog>
+</div>

@@ -60,6 +60,13 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./admin-coupons/admin-coupons.component').then(m => m.AdminCouponsComponent)
       },
       {
+        path: 'holiday-events',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () =>
+          import('./admin-holiday-events/admin-holiday-events.component').then(m => m.AdminHolidayEventsComponent)
+      },
+      {
         path: 'shipping',
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },

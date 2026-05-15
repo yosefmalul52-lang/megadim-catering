@@ -6,6 +6,10 @@ import { FormsModule } from '@angular/forms';
 import { MenuService, MenuItem, PricingOption, PriceVariant } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { SeoService } from '../../../../services/seo.service';
+import { HolidayEventService } from '../../../../services/holiday-event.service';
+import { HolidayCatalogService } from '../../../../services/holiday-catalog.service';
+import { HOLIDAY_CART_CATEGORY, mapHolidayEventToMenuItems } from '../../../../utils/holiday-menu.utils';
+import { switchMap, tap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-product-details',
@@ -621,6 +625,8 @@ export class ProductDetailsComponent implements OnInit {
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
   private seoService = inject(SeoService);
+  private holidayEventService = inject(HolidayEventService);
+  private holidayCatalog = inject(HolidayCatalogService);
 
   product: MenuItem | null = null;
   isLoading = true;
@@ -650,7 +656,7 @@ export class ProductDetailsComponent implements OnInit {
           // Check if it's a valid category (not 'id' parameter)
           // Support both SHORT paths (main, fish, salads, sides) and old paths (main-dishes, side-dishes)
           if (potentialCategory && potentialCategory !== productId && 
-              ['main', 'main-dishes', 'fish', 'salads', 'desserts', 'sides', 'side-dishes'].includes(potentialCategory)) {
+              ['main', 'main-dishes', 'fish', 'salads', 'desserts', 'sides', 'side-dishes', 'holiday', 'stuffed'].includes(potentialCategory)) {
             // Map to SHORT route path
             this.category = this.getCategoryRoute(potentialCategory);
           }
@@ -667,11 +673,20 @@ export class ProductDetailsComponent implements OnInit {
 
   private loadProduct(productId: string): void {
     this.isLoading = true;
-    
-    console.log('🔍 ProductDetailsComponent - Requested ID:', productId);
-    
-    // Use the centralized getProductById method
-    this.menuService.getProductById(productId).subscribe({
+
+    const resolveProduct$ =
+      productId.startsWith('he:') && !this.holidayCatalog.getById(productId)
+        ? this.holidayEventService.getActive().pipe(
+            tap((res) => {
+              if (res?.visible && res.event) {
+                this.holidayCatalog.setItems(mapHolidayEventToMenuItems(res.event));
+              }
+            }),
+            switchMap(() => this.menuService.getProductById(productId))
+          )
+        : this.menuService.getProductById(productId);
+
+    resolveProduct$.subscribe({
       next: (product) => {
         console.log('🔍 ProductDetailsComponent - Found:', product ? product.name : 'null');
         this.product = product;
@@ -827,7 +842,8 @@ export class ProductDetailsComponent implements OnInit {
       'fish': 'fish',
       'salads': 'salads',
       'desserts': 'desserts',
-      'sides': 'sides'
+      'sides': 'sides',
+      [HOLIDAY_CART_CATEGORY]: 'holiday'
     };
     return mapping[category] || 'main'; // Default fallback to 'main'
   }
@@ -864,9 +880,14 @@ export class ProductDetailsComponent implements OnInit {
       'salads': 'סלטים',
       'desserts': 'ממולאים',
       'sides': 'תוספות',
-      'side-dishes': 'תוספות'
+      'side-dishes': 'תוספות',
+      'holiday': HOLIDAY_CART_CATEGORY
     };
-    
+
+    if (this.category === 'holiday' && this.product?.category) {
+      return this.product.category;
+    }
+
     return categoryNames[this.category] || 'מוצרים';
   }
 
