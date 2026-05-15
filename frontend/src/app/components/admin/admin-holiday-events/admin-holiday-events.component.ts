@@ -110,6 +110,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
       price: number;
       description: string;
       imageUrl: string;
+      pricingType: 'fixed' | 'variants';
+      weightUnit: 'unit' | '100g';
+      pricingOptions: Array<{ label: string; amount: string; price: number }>;
       isAvailable: boolean;
     }>;
   } | null {
@@ -129,6 +132,15 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
         price: Number(p.price) || 0,
         description: (p.description || '').trim(),
         imageUrl: (p.imageUrl || '').trim(),
+        pricingType: (p.pricingType === 'variants' ? 'variants' : 'fixed') as 'fixed' | 'variants',
+        weightUnit: (p.weightUnit === '100g' ? '100g' : 'unit') as 'unit' | '100g',
+        pricingOptions: Array.isArray(p.pricingOptions)
+          ? p.pricingOptions.map((o: { label?: string; amount?: string; price?: number }) => ({
+              label: String(o.label || '').trim(),
+              amount: String(o.amount ?? '').trim(),
+              price: Number(o.price) || 0
+            }))
+          : [],
         isAvailable: p.isAvailable !== false
       }));
 
@@ -260,6 +272,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
     price?: number;
     description?: string;
     imageUrl?: string;
+    pricingType?: 'fixed' | 'variants';
+    weightUnit?: 'unit' | '100g';
+    pricingOptions?: Array<{ label: string; amount: string; price: number }>;
     isAvailable?: boolean;
   }): FormGroup {
     return this.fb.group({
@@ -268,6 +283,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
       price: [product?.price ?? 0, [Validators.required, Validators.min(0)]],
       description: [product?.description || ''],
       imageUrl: [product?.imageUrl || ''],
+      pricingType: [product?.pricingType === 'variants' ? 'variants' : 'fixed'],
+      weightUnit: [product?.weightUnit === '100g' ? '100g' : 'unit'],
+      pricingOptions: [product?.pricingOptions || []],
       isAvailable: [product?.isAvailable !== false]
     });
   }
@@ -280,6 +298,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
       price: 0,
       description: '',
       imageUrl: '',
+      pricingType: 'fixed',
+      weightUnit: 'unit',
+      pricingOptions: [],
       isAvailable: true
     };
     this.productModalOpen = true;
@@ -295,6 +316,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
       price: raw.price,
       description: raw.description,
       imageUrl: raw.imageUrl,
+      pricingType: raw.pricingType === 'variants' ? 'variants' : 'fixed',
+      weightUnit: raw.weightUnit === '100g' ? '100g' : 'unit',
+      pricingOptions: Array.isArray(raw.pricingOptions) ? raw.pricingOptions : [],
       isAvailable: raw.isAvailable !== false
     };
     this.productModalOpen = true;
@@ -313,6 +337,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
       price: value.price,
       description: value.description,
       imageUrl: value.imageUrl,
+      pricingType: value.pricingType,
+      weightUnit: value.weightUnit,
+      pricingOptions: value.pricingOptions || [],
       isAvailable: value.isAvailable
     };
     if (this.productModalIndex != null) {
@@ -325,6 +352,9 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
         price: value.price,
         description: value.description,
         imageUrl: value.imageUrl,
+        pricingType: value.pricingType,
+        weightUnit: value.weightUnit,
+        pricingOptions: value.pricingOptions,
         isAvailable: value.isAvailable
       }));
     }

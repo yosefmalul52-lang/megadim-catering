@@ -6,11 +6,11 @@ import { Subject, takeUntil } from 'rxjs';
 import { MenuItem } from '../../../../services/menu.service';
 import { HolidayEvent, HolidayEventService } from '../../../../services/holiday-event.service';
 import { HolidayCatalogService } from '../../../../services/holiday-catalog.service';
-import { CartService } from '../../../../services/cart.service';
 import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
 import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
+import { ProductCardActionsComponent } from '../../../shared/product-card-actions/product-card-actions.component';
 import { formatDeadlineLabel } from '../../../../utils/datetime-local.utils';
 import {
   HOLIDAY_CART_CATEGORY,
@@ -27,7 +27,8 @@ import {
     RouterModule,
     MatIconModule,
     PageBannerComponent,
-    PagePopupComponent
+    PagePopupComponent,
+    ProductCardActionsComponent
   ],
   templateUrl: './holiday-category.component.html',
   styleUrls: ['./holiday-category.component.scss']
@@ -35,7 +36,6 @@ import {
 export class HolidayCategoryComponent implements OnInit, OnDestroy {
   private holidayEventService = inject(HolidayEventService);
   private holidayCatalog = inject(HolidayCatalogService);
-  private cartService = inject(CartService);
   private settingsService = inject(SiteSettingsService);
   private router = inject(Router);
   private seoService = inject(SeoService);
@@ -48,6 +48,8 @@ export class HolidayCategoryComponent implements OnInit, OnDestroy {
   items: MenuItem[] = [];
   isLoading = true;
   orderDeadlineLabel = '';
+
+  readonly cartCategory = HOLIDAY_CART_CATEGORY;
 
   get pageBannerMessage(): string | null {
     const announcement = this.settings?.pageAnnouncements?.['holiday']?.bannerText?.trim();
@@ -118,33 +120,12 @@ export class HolidayCategoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  getPrice(item: MenuItem): number {
-    return item.price || item.pricePer100g || item.pricingOptions?.[0]?.price || 0;
-  }
-
   isAvailable(item: MenuItem): boolean {
     return (
       item.isAvailable !== false &&
       this.activeEvent != null &&
       isHolidayEventStillOrderable(this.activeEvent)
     );
-  }
-
-  addToCart(item: MenuItem): void {
-    if (!this.isAvailable(item)) return;
-    const price = this.getPrice(item);
-    if (price <= 0) {
-      console.error(`Cannot add ${item.name} to cart: no price available`);
-      return;
-    }
-    this.cartService.addItem({
-      id: item.id || item._id || '',
-      name: item.name,
-      price,
-      imageUrl: item.imageUrl,
-      description: item.description,
-      category: HOLIDAY_CART_CATEGORY
-    });
   }
 
   viewDetails(item: MenuItem): void {

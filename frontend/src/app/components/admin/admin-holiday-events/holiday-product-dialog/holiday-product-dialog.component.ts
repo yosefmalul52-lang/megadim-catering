@@ -1,8 +1,19 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormArray,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators
+} from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { UploadService } from '../../../../services/upload.service';
+import {
+  HolidayPricingOption,
+  HolidayProductPricingType,
+  HolidayProductWeightUnit
+} from '../../../../services/holiday-event.service';
 
 export interface HolidayProductFormValue {
   _id?: string;
@@ -10,6 +21,9 @@ export interface HolidayProductFormValue {
   price: number;
   description: string;
   imageUrl: string;
+  pricingType: HolidayProductPricingType;
+  weightUnit: HolidayProductWeightUnit;
+  pricingOptions: HolidayPricingOption[];
   isAvailable: boolean;
 }
 
@@ -45,14 +59,41 @@ export class HolidayProductDialogComponent implements OnChanges {
     }
   }
 
+  get pricingOptionsArray(): FormArray {
+    return this.productForm.get('pricingOptions') as FormArray;
+  }
+
+  get isFixedPricing(): boolean {
+    return this.productForm.get('pricingType')?.value !== 'variants';
+  }
+
   private buildForm(value?: HolidayProductFormValue | null): FormGroup {
+    const pricingType: HolidayProductPricingType =
+      value?.pricingType === 'variants' ? 'variants' : 'fixed';
     return this.fb.group({
       _id: [value?._id || ''],
       name: [(value?.name || '').trim(), Validators.required],
-      price: [value?.price ?? 0, [Validators.required, Validators.min(0)]],
+      price: [value?.price ?? 0, [Validators.min(0)]],
       description: [value?.description || ''],
       imageUrl: [value?.imageUrl || ''],
+      pricingType: [pricingType],
+      weightUnit: [value?.weightUnit === '100g' ? '100g' : 'unit'],
+      pricingOptions: this.fb.array(
+        (value?.pricingOptions?.length ? value.pricingOptions : [{ label: '', amount: '', price: 0 }]).map(
+          (o) => this.createPricingOptionGroup(o)
+        )
+      ),
       isAvailable: [value?.isAvailable !== false]
+    });
+  }
+
+  private createPricingOptionGroup(
+    option?: Partial<HolidayPricingOption>
+  ): FormGroup {
+    return this.fb.group({
+      label: [(option?.label || '').trim()],
+      amount: [String(option?.amount ?? '').trim()],
+      price: [option?.price ?? 0, [Validators.min(0)]]
     });
   }
 
@@ -61,6 +102,59 @@ export class HolidayProductDialogComponent implements OnChanges {
     this.imagePreviewUrl = value?.imageUrl?.trim() || null;
     this.isDragOver = false;
     this.isUploading = false;
+    this.updatePricingValidators();
+  }
+
+  /** Validate variant rows only in variants mode; fixed price only in fixed mode. */
+  private updatePricingValidators(): void {
+    const isVariants = this.productForm.get('pricingType')?.value === 'variants';
+
+    this.pricingOptionsArray.controls.forEach((ctrl) => {
+      const group = ctrl as FormGroup;
+      const label = group.get('label');
+      const amount = group.get('amount');
+      const price = group.get('price');
+
+      if (isVariants) {
+        label?.setValidators([Validators.required]);
+        amount?.setValidators([Validators.required]);
+        price?.setValidators([Validators.required, Validators.min(0)]);
+      } else {
+        label?.clearValidators();
+        amount?.clearValidators();
+        price?.setValidators([Validators.min(0)]);
+      }
+      label?.updateValueAndValidity({ emitEvent: false });
+      amount?.updateValueAndValidity({ emitEvent: false });
+      price?.updateValueAndValidity({ emitEvent: false });
+    });
+
+    const priceCtrl = this.productForm.get('price');
+    if (isVariants) {
+      priceCtrl?.clearValidators();
+      priceCtrl?.setValidators([Validators.min(0)]);
+    } else {
+      priceCtrl?.setValidators([Validators.required, Validators.min(0)]);
+    }
+    priceCtrl?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  onPricingTypeChange(): void {
+    const type = this.productForm.get('pricingType')?.value;
+    if (type === 'variants' && this.pricingOptionsArray.length === 0) {
+      this.addPricingOption();
+    }
+    this.updatePricingValidators();
+  }
+
+  addPricingOption(): void {
+    this.pricingOptionsArray.push(this.createPricingOptionGroup());
+    this.updatePricingValidators();
+  }
+
+  removePricingOption(index: number): void {
+    if (this.pricingOptionsArray.length <= 1) return;
+    this.pricingOptionsArray.removeAt(index);
   }
 
   close(event?: Event): void {
@@ -72,17 +166,51 @@ export class HolidayProductDialogComponent implements OnChanges {
   }
 
   onSubmit(): void {
+    const type = this.productForm.get('pricingType')?.value as HolidayProductPricingType;
+    if (type === 'fixed') {
+      const price = Number(this.productForm.get('price')?.value);
+      if (!Number.isFinite(price) || price < 0) {
+        this.productForm.get('price')?.setErrors({ required: true });
+      }
+    } else if (this.pricingOptionsArray.length === 0) {
+      this.addPricingOption();
+    }
+
     if (this.productForm.invalid) {
       this.productForm.markAllAsTouched();
       return;
     }
+
     const raw = this.productForm.getRawValue();
+    const pricingType: HolidayProductPricingType =
+      raw.pricingType === 'variants' ? 'variants' : 'fixed';
+
+    let pricingOptions: HolidayPricingOption[] = [];
+    if (pricingType === 'variants') {
+      pricingOptions = (raw.pricingOptions || [])
+        .map((o: HolidayPricingOption) => ({
+          label: String(o.label || '').trim(),
+          amount: String(o.amount ?? '').trim(),
+          price: Number(o.price) || 0
+        }))
+        .filter((o: HolidayPricingOption) => o.label && o.amount && o.price >= 0);
+      if (!pricingOptions.length) {
+        this.toastr.warning('הוסף לפחות אפשרות מחיר אחת', 'תמחור', {
+          positionClass: 'toast-top-left'
+        });
+        return;
+      }
+    }
+
     this.saved.emit({
       _id: raw._id || undefined,
       name: String(raw.name).trim(),
       price: Number(raw.price) || 0,
       description: (raw.description || '').trim(),
       imageUrl: (raw.imageUrl || '').trim(),
+      pricingType,
+      weightUnit: raw.weightUnit === '100g' ? '100g' : 'unit',
+      pricingOptions,
       isAvailable: !!raw.isAvailable
     });
   }

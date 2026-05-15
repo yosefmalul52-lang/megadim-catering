@@ -1,0 +1,23 @@
+<div class="quantity-selector" [class.is-weight]="mode === 'weight'">
+  <button
+    type="button"
+    class="qty-btn minus"
+    (click)="decrease()"
+    [disabled]="disabled || value <= min"
+    aria-label="הפחת כמות"
+  >
+    <i class="fas fa-minus" aria-hidden="true"></i>
+  </button>
+
+  <span class="qty-display" [attr.aria-label]="'כמות: ' + displayValue">{{ displayValue }}</span>
+
+  <button
+    type="button"
+    class="qty-btn plus"
+    (click)="increase()"
+    [disabled]="disabled || value >= max"
+    aria-label="הגדל כמות"
+  >
+    <i class="fas fa-plus" aria-hidden="true"></i>
+  </button>
+</div>

@@ -1,5 +1,10 @@
-import { MenuItem } from '../services/menu.service';
-import { HolidayEvent, HolidayEventProduct } from '../services/holiday-event.service';
+import { MenuItem, PricingOption } from '../services/menu.service';
+import {
+  HolidayEvent,
+  HolidayEventProduct,
+  HolidayProductPricingType,
+  HolidayProductWeightUnit
+} from '../services/holiday-event.service';
 import { isHolidayEventLiveOnSite, isHolidayProductAvailable } from './holiday-visibility.utils';
 
 /** Cart / order summary label for holiday catalog items */
@@ -25,6 +30,19 @@ export function holidayProductCartId(
   return `he:${eventId}:${pid}`;
 }
 
+export function resolveHolidayPricingType(
+  product: Pick<HolidayEventProduct, 'pricingType'>
+): HolidayProductPricingType {
+  return product.pricingType === 'variants' ? 'variants' : 'fixed';
+}
+
+export function resolveHolidayWeightUnit(
+  product: Pick<HolidayEventProduct, 'weightUnit' | 'pricingType'>
+): HolidayProductWeightUnit {
+  if (resolveHolidayPricingType(product) === 'variants') return 'unit';
+  return product.weightUnit === '100g' ? '100g' : 'unit';
+}
+
 /** Map embedded holiday product to MenuItem for unified product-card rendering */
 export function mapHolidayProductToMenuItem(
   product: HolidayEventProduct,
@@ -32,17 +50,40 @@ export function mapHolidayProductToMenuItem(
   index: number
 ): MenuItem {
   const id = holidayProductCartId(eventId, product, index);
-  return {
+  const pricingType = resolveHolidayPricingType(product);
+  const rate = Number(product.price) || 0;
+
+  const base: MenuItem = {
     id,
     _id: id,
     name: product.title,
     description: product.description || '',
-    price: Number(product.price) || 0,
     imageUrl: product.imageUrl?.trim() || PLACEHOLDER_IMAGE,
     category: HOLIDAY_CART_CATEGORY,
     tags: ['holiday'],
     isAvailable: true
   };
+
+  if (pricingType === 'variants') {
+    const pricingOptions: PricingOption[] = (product.pricingOptions || [])
+      .filter((o) => (o.label || '').trim())
+      .map((o) => ({
+        label: String(o.label).trim(),
+        amount: String(o.amount ?? '').trim(),
+        price: Number(o.price) || 0
+      }));
+    return {
+      ...base,
+      pricingOptions,
+      price: pricingOptions[0]?.price ?? rate
+    };
+  }
+
+  const weightUnit = resolveHolidayWeightUnit(product);
+  if (weightUnit === '100g') {
+    return { ...base, pricePer100g: rate };
+  }
+  return { ...base, price: rate };
 }
 
 export function mapHolidayEventToMenuItems(event: HolidayEvent): MenuItem[] {

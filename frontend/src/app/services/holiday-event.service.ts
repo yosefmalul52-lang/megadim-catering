@@ -3,12 +3,24 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export type HolidayProductPricingType = 'fixed' | 'variants';
+export type HolidayProductWeightUnit = 'unit' | '100g';
+
+export interface HolidayPricingOption {
+  label: string;
+  amount: string;
+  price: number;
+}
+
 export interface HolidayEventProduct {
   _id?: string;
   title: string;
   price: number;
   description: string;
   imageUrl: string;
+  pricingType?: HolidayProductPricingType;
+  weightUnit?: HolidayProductWeightUnit;
+  pricingOptions?: HolidayPricingOption[];
   /** Admin only; omitted from public active API for hidden products */
   isAvailable?: boolean;
 }

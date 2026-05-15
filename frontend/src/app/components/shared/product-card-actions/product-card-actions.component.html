@@ -1,0 +1,86 @@
+<!-- Weight-based fixed price -->
+<div
+  class="price-unit"
+  *ngIf="isWeightFixed(item) && !hasPricingOptions(item) && !hasPricingVariants(item)"
+>
+  מחיר ל-100 גרם: ₪{{ item.pricePer100g }}
+</div>
+
+<!-- Variant dropdown -->
+<select
+  *ngIf="hasPricingOptions(item)"
+  class="form-control card-select"
+  [value]="getSelectedOptionIndex(itemId)"
+  (change)="selectPricingOption(itemId, $event)"
+  [disabled]="disabled"
+>
+  <option value="">בחרו אפשרות</option>
+  <option *ngFor="let option of item.pricingOptions; let i = index" [value]="i">
+    {{ option.label }} - {{ option.amount }} - ₪{{ option.price }}
+  </option>
+</select>
+
+<!-- Legacy size buttons -->
+<div class="size-selection" *ngIf="!hasPricingOptions(item) && hasPricingVariants(item)">
+  <label class="size-label">בחרו גודל:</label>
+  <div class="size-options">
+    <button
+      type="button"
+      *ngFor="let variant of item.pricingVariants; let i = index"
+      class="size-btn"
+      [class.active]="getSelectedVariantIndex(itemId) === i"
+      (click)="selectVariant(itemId, i)"
+      [disabled]="disabled"
+      [attr.aria-label]="'בחרו ' + variant.label + ' עבור ' + item.name"
+    >
+      <span class="size-weight">{{ variant.label }}</span>
+      <span class="size-price">₪{{ variant.price }}</span>
+    </button>
+  </div>
+</div>
+
+<!-- Unit fixed price -->
+<div
+  class="card-price"
+  *ngIf="isUnitFixed(item) && !hasPricingOptions(item) && !hasPricingVariants(item)"
+>
+  <span class="currency">₪</span>{{ getUnitRate(item) }}
+  <span class="unit"> ליחידה</span>
+</div>
+
+<!-- Weight line total for selected grams -->
+<div
+  class="card-price"
+  *ngIf="isWeightFixed(item) && !hasPricingOptions(item) && !hasPricingVariants(item)"
+>
+  <span class="currency">₪</span>{{ getLineTotal(item) }}
+  <span class="unit"> ({{ getQuantity(item) * 100 }} גרם)</span>
+</div>
+
+<!-- Variant / option selected price -->
+<div
+  class="card-price"
+  *ngIf="(hasPricingOptions(item) || hasPricingVariants(item)) && hasSelectedOption(item)"
+>
+  <span class="currency">₪</span>{{ getSelectedPrice(item) }}
+</div>
+
+<div class="error-message" *ngIf="hasValidationError(itemId)">נא לבחור גודל תחילה</div>
+
+<app-quantity-selector
+  *ngIf="showQuantitySelector(item)"
+  [mode]="isWeightFixed(item) ? 'weight' : 'unit'"
+  [value]="getQuantity(item)"
+  [disabled]="disabled"
+  (valueChange)="setQuantity(item, $event)"
+></app-quantity-selector>
+
+<button
+  type="button"
+  class="btn-add card-add-btn"
+  (click)="addToCart()"
+  [disabled]="disabled"
+>
+  <mat-icon>shopping_cart</mat-icon>
+  הוספה לסל
+</button>

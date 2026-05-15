@@ -44,18 +44,15 @@
           <h4 class="card-title" (click)="viewDetails(dish)">{{ dish.name }}</h4>
           <p class="card-desc">{{ dish.description }}</p>
 
-          <div class="card-price">
-            <span class="currency">₪</span>{{ getPrice(dish) }}
-            <span class="unit" *ngIf="dish.pricePer100g"> / ליחידה (משוער)</span>
-          </div>
+          <app-product-card-actions
+            [item]="dish"
+            [cartCategory]="cartCategory"
+            [disabled]="!isAvailable(dish)"
+          ></app-product-card-actions>
 
-          <div class="card-actions">
-            <button class="btn-details" (click)="viewDetails(dish)">
+          <div class="card-actions card-actions-details-only">
+            <button type="button" class="btn-details" (click)="viewDetails(dish)">
               פרטים
-            </button>
-            <button class="btn-add" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
-              <mat-icon>shopping_cart</mat-icon>
-              הוספה לסל
             </button>
           </div>
         </div>

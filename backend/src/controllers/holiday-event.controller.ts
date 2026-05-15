@@ -22,18 +22,68 @@ export function isHolidayEventLive(
   );
 }
 
+function normalizeWeightUnit(raw: unknown): 'unit' | '100g' {
+  const v = String(raw ?? '').trim().toLowerCase();
+  if (v === '100g' || v === 'per100g' || v === 'גרם' || v.includes('100')) return '100g';
+  return 'unit';
+}
+
+function normalizePricingType(raw: unknown): 'fixed' | 'variants' {
+  const v = String(raw ?? '').trim().toLowerCase();
+  if (v === 'variants' || v === 'options') return 'variants';
+  // Legacy holiday docs: unit | weight
+  if (v === 'weight' || v === 'unit' || v === 'fixed' || v === 'single') return 'fixed';
+  return 'fixed';
+}
+
+function normalizePricingOptions(raw: unknown): IHolidayEventProduct['pricingOptions'] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((opt: any) => {
+      const label = String(opt?.label ?? '').trim();
+      if (!label) return null;
+      const amountRaw = opt?.amount;
+      const amount =
+        amountRaw != null && amountRaw !== ''
+          ? String(amountRaw).trim()
+          : '';
+      const price = Number(opt?.price);
+      if (!Number.isFinite(price) || price < 0) return null;
+      return { label, amount, price };
+    })
+    .filter((o): o is NonNullable<typeof o> => o != null);
+}
+
 function normalizeProducts(raw: unknown): Partial<IHolidayEventProduct>[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((p: any) => {
       const title = String(p?.title ?? p?.name ?? '').trim();
       if (!title) return null;
+
+      let pricingType = normalizePricingType(p?.pricingType);
+      let weightUnit = normalizeWeightUnit(p?.weightUnit);
+      const legacyType = String(p?.pricingType ?? '').trim().toLowerCase();
+      if (legacyType === 'weight') {
+        pricingType = 'fixed';
+        weightUnit = '100g';
+      } else if (legacyType === 'unit') {
+        pricingType = 'fixed';
+        weightUnit = 'unit';
+      }
+
+      const pricingOptions =
+        pricingType === 'variants' ? normalizePricingOptions(p?.pricingOptions) : [];
+
       const out: Partial<IHolidayEventProduct> = {
         title,
         price: Number(p?.price) || 0,
         description: String(p?.description ?? '').trim(),
         imageUrl: String(p?.imageUrl ?? '').trim(),
-        isAvailable: p?.isAvailable !== false
+        isAvailable: p?.isAvailable !== false,
+        pricingType,
+        weightUnit,
+        pricingOptions
       };
       const id = String(p?._id ?? '').trim();
       if (id && mongoose.Types.ObjectId.isValid(id)) {
@@ -49,12 +99,32 @@ async function deactivateOtherHolidayEvents(exceptId: mongoose.Types.ObjectId | 
 }
 
 function mapProduct(p: any, includeAvailability: boolean) {
+  let pricingType = normalizePricingType(p?.pricingType);
+  let weightUnit = normalizeWeightUnit(p?.weightUnit);
+  const legacyType = String(p?.pricingType ?? '').trim().toLowerCase();
+  if (legacyType === 'weight') {
+    pricingType = 'fixed';
+    weightUnit = '100g';
+  } else if (legacyType === 'unit') {
+    pricingType = 'fixed';
+    weightUnit = 'unit';
+  }
+
   const base = {
     _id: String(p._id),
     title: p.title,
-    price: p.price,
+    price: Number(p.price) || 0,
     description: p.description,
-    imageUrl: p.imageUrl
+    imageUrl: p.imageUrl,
+    pricingType,
+    weightUnit,
+    pricingOptions: Array.isArray(p.pricingOptions)
+      ? p.pricingOptions.map((opt: any) => ({
+          label: String(opt?.label ?? ''),
+          amount: String(opt?.amount ?? ''),
+          price: Number(opt?.price) || 0
+        }))
+      : []
   };
   if (includeAvailability) {
     return { ...base, isAvailable: isHolidayProductAvailable(p) };
