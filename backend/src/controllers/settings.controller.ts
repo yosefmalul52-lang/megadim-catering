@@ -61,6 +61,7 @@ export class SettingsController {
         settings = new SiteSettings({
           shabbatMenuUrl: '',
           eventsMenuUrl: '',
+          kosherCertificateUrl: '',
           contactPhone: '073-367-8399',
           orderEmail: 'yosefmalul52@gmail.com',
           whatsappLink: '',
@@ -80,6 +81,7 @@ export class SettingsController {
         data: {
           shabbatMenuUrl: settings.shabbatMenuUrl || '',
           eventsMenuUrl: settings.eventsMenuUrl || '',
+          kosherCertificateUrl: settings.kosherCertificateUrl || '',
           contactPhone: settings.contactPhone || '073-367-8399',
           orderEmail: settings.orderEmail || 'yosefmalul52@gmail.com',
           whatsappLink: settings.whatsappLink || '',
@@ -109,6 +111,12 @@ export class SettingsController {
       }
       if (updateData.eventsMenuUrl !== undefined && typeof updateData.eventsMenuUrl !== 'string') {
         throw createValidationError('eventsMenuUrl must be a string');
+      }
+      if (
+        updateData.kosherCertificateUrl !== undefined &&
+        typeof updateData.kosherCertificateUrl !== 'string'
+      ) {
+        throw createValidationError('kosherCertificateUrl must be a string');
       }
       if (updateData.contactPhone !== undefined && typeof updateData.contactPhone !== 'string') {
         throw createValidationError('contactPhone must be a string');
@@ -171,6 +179,16 @@ export class SettingsController {
           throw createValidationError('eventsMenuUrl must be a valid URL');
         }
       }
+      if (updateData.kosherCertificateUrl && updateData.kosherCertificateUrl.trim() !== '') {
+        const certUrl = String(updateData.kosherCertificateUrl).trim();
+        if (certUrl.startsWith('http://') || certUrl.startsWith('https://')) {
+          try {
+            new URL(certUrl);
+          } catch {
+            throw createValidationError('kosherCertificateUrl must be a valid URL');
+          }
+        }
+      }
       if (updateData.whatsappLink && updateData.whatsappLink.trim() !== '') {
         try {
           new URL(updateData.whatsappLink);
@@ -211,6 +229,7 @@ export class SettingsController {
         data: {
           shabbatMenuUrl: result.shabbatMenuUrl || '',
           eventsMenuUrl: result.eventsMenuUrl || '',
+          kosherCertificateUrl: result.kosherCertificateUrl || '',
           contactPhone: result.contactPhone || '073-367-8399',
           orderEmail: result.orderEmail || 'yosefmalul52@gmail.com',
           whatsappLink: result.whatsappLink || '',

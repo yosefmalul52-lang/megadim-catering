@@ -23,6 +23,8 @@ function defaultPageAnnouncements(): Record<string, IPageAnnouncement> {
 export interface ISiteSettings extends Document {
   shabbatMenuUrl: string;
   eventsMenuUrl: string;
+  /** Public URL for the kosher certificate image (e.g. Cloudinary) */
+  kosherCertificateUrl?: string;
   contactPhone?: string;
   orderEmail?: string;
   whatsappLink?: string;
@@ -42,6 +44,11 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
       trim: true
     },
     eventsMenuUrl: {
+      type: String,
+      default: '',
+      trim: true
+    },
+    kosherCertificateUrl: {
       type: String,
       default: '',
       trim: true
