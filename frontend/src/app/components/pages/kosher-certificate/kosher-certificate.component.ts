@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { SiteSettingsService } from '../../../services/site-settings.service';
 
 @Component({
   selector: 'app-kosher-certificate',
@@ -10,4 +11,16 @@ import { MatButtonModule } from '@angular/material/button';
   templateUrl: './kosher-certificate.component.html',
   styleUrls: ['./kosher-certificate.component.scss']
 })
-export class KosherCertificateComponent {}
+export class KosherCertificateComponent implements OnInit {
+  private settingsService = inject(SiteSettingsService);
+
+  certificateImageUrl = 'assets/images/Kosher-certificate.jpg';
+
+  ngOnInit(): void {
+    this.settingsService.getSettings(true).subscribe({
+      next: (settings) => {
+        this.certificateImageUrl = this.settingsService.getKosherCertificateUrl(settings);
+      }
+    });
+  }
+}

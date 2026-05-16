@@ -6,7 +6,14 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ToastrService } from 'ngx-toastr';
-import { SiteSettingsService, SiteSettings, PAGE_IDS, PageId } from '../../../services/site-settings.service';
+import {
+  SiteSettingsService,
+  SiteSettings,
+  PAGE_IDS,
+  PageId,
+  DEFAULT_KOSHER_CERTIFICATE_URL
+} from '../../../services/site-settings.service';
+import { UploadService } from '../../../services/upload.service';
 import { AdminDeliveryService } from '../../../services/admin-delivery.service';
 import { toYYYYMMDD } from '../../../utils/date.utils';
 
@@ -30,8 +37,14 @@ const PAGE_LABELS: Record<PageId, string> = {
 export class AdminSettingsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private settingsService = inject(SiteSettingsService);
+  private uploadService = inject(UploadService);
   private toastr = inject(ToastrService);
   private adminDelivery = inject(AdminDeliveryService);
+
+  certificatePreviewUrl: string | null = null;
+  isUploadingCertificate = false;
+  isCertificateDragOver = false;
+  readonly defaultKosherCertificateUrl = DEFAULT_KOSHER_CERTIFICATE_URL;
 
   settingsForm!: FormGroup;
   isLoading = false;
@@ -62,6 +75,7 @@ export class AdminSettingsComponent implements OnInit {
     this.settingsForm = this.fb.group({
       shabbatMenuUrl: [''],
       eventsMenuUrl: [''],
+      kosherCertificateUrl: [''],
       contactPhone: [''],
       orderEmail: [''],
       whatsappLink: [''],
@@ -159,6 +173,7 @@ export class AdminSettingsComponent implements OnInit {
           this.settingsForm.patchValue({
             shabbatMenuUrl: settings.shabbatMenuUrl || '',
             eventsMenuUrl: settings.eventsMenuUrl || '',
+            kosherCertificateUrl: settings.kosherCertificateUrl || '',
             contactPhone: settings.contactPhone || '',
             orderEmail: settings.orderEmail || '',
             whatsappLink: settings.whatsappLink || '',
@@ -167,6 +182,7 @@ export class AdminSettingsComponent implements OnInit {
             cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
             pageAnnouncements: this.normalizePageAnnouncementsForForm(settings.pageAnnouncements)
           });
+          this.syncCertificatePreview();
         } else {
           this.patchDefaults();
         }
@@ -200,6 +216,7 @@ export class AdminSettingsComponent implements OnInit {
     this.settingsForm.patchValue({
       shabbatMenuUrl: '',
       eventsMenuUrl: '',
+      kosherCertificateUrl: '',
       contactPhone: '',
       orderEmail: '',
       whatsappLink: '',
@@ -208,6 +225,88 @@ export class AdminSettingsComponent implements OnInit {
       cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
       pageAnnouncements: this.normalizePageAnnouncementsForForm(null)
     });
+    this.syncCertificatePreview();
+  }
+
+  get certificateDisplayUrl(): string {
+    return (
+      this.certificatePreviewUrl ||
+      this.settingsForm.get('kosherCertificateUrl')?.value?.trim() ||
+      this.defaultKosherCertificateUrl
+    );
+  }
+
+  syncCertificatePreview(): void {
+    const url = this.settingsForm.get('kosherCertificateUrl')?.value?.trim();
+    this.certificatePreviewUrl = url || null;
+  }
+
+  onCertificateFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) this.uploadCertificateFile(file);
+    input.value = '';
+  }
+
+  onCertificateDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!this.isUploadingCertificate) this.isCertificateDragOver = true;
+  }
+
+  onCertificateDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isCertificateDragOver = false;
+  }
+
+  onCertificateDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isCertificateDragOver = false;
+    if (this.isUploadingCertificate) return;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) this.uploadCertificateFile(file);
+  }
+
+  private uploadCertificateFile(file: File): void {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      this.toastr.warning('סוג קובץ לא נתמך. השתמש ב-JPG, PNG או WebP', 'תמונה', {
+        positionClass: 'toast-top-left'
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.certificatePreviewUrl = (e.target as FileReader).result as string;
+    };
+    reader.readAsDataURL(file);
+
+    this.isUploadingCertificate = true;
+    this.uploadService.uploadImage(file).subscribe({
+      next: (res) => {
+        this.isUploadingCertificate = false;
+        if (res.imageUrl) {
+          this.settingsForm.patchValue({ kosherCertificateUrl: res.imageUrl });
+          this.certificatePreviewUrl = res.imageUrl;
+          this.settingsForm.markAsDirty();
+        }
+      },
+      error: () => {
+        this.isUploadingCertificate = false;
+        this.toastr.error('שגיאה בהעלאת תעודת הכשרות', 'שגיאה', {
+          positionClass: 'toast-top-left'
+        });
+      }
+    });
+  }
+
+  removeCertificatePreview(): void {
+    this.settingsForm.patchValue({ kosherCertificateUrl: '' });
+    this.certificatePreviewUrl = null;
+    this.settingsForm.markAsDirty();
   }
 
   onSubmit(event?: Event): void {
@@ -224,7 +323,19 @@ export class AdminSettingsComponent implements OnInit {
     this.settingsService.updateSettings(payload).subscribe({
       next: () => {
         this.isSaving = false;
-        alert('השינויים נשמרו ב-Cloud בהצלחה!');
+        this.settingsService.clearCache();
+        this.settingsService.getSettings(true).subscribe({
+          next: (s) => {
+            this.settingsForm.patchValue({
+              kosherCertificateUrl: s.kosherCertificateUrl || ''
+            });
+            this.syncCertificatePreview();
+          }
+        });
+        this.toastr.success('ההגדרות נשמרו בהצלחה', 'הצלחה', {
+          timeOut: 3000,
+          positionClass: 'toast-top-left'
+        });
         this.settingsForm.markAsPristine();
       },
       error: (err) => {

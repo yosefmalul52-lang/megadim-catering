@@ -42,9 +42,13 @@ function normalizePageAnnouncements(pa: Record<string, PageAnnouncement> | null 
   return out;
 }
 
+/** Fallback when no certificate URL is stored in the database */
+export const DEFAULT_KOSHER_CERTIFICATE_URL = 'assets/images/Kosher-certificate.jpg';
+
 export interface SiteSettings {
   shabbatMenuUrl: string;
   eventsMenuUrl: string;
+  kosherCertificateUrl?: string;
   contactPhone?: string;
   orderEmail?: string;
   whatsappLink?: string;
@@ -74,6 +78,12 @@ export class SiteSettingsService {
   public isLoading$ = this.isLoadingSubject.asObservable();
 
   /** Get page announcement for a given page id (always returns an object with bannerText, popupTitle, popupText). */
+  /** Resolved certificate image URL for public pages (with static fallback). */
+  getKosherCertificateUrl(settings: SiteSettings | null | undefined): string {
+    const url = settings?.kosherCertificateUrl?.trim();
+    return url || DEFAULT_KOSHER_CERTIFICATE_URL;
+  }
+
   getPageAnnouncement(settings: SiteSettings | null, pageId: PageId): PageAnnouncement {
     const pa = settings?.pageAnnouncements ? normalizePageAnnouncements(settings.pageAnnouncements) : defaultPageAnnouncements();
     return pa[pageId] || { bannerText: '', popupTitle: '', popupText: '', popupLinkText: '', popupLinkUrl: '' };
@@ -94,6 +104,7 @@ export class SiteSettingsService {
           return {
             shabbatMenuUrl: '',
             eventsMenuUrl: '',
+            kosherCertificateUrl: '',
             contactPhone: '',
             orderEmail: '',
             whatsappLink: '',
@@ -115,6 +126,7 @@ export class SiteSettingsService {
           settings = {
             shabbatMenuUrl: '',
             eventsMenuUrl: '',
+            kosherCertificateUrl: '',
             contactPhone: '',
             orderEmail: '',
             whatsappLink: '',
@@ -127,6 +139,7 @@ export class SiteSettingsService {
         return {
           shabbatMenuUrl: settings.shabbatMenuUrl || '',
           eventsMenuUrl: settings.eventsMenuUrl || '',
+          kosherCertificateUrl: settings.kosherCertificateUrl || '',
           contactPhone: settings.contactPhone || '',
           orderEmail: settings.orderEmail || '',
           whatsappLink: settings.whatsappLink || '',
@@ -149,6 +162,7 @@ export class SiteSettingsService {
         const defaultSettings: SiteSettings = {
           shabbatMenuUrl: '',
           eventsMenuUrl: '',
+          kosherCertificateUrl: '',
           contactPhone: '073-367-8399',
           orderEmail: '',
           whatsappLink: '',
@@ -171,6 +185,7 @@ export class SiteSettingsService {
           return {
             shabbatMenuUrl: settings.shabbatMenuUrl || '',
             eventsMenuUrl: settings.eventsMenuUrl || '',
+            kosherCertificateUrl: settings.kosherCertificateUrl || '',
             contactPhone: settings.contactPhone || '',
             orderEmail: settings.orderEmail || '',
             whatsappLink: settings.whatsappLink || '',
@@ -189,6 +204,7 @@ export class SiteSettingsService {
           updated = {
             shabbatMenuUrl: settings.shabbatMenuUrl || '',
             eventsMenuUrl: settings.eventsMenuUrl || '',
+            kosherCertificateUrl: settings.kosherCertificateUrl || '',
             contactPhone: settings.contactPhone || '',
             orderEmail: settings.orderEmail || '',
             whatsappLink: settings.whatsappLink || '',
@@ -201,6 +217,7 @@ export class SiteSettingsService {
         return {
           shabbatMenuUrl: updated.shabbatMenuUrl || '',
           eventsMenuUrl: updated.eventsMenuUrl || '',
+          kosherCertificateUrl: updated.kosherCertificateUrl || '',
           contactPhone: updated.contactPhone || '',
           orderEmail: updated.orderEmail || '',
           whatsappLink: updated.whatsappLink || '',

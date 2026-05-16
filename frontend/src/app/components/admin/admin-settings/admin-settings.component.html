@@ -6,7 +6,7 @@
         <i class="fas fa-cog"></i>
         הגדרות אתר
       </h2>
-      <p class="page-description">נהל קישורי תפריטים ופרטי יצירת קשר</p>
+      <p class="page-description">נהל קישורי תפריטים, תעודת כשרות ופרטי יצירת קשר</p>
     </div>
 
     <!-- Loading State -->
@@ -57,6 +57,66 @@
           />
           <div class="error-message" *ngIf="hasError('eventsMenuUrl')">
             {{ getErrorMessage('eventsMenuUrl') }}
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-certificate"></i>
+            תעודת כשרות
+          </h3>
+          <p class="card-description">העלה תמונת תעודת כשרות שתוצג בדף /kosher באתר</p>
+        </div>
+
+        <div class="form-group">
+          <div
+            class="certificate-upload-box"
+            [class.has-image]="certificateDisplayUrl"
+            [class.uploading]="isUploadingCertificate"
+            [class.drag-over]="isCertificateDragOver"
+            (dragover)="onCertificateDragOver($event)"
+            (dragleave)="onCertificateDragLeave($event)"
+            (drop)="onCertificateDrop($event)"
+          >
+            <input
+              type="file"
+              id="kosherCertificateUpload"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              (change)="onCertificateFileSelected($event)"
+              [disabled]="isUploadingCertificate"
+            />
+            <div class="upload-box-content" *ngIf="!certificateDisplayUrl">
+              <div class="upload-icon">
+                <i class="fas" [ngClass]="isUploadingCertificate ? 'fa-spinner fa-spin' : 'fa-file-image'"></i>
+              </div>
+              <p class="upload-text">{{ isUploadingCertificate ? 'מעלה תמונה…' : 'לחץ להעלאת תעודה' }}</p>
+              <p class="upload-hint">או גרור קובץ לכאן (JPG, PNG, WebP)</p>
+            </div>
+            <div class="upload-preview certificate-preview" *ngIf="certificateDisplayUrl">
+              <img [src]="certificateDisplayUrl" alt="תצוגה מקדימה – תעודת כשרות" />
+              <button
+                type="button"
+                class="btn-remove-preview"
+                (click)="removeCertificatePreview()"
+                title="הסר תמונה והשתמש בברירת מחדל"
+              >
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div class="manual-url-input">
+            <label for="kosherCertificateUrl">או הזן כתובת תמונה (URL)</label>
+            <input
+              type="text"
+              id="kosherCertificateUrl"
+              formControlName="kosherCertificateUrl"
+              class="form-input"
+              placeholder="https://..."
+              (input)="syncCertificatePreview(); settingsForm.markAsDirty()"
+            />
+            <small>אם השדה ריק, יוצג הקובץ המקומי: {{ defaultKosherCertificateUrl }}</small>
           </div>
         </div>
       </div>
