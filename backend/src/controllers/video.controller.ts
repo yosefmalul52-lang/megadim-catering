@@ -2,55 +2,74 @@ import { Request, Response } from 'express';
 import { asyncHandler, createNotFoundError, createValidationError } from '../middleware/errorHandler';
 const Video = require('../models/Video');
 
-// Helper function to extract YouTube video ID from URL
-// Supports both standard format (v=...) and Shorts format (/shorts/...)
+type VideoSource = 'youtube' | 'cloudinary';
+
+function resolveSource(value: unknown, doc?: { source?: string; videoUrl?: string }): VideoSource {
+  if (value === 'cloudinary' || value === 'youtube') {
+    return value;
+  }
+  if (doc?.source === 'cloudinary' || doc?.source === 'youtube') {
+    return doc.source;
+  }
+  if (doc?.videoUrl?.trim()) {
+    return 'cloudinary';
+  }
+  return 'youtube';
+}
+
 function extractYouTubeId(url: string): string | null {
   if (!url || typeof url !== 'string') {
     return null;
   }
 
-  // Patterns for different YouTube URL formats
   const patterns = [
-    // Standard: https://www.youtube.com/watch?v=VIDEO_ID
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    // Shorts: https://www.youtube.com/shorts/VIDEO_ID
     /youtube\.com\/shorts\/([^&\n?#]+)/,
-    // Alternative: youtube.com/watch?v=VIDEO_ID&...
     /youtube\.com\/.*[?&]v=([^&\n?#]+)/
   ];
-  
+
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match && match[1]) {
       return match[1];
     }
   }
-  
+
   return null;
 }
 
-// Helper function to generate YouTube thumbnail URL
 function generateYouTubeThumbnail(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 }
 
-export class VideoController {
+/** Derive a poster/thumbnail URL from a Cloudinary video delivery URL. */
+export function generateCloudinaryThumbnail(videoUrl: string): string {
+  if (!videoUrl || typeof videoUrl !== 'string') {
+    return '';
+  }
+  return videoUrl.replace(/\.(mp4|webm|mov|quicktime)(\?.*)?$/i, '.jpg$2');
+}
 
-  // Get all videos
+export class VideoController {
   getVideos = asyncHandler(async (req: Request, res: Response) => {
     const { active } = req.query;
-    
-    const query: any = {};
-    
-    if (active !== undefined) {
-      query.isActive = active === 'true';
+
+    const query: Record<string, unknown> = {};
+
+    const includeAll = req.query.includeAll === 'true';
+
+    if (active === 'true') {
+      query.isActive = true;
+    } else if (active === 'false') {
+      query.isActive = false;
+    } else if (includeAll) {
+      // Admin: all videos
     } else {
-      // Default to showing only active videos for public access
+      // Public default: active only
       query.isActive = true;
     }
-    
-    const videos = await Video.find(query)
-      .sort({ order: 1, createdAt: -1 });
+
+    const videos = await Video.find(query).sort({ order: 1, createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -60,7 +79,6 @@ export class VideoController {
     });
   });
 
-  // Get video by ID
   getVideoById = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
@@ -81,44 +99,94 @@ export class VideoController {
     });
   });
 
-  // Add new video
   addVideo = asyncHandler(async (req: Request, res: Response) => {
-    const { title, youtubeUrl } = req.body;
+    const {
+      title,
+      source: sourceRaw,
+      youtubeUrl,
+      videoUrl,
+      publicId,
+      thumbnailUrl
+    } = req.body;
 
-    // Validation
-    if (!title || title.trim() === '') {
+    if (!title || typeof title !== 'string' || title.trim() === '') {
       throw createValidationError('Title is required');
     }
 
-    if (!youtubeUrl || youtubeUrl.trim() === '') {
-      throw createValidationError('YouTube URL is required');
+    const source = resolveSource(sourceRaw);
+
+    if (source === 'youtube') {
+      if (!youtubeUrl || typeof youtubeUrl !== 'string' || youtubeUrl.trim() === '') {
+        throw createValidationError('YouTube URL is required when source is youtube');
+      }
+
+      const ytVideoId = extractYouTubeId(youtubeUrl);
+      if (!ytVideoId) {
+        throw createValidationError('Invalid YouTube URL. Please provide a valid YouTube video URL.');
+      }
+
+      const existingVideo = await Video.findOne({ videoId: ytVideoId });
+      if (existingVideo) {
+        throw createValidationError('Video with this URL already exists');
+      }
+
+      const video = new Video({
+        title: title.trim(),
+        source: 'youtube',
+        youtubeUrl: youtubeUrl.trim(),
+        videoId: ytVideoId,
+        thumbnailUrl: generateYouTubeThumbnail(ytVideoId),
+        order: 0,
+        isActive: true
+      });
+
+      const savedVideo = await video.save();
+
+      return res.status(201).json({
+        success: true,
+        message: 'Video added successfully',
+        data: savedVideo,
+        timestamp: new Date().toISOString()
+      });
     }
 
-    // Extract video ID from URL
-    const videoId = extractYouTubeId(youtubeUrl);
-    
-    if (!videoId) {
-      throw createValidationError('Invalid YouTube URL. Please provide a valid YouTube video URL.');
+    // cloudinary
+    if (!videoUrl || typeof videoUrl !== 'string' || videoUrl.trim() === '') {
+      throw createValidationError('videoUrl is required when source is cloudinary');
     }
 
-    // Check if video with this ID already exists
-    const existingVideo = await Video.findOne({ videoId });
-    if (existingVideo) {
-      throw createValidationError('Video with this URL already exists');
+    const trimmedVideoUrl = videoUrl.trim();
+    const trimmedPublicId = typeof publicId === 'string' ? publicId.trim() : '';
+
+    if (trimmedPublicId) {
+      const existingByPublicId = await Video.findOne({ publicId: trimmedPublicId });
+      if (existingByPublicId) {
+        throw createValidationError('Video with this Cloudinary public ID already exists');
+      }
     }
 
-    // Generate thumbnail URL
-    const thumbnailUrl = generateYouTubeThumbnail(videoId);
+    const finalThumbnail =
+      typeof thumbnailUrl === 'string' && thumbnailUrl.trim() !== ''
+        ? thumbnailUrl.trim()
+        : generateCloudinaryThumbnail(trimmedVideoUrl);
 
-    // Create video
-    const video = new Video({
+    if (!finalThumbnail) {
+      throw createValidationError('thumbnailUrl could not be generated from videoUrl');
+    }
+
+    const videoPayload: Record<string, unknown> = {
       title: title.trim(),
-      youtubeUrl: youtubeUrl.trim(),
-      videoId,
-      thumbnailUrl,
+      source: 'cloudinary',
+      videoUrl: trimmedVideoUrl,
+      thumbnailUrl: finalThumbnail,
       order: 0,
       isActive: true
-    });
+    };
+    if (trimmedPublicId) {
+      videoPayload.publicId = trimmedPublicId;
+    }
+
+    const video = new Video(videoPayload);
 
     const savedVideo = await video.save();
 
@@ -130,10 +198,10 @@ export class VideoController {
     });
   });
 
-  // Update video
   updateVideo = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { title, youtubeUrl, order, isActive } = req.body;
+    const { title, source: sourceRaw, youtubeUrl, videoUrl, publicId, thumbnailUrl, order, isActive } =
+      req.body;
 
     if (!id) {
       throw createValidationError('Video ID is required');
@@ -145,24 +213,69 @@ export class VideoController {
       throw createNotFoundError('Video not found');
     }
 
-    // Update fields
-    if (title !== undefined) video.title = title.trim();
-    if (youtubeUrl !== undefined) {
-      const videoId = extractYouTubeId(youtubeUrl);
-      if (!videoId) {
-        throw createValidationError('Invalid YouTube URL');
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim() === '') {
+        throw createValidationError('Title must be a non-empty string');
       }
-      
-      // Check if another video with this ID exists
-      const existingVideo = await Video.findOne({ videoId, _id: { $ne: id } });
-      if (existingVideo) {
-        throw createValidationError('Video with this URL already exists');
-      }
-      
-      video.youtubeUrl = youtubeUrl.trim();
-      video.videoId = videoId;
-      video.thumbnailUrl = generateYouTubeThumbnail(videoId);
+      video.title = title.trim();
     }
+
+    const nextSource = sourceRaw !== undefined ? resolveSource(sourceRaw, video) : resolveSource(undefined, video);
+
+    if (sourceRaw !== undefined) {
+      video.source = nextSource;
+    }
+
+    if (nextSource === 'youtube') {
+      if (youtubeUrl !== undefined) {
+        if (typeof youtubeUrl !== 'string' || youtubeUrl.trim() === '') {
+          throw createValidationError('YouTube URL is required when source is youtube');
+        }
+        const ytVideoId = extractYouTubeId(youtubeUrl);
+        if (!ytVideoId) {
+          throw createValidationError('Invalid YouTube URL');
+        }
+        const existingVideo = await Video.findOne({ videoId: ytVideoId, _id: { $ne: id } });
+        if (existingVideo) {
+          throw createValidationError('Video with this URL already exists');
+        }
+        video.youtubeUrl = youtubeUrl.trim();
+        video.videoId = ytVideoId;
+        video.thumbnailUrl = generateYouTubeThumbnail(ytVideoId);
+        video.videoUrl = '';
+        video.set('publicId', undefined);
+      }
+    } else if (nextSource === 'cloudinary') {
+      if (videoUrl !== undefined) {
+        if (typeof videoUrl !== 'string' || videoUrl.trim() === '') {
+          throw createValidationError('videoUrl is required when source is cloudinary');
+        }
+        const trimmedVideoUrl = videoUrl.trim();
+        video.videoUrl = trimmedVideoUrl;
+        video.thumbnailUrl =
+          typeof thumbnailUrl === 'string' && thumbnailUrl.trim() !== ''
+            ? thumbnailUrl.trim()
+            : generateCloudinaryThumbnail(trimmedVideoUrl);
+        video.youtubeUrl = '';
+        video.set('videoId', undefined);
+      } else if (thumbnailUrl !== undefined && typeof thumbnailUrl === 'string') {
+        video.thumbnailUrl = thumbnailUrl.trim();
+      }
+
+      if (publicId !== undefined) {
+        const trimmedPublicId = typeof publicId === 'string' ? publicId.trim() : '';
+        if (trimmedPublicId) {
+          const existingVideo = await Video.findOne({ publicId: trimmedPublicId, _id: { $ne: id } });
+          if (existingVideo) {
+            throw createValidationError('Video with this Cloudinary public ID already exists');
+          }
+          video.publicId = trimmedPublicId;
+        } else {
+          video.set('publicId', undefined);
+        }
+      }
+    }
+
     if (order !== undefined) video.order = order;
     if (isActive !== undefined) video.isActive = isActive;
 
@@ -176,7 +289,6 @@ export class VideoController {
     });
   });
 
-  // Delete video
   deleteVideo = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
@@ -197,7 +309,6 @@ export class VideoController {
     });
   });
 
-  // Get video statistics (Admin only)
   getVideoStatistics = asyncHandler(async (req: Request, res: Response) => {
     const totalVideos = await Video.countDocuments();
     const activeVideos = await Video.countDocuments({ isActive: true });
@@ -213,4 +324,3 @@ export class VideoController {
     });
   });
 }
-

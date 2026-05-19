@@ -1,8 +1,13 @@
+export type VideoSource = 'youtube' | 'cloudinary';
+
 export interface Video {
   id: string;
   title: string;
-  youtubeUrl: string;
-  videoId: string;
+  source?: VideoSource;
+  youtubeUrl?: string;
+  videoId?: string;
+  videoUrl?: string;
+  publicId?: string;
   thumbnailUrl: string;
   order?: number;
   isActive?: boolean;
@@ -12,13 +17,20 @@ export interface Video {
 
 export interface CreateVideoRequest {
   title: string;
-  youtubeUrl: string;
+  source: VideoSource;
+  youtubeUrl?: string;
+  videoUrl?: string;
+  publicId?: string;
+  thumbnailUrl?: string;
 }
 
 export interface UpdateVideoRequest {
   title?: string;
+  source?: VideoSource;
   youtubeUrl?: string;
+  videoUrl?: string;
+  publicId?: string;
+  thumbnailUrl?: string;
   order?: number;
   isActive?: boolean;
 }
-

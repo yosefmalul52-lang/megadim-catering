@@ -61,6 +61,10 @@ export const connectDatabase = async (): Promise<void> => {
     // Seed delivery pricing ONLY when collection is empty – never overwrite user data on restart
     const { runDeliveryPricingSeed } = await import('../seed/deliveryPricingSeed');
     await runDeliveryPricingSeed();
+
+    // Fix legacy videos.videoId_1 unique index (non-sparse) that blocks multiple Cloudinary uploads
+    const { ensureVideoIndexes } = await import('../utils/ensure-video-indexes');
+    await ensureVideoIndexes();
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {
