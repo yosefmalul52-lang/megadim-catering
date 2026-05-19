@@ -1,14 +1,19 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ToastrService } from 'ngx-toastr';
+import { firstValueFrom } from 'rxjs';
 import { GalleryService, GalleryItem, CreateGalleryItemRequest } from '../../../services/gallery.service';
 import { UploadService } from '../../../services/upload.service';
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB — matches backend image upload limit
 
 @Component({
   selector: 'app-gallery-management',
@@ -20,8 +25,8 @@ import { UploadService } from '../../../services/upload.service';
     MatButtonModule,
     MatIconModule,
     MatInputModule,
-    MatSelectModule,
     MatCardModule,
+    MatCheckboxModule,
     MatSnackBarModule
   ],
   templateUrl: './gallery-management.component.html',
@@ -31,19 +36,24 @@ export class GalleryManagementComponent implements OnInit {
   galleryService = inject(GalleryService);
   uploadService = inject(UploadService);
   snackBar = inject(MatSnackBar);
+  toastr = inject(ToastrService);
   fb = inject(FormBuilder);
 
   galleryItems: GalleryItem[] = [];
   isLoading = false;
   showAddForm = false;
+
   selectedFile: File | null = null;
   imagePreview: string | null = null;
+  isUploading = false;
+  isDragOver = false;
+  showManualImageUrl = false;
+
+  readonly dropzoneHint = 'גרור תמונה לכאן או לחץ לבחירה';
 
   itemForm: FormGroup = this.fb.group({
     title: [''],
-    type: ['image', Validators.required],
-    url: ['', Validators.required],
-    thumbnail: [''],
+    url: [''],
     order: [0],
     isActive: [true]
   });
@@ -52,9 +62,13 @@ export class GalleryManagementComponent implements OnInit {
     this.loadGalleryItems();
   }
 
+  get imageDisplayUrl(): string | null {
+    return this.imagePreview || this.itemForm.get('url')?.value?.trim() || null;
+  }
+
   loadGalleryItems(): void {
     this.isLoading = true;
-    this.galleryService.getGalleryItems(undefined, false).subscribe({
+    this.galleryService.getGalleryItems('image', false).subscribe({
       next: (items) => {
         this.galleryItems = items;
         this.isLoading = false;
@@ -69,112 +83,207 @@ export class GalleryManagementComponent implements OnInit {
 
   openAddForm(): void {
     this.showAddForm = true;
+    this.resetMediaState();
     this.itemForm.reset({
-      type: 'image',
+      title: '',
+      url: '',
       order: 0,
       isActive: true
     });
-    this.selectedFile = null;
-    this.imagePreview = null;
   }
 
   closeAddForm(): void {
     this.showAddForm = false;
     this.itemForm.reset();
+    this.resetMediaState();
+  }
+
+  private resetMediaState(): void {
+    if (this.imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(this.imagePreview);
+    }
     this.selectedFile = null;
     this.imagePreview = null;
+    this.isUploading = false;
+    this.isDragOver = false;
+    this.showManualImageUrl = false;
   }
 
-  onTypeChange(): void {
-    const type = this.itemForm.get('type')?.value;
-    if (type === 'video') {
-      this.itemForm.get('url')?.setValidators([Validators.required]);
-      this.selectedFile = null;
-      this.imagePreview = null;
-    } else {
-      this.itemForm.get('url')?.clearValidators();
-      this.itemForm.get('url')?.updateValueAndValidity();
-    }
-  }
-
-  onFileSelected(event: Event): void {
+  onImageFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      this.selectedFile = input.files[0];
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.imagePreview = e.target.result;
-      };
-      reader.readAsDataURL(this.selectedFile);
+    const file = input.files?.[0];
+    if (file) {
+      this.handleImageFile(file);
+    }
+    input.value = '';
+  }
+
+  onDragOver(event: DragEvent): void {
+    if (this.isUploading) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    if (this.isUploading) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.handleImageFile(file);
     }
   }
 
-  async saveItem(): Promise<void> {
-    if (this.itemForm.invalid) {
-      this.snackBar.open('אנא מלא את כל השדות הנדרשים', 'סגור', { duration: 3000 });
+  onManualImageUrlInput(): void {
+    const url = this.itemForm.get('url')?.value?.trim();
+    if (url) {
+      if (this.imagePreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(this.imagePreview);
+      }
+      this.imagePreview = url;
+      this.selectedFile = null;
+    }
+  }
+
+  private handleImageFile(file: File): void {
+    if (!file.type.startsWith('image/')) {
+      this.toastr.error('ניתן להעלות תמונות בלבד בדף זה', 'סוג קובץ לא נתמך', {
+        positionClass: 'toast-top-left',
+        timeOut: 5000
+      });
       return;
     }
 
-    const formValue = this.itemForm.value;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
+      this.toastr.error('ניתן להעלות תמונות בלבד בדף זה', 'JPG, PNG או WebP בלבד', {
+        positionClass: 'toast-top-left',
+        timeOut: 5000
+      });
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      this.toastr.error('גודל הקובץ חורג מ-5MB', 'קובץ גדול מדי', {
+        positionClass: 'toast-top-left',
+        timeOut: 5000
+      });
+      return;
+    }
+
+    this.selectedFile = file;
+    if (this.imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(this.imagePreview);
+    }
+    this.imagePreview = URL.createObjectURL(file);
+    this.uploadImageFile(file);
+  }
+
+  private uploadImageFile(file: File): void {
+    this.isUploading = true;
+    this.uploadService.uploadImage(file).subscribe({
+      next: (res) => {
+        this.isUploading = false;
+        if (res.imageUrl) {
+          this.itemForm.patchValue({ url: res.imageUrl });
+          if (this.imagePreview?.startsWith('blob:')) {
+            URL.revokeObjectURL(this.imagePreview);
+          }
+          this.imagePreview = res.imageUrl;
+          this.selectedFile = null;
+        }
+      },
+      error: (err: { message?: string }) => {
+        this.isUploading = false;
+        this.toastr.error(err?.message || 'שגיאה בהעלאת התמונה', 'שגיאה', {
+          positionClass: 'toast-top-left',
+          timeOut: 5000
+        });
+        this.removeImagePreview();
+      }
+    });
+  }
+
+  removeImagePreview(event?: Event): void {
+    event?.stopPropagation();
+    if (this.imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(this.imagePreview);
+    }
+    this.imagePreview = null;
+    this.selectedFile = null;
+    this.itemForm.patchValue({ url: '' });
+  }
+
+  async saveItem(): Promise<void> {
+    const formValue = this.itemForm.getRawValue();
+
+    if (!formValue.url?.trim() && !this.selectedFile && !this.imagePreview) {
+      this.snackBar.open('יש להעלות תמונה לפני השמירה', 'סגור', { duration: 3000 });
+      return;
+    }
+
+    if (this.isUploading) {
+      this.snackBar.open('המתן לסיום העלאת התמונה', 'סגור', { duration: 3000 });
+      return;
+    }
+
     this.isLoading = true;
 
     try {
-      let finalUrl = formValue.url;
+      let finalUrl = formValue.url?.trim() || '';
 
-      // If it's an image and a file was selected, upload it
-      if (formValue.type === 'image' && this.selectedFile) {
-        try {
-          const uploadResult = await this.uploadService.uploadImage(this.selectedFile).toPromise();
-          finalUrl = uploadResult?.imageUrl || formValue.url;
-        } catch (uploadError) {
-          console.error('Upload error:', uploadError);
-          this.snackBar.open('שגיאה בהעלאת התמונה', 'סגור', { duration: 3000 });
-          this.isLoading = false;
-          return;
-        }
+      if (this.selectedFile && !finalUrl) {
+        const uploadResult = await firstValueFrom(this.uploadService.uploadImage(this.selectedFile));
+        finalUrl = uploadResult?.imageUrl || '';
       }
 
-      // If it's a video, try to extract YouTube ID and generate thumbnail
-      let thumbnail = formValue.thumbnail;
-      if (formValue.type === 'video' && finalUrl && !thumbnail) {
-        const videoId = this.galleryService.extractYouTubeId(finalUrl);
-        if (videoId) {
-          thumbnail = this.galleryService.generateYouTubeThumbnail(videoId);
-        }
+      if (!finalUrl) {
+        this.snackBar.open('יש להעלות תמונה לפני השמירה', 'סגור', { duration: 3000 });
+        this.isLoading = false;
+        return;
       }
 
       const itemData: CreateGalleryItemRequest = {
         title: formValue.title || '',
-        type: formValue.type,
+        type: 'image',
         url: finalUrl,
-        thumbnail: thumbnail || '',
+        thumbnail: '',
         order: formValue.order || 0,
         isActive: formValue.isActive !== false
       };
 
       this.galleryService.createGalleryItem(itemData).subscribe({
         next: () => {
-          this.snackBar.open('פריט הגלריה נוסף בהצלחה', 'סגור', { duration: 3000 });
+          this.snackBar.open('תמונת הגלריה נוספה בהצלחה', 'סגור', { duration: 3000 });
           this.closeAddForm();
           this.loadGalleryItems();
         },
         error: (error) => {
           console.error('Error creating gallery item:', error);
-          this.snackBar.open('שגיאה בהוספת פריט הגלריה', 'סגור', { duration: 3000 });
+          this.snackBar.open('שגיאה בהוספת תמונת הגלריה', 'סגור', { duration: 3000 });
           this.isLoading = false;
         }
       });
     } catch (error) {
       console.error('Error in saveItem:', error);
-      this.snackBar.open('שגיאה בשמירת הפריט', 'סגור', { duration: 3000 });
+      this.snackBar.open('שגיאה בשמירת התמונה', 'סגור', { duration: 3000 });
       this.isLoading = false;
     }
   }
 
   deleteItem(item: GalleryItem): void {
-    if (!confirm(`האם אתה בטוח שברצונך למחוק את הפריט "${item.title || item.url}"?`)) {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את התמונה "${item.title || item.url}"?`)) {
       return;
     }
 
@@ -187,12 +296,12 @@ export class GalleryManagementComponent implements OnInit {
     this.isLoading = true;
     this.galleryService.deleteGalleryItem(itemId).subscribe({
       next: () => {
-        this.snackBar.open('פריט הגלריה נמחק בהצלחה', 'סגור', { duration: 3000 });
+        this.snackBar.open('התמונה נמחקה בהצלחה', 'סגור', { duration: 3000 });
         this.loadGalleryItems();
       },
       error: (error) => {
         console.error('Error deleting gallery item:', error);
-        this.snackBar.open('שגיאה במחיקת פריט הגלריה', 'סגור', { duration: 3000 });
+        this.snackBar.open('שגיאה במחיקת התמונה', 'סגור', { duration: 3000 });
         this.isLoading = false;
       }
     });
@@ -202,25 +311,16 @@ export class GalleryManagementComponent implements OnInit {
     const itemId = item._id || item.id;
     if (!itemId) return;
 
-    const updates = { isActive: !item.isActive };
-    this.galleryService.updateGalleryItem(itemId, updates).subscribe({
+    this.galleryService.updateGalleryItem(itemId, { isActive: !item.isActive }).subscribe({
       next: () => {
-        this.snackBar.open('סטטוס הפריט עודכן', 'סגור', { duration: 2000 });
+        this.snackBar.open('סטטוס התמונה עודכן', 'סגור', { duration: 2000 });
         this.loadGalleryItems();
       },
       error: (error) => {
         console.error('Error updating gallery item:', error);
-        this.snackBar.open('שגיאה בעדכון הפריט', 'סגור', { duration: 3000 });
+        this.snackBar.open('שגיאה בעדכון התמונה', 'סגור', { duration: 3000 });
       }
     });
-  }
-
-  getVideoEmbedUrl(url: string): string {
-    const videoId = this.galleryService.extractYouTubeId(url);
-    if (videoId) {
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-    return url;
   }
 
   onImageError(event: Event): void {
@@ -230,4 +330,3 @@ export class GalleryManagementComponent implements OnInit {
     }
   }
 }
-

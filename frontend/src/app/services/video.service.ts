@@ -1,15 +1,19 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { Observable, BehaviorSubject, of } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { VideoSource } from '../utils/video.utils';
 
 export interface Video {
   _id?: string;
   id?: string;
   title: string;
-  youtubeUrl: string;
-  videoId: string;
+  source?: VideoSource;
+  youtubeUrl?: string;
+  videoId?: string;
+  videoUrl?: string;
+  publicId?: string;
   thumbnailUrl: string;
   order?: number;
   isActive?: boolean;
@@ -19,12 +23,20 @@ export interface Video {
 
 export interface CreateVideoRequest {
   title: string;
-  youtubeUrl: string;
+  source: VideoSource;
+  youtubeUrl?: string;
+  videoUrl?: string;
+  publicId?: string;
+  thumbnailUrl?: string;
 }
 
 export interface UpdateVideoRequest {
   title?: string;
+  source?: VideoSource;
   youtubeUrl?: string;
+  videoUrl?: string;
+  publicId?: string;
+  thumbnailUrl?: string;
   order?: number;
   isActive?: boolean;
 }
@@ -39,81 +51,75 @@ export class VideoService {
   private videosSubject = new BehaviorSubject<Video[]>([]);
   public videos$ = this.videosSubject.asObservable();
 
-  // Get all videos
   getVideos(activeOnly: boolean = true): Observable<Video[]> {
-    const params: any = {};
-    if (activeOnly) params.active = 'true';
+    const params: Record<string, string> = {};
+    if (activeOnly) {
+      params['active'] = 'true';
+    } else {
+      params['includeAll'] = 'true';
+    }
 
     return this.http.get<{ success: boolean; data: Video[] }>(this.apiUrl, { params }).pipe(
-      map(response => {
-        const videos = response.data.map(video => ({
+      map((response) => {
+        const videos = response.data.map((video) => ({
           ...video,
           id: video._id || video.id
         }));
         this.videosSubject.next(videos);
         return videos;
       }),
-      catchError(error => {
+      catchError((error) => {
         console.error('Error fetching videos:', error);
-        return [];
+        return of([]);
       })
     );
   }
 
-  // Get video by ID
   getVideoById(id: string): Observable<Video> {
     return this.http.get<{ success: boolean; data: Video }>(`${this.apiUrl}/${id}`).pipe(
-      map(response => ({
+      map((response) => ({
         ...response.data,
         id: response.data._id || response.data.id
       }))
     );
   }
 
-  // Create new video
   createVideo(video: CreateVideoRequest): Observable<Video> {
     return this.http.post<{ success: boolean; data: Video }>(this.apiUrl, video).pipe(
-      map(response => ({
+      map((response) => ({
         ...response.data,
         id: response.data._id || response.data.id
       })),
       tap(() => {
-        // Refresh the list
-        this.getVideos().subscribe();
+        this.getVideos(false).subscribe();
       })
     );
   }
 
-  // Update video
   updateVideo(id: string, updates: UpdateVideoRequest): Observable<Video> {
     return this.http.put<{ success: boolean; data: Video }>(`${this.apiUrl}/${id}`, updates).pipe(
-      map(response => ({
+      map((response) => ({
         ...response.data,
         id: response.data._id || response.data.id
       })),
       tap(() => {
-        // Refresh the list
-        this.getVideos().subscribe();
+        this.getVideos(false).subscribe();
       })
     );
   }
 
-  // Delete video
   deleteVideo(id: string): Observable<void> {
     return this.http.delete<{ success: boolean }>(`${this.apiUrl}/${id}`).pipe(
       map(() => undefined),
       tap(() => {
-        // Refresh the list
-        this.getVideos().subscribe();
+        this.getVideos(false).subscribe();
       })
     );
   }
 
-  // Get video statistics
-  getVideoStatistics(): Observable<any> {
-    return this.http.get<{ success: boolean; data: any }>(`${this.apiUrl}/stats`).pipe(
-      map(response => response.data)
-    );
+  getVideoStatistics(): Observable<{ total: number; active: number; inactive: number }> {
+    return this.http.get<{ success: boolean; data: { total: number; active: number; inactive: number } }>(
+      `${this.apiUrl}/stats`
+    ).pipe(map((response) => response.data));
   }
 }
-

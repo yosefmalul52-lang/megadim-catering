@@ -22,6 +22,11 @@
   .form-card {
     margin-bottom: 2rem;
 
+    .title-field {
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -29,32 +34,162 @@
       margin-bottom: 1rem;
     }
 
-    .upload-section {
-      margin-bottom: 1rem;
+    .media-upload-section {
+      margin-bottom: 1.5rem;
 
-      .upload-label {
+      .section-label {
         display: block;
-        margin-bottom: 1rem;
+        font-weight: 600;
+        color: #1f3540;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+      }
+    }
+
+    .image-upload-box {
+      position: relative;
+      width: 100%;
+      min-height: 260px;
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+      overflow: hidden;
+
+      &:hover:not(.has-image):not(.uploading) {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.06);
       }
 
-      .image-preview {
-        margin: 1rem 0;
-        max-width: 300px;
-        max-height: 300px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        overflow: hidden;
+      &.drag-over:not(.uploading) {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+      }
 
-        img {
-          width: 100%;
-          height: auto;
-          display: block;
+      &.has-image {
+        border: 1px solid #3b82f6;
+        padding: 0;
+      }
+
+      &.uploading {
+        cursor: not-allowed;
+        opacity: 0.75;
+      }
+
+      input[type='file'] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        z-index: 2;
+      }
+    }
+
+    .upload-box-content {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      pointer-events: none;
+      z-index: 1;
+
+      .upload-icon-lg {
+        font-size: 56px;
+        width: 56px;
+        height: 56px;
+        color: #3b82f6;
+        margin-bottom: 0.75rem;
+
+        &.spinner {
+          animation: spin 1s linear infinite;
         }
       }
+    }
 
-      .url-field {
+    .upload-text {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #1f3540;
+      margin: 0.35rem 0;
+    }
+
+    .upload-hint {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin: 0;
+    }
+
+    .upload-preview {
+      position: relative;
+      width: 100%;
+      min-height: 260px;
+
+      img {
         width: 100%;
+        min-height: 260px;
+        max-height: 400px;
+        object-fit: cover;
+        object-position: center;
+        display: block;
+        background: #fff;
       }
+
+    }
+
+    .btn-remove-preview {
+      position: absolute;
+      top: 0.5rem;
+      left: 0.5rem;
+      background: rgba(239, 68, 68, 0.92) !important;
+      color: #fff !important;
+      z-index: 4;
+
+      mat-icon {
+        color: #fff;
+      }
+    }
+
+    .manual-url-toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .manual-link-toggle {
+      background: none;
+      border: none;
+      color: #3b82f6;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 0.25rem 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+
+      &:hover {
+        color: #1d4ed8;
+      }
+
+      &.secondary {
+        color: #64748b;
+
+        &:hover {
+          color: #475569;
+        }
+      }
+    }
+
+    .manual-url-panel {
+      margin-top: 0.75rem;
+      padding: 1rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
     }
 
     .full-width {
@@ -97,33 +232,6 @@
           object-fit: cover;
         }
 
-        &.video-thumbnail {
-          .video-preview {
-            position: relative;
-            width: 100%;
-            height: 100%;
-
-            img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            }
-
-            .play-icon {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              font-size: 48px;
-              width: 48px;
-              height: 48px;
-              color: rgba(255, 255, 255, 0.9);
-              background: rgba(0, 0, 0, 0.5);
-              border-radius: 50%;
-            }
-          }
-        }
-
         .item-badge {
           position: absolute;
           top: 8px;
@@ -135,10 +243,6 @@
           font-size: 0.75rem;
           font-weight: 600;
 
-          &.video-badge {
-            background: #ef4444;
-            color: white;
-          }
         }
 
         .item-status {

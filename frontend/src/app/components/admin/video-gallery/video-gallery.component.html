@@ -8,13 +8,31 @@
       </button>
     </div>
 
-    <!-- Add Form -->
     <mat-card class="form-card" *ngIf="showAddForm">
       <mat-card-header>
-        <mat-card-title>הוסף סרטון YouTube חדש</mat-card-title>
+        <mat-card-title>הוסף סרטון חדש</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="videoForm" (ngSubmit)="saveVideo()">
+          <div class="source-toggle">
+            <button
+              type="button"
+              class="source-btn"
+              [class.active]="isNativeMode"
+              (click)="setInputSource('cloudinary')"
+            >
+              העלאת סרטון (Native)
+            </button>
+            <button
+              type="button"
+              class="source-btn"
+              [class.active]="isYoutubeMode"
+              (click)="setInputSource('youtube')"
+            >
+              קישור יוטיוב (Legacy)
+            </button>
+          </div>
+
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>כותרת הסרטון</mat-label>
             <input matInput formControlName="title" placeholder="לדוגמה: אירוע חתונה - משפחת כהן" required>
@@ -23,9 +41,63 @@
             </mat-error>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="full-width">
+          <!-- Native Cloudinary upload -->
+          <div *ngIf="isNativeMode" class="native-upload-section">
+            <div
+              class="image-upload-box"
+              [class.has-image]="hasUploadedVideo || videoPreviewUrl"
+              [class.uploading]="isUploadingVideo"
+              [class.drag-over]="isVideoDragOver"
+              (dragover)="onVideoDragOver($event)"
+              (dragleave)="onVideoDragLeave($event)"
+              (drop)="onVideoDrop($event)"
+            >
+              <input
+                type="file"
+                id="nativeVideoUpload"
+                accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                (change)="onVideoFileSelected($event)"
+                [disabled]="isUploadingVideo"
+              />
+              <div class="upload-box-content" *ngIf="!hasUploadedVideo && !videoPreviewUrl">
+                <div class="upload-icon">
+                  <mat-icon>{{ isUploadingVideo ? 'hourglass_empty' : 'videocam' }}</mat-icon>
+                </div>
+                <p class="upload-text">{{ isUploadingVideo ? 'מעלה סרטון…' : 'לחץ או גרור סרטון לכאן' }}</p>
+                <p class="upload-hint">MP4, WebM, MOV — עד 100MB</p>
+              </div>
+              <div class="upload-preview" *ngIf="hasUploadedVideo || videoPreviewUrl">
+                <img
+                  *ngIf="videoPreviewUrl"
+                  [src]="videoPreviewUrl"
+                  alt="תצוגה מקדימה"
+                  (error)="onImageError($event)"
+                />
+                <div class="upload-success" *ngIf="hasUploadedVideo && !isUploadingVideo">
+                  <mat-icon>check_circle</mat-icon>
+                  <span>הסרטון הועלה בהצלחה</span>
+                </div>
+                <button
+                  type="button"
+                  class="btn-remove-preview"
+                  (click)="removeVideoUpload()"
+                  title="הסר סרטון"
+                  [disabled]="isUploadingVideo"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- YouTube legacy -->
+          <mat-form-field appearance="outline" class="full-width" *ngIf="isYoutubeMode">
             <mat-label>קישור YouTube</mat-label>
-            <input matInput formControlName="youtubeUrl" placeholder="https://www.youtube.com/watch?v=... או https://youtube.com/shorts/..." required>
+            <input
+              matInput
+              formControlName="youtubeUrl"
+              placeholder="https://www.youtube.com/watch?v=... או https://youtube.com/shorts/..."
+            >
             <mat-hint>תומך בקישורי YouTube רגילים וגם ב-YouTube Shorts</mat-hint>
             <mat-error *ngIf="videoForm.get('youtubeUrl')?.hasError('required')">
               קישור YouTube חובה
@@ -36,10 +108,15 @@
           </mat-form-field>
 
           <div class="form-actions">
-            <button mat-button type="button" (click)="closeAddForm()">ביטול</button>
-            <button mat-raised-button color="primary" type="submit" [disabled]="isLoading">
-              <mat-icon *ngIf="!isLoading">save</mat-icon>
-              <mat-icon *ngIf="isLoading" class="spinner">hourglass_empty</mat-icon>
+            <button mat-button type="button" (click)="closeAddForm()" [disabled]="isUploadingVideo">ביטול</button>
+            <button
+              mat-raised-button
+              color="primary"
+              type="submit"
+              [disabled]="isLoading || isUploadingVideo || (isNativeMode && !hasUploadedVideo)"
+            >
+              <mat-icon *ngIf="!isLoading && !isUploadingVideo">save</mat-icon>
+              <mat-icon *ngIf="isLoading || isUploadingVideo" class="spinner">hourglass_empty</mat-icon>
               שמור
             </button>
           </div>
@@ -47,7 +124,6 @@
       </mat-card-content>
     </mat-card>
 
-    <!-- Videos List -->
     <div class="videos-list" *ngIf="!isLoading && videos.length > 0">
       <div class="videos-grid">
         <mat-card *ngFor="let video of videos" class="video-card">
@@ -56,17 +132,14 @@
             <div class="play-overlay">
               <mat-icon>play_circle</mat-icon>
             </div>
-            <div class="video-badge">סרטון</div>
+            <div class="video-badge">{{ getSourceLabel(video) }}</div>
             <div class="video-status" [class.inactive]="!video.isActive">
               {{ video.isActive ? 'פעיל' : 'לא פעיל' }}
             </div>
           </div>
           <mat-card-content>
             <h3>{{ video.title }}</h3>
-            <p class="video-url">{{ video.youtubeUrl }}</p>
-            <div class="video-meta">
-              <span>Video ID: {{ video.videoId }}</span>
-            </div>
+            <p class="video-url">{{ getVideoLink(video) }}</p>
           </mat-card-content>
           <mat-card-actions>
             <button mat-icon-button (click)="toggleActive(video)" [color]="video.isActive ? 'warn' : 'primary'">
@@ -80,18 +153,15 @@
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div class="empty-state" *ngIf="!isLoading && videos.length === 0">
+    <div class="empty-state" *ngIf="!isLoading && videos.length === 0 && !showAddForm">
       <mat-icon>video_library</mat-icon>
       <h3>אין סרטונים בגלריה</h3>
       <p>הוסף סרטונים חדשים כדי להתחיל</p>
     </div>
 
-    <!-- Loading State -->
-    <div class="loading-state" *ngIf="isLoading">
+    <div class="loading-state" *ngIf="isLoading && !showAddForm">
       <mat-icon class="spinner">hourglass_empty</mat-icon>
       <span>טוען...</span>
     </div>
   </div>
 </div>
-

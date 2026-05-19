@@ -1,13 +1,11 @@
 <section class="video-section">
   <div class="container">
-    <!-- Loading State -->
     <div class="loading-state" *ngIf="isLoading">
       <mat-icon class="spinner">hourglass_empty</mat-icon>
-      <span>טוען סרטונים...</span>
+      <span>טוען...</span>
     </div>
 
-    <!-- Content (only show if not loading and has videos) -->
-    <div *ngIf="!isLoading && videos.length > 0">
+    <div *ngIf="!isLoading && mediaItems.length > 0">
       <div class="section-header">
         <div class="elegant-title-light">
           <span class="line right-line-light"></span>
@@ -15,25 +13,30 @@
           <span class="line left-line-light"></span>
         </div>
       </div>
-      
-      <div class="videos-grid">
-        <div 
-          *ngFor="let video of videos; trackBy: trackByVideoId" 
-          class="video-item"
-          (click)="openVideoModal(video)"
+
+      <div class="videos-grid media-grid">
+        <div
+          *ngFor="let item of mediaItems; trackBy: trackByMediaId"
+          class="video-item media-item"
+          [class.media-item--image]="item.type === 'image'"
+          [class.media-item--video]="item.type === 'video'"
+          (click)="onMediaClick(item)"
         >
           <div class="video-thumbnail-wrapper">
-            <img [src]="video.thumbnailUrl" [alt]="(video.title || 'סרטון אירוע') + ' – קייטרינג בשרי כשר למהדרין | מגדים'" (error)="onImageError($event)">
-            <div class="play-overlay">
+            <img
+              [src]="item.imageUrl"
+              [alt]="(item.title || (item.type === 'video' ? 'סרטון אירוע' : 'תמונת אירוע')) + ' – קייטרינג בשרי כשר למהדרין | מגדים'"
+              (error)="onImageError($event)"
+            />
+            <div class="play-overlay" *ngIf="item.type === 'video'">
               <mat-icon>play_circle_filled</mat-icon>
             </div>
           </div>
-          <div class="video-title" *ngIf="video.title">
-            <h3>{{ video.title }}</h3>
+          <div class="video-title" *ngIf="item.title">
+            <h3>{{ item.title }}</h3>
           </div>
         </div>
       </div>
     </div>
   </div>
 </section>
-

@@ -1,64 +1,79 @@
 <div class="gallery-management">
   <div class="container">
     <div class="header">
-      <h2>ניהול גלריה</h2>
+      <h2>ניהול גלריית תמונות</h2>
       <button mat-raised-button color="primary" (click)="openAddForm()" *ngIf="!showAddForm">
         <mat-icon>add</mat-icon>
-        הוסף פריט חדש
+        הוסף תמונה
       </button>
     </div>
 
-    <!-- Add/Edit Form -->
     <mat-card class="form-card" *ngIf="showAddForm">
       <mat-card-header>
-        <mat-card-title>הוסף פריט גלריה חדש</mat-card-title>
+        <mat-card-title>הוסף תמונה לגלריה</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <form [formGroup]="itemForm" (ngSubmit)="saveItem()">
-          <div class="form-row">
-            <mat-form-field appearance="outline">
-              <mat-label>סוג</mat-label>
-              <mat-select formControlName="type" (selectionChange)="onTypeChange()">
-                <mat-option value="image">תמונה</mat-option>
-                <mat-option value="video">סרטון YouTube</mat-option>
-              </mat-select>
-            </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width title-field">
+            <mat-label>כותרת (אופציונלי)</mat-label>
+            <input matInput formControlName="title" placeholder="כותרת התמונה">
+          </mat-form-field>
 
-            <mat-form-field appearance="outline">
-              <mat-label>כותרת (אופציונלי)</mat-label>
-              <input matInput formControlName="title" placeholder="כותרת הפריט">
-            </mat-form-field>
-          </div>
+          <div class="media-upload-section">
+            <label class="section-label">תמונה</label>
 
-          <!-- Image Upload Section -->
-          <div *ngIf="itemForm.get('type')?.value === 'image'" class="upload-section">
-            <label class="upload-label">
-              <input #fileInput type="file" accept="image/*" (change)="onFileSelected($event)" style="display: none;">
-              <button mat-stroked-button type="button" (click)="fileInput.click()">
-                <mat-icon>cloud_upload</mat-icon>
-                בחר תמונה
-              </button>
-            </label>
-            <div *ngIf="imagePreview" class="image-preview">
-              <img [src]="imagePreview" alt="Preview">
+            <div
+              class="image-upload-box"
+              [class.has-image]="imageDisplayUrl"
+              [class.uploading]="isUploading"
+              [class.drag-over]="isDragOver"
+              (dragover)="onDragOver($event)"
+              (dragleave)="onDragLeave($event)"
+              (drop)="onDrop($event)"
+            >
+              <input
+                type="file"
+                id="galleryImageUpload"
+                accept="image/jpeg,image/png,image/webp"
+                (change)="onImageFileSelected($event)"
+                [disabled]="isUploading"
+              />
+
+              <div class="upload-box-content" *ngIf="!imageDisplayUrl">
+                <mat-icon class="upload-icon-lg" [class.spinner]="isUploading">
+                  {{ isUploading ? 'hourglass_empty' : 'cloud_upload' }}
+                </mat-icon>
+                <p class="upload-text">{{ isUploading ? 'מעלה תמונה…' : dropzoneHint }}</p>
+                <p class="upload-hint">JPG, PNG, WebP (עד 5MB)</p>
+              </div>
+
+              <div class="upload-preview" *ngIf="imageDisplayUrl">
+                <img [src]="imageDisplayUrl" alt="תצוגה מקדימה" (error)="onImageError($event)" />
+                <button
+                  type="button"
+                  mat-icon-button
+                  class="btn-remove-preview"
+                  (click)="removeImagePreview($event)"
+                  title="הסר תמונה"
+                  [disabled]="isUploading"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
             </div>
-            <mat-form-field appearance="outline" class="url-field">
-              <mat-label>או הזן URL של תמונה</mat-label>
-              <input matInput formControlName="url" placeholder="https://...">
-            </mat-form-field>
-          </div>
 
-          <!-- Video URL Section -->
-          <div *ngIf="itemForm.get('type')?.value === 'video'">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>קישור YouTube</mat-label>
-              <input matInput formControlName="url" placeholder="https://www.youtube.com/watch?v=..." required>
-              <mat-hint>הזן קישור YouTube - התמונה הממוזערת תיווצר אוטומטית</mat-hint>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>תמונה ממוזערת (אופציונלי)</mat-label>
-              <input matInput formControlName="thumbnail" placeholder="https://...">
-            </mat-form-field>
+            <div class="manual-url-toggle-row">
+              <button type="button" class="manual-link-toggle" (click)="showManualImageUrl = !showManualImageUrl">
+                {{ showManualImageUrl ? 'הסתר קישור ידני' : 'הזן קישור ידנית' }}
+              </button>
+            </div>
+            <div class="manual-url-panel" *ngIf="showManualImageUrl">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>קישור תמונה (URL)</mat-label>
+                <input matInput formControlName="url" placeholder="https://..." (input)="onManualImageUrlInput()" />
+                <mat-hint>הדבק כתובת תמונה חיצונית במקום העלאה</mat-hint>
+              </mat-form-field>
+            </div>
           </div>
 
           <div class="form-row">
@@ -73,10 +88,10 @@
           </div>
 
           <div class="form-actions">
-            <button mat-button type="button" (click)="closeAddForm()">ביטול</button>
-            <button mat-raised-button color="primary" type="submit" [disabled]="isLoading">
-              <mat-icon *ngIf="!isLoading">save</mat-icon>
-              <mat-icon *ngIf="isLoading" class="spinner">hourglass_empty</mat-icon>
+            <button mat-button type="button" (click)="closeAddForm()" [disabled]="isUploading">ביטול</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="isLoading || isUploading">
+              <mat-icon *ngIf="!isLoading && !isUploading">save</mat-icon>
+              <mat-icon *ngIf="isLoading || isUploading" class="spinner">hourglass_empty</mat-icon>
               שמור
             </button>
           </div>
@@ -84,19 +99,12 @@
       </mat-card-content>
     </mat-card>
 
-    <!-- Gallery Items List -->
     <div class="gallery-items" *ngIf="!isLoading && galleryItems.length > 0">
       <div class="items-grid">
         <mat-card *ngFor="let item of galleryItems" class="gallery-item-card">
-          <div class="item-thumbnail" [class.video-thumbnail]="item.type === 'video'">
-            <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.title || 'Gallery image'" (error)="onImageError($event)">
-            <div *ngIf="item.type === 'video'" class="video-preview">
-              <img *ngIf="item.thumbnail" [src]="item.thumbnail" [alt]="item.title || 'Video thumbnail'">
-              <mat-icon class="play-icon">play_circle</mat-icon>
-            </div>
-            <div class="item-badge" [class.video-badge]="item.type === 'video'">
-              {{ item.type === 'image' ? 'תמונה' : 'סרטון' }}
-            </div>
+          <div class="item-thumbnail">
+            <img [src]="item.url" [alt]="item.title || 'תמונת גלריה'" (error)="onImageError($event)" />
+            <div class="item-badge">תמונה</div>
             <div class="item-status" [class.inactive]="!item.isActive">
               {{ item.isActive ? 'פעיל' : 'לא פעיל' }}
             </div>
@@ -120,18 +128,15 @@
       </div>
     </div>
 
-    <!-- Empty State -->
-    <div class="empty-state" *ngIf="!isLoading && galleryItems.length === 0">
+    <div class="empty-state" *ngIf="!isLoading && galleryItems.length === 0 && !showAddForm">
       <mat-icon>photo_library</mat-icon>
-      <h3>אין פריטים בגלריה</h3>
-      <p>הוסף פריטים חדשים כדי להתחיל</p>
+      <h3>אין תמונות בגלריה</h3>
+      <p>הוסף תמונות חדשות כדי להתחיל</p>
     </div>
 
-    <!-- Loading State -->
-    <div class="loading-state" *ngIf="isLoading">
+    <div class="loading-state" *ngIf="isLoading && !showAddForm">
       <mat-icon class="spinner">hourglass_empty</mat-icon>
       <span>טוען...</span>
     </div>
   </div>
 </div>
-

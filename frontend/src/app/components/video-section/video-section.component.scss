@@ -68,7 +68,8 @@
     gap: 30px;
   }
 
-  .video-item {
+  .video-item,
+  .media-item {
     position: relative;
     border-radius: 12px;
     overflow: hidden;
@@ -80,6 +81,12 @@
     &:hover {
       transform: translateY(-8px);
       box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    &.media-item--image {
+      .video-thumbnail-wrapper:hover img {
+        transform: scale(1.05);
+      }
     }
 
     .video-thumbnail-wrapper {
