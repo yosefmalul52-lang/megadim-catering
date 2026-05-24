@@ -12,9 +12,11 @@ declare global {
 }
 
 const COOKIE_CONSENT_ALL = 'all';
+/** Legacy banner stored this value; treat like full marketing consent for GA4. */
+const COOKIE_CONSENT_LEGACY_ACCEPTED = 'accepted';
 
 /**
- * Consent-gated GA4 integration: loads gtag only when cookieConsent === 'all'
+ * Consent-gated GA4 integration: loads gtag when cookieConsent is 'all' or legacy 'accepted'
  * and tracks SPA navigations via Router NavigationEnd events.
  */
 @Injectable({ providedIn: 'root' })
@@ -54,7 +56,8 @@ export class AnalyticsService {
     if (typeof localStorage === 'undefined') {
       return false;
     }
-    return localStorage.getItem('cookieConsent') === COOKIE_CONSENT_ALL;
+    const consent = localStorage.getItem('cookieConsent');
+    return consent === COOKIE_CONSENT_ALL || consent === COOKIE_CONSENT_LEGACY_ACCEPTED;
   }
 
   private ensureGtagBootstrap(measurementId: string): void {
