@@ -1,5 +1,7 @@
 export const environment = {
   production: false,
+  /** Empty in dev so GA4 does not track local sessions. */
+  googleAnalyticsId: '',
   apiUrl: 'http://localhost:4000/api',
   /** Optional key for admin chat summaries/stream (prefer cookie auth in production). */
   adminSummariesKey: '' as string,

@@ -14,6 +14,7 @@ import { ToastComponent } from './components/shared/toast/toast.component';
 
 import { LanguageService } from './services/language.service';
 import { MarketingService } from './services/marketing.service';
+import { AnalyticsService } from './services/analytics.service';
 import { MAIN_NAV_LINKS } from './nav-links';
 import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 
@@ -95,6 +96,7 @@ export class AppComponent implements OnInit {
   private languageService = inject(LanguageService);
   private router = inject(Router);
   private platformId = inject(PLATFORM_ID);
+  private analyticsService = inject(AnalyticsService);
 
   readonly whatsappHref = CONTACT_WHATSAPP_HREF;
 
@@ -124,9 +126,11 @@ export class AppComponent implements OnInit {
       }
     });
 
+    this.analyticsService.initializeAnalytics();
+
     // Check if current route is login or admin
     this.updatePageVisibility();
-    
+
     // Listen to route changes
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
@@ -146,6 +150,7 @@ export class AppComponent implements OnInit {
       localStorage.setItem('cookieConsent', 'all');
     }
     this.showCookieBanner = false;
+    this.analyticsService.initializeAnalytics();
   }
 
   acceptEssentialOnly(): void {
