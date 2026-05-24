@@ -61,6 +61,14 @@
   
   <!-- FontAwesome for icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- GA4: load library only; gtag('config') runs after cookie consent in AnalyticsService -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VEGG1KZQDW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+  </script>
 </head>
 <body class="mat-typography">
   <app-root></app-root>

@@ -16,8 +16,7 @@ const COOKIE_CONSENT_ALL = 'all';
 const COOKIE_CONSENT_LEGACY_ACCEPTED = 'accepted';
 
 /**
- * Consent-gated GA4 integration: loads gtag when cookieConsent is 'all' or legacy 'accepted'
- * and tracks SPA navigations via Router NavigationEnd events.
+ * Consent-gated GA4: gtag library loads from index.html; measurement starts only after consent.
  */
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
@@ -25,9 +24,9 @@ export class AnalyticsService {
   private readonly platformId = inject(PLATFORM_ID);
 
   private routerTrackingEnabled = false;
-  private gtagScriptAppended = false;
+  private analyticsConfigured = false;
 
-  /** Load GA4 (if allowed) and wire router page-view tracking. Safe to call multiple times. */
+  /** Enable GA4 measurement (if consented). Safe to call multiple times. */
   initializeAnalytics(): void {
     if (!isPlatformBrowser(this.platformId)) {
       return;
@@ -41,10 +40,15 @@ export class AnalyticsService {
       return;
     }
 
-    this.ensureGtagBootstrap(measurementId);
-    this.appendGtagScript(measurementId);
-    this.enableRouterTracking();
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      if (!this.analyticsConfigured) {
+        window.gtag('config', measurementId);
+        this.analyticsConfigured = true;
+        console.log(`--- GA Config initialized with ${measurementId} ---`);
+      }
+    }
 
+    this.enableRouterTracking();
     this.trackPageView(this.router.url);
   }
 
@@ -58,32 +62,6 @@ export class AnalyticsService {
     }
     const consent = localStorage.getItem('cookieConsent');
     return consent === COOKIE_CONSENT_ALL || consent === COOKIE_CONSENT_LEGACY_ACCEPTED;
-  }
-
-  private ensureGtagBootstrap(measurementId: string): void {
-    window.dataLayer = window.dataLayer ?? [];
-    if (!window.gtag) {
-      window.gtag = function gtag(...args: unknown[]) {
-        window.dataLayer?.push(args);
-      };
-      window.gtag('js', new Date());
-      window.gtag('config', measurementId);
-    }
-  }
-
-  private appendGtagScript(measurementId: string): void {
-    const scriptSrc = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    const existing = document.querySelector(`script[src="${scriptSrc}"]`);
-    if (existing || this.gtagScriptAppended) {
-      this.gtagScriptAppended = true;
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = scriptSrc;
-    document.head.appendChild(script);
-    this.gtagScriptAppended = true;
   }
 
   private enableRouterTracking(): void {
