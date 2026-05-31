@@ -58,8 +58,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   orders: Order[] = [];
   archiveOrders: Order[] = [];
   stats: DashboardStats = { pendingCount: 0, eventsTodayCount: 0, monthlyRevenue: 0 };
-  /** Top-level tab: Shabbat (e-commerce) vs Catering/Events. */
-  orderSourceTab: 'shabbat' | 'catering' = 'shabbat';
+  /** Top-level tab: Shabbat (e-commerce) vs Shabbat Catering form vs Events Catering. */
+  orderSourceTab: 'shabbat' | 'catering' | 'events' = 'shabbat';
   currentTab: 'pending' | 'processing' | 'ready' | 'archive' = 'pending';
   isLoading = true;
   isRefreshing = false;
@@ -77,6 +77,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   dateUpdatingId: string | null = null;
   isEditingItems = false;
   editableItems: EditableOrderItem[] = [];
+
+  /** Ordered list of catering categories used in view and edit modes. */
+  readonly CATERING_CATEGORY_ORDER = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
+  /** New catering item fields used in the catering edit panel. */
+  cateringNewItemName = '';
+  cateringNewItemCategory = 'סלטים';
   availableMenuItems: MenuItem[] = [];
   searchTerm = '';
   isSavingItems = false;
@@ -317,24 +323,41 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return false;
   }
 
+  /** True if order is specifically from the events catering form (cateringKind:'events'). */
+  private isEventCateringOrder(order: Order): boolean {
+    return order.cateringKind === 'events';
+  }
+
+  /** True if order is from the Shabbat/holiday catering form (cateringKind:'shabbat' or old orders without cateringKind). */
+  private isShabbatCateringOrder(order: Order): boolean {
+    return this.isCateringOrder(order) && !this.isEventCateringOrder(order);
+  }
+
   /** Orders from cart/checkout (Ready for Shabbat). */
   get shabbatOrders(): Order[] {
     return this.orders.filter((o) => !this.isCateringOrder(o));
   }
 
-  /** Orders from catering/events form (same collection, differentiated by orderType / numberOfPortions / mealTime). */
+  /** Orders from the Shabbat & holiday catering form. */
   get cateringOrders(): Order[] {
-    return this.orders.filter((o) => this.isCateringOrder(o));
+    return this.orders.filter((o) => this.isShabbatCateringOrder(o));
+  }
+
+  /** Orders from the events catering form (wedding, corporate, etc.). */
+  get eventCateringOrders(): Order[] {
+    return this.orders.filter((o) => this.isEventCateringOrder(o));
   }
 
   private getArchiveBySource(): Order[] {
-    return this.archiveOrders.filter((o) =>
-      this.orderSourceTab === 'catering' ? this.isCateringOrder(o) : !this.isCateringOrder(o)
-    );
+    if (this.orderSourceTab === 'catering') return this.archiveOrders.filter((o) => this.isShabbatCateringOrder(o));
+    if (this.orderSourceTab === 'events') return this.archiveOrders.filter((o) => this.isEventCateringOrder(o));
+    return this.archiveOrders.filter((o) => !this.isCateringOrder(o));
   }
 
   private getActiveOrdersBySource(): Order[] {
-    return this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    if (this.orderSourceTab === 'catering') return this.cateringOrders;
+    if (this.orderSourceTab === 'events') return this.eventCateringOrders;
+    return this.shabbatOrders;
   }
 
   get filteredOrders(): Order[] {
@@ -456,15 +479,15 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   get countPending(): number {
-    const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    const list = this.getActiveOrdersBySource();
     return list.filter((o) => this.isPending(o.status)).length;
   }
   get countProcessing(): number {
-    const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    const list = this.getActiveOrdersBySource();
     return list.filter((o) => this.isProcessing(o.status)).length;
   }
   get countReady(): number {
-    const list = this.orderSourceTab === 'shabbat' ? this.shabbatOrders : this.cateringOrders;
+    const list = this.getActiveOrdersBySource();
     return list.filter((o) => o.status === 'ready' || o.status === 'delivered').length;
   }
   get countArchive(): number {
@@ -572,12 +595,18 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   printOrder(order: Order): void {
-    const itemsHtml = (order.items || [])
-      .map(
-        (i) =>
-          `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₪${(i.price * i.quantity).toFixed(2)}</td></tr>`
-      )
-      .join('');
+    const totalPrice = Number(order.totalPrice || 0);
+    const rawSubtotal = Number((order as any).subtotal ?? (order.customerDetails as any)?.subtotal);
+    const rawDeliveryFee = Number((order as any).deliveryFee ?? (order.customerDetails as any)?.deliveryFee);
+    const itemsSubtotal = (order.items || []).reduce(
+      (sum, i) => sum + Number(i.price || 0) * Number(i.quantity || 0),
+      0
+    );
+    const subtotal = Number.isFinite(rawSubtotal) && rawSubtotal >= 0 ? rawSubtotal : itemsSubtotal;
+    const deliveryFee = Number.isFinite(rawDeliveryFee) && rawDeliveryFee >= 0
+      ? rawDeliveryFee
+      : Math.max(0, totalPrice - subtotal);
+
     const orderCode = order.orderNumber || (order._id || order.id)?.toString().slice(-8) || '';
     const cd: any = order.customerDetails || {};
     const deliveryMethodRaw = (cd.deliveryType || cd.deliveryMethod || '').toString().toLowerCase();
@@ -609,6 +638,62 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const notesHtml = customerNotes
       ? `<div class="notes-section"><div class="notes-title">הערות הלקוח:</div><div>${customerNotes}</div></div>`
       : '';
+
+    const isCatering = order.orderType === 'catering';
+    const allItemsFree = (order.items || []).every(i => Number(i.price || 0) === 0);
+
+    // Build items table — catering orders group by category, no price column
+    let itemsHtml = '';
+    if (isCatering || allItemsFree) {
+      // Group items by category
+      const byCategory: Record<string, string[]> = {};
+      (order.items || []).forEach(i => {
+        const cat = (i as any).category || 'כללי';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(i.name);
+      });
+      if (Object.keys(byCategory).length === 0) {
+        itemsHtml = '<tr><td colspan="2" style="text-align:center;color:#888;">אין פרטים שמורים</td></tr>';
+      } else {
+        itemsHtml = Object.entries(byCategory)
+          .map(([cat, names]) =>
+            `<tr class="cat-header"><td colspan="2"><strong>${cat}</strong></td></tr>` +
+            names.map(n => `<tr><td>${n}</td><td>✓</td></tr>`).join('')
+          )
+          .join('');
+      }
+    } else {
+      itemsHtml = (order.items || [])
+        .map(i => `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₪${(Number(i.price) * Number(i.quantity)).toFixed(2)}</td></tr>`)
+        .join('');
+    }
+
+    // Header row for table
+    const tableHeader = (isCatering || allItemsFree)
+      ? '<tr><th>פריט</th><th>נבחר</th></tr>'
+      : '<tr><th>פריט</th><th>כמות</th><th>סה"כ</th></tr>';
+
+    // Catering meta block — includes both shabbat and events catering details
+    const cateringMetaHtml = isCatering
+      ? `<div class="section">
+          <div class="section-title">פרטי קייטרינג</div>
+          ${ (order as any).eventType ? `<p><strong>סוג אירוע:</strong> ${ (order as any).eventType }</p>` : '' }
+          ${ (order as any).guestCount ? `<p><strong>מספר אורחים:</strong> ${ (order as any).guestCount }</p>` : '' }
+          ${ (order as any).venue ? `<p><strong>מיקום האירוע:</strong> ${ (order as any).venue }</p>` : '' }
+          ${ (order as any).numberOfPortions && !(order as any).eventType ? `<p><strong>מספר מנות:</strong> ${ (order as any).numberOfPortions }</p>` : '' }
+          ${ (order as any).mealTypes ? `<p><strong>סוג ארוחה:</strong> ${ (order as any).mealTypes }</p>` : '' }
+        </div>`
+      : '';
+
+    // Summary block — hide for catering with totalPrice 0
+    const summaryHtml = (isCatering && totalPrice === 0)
+      ? ''
+      : `<div class="summary">
+          <div class="summary-row"><span>סכום פריטים:</span><span>₪${subtotal.toFixed(2)}</span></div>
+          ${!isPickup ? `<div class="summary-row"><span>דמי משלוח:</span><span>₪${deliveryFee.toFixed(2)}</span></div>` : ''}
+          <div class="summary-row total-row"><span>סה"כ לתשלום:</span><span>₪${totalPrice.toFixed(2)}</span></div>
+        </div>`;
+
     const html = `
       <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${orderCode}</title>
       <style>
@@ -617,13 +702,18 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       .meta{margin:0 0 14px;font-size:14px}
       .order-type{font-size:24px;font-weight:800;line-height:1.2;margin:6px 0 14px;padding:10px 12px;border:2px solid #111}
       .section{margin:10px 0 14px;padding:10px 12px;border:1px solid #111}
+      .section p{margin:4px 0}
       .section-title{font-weight:800;margin-bottom:4px}
       .notes-section{margin:12px 0;padding:12px;border:2px solid #111}
       .notes-title{font-weight:800;margin-bottom:6px}
       table{width:100%;border-collapse:collapse;margin-top:10px}
       th,td{border:1px solid #111;padding:8px;text-align:right;color:#000}
       th{background:#fff;font-weight:800}
-      .total{font-weight:800;font-size:1.2em;margin-top:12px}
+      tr.cat-header td{background:#f4f4f4;font-weight:800;border-top:2px solid #111}
+      .summary{margin-top:14px;border:1px solid #111;padding:10px 12px}
+      .summary-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+      .summary-row + .summary-row{border-top:1px dashed #111}
+      .summary-row.total-row{font-weight:800}
       @media print{
         *{color:#000 !important;background:#fff !important;box-shadow:none !important}
         body{margin:0;padding:8mm;max-width:none}
@@ -631,6 +721,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         table{page-break-inside:auto}
         tr{page-break-inside:avoid}
         thead{display:table-header-group}
+        tr.cat-header td{background:#f4f4f4 !important}
       }
       </style></head>
       <body>
@@ -644,9 +735,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           <div class="section-title">כתובת משלוח / איסוף</div>
           <div>${addressDisplay}</div>
         </div>
+        ${cateringMetaHtml}
         ${notesHtml}
-        <table><thead><tr><th>פריט</th><th>כמות</th><th>סה"כ</th></tr></thead><tbody>${itemsHtml}</tbody></table>
-        <p class="total">סה"כ לתשלום: ₪${(order.totalPrice ?? 0).toFixed(2)}</p>
+        <table><thead>${tableHeader}</thead><tbody>${itemsHtml}</tbody></table>
+        ${summaryHtml}
       </body></html>`;
     const w = window.open('', '_blank');
     if (w) {
@@ -779,6 +871,90 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.editableItems = [];
     this.searchTerm = '';
     this.isSavingItems = false;
+    this.cateringNewItemName = '';
+    this.cateringNewItemCategory = 'סלטים';
+  }
+
+  /** Public getter so the template can check if the selected order is a catering order. */
+  get isSelectedOrderCatering(): boolean {
+    return !!this.selectedOrder && this.isCateringOrder(this.selectedOrder);
+  }
+
+  /**
+   * Returns editableItems grouped by category in the defined catering order.
+   * Used in the edit panel for catering orders.
+   */
+  getCateringItemsByCategory(): { category: string; items: EditableOrderItem[]; startIndex: number }[] {
+    const order = this.CATERING_CATEGORY_ORDER;
+    const grouped: Record<string, EditableOrderItem[]> = {};
+    this.editableItems.forEach((item) => {
+      const cat = item.category || 'כללי';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(item);
+    });
+    const result: { category: string; items: EditableOrderItem[]; startIndex: number }[] = [];
+    let offset = 0;
+    // Defined order first
+    order.forEach((cat) => {
+      if (grouped[cat]) {
+        result.push({ category: cat, items: grouped[cat], startIndex: offset });
+        offset += grouped[cat].length;
+      }
+    });
+    // Any extra categories not in the defined order
+    Object.keys(grouped).forEach((cat) => {
+      if (!order.includes(cat)) {
+        result.push({ category: cat, items: grouped[cat], startIndex: offset });
+        offset += grouped[cat].length;
+      }
+    });
+    return result;
+  }
+
+  /**
+   * Returns selectedOrder.items grouped by category for the VIEW (read-only) mode.
+   */
+  getCateringViewItemsByCategory(): { category: string; items: { name: string }[] }[] {
+    if (!this.selectedOrder) return [];
+    const order = this.CATERING_CATEGORY_ORDER;
+    const grouped: Record<string, { name: string }[]> = {};
+    (this.selectedOrder.items || []).forEach((item) => {
+      const cat = (item as any).category || 'כללי';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push({ name: item.name });
+    });
+    const result: { category: string; items: { name: string }[] }[] = [];
+    order.forEach((cat) => {
+      if (grouped[cat]) result.push({ category: cat, items: grouped[cat] });
+    });
+    Object.keys(grouped).forEach((cat) => {
+      if (!order.includes(cat)) result.push({ category: cat, items: grouped[cat] });
+    });
+    return result;
+  }
+
+  /** Add a free-text catering item to the editable list. */
+  addCateringItem(): void {
+    const name = (this.cateringNewItemName || '').trim();
+    if (!name) return;
+    this.editableItems.push({
+      productId: '',
+      baseName: name,
+      name,
+      quantity: 1,
+      category: this.cateringNewItemCategory,
+      unitPrice: 0,
+      selectedOption: undefined
+    });
+    this.cateringNewItemName = '';
+  }
+
+  /** Get the real index of a catering item within the flat editableItems array. */
+  getCateringItemGlobalIndex(catIndex: number, itemIndex: number): number {
+    let offset = 0;
+    const groups = this.getCateringItemsByCategory();
+    for (let i = 0; i < catIndex; i++) offset += groups[i].items.length;
+    return offset + itemIndex;
   }
 
   removeEditableItem(index: number): void {
@@ -893,20 +1069,30 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const orderId = (order._id || order.id || '').toString();
     if (!orderId) return;
 
-    const payloadItems = this.editableItems
-      .map((item) => ({
-        productId: String(item.productId || '').trim(),
-        name: String(item.name || '').trim(),
-        quantity: Number(item.quantity || 0),
-        selectedOption: item.selectedOption
-          ? {
-              label: String(item.selectedOption.label || '').trim(),
-              amount: String(item.selectedOption.amount || '').trim() || undefined,
-              price: Number(item.selectedOption.price || item.unitPrice || 0)
-            }
-          : undefined
-      }))
-      .filter((item) => item.productId && item.quantity > 0);
+    const payloadItems = this.isCateringOrder(order)
+      ? this.editableItems
+          .filter((item) => item.name.trim() && item.quantity > 0)
+          .map((item) => ({
+            productId: item.productId || '',
+            name: item.name.trim(),
+            quantity: Number(item.quantity),
+            category: item.category || '',
+            price: 0
+          }))
+      : this.editableItems
+          .map((item) => ({
+            productId: String(item.productId || '').trim(),
+            name: String(item.name || '').trim(),
+            quantity: Number(item.quantity || 0),
+            selectedOption: item.selectedOption
+              ? {
+                  label: String(item.selectedOption.label || '').trim(),
+                  amount: String(item.selectedOption.amount || '').trim() || undefined,
+                  price: Number(item.selectedOption.price || item.unitPrice || 0)
+                }
+              : undefined
+          }))
+          .filter((item) => item.productId && item.quantity > 0);
 
     if (!payloadItems.length) {
       this.errorMessage = 'יש לבחור לפחות מוצר אחד להזמנה';

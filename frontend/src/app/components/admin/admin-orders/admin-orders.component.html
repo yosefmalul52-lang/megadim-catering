@@ -62,7 +62,7 @@
       }
     </div>
 
-    <!-- Source tabs: Shabbat vs Catering -->
+    <!-- Source tabs: Shabbat / Shabbat Catering / Events Catering -->
     <nav class="source-tabs" role="tablist" aria-label="סוג הזמנות">
       <button
         type="button"
@@ -82,7 +82,17 @@
         role="tab"
       >
         <i class="fas fa-utensils" aria-hidden="true"></i>
-        קייטרינג ואירועים
+        קייטרינג שבת וחג
+      </button>
+      <button
+        type="button"
+        class="source-tab-btn"
+        [class.active]="orderSourceTab === 'events'"
+        (click)="orderSourceTab = 'events'"
+        role="tab"
+      >
+        <i class="fas fa-star" aria-hidden="true"></i>
+        קייטרינג לאירועים
       </button>
     </nav>
 
@@ -397,11 +407,124 @@
         </div>
       }
 
+      <!-- Events catering orders: desktop table -->
+      @if (orderSourceTab === 'events') {
+        <div class="table-container orders-desktop">
+          <table class="orders-table orders-table-events">
+            <thead>
+              <tr>
+                <th class="select-col">
+                  <input
+                    type="checkbox"
+                    [checked]="areAllVisibleSelected"
+                    (change)="toggleSelectAllVisible($any($event.target).checked)"
+                    aria-label="בחר הכל"
+                  />
+                </th>
+                <th>מספר הזמנה</th>
+                <th>לקוח</th>
+                <th>תאריך אירוע</th>
+                <th>סוג אירוע</th>
+                <th>אורחים</th>
+                <th>מיקום</th>
+                <th>סטטוס</th>
+                <th>פעולות</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of filteredOrders; track order._id || order.id || $index) {
+                <tr>
+                  <td class="select-col">
+                    <input
+                      type="checkbox"
+                      [checked]="isOrderSelected(order)"
+                      (change)="toggleOrderSelection(order, $any($event.target).checked)"
+                      aria-label="בחר הזמנה"
+                    />
+                  </td>
+                  <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
+                  <td class="customer-cell">
+                    <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                  </td>
+                  <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
+                  <td class="event-type-cell">{{ order.eventType || '—' }}</td>
+                  <td class="guests-cell">{{ order.guestCount ?? '—' }}</td>
+                  <td class="venue-cell">{{ order.venue || order.customerDetails?.address || '—' }}</td>
+                  <td class="status-cell">
+                    <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                  </td>
+                  <td class="actions-cell">
+                    <div class="row-actions">
+                      <button type="button" class="btn-action btn-edit" (click)="viewOrderDetails(order)" title="עריכה">
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button type="button" class="btn-action btn-menu" (click)="toggleOrderMenu(order)" title="אפשרויות">
+                        <i class="fas fa-ellipsis-v"></i>
+                      </button>
+                      @if (isOrderMenuOpen(order)) {
+                        <div class="order-action-menu">
+                          <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
+                          <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
+                          <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (!order.isDeleted) {
+                            <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                          } @else {
+                            <button type="button" (click)="restoreOrder(order)">שחזר הזמנה</button>
+                            <button type="button" class="danger" (click)="permanentlyDeleteOrder(order)">מחיקה לצמיתות</button>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Events catering: mobile cards -->
+        <div class="order-cards orders-mobile">
+          @for (order of filteredOrders; track order._id || order.id || $index) {
+            <div class="order-card order-card-events">
+              <label class="card-select-box">
+                <input
+                  type="checkbox"
+                  [checked]="isOrderSelected(order)"
+                  (change)="toggleOrderSelection(order, $any($event.target).checked)"
+                  aria-label="בחר הזמנה"
+                />
+              </label>
+              <div class="order-card-header">
+                <span class="order-card-id">#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</span>
+              </div>
+              <div class="order-card-body">
+                <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
+                <p class="order-card-meta">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }} · {{ order.eventType || '—' }}</p>
+                <p class="order-card-meta">{{ order.guestCount ? (order.guestCount + ' אורחים') : '' }} {{ order.venue ? ('| ' + order.venue) : '' }}</p>
+              </div>
+              <div class="status-action-wrapper order-card-status-actions">
+                <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+              </div>
+              <div class="order-card-links">
+                <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
+                <button type="button" class="btn-action btn-print" (click)="printOrder(order)"><i class="fas fa-print"></i></button>
+                <button type="button" class="btn-action btn-view-details" (click)="viewOrderDetails(order)"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
       @if (filteredOrders.length === 0) {
         <div class="empty-state">
           <i class="fas fa-inbox" aria-hidden="true"></i>
           <h3>{{ emptyStateMessage }}</h3>
-          <p>@if (orderSourceTab === 'catering') { הזמנות קייטרינג ואירועים יופיעו כאן כאשר יישמרו במערכת. } @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן } @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }</p>
+          <p>
+            @if (orderSourceTab === 'catering') { הזמנות קייטרינג שבת וחג יופיעו כאן כאשר יישמרו במערכת. }
+            @else if (orderSourceTab === 'events') { הזמנות קייטרינג לאירועים יופיעו כאן כאשר יישמרו במערכת. }
+            @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן }
+            @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }
+          </p>
         </div>
       }
     }
@@ -488,16 +611,34 @@
                   </div>
                 }
               </div>
-              @if (selectedOrder.orderType === 'catering' && selectedOrder.numberOfPortions != null) {
+              @if (selectedOrder.orderType === 'catering' && selectedOrder.numberOfPortions != null && selectedOrder.cateringKind !== 'events') {
                 <div class="detail-row">
                   <span class="detail-label">מספר מנות:</span>
                   <span class="detail-value">{{ selectedOrder.numberOfPortions }}</span>
                 </div>
               }
-              @if (selectedOrder.orderType === 'catering' && (selectedOrder.mealTypes || selectedOrder.mealTime)) {
+              @if (selectedOrder.orderType === 'catering' && (selectedOrder.mealTypes || selectedOrder.mealTime) && selectedOrder.cateringKind !== 'events') {
                 <div class="detail-row">
                   <span class="detail-label">סוגי ארוחות:</span>
                   <span class="detail-value">{{ getMealTypesLabel(selectedOrder) }}</span>
+                </div>
+              }
+              @if (selectedOrder.cateringKind === 'events' && selectedOrder.eventType) {
+                <div class="detail-row">
+                  <span class="detail-label">סוג אירוע:</span>
+                  <span class="detail-value">{{ selectedOrder.eventType }}</span>
+                </div>
+              }
+              @if (selectedOrder.cateringKind === 'events' && selectedOrder.guestCount != null) {
+                <div class="detail-row">
+                  <span class="detail-label">מספר אורחים:</span>
+                  <span class="detail-value">{{ selectedOrder.guestCount }}</span>
+                </div>
+              }
+              @if (selectedOrder.cateringKind === 'events' && (selectedOrder.venue || selectedOrder.customerDetails?.address)) {
+                <div class="detail-row">
+                  <span class="detail-label">מיקום האירוע:</span>
+                  <span class="detail-value">{{ selectedOrder.venue || selectedOrder.customerDetails?.address }}</span>
                 </div>
               }
               @if (selectedOrder.customerDetails?.notes) {
@@ -519,6 +660,58 @@
               </div>
 
               @if (isEditingItems) {
+                <!-- ── CATERING EDIT MODE ── -->
+                @if (isSelectedOrderCatering) {
+                  <div class="items-edit-panel catering-edit-panel">
+                    @for (group of getCateringItemsByCategory(); track group.category) {
+                      <div class="catering-edit-category">
+                        <div class="catering-edit-category-title">{{ group.category }}</div>
+                        @for (item of group.items; track $index) {
+                          <div class="editable-item-row">
+                            <span class="editable-item-name">{{ item.name }}</span>
+                            <button
+                              type="button"
+                              class="btn-remove-item"
+                              (click)="removeEditableItem(getCateringItemGlobalIndex(getCateringItemsByCategory().indexOf(group), $index))"
+                            >
+                              <i class="fas fa-times"></i>
+                            </button>
+                          </div>
+                        }
+                        @if (group.items.length === 0) {
+                          <div class="catering-edit-empty">אין פריטים בקטגוריה זו</div>
+                        }
+                      </div>
+                    }
+
+                    <div class="catering-add-item-row">
+                      <select class="catering-category-select" [(ngModel)]="cateringNewItemCategory">
+                        @for (cat of CATERING_CATEGORY_ORDER; track cat) {
+                          <option [value]="cat">{{ cat }}</option>
+                        }
+                      </select>
+                      <input
+                        type="text"
+                        class="input-add-product"
+                        [(ngModel)]="cateringNewItemName"
+                        placeholder="שם המנה..."
+                        (keyup.enter)="addCateringItem()"
+                      />
+                      <button type="button" class="btn-add-catering-item" (click)="addCateringItem()">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+
+                    <div class="edit-items-actions">
+                      <button type="button" class="btn-save-items" [disabled]="isSavingItems" (click)="saveEditedItems()">
+                        @if (isSavingItems) { <i class="fas fa-spinner fa-spin"></i> } @else { <i class="fas fa-check"></i> }
+                        שמור שינויים
+                      </button>
+                      <button type="button" class="btn-cancel-items" [disabled]="isSavingItems" (click)="cancelEditingItems()">ביטול</button>
+                    </div>
+                  </div>
+                } @else {
+                <!-- ── REGULAR (SHABBAT) EDIT MODE ── -->
                 <div class="items-edit-panel">
                   <div class="items-edit-list">
                     @for (item of editableItems; track item.productId + '-' + $index; let i = $index) {
@@ -582,25 +775,58 @@
                     </button>
                   </div>
                 </div>
+                }
               }
 
-              <div class="items-list">
-                @for (item of selectedOrder.items; track $index) {
-                  <div class="order-item">
-                    <div class="item-info">
-                      <span class="item-name">{{ item.name }}</span>
-                      <span class="item-quantity">x{{ item.quantity }}</span>
-                      @if (item.selectedOption) {
-                        <span class="item-price">({{ item.selectedOption.label }} - {{ item.selectedOption.amount }})</span>
-                      }
-                    </div>
-                    <div class="item-total">₪{{ (item.price * item.quantity) | number:'1.2-2' }}</div>
+              <!-- ── VIEW MODE ── -->
+              @if (!isEditingItems) {
+                @if (isSelectedOrderCatering) {
+                  <!-- Catering: grouped by category, no price column -->
+                  <div class="catering-items-view">
+                    @for (group of getCateringViewItemsByCategory(); track group.category) {
+                      <div class="catering-view-category">
+                        <div class="catering-view-category-title">{{ group.category }}</div>
+                        @for (item of group.items; track $index) {
+                          <div class="catering-view-item">
+                            <i class="fas fa-check catering-check-icon"></i>
+                            <span>{{ item.name }}</span>
+                          </div>
+                        }
+                      </div>
+                    }
+                    @if (getCateringViewItemsByCategory().length === 0) {
+                      <p class="catering-items-empty">אין פריטים שמורים להזמנה זו</p>
+                    }
+                  </div>
+                } @else {
+                  <!-- Regular: flat list with price -->
+                  <div class="items-list">
+                    @for (item of selectedOrder.items; track $index) {
+                      <div class="order-item">
+                        <div class="item-info">
+                          <span class="item-name">{{ item.name }}</span>
+                          <span class="item-quantity">x{{ item.quantity }}</span>
+                          @if (item.selectedOption) {
+                            <span class="item-price">({{ item.selectedOption.label }} - {{ item.selectedOption.amount }})</span>
+                          }
+                        </div>
+                        <div class="item-total">₪{{ (item.price * item.quantity) | number:'1.2-2' }}</div>
+                      </div>
+                    }
                   </div>
                 }
-              </div>
+              }
             </div>
             <div class="details-section">
               <div class="order-summary">
+                <div class="summary-row" *ngIf="(selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) != null">
+                  <span class="summary-label">סכום ביניים:</span>
+                  <span class="summary-value">₪{{ (selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) | number:'1.2-2' }}</span>
+                </div>
+                <div class="summary-row" *ngIf="(selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) != null">
+                  <span class="summary-label">דמי משלוח:</span>
+                  <span class="summary-value">₪{{ (selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) | number:'1.2-2' }}</span>
+                </div>
                 <div class="summary-row">
                   <span class="summary-label">סה"כ הזמנה:</span>
                   <span class="summary-value">₪{{ selectedOrder.totalPrice | number:'1.2-2' }}</span>

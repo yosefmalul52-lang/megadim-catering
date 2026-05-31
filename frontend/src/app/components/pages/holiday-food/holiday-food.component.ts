@@ -38,6 +38,8 @@ export class HolidayFoodComponent implements OnInit {
   eventsMenuUrl: string = '';
   showPopup = false;
   isSubmitting = false;
+  submitSuccess = false;
+  submitError = '';
 
   isOrderFormOpen: boolean = false;
   
@@ -277,26 +279,43 @@ export class HolidayFoodComponent implements OnInit {
     if (this.eventDateControl) {
       this.orderForm.eventDate = this.eventDateControl.toISOString().slice(0, 10);
     }
+
+    // Hebrew client-side validation
+    const missing: string[] = [];
+    if (!this.orderForm.fullName?.trim()) missing.push('שם מלא');
+    if (!this.orderForm.phone?.trim()) missing.push('טלפון');
+    if (!this.orderForm.email?.trim()) missing.push('אימייל');
+    if (!String(this.orderForm.numberOfPortions ?? '').trim()) missing.push('מספר מנות');
+    if (!this.orderForm.eventDate?.trim()) missing.push('תאריך הספקה');
+    if (!this.orderForm.mealTime) missing.push('זמן הארוחה');
+    if (!this.orderForm.deliveryType) missing.push('סוג אספקה (איסוף / משלוח)');
+
+    if (missing.length > 0) {
+      this.submitError = `נא למלא את השדות הבאים: ${missing.join(', ')}`;
+      return;
+    }
+
     this.isSubmitting = true;
+    this.submitError = '';
     this.http
       .post<{ success: boolean; message?: string }>(`${environment.apiUrl}/catering`, this.orderForm)
       .subscribe({
         next: () => {
           this.isSubmitting = false;
-          alert('ההזמנה נשלחה בהצלחה!');
-          this.toggleOrderForm();
+          this.submitSuccess = true;
         },
         error: (err) => {
           this.isSubmitting = false;
-          const msg =
+          this.submitError =
             err?.error?.message ||
             (err?.status === 0 ? 'לא ניתן להתחבר לשרת. בדוק חיבור לאינטרנט.' : 'אירעה שגיאה בשליחת ההזמנה. נסה שוב.');
-          alert(msg);
         }
       });
   }
-  
+
   closeModal() {
+    this.submitSuccess = false;
+    this.submitError = '';
     this.toggleOrderForm();
   }
 

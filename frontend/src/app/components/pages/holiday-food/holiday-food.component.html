@@ -143,8 +143,16 @@
             <mat-icon>close</mat-icon>
           </button>
         </div>
-        
-        <form class="order-form" (ngSubmit)="submitOrder()">
+
+        @if (submitSuccess) {
+          <div class="form-success">
+            <mat-icon class="success-icon">check_circle</mat-icon>
+            <h3>הבקשה נשלחה בהצלחה!</h3>
+            <p>נציג מטעמנו יחזור אליך בהקדם להשלמת ההזמנה ואישורה.</p>
+            <button type="button" class="close-success-btn" (click)="closeModal()">סגור</button>
+          </div>
+        } @else {
+          <form class="order-form" (ngSubmit)="submitOrder()" novalidate>
           <!-- Section 1: Personal Details -->
           <div class="form-section">
             <h3 class="section-title">פרטים אישיים</h3>
@@ -358,11 +366,15 @@
           
           <!-- Submit Button -->
           <div class="form-footer">
+            @if (submitError) {
+              <p class="form-error-msg">{{ submitError }}</p>
+            }
             <button type="submit" class="submit-btn" [disabled]="isSubmitting">
               {{ isSubmitting ? 'שולח...' : 'שלח הזמנה' }}
             </button>
           </div>
         </form>
+        }
       </div>
     </div>
   }

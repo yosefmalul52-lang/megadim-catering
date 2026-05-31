@@ -178,11 +178,231 @@
           <mat-icon>download</mat-icon>
           <span>להורדת התפריט</span>
         </a>
-        <button class="cta-btn cta-btn-primary">
+        <button class="cta-btn cta-btn-primary" (click)="openOrderForm()">
           <mat-icon>event</mat-icon>
           <span>טופס הזמנה</span>
         </button>
       </div>
     </div>
   </section>
+
+  <!-- Order Form Modal -->
+  @if (showOrderForm) {
+    <div class="events-order-overlay" (click)="closeOrderForm()">
+      <div class="events-order-modal" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+          <h2>טופס הזמנת קייטרינג לאירוע</h2>
+          <button class="close-btn" type="button" (click)="closeOrderForm()" aria-label="סגור">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        @if (submitSuccess) {
+          <div class="form-success">
+            <mat-icon class="success-icon">check_circle</mat-icon>
+            <h3>הבקשה נשלחה בהצלחה!</h3>
+            <p>נציג מטעמנו יחזור אליך בהקדם להשלמת ההזמנה ואישורה.</p>
+            <button type="button" class="close-success-btn" (click)="closeOrderForm()">סגור</button>
+          </div>
+        } @else {
+          <form class="order-form" (ngSubmit)="submitOrder()" novalidate>
+
+            <!-- Section 1: Personal Details -->
+            <div class="form-section">
+              <h3 class="section-title">פרטים אישיים</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>שם מלא *</label>
+                  <input type="text" [(ngModel)]="orderForm.fullName" name="fullName" required>
+                </div>
+                <div class="form-group">
+                  <label>טלפון *</label>
+                  <input type="tel" [(ngModel)]="orderForm.phone" name="phone" required>
+                </div>
+                <div class="form-group">
+                  <label>אימייל *</label>
+                  <input type="email" [(ngModel)]="orderForm.email" name="email" required>
+                </div>
+                <div class="form-group">
+                  <label>מספר אורחים משוער *</label>
+                  <input type="number" [(ngModel)]="orderForm.guestCount" name="guestCount" required min="1">
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Event Details -->
+            <div class="form-section">
+              <h3 class="section-title">פרטי האירוע</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>סוג האירוע *</label>
+                  <select [(ngModel)]="orderForm.eventType" name="eventType" required>
+                    <option value="" disabled>בחר סוג אירוע</option>
+                    @for (type of EVENT_TYPES; track type) {
+                      <option [value]="type">{{ type }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>תאריך האירוע *</label>
+                  <input type="date" [(ngModel)]="orderForm.eventDate" name="eventDate" required>
+                </div>
+                <div class="form-group">
+                  <label>מיקום האירוע</label>
+                  <input type="text" [(ngModel)]="orderForm.venue" name="venue" placeholder="שם האולם / כתובת">
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 3: Reception Bar -->
+            <div class="form-section">
+              <h3 class="section-title">בר קבלת פנים</h3>
+              <div class="toggle-section">
+                <label class="toggle-label">
+                  <input type="checkbox" [(ngModel)]="orderForm.receptionBar" name="receptionBar">
+                  <span>כן, אני מעוניין בבר קבלת פנים</span>
+                </label>
+              </div>
+              @if (orderForm.receptionBar) {
+                <div class="radio-group" style="margin-top:20px;">
+                  <label class="radio-label">
+                    <input type="radio" name="receptionBarVariant" value="standard" [(ngModel)]="orderForm.receptionBarVariant">
+                    <span>בר קבלת פנים רגיל — 4 סוגים (₪30 למנה)</span>
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="receptionBarVariant" value="premium" [(ngModel)]="orderForm.receptionBarVariant">
+                    <span>בר קבלת פנים משודרג — 6 סוגים (₪45 למנה)</span>
+                  </label>
+                </div>
+              }
+            </div>
+
+            <!-- Section 4: Salads -->
+            <div class="form-section">
+              <h3 class="section-title">סלטים (עד 6 לבחירה)</h3>
+              <div class="selects-grid">
+                @for (idx of saladIndexes; track idx) {
+                  <div class="form-group">
+                    <label>סלט — בחירה {{ idx }}</label>
+                    <select [(ngModel)]="orderForm.salads[idx - 1]" [name]="'salad' + idx">
+                      <option value="" disabled selected>בחר סלט...</option>
+                      @for (opt of saladOptions; track opt) {
+                        <option [value]="opt">{{ opt }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Section 5: First Courses -->
+            <div class="form-section">
+              <h3 class="section-title">מנות ראשונות (עד 2 לבחירה · ₪20 למנה)</h3>
+              <div class="selects-grid">
+                @for (idx of firstCourseIndexes; track idx) {
+                  <div class="form-group">
+                    <label>מנה ראשונה — בחירה {{ idx }}</label>
+                    <select [(ngModel)]="orderForm.firstCourses[idx - 1]" [name]="'firstCourse' + idx">
+                      <option value="" disabled selected>בחר מנה ראשונה...</option>
+                      @for (opt of firstCourseOptions; track opt) {
+                        <option [value]="opt">{{ opt }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Section 6: Main Courses -->
+            <div class="form-section">
+              <h3 class="section-title">מנות עיקריות (עד 2 לבחירה · ₪70 למנה)</h3>
+              <div class="selects-grid">
+                @for (idx of mainCourseIndexes; track idx) {
+                  <div class="form-group">
+                    <label>מנה עיקרית — בחירה {{ idx }}</label>
+                    <select [(ngModel)]="orderForm.mainCourses[idx - 1]" [name]="'mainCourse' + idx">
+                      <option value="" disabled selected>בחר מנה עיקרית...</option>
+                      @for (opt of mainCourseOptions; track opt) {
+                        <option [value]="opt">{{ opt }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Section 7: Sides -->
+            <div class="form-section">
+              <h3 class="section-title">תוספות (עד 3 לבחירה)</h3>
+              <div class="selects-grid">
+                @for (idx of sideIndexes; track idx) {
+                  <div class="form-group">
+                    <label>תוספת — בחירה {{ idx }}</label>
+                    <select [(ngModel)]="orderForm.sides[idx - 1]" [name]="'side' + idx">
+                      <option value="" disabled selected>בחר תוספת...</option>
+                      @for (opt of sideDishOptions; track opt) {
+                        <option [value]="opt">{{ opt }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Section 8: Extras -->
+            <div class="form-section">
+              <h3 class="section-title">תוספות ושדרוגים</h3>
+              <div class="extras-grid">
+                <label class="toggle-label">
+                  <input type="checkbox" [(ngModel)]="orderForm.desserts" name="desserts">
+                  <span>קינוחי ביסקוטי — ₪8 לאדם</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" [(ngModel)]="orderForm.kosherUpgrade" name="kosherUpgrade">
+                  <span>שדרוג כשרות מהדרין מחפוד (בשר ועוף) — תוספת ₪7 למנה</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Section 9: Delivery + Notes -->
+            <div class="form-section">
+              <h3 class="section-title">אספקה והערות</h3>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="deliveryType" value="pickup" [(ngModel)]="orderForm.deliveryType">
+                  <span>איסוף עצמי</span>
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="deliveryType" value="delivery" [(ngModel)]="orderForm.deliveryType">
+                  <span>משלוח לכתובת</span>
+                </label>
+              </div>
+              @if (orderForm.deliveryType === 'delivery') {
+                <div class="form-group" style="margin-top:16px;">
+                  <label>כתובת למשלוח</label>
+                  <input type="text" [(ngModel)]="orderForm.address" name="address">
+                </div>
+              }
+              <div class="form-group" style="margin-top:16px;">
+                <label>הערות</label>
+                <textarea [(ngModel)]="orderForm.notes" name="notes" rows="4"></textarea>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-footer">
+              @if (submitError) {
+                <p class="form-error-msg">{{ submitError }}</p>
+              }
+              <button type="submit" class="submit-btn" [disabled]="isSubmitting">
+                {{ isSubmitting ? 'שולח...' : 'שלח הזמנה' }}
+              </button>
+            </div>
+
+          </form>
+        }
+      </div>
+    </div>
+  }
 </div>

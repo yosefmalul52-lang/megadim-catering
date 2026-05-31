@@ -55,6 +55,17 @@ export interface Order {
   orderNumber?: string;
   /** When 'catering', order appears in Catering/Events tab; otherwise Shabbat. */
   orderType?: 'shabbat' | 'catering';
+  /**
+   * Distinguishes between the two catering pipelines:
+   * 'shabbat' = Shabbat & holiday catering form; 'events' = wedding/corporate events form.
+   */
+  cateringKind?: 'shabbat' | 'events';
+  /** Event type label for event catering orders (e.g. 'חתונה', 'אירוע עסקי'). */
+  eventType?: string;
+  /** Number of guests for event catering orders. */
+  guestCount?: number;
+  /** Event venue / location — used by event catering. */
+  venue?: string;
   customerDetails: {
     fullName: string;
     phone: string;
@@ -62,8 +73,14 @@ export interface Order {
     address?: string;
     notes?: string;
     eventDate?: string;
+    /** Fallback pricing for orders created before root-level subtotal/deliveryFee was added. */
+    subtotal?: number;
+    deliveryFee?: number;
   };
   items: OrderItem[];
+  /** Optional pricing breakdown returned by backend checkout/manual-order flows. */
+  subtotal?: number;
+  deliveryFee?: number;
   totalPrice: number;
   status:
     | 'pending'
