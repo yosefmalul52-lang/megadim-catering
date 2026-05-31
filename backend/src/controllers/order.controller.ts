@@ -38,6 +38,8 @@ export interface SendOrderBody {
   address?: string;
   notes?: string;
   items: Array<{ id: string; name: string; quantity: number; price: number }>;
+  subtotal?: number;
+  deliveryFee?: number;
   total: number;
 }
 
@@ -226,6 +228,8 @@ export class OrderController {
       await updateCouponRevenue(couponIdToIncrement, body.totalAmount);
     }
 
+    const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
+
     // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
     try {
       const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
@@ -245,7 +249,10 @@ export class OrderController {
           address: addressStr,
           notes: body.notes,
           items: body.items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price })),
-          total: body.totalAmount
+          subtotal: Number(body.subtotal) || 0,
+          deliveryFee: recalculatedDeliveryFee,
+          total: body.totalAmount,
+          orderNumber: (plainOrder as any).orderNumber
         };
         await emailService.sendOrderEmails(orderDataForEmail, ownerEmail, body.email);
         console.log('Order emails sent: admin + customer receipt');
@@ -255,8 +262,6 @@ export class OrderController {
     } catch (emailErr: any) {
       console.error('Email failed to send, but order was saved:', emailErr?.message || emailErr);
     }
-
-    const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
 
     res.status(201).json({
       success: true,

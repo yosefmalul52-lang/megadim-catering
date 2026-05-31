@@ -22,6 +22,20 @@ export interface IOrder extends Document {
     utm_term?: string;
     utm_content?: string;
   };
+  /** Pricing breakdown stored at root level for easy querying and display. */
+  subtotal?: number | null;
+  deliveryFee?: number | null;
+  /**
+   * Distinguishes between the two catering pipelines:
+   * 'shabbat' = Shabbat & holiday catering form; 'events' = wedding/corporate events form.
+   */
+  cateringKind?: 'shabbat' | 'events';
+  /** Event type label (e.g. 'חתונה', 'בר מצווה', 'אירוע עסקי') — used by events catering. */
+  eventType?: string;
+  /** Number of guests — used by events catering (numberOfPortions covers Shabbat catering). */
+  guestCount?: number;
+  /** Event venue / location address. */
+  venue?: string;
   assignedDriverId?: mongoose.Types.ObjectId | null;
   assignedDriverName?: string;
   assignedAt?: Date | null;
@@ -96,6 +110,12 @@ const OrderSchema: Schema<IOrder> = new Schema({
   numberOfPortions: { type: Schema.Types.Mixed, required: false },
   mealTime: { type: String, required: false },
   mealTypes: { type: String, required: false },
+  subtotal: { type: Number, default: null },
+  deliveryFee: { type: Number, default: null },
+  cateringKind: { type: String, enum: ['shabbat', 'events'], required: false, index: true },
+  eventType: { type: String, required: false },
+  guestCount: { type: Number, required: false },
+  venue: { type: String, required: false },
   marketingData: {
     utm_source: { type: String, trim: true },
     utm_medium: { type: String, trim: true },

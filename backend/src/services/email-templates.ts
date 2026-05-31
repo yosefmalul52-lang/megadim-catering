@@ -11,8 +11,19 @@ export interface OrderTemplateData {
   eventDate?: string;
   address?: string;
   notes?: string;
-  cartItems: Array<{ name: string; price: number; quantity: number }>;
+  cartItems: Array<{ name: string; price: number; quantity: number; category?: string }>;
+  subtotal?: number;
+  deliveryFee?: number;
   totalPrice: number;
+  /** Human-readable order number (e.g. MG-123456) shown in email subject and body. */
+  orderNumber?: string;
+  /**
+   * When set, switches customer email to the catering-specific template:
+   * no prices, items grouped by category, "representative will call" notice.
+   */
+  cateringKind?: 'shabbat' | 'events';
+  /** Extra labelled rows shown in catering email (e.g. meal type, guest count, event type). */
+  cateringExtraInfo?: Array<{ label: string; value: string }>;
 }
 
 function escapeHtml(s: string): string {
@@ -72,12 +83,19 @@ const DARK = '#1f3540';
 const GOLD = '#e0c075';
 const WHITE = '#ffffff';
 
+function toValidMoney(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 /**
  * Admin/office template: clean, high-contrast, brand colors.
  */
 export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
   const orderTypeLabel = orderData.orderType === 'delivery' ? 'משלוח' : 'איסוף עצמי';
   const aggregatedItems = aggregateCartItems(orderData.cartItems);
+  const subtotal = toValidMoney(orderData.subtotal);
+  const deliveryFee = toValidMoney(orderData.deliveryFee);
 
   const cartRows = aggregatedItems
     .map(
@@ -128,6 +146,7 @@ export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
     FONT +
     ';">הזמנה חדשה - ' +
     orderTypeLabel +
+    (orderData.orderNumber ? ` | ${escapeHtml(orderData.orderNumber)}` : '') +
     '</h2>' +
     '</td>' +
     '</tr>' +
@@ -181,6 +200,28 @@ export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
     '<td dir="rtl" style="padding:25px 30px;background-color:' +
     DARK +
     ';text-align:left;border-radius:0 0 10px 10px;">' +
+    (subtotal !== null
+      ? '<p dir="rtl" style="margin:0 0 8px;color:' +
+        WHITE +
+        ';font-size:16px;font-family:' +
+        FONT +
+        ';">סכום ביניים: <span style="color:' +
+        GOLD +
+        ';"><bdi>' +
+        subtotal.toFixed(2) +
+        ' ש"ח</bdi>&rlm;</span></p>'
+      : '') +
+    (orderData.orderType === 'delivery' && deliveryFee !== null
+      ? '<p dir="rtl" style="margin:0 0 8px;color:' +
+        WHITE +
+        ';font-size:16px;font-family:' +
+        FONT +
+        ';">דמי משלוח: <span style="color:' +
+        GOLD +
+        ';"><bdi>' +
+        deliveryFee.toFixed(2) +
+        ' ש"ח</bdi>&rlm;</span></p>'
+      : '') +
     '<h2 dir="rtl" style="margin:0;color:' +
     WHITE +
     ';font-size:24px;font-family:' +
@@ -204,6 +245,8 @@ export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
 export function generateCustomerEmailHtml(orderData: OrderTemplateData): string {
   const orderTypeLabel = orderData.orderType === 'delivery' ? 'משלוח' : 'איסוף עצמי';
   const aggregatedItems = aggregateCartItems(orderData.cartItems);
+  const subtotal = toValidMoney(orderData.subtotal);
+  const deliveryFee = toValidMoney(orderData.deliveryFee);
 
   const cartRows = aggregatedItems
     .map(
@@ -250,7 +293,9 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
     GOLD +
     ';font-size:26px;font-weight:bold;font-family:' +
     FONT +
-    ';">תודה על הזמנתך!</h2>' +
+    ';">תודה על הזמנתך!' +
+    (orderData.orderNumber ? `<br/><span style="font-size:16px;font-weight:normal;">הזמנה מס׳ ${escapeHtml(orderData.orderNumber)}</span>` : '') +
+    '</h2>' +
     '</td>' +
     '</tr>' +
     '<tr>' +
@@ -286,6 +331,28 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
     '</tr>' +
     cartRows +
     '</table>' +
+    (subtotal !== null || (orderData.orderType === 'delivery' && deliveryFee !== null)
+      ? '<div dir="rtl" style="margin:14px 0 0;padding:12px 14px;background:#f7f8f9;border:1px solid #e7e7e7;">' +
+        (subtotal !== null
+          ? '<p dir="rtl" style="margin:0 0 6px;font-size:15px;color:' +
+            DARK +
+            ';font-family:' +
+            FONT +
+            ';">סכום ביניים: <bdi>' +
+            subtotal.toFixed(2) +
+            ' ש"ח</bdi>&rlm;</p>'
+          : '') +
+        (orderData.orderType === 'delivery' && deliveryFee !== null
+          ? '<p dir="rtl" style="margin:0;font-size:15px;color:' +
+            DARK +
+            ';font-family:' +
+            FONT +
+            ';">דמי משלוח: <bdi>' +
+            deliveryFee.toFixed(2) +
+            ' ש"ח</bdi>&rlm;</p>'
+          : '') +
+        '</div>'
+      : '') +
     '<p dir="rtl" style="margin:16px 0 0;font-size:18px;font-weight:bold;color:' +
     DARK +
     ';text-align:right;font-family:' +
@@ -331,5 +398,115 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
     '</table>' +
     '</div>' +
     '</body></html>'
+  );
+}
+
+/**
+ * Catering-specific customer email.
+ * Shows items grouped by category without prices, plus a prominent
+ * "a representative will contact you" notice.
+ */
+export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData): string {
+  const isEvents = orderData.cateringKind === 'events';
+
+  // Group items by category
+  const byCategory: Record<string, string[]> = {};
+  const CATEGORY_ORDER = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
+
+  orderData.cartItems.forEach((item) => {
+    const cat = item.category || 'בחירות';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(cleanItemName(item.name));
+  });
+
+  // Sort categories
+  const sortedCategories = [
+    ...CATEGORY_ORDER.filter((c) => byCategory[c]),
+    ...Object.keys(byCategory).filter((c) => !CATEGORY_ORDER.includes(c))
+  ];
+
+  const itemsSection = sortedCategories.length > 0
+    ? '<h3 style="color:' + DARK + ';border-bottom:2px solid ' + GOLD + ';padding-bottom:8px;font-size:18px;font-family:' + FONT + ';margin-top:24px;">בחירת תפריט</h3>' +
+      sortedCategories.map((cat) =>
+        `<div style="margin-bottom:14px;">` +
+        `<div style="font-size:14px;font-weight:700;color:${GOLD};background:${DARK};padding:5px 10px;display:inline-block;margin-bottom:6px;">${escapeHtml(cat)}</div>` +
+        `<ul style="margin:0;padding:0 16px;list-style:none;">` +
+        byCategory[cat].map((name) =>
+          `<li style="padding:3px 0;font-size:15px;color:${DARK};font-family:${FONT};">` +
+          `<span style="color:${GOLD};margin-left:6px;">✓</span> ${escapeHtml(name)}` +
+          `</li>`
+        ).join('') +
+        `</ul></div>`
+      ).join('')
+    : '';
+
+  // Extra info rows (meal type, guest count, etc.)
+  const extraInfoRows = (orderData.cateringExtraInfo || [])
+    .filter((row) => row.value && row.value.trim())
+    .map((row) =>
+      `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">${escapeHtml(row.label)}:&rlm;</td>` +
+      `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(row.value)}</bdi>&rlm;</td></tr>`
+    )
+    .join('');
+
+  const dateRow = orderData.eventDate
+    ? `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">תאריך האירוע:&rlm;</td>` +
+      `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(formatToIsraeliDate(orderData.eventDate))}</bdi>&rlm;</td></tr>`
+    : '';
+
+  const venueRow = orderData.address
+    ? `<tr><td dir="rtl" style="padding:7px 0;color:#666;font-family:${FONT};font-size:15px;">${isEvents ? 'מיקום' : 'כתובת'}:&rlm;</td>` +
+      `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(orderData.address)}</bdi>&rlm;</td></tr>`
+    : '';
+
+  const notesRow = orderData.notes && orderData.notes.trim()
+    ? `<div dir="rtl" style="margin-top:16px;padding:12px 14px;background:#fcfaf5;border-right:4px solid ${GOLD};color:${DARK};font-family:${FONT};font-size:14px;"><strong>הערות:</strong> <bdi>${escapeHtml(orderData.notes)}</bdi></div>`
+    : '';
+
+  const headerTitle = isEvents
+    ? 'קיבלנו את בקשתך לקייטרינג לאירוע!'
+    : 'קיבלנו את בקשתך לקייטרינג שבת וחג!';
+
+  return (
+    '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"></head>' +
+    '<body style="margin:0;padding:0;font-family:' + FONT + ';">' +
+    '<div dir="rtl" style="font-family:' + FONT + ';background-color:#f7f8f9;padding:30px 10px;direction:rtl;text-align:right;">' +
+    '<table width="100%" style="max-width:650px;margin:0 auto;background:' + WHITE + ';overflow:hidden;border:1px solid ' + GOLD + ';border-collapse:collapse;box-shadow:0 4px 15px rgba(0,0,0,0.05);">' +
+
+    // Header
+    '<tr><td style="background-color:' + DARK + ';padding:30px;text-align:center;border-bottom:4px solid ' + GOLD + ';">' +
+    '<h2 style="margin:0;color:' + GOLD + ';font-size:24px;font-weight:bold;font-family:' + FONT + ';">' + headerTitle + '</h2>' +
+    (orderData.orderNumber ? `<p style="margin:8px 0 0;color:${WHITE};font-size:14px;font-family:${FONT};">הזמנה מס׳ ${escapeHtml(orderData.orderNumber)}</p>` : '') +
+    '</td></tr>' +
+
+    // Greeting + representative notice
+    '<tr><td style="padding:30px 30px 0;">' +
+    '<p dir="rtl" style="font-size:16px;line-height:1.6;margin:0 0 16px;color:' + DARK + ';font-family:' + FONT + ';">' +
+    'שלום <bdi>' + escapeHtml(orderData.customerName) + '</bdi>&rlm;, קיבלנו את פרטי ההזמנה שלך.' +
+    '</p>' +
+    '<div dir="rtl" style="background:#f0f7f0;border-right:4px solid #2e7d32;padding:14px 16px;margin-bottom:20px;">' +
+    '<p style="margin:0;font-size:16px;font-weight:bold;color:#1b5e20;font-family:' + FONT + ';">&#x23F0; נציג מטעמנו יחזור אליך בהקדם להשלמת ההזמנה ואישורה.</p>' +
+    '</div>' +
+
+    // Event details
+    '<h3 style="color:' + DARK + ';border-bottom:2px solid ' + GOLD + ';padding-bottom:8px;font-size:18px;font-family:' + FONT + ';margin-top:4px;">פרטי האירוע</h3>' +
+    '<table width="100%" style="border-collapse:collapse;font-size:15px;">' +
+    dateRow +
+    extraInfoRows +
+    venueRow +
+    '</table>' +
+    notesRow +
+
+    // Items (only for shabbat catering that has items)
+    itemsSection +
+
+    '</td></tr>' +
+
+    // Footer
+    '<tr><td style="padding:20px 30px;background-color:' + DARK + ';text-align:center;">' +
+    '<p style="margin:0;font-size:14px;line-height:1.6;color:' + WHITE + ';font-family:' + FONT + ';">לכל שאלה, ניתן להשיב למייל זה.</p>' +
+    '</td></tr>' +
+
+    '</table></div></body></html>'
   );
 }

@@ -79,6 +79,7 @@ const delivery_routes_1 = __importDefault(require("./routes/delivery.routes"));
 const coupon_routes_1 = __importDefault(require("./routes/coupon.routes"));
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
 const campaign_routes_1 = __importDefault(require("./routes/campaign.routes"));
+const holiday_event_routes_1 = __importDefault(require("./routes/holiday-event.routes"));
 const customer_routes_1 = __importDefault(require("./routes/customer.routes"));
 // Import 404 handler
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
@@ -210,6 +211,7 @@ app.use('/api/coupons', coupon_routes_1.default);
 app.use('/api/users', user_routes_1.default);
 app.use('/api/customers', customer_routes_1.default);
 app.use('/api/campaign', campaign_routes_1.default);
+app.use('/api/holiday-events', holiday_event_routes_1.default);
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler_1.notFoundHandler);
 // Global Error Handler (must be last)

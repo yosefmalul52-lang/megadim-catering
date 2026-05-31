@@ -186,6 +186,8 @@ class OrderController {
                         address: addressStr,
                         notes: body.notes,
                         items: body.items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price })),
+                        subtotal: Number(body.subtotal) || 0,
+                        deliveryFee: recalculatedDeliveryFee,
                         total: body.totalAmount
                     };
                     yield email_service_1.emailService.sendOrderEmails(orderDataForEmail, ownerEmail, body.email);

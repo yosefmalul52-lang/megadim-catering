@@ -30,6 +30,15 @@ interface LatLng {
   lon: number;
 }
 
+const DEFAULT_ESTIMATED_DELIVERY_FEE = Number(process.env.DELIVERY_FALLBACK_FEE) > 0
+  ? Number(process.env.DELIVERY_FALLBACK_FEE)
+  : 50;
+
+interface GeocodeResult {
+  coords: LatLng;
+  source: 'Google' | 'OpenStreetMap';
+}
+
 /**
  * Fetch latitude/longitude for a given city using Google Geocoding API.
  */
@@ -76,6 +85,28 @@ async function geocodeCityWithGoogle(city: string): Promise<LatLng> {
       console.error('Error Message:', err?.message);
     }
     throw err;
+  }
+}
+
+/**
+ * Reliable geocoding flow:
+ * 1) Google Geocoding
+ * 2) OpenStreetMap fallback on Google failure
+ */
+async function geocodeCityWithFallback(city: string): Promise<GeocodeResult | null> {
+  try {
+    const googleCoords = await geocodeCityWithGoogle(city);
+    return { coords: googleCoords, source: 'Google' };
+  } catch (googleError: any) {
+    console.warn(
+      '[Delivery API] Google geocoding failed. Falling back to OpenStreetMap.',
+      googleError?.message || googleError
+    );
+    const osmCoords = await geocodeCityWithOSM(city);
+    if (osmCoords) {
+      return { coords: osmCoords, source: 'OpenStreetMap' };
+    }
+    return null;
   }
 }
 
@@ -141,6 +172,8 @@ export async function calculateDeliveryFee(
   usedOverride?: boolean;
   tierFreeShippingThreshold?: number;
   minOrderForDelivery?: number;
+  isEstimated?: boolean;
+  estimationReason?: string;
 } | null> {
   const city = (destinationCity || '').trim();
   if (!city) return null;
@@ -175,14 +208,26 @@ export async function calculateDeliveryFee(
     );
     distanceKm = 0;
   } else {
-    // Priority 2: Smart Geocoding – Google first, OSM fallback if Google result is suspicious (>65 km)
+    // Priority 2: Smart Geocoding – Google first, OSM fallback on error/suspicious distance
     const destinationAddress = city.includes('ישראל') ? city : `${city}, ישראל`;
     const originCoords: LatLng = { lat: ORIGIN_LAT, lon: ORIGIN_LON };
-    const googleCoords = await geocodeCityWithGoogle(destinationAddress);
-    let straightKm = haversineKm(originCoords, googleCoords);
-    let source = 'Google';
+    const geocodeResult = await geocodeCityWithFallback(destinationAddress);
+    if (!geocodeResult) {
+      console.warn(
+        `[Delivery API] Geocoding unavailable for "${destinationAddress}". Using estimated fallback fee: ${DEFAULT_ESTIMATED_DELIVERY_FEE}₪`
+      );
+      return {
+        distance: 0,
+        price: DEFAULT_ESTIMATED_DELIVERY_FEE,
+        isEstimated: true,
+        estimationReason: 'GEOCODING_UNAVAILABLE'
+      };
+    }
 
-    if (straightKm > SUSPICIOUS_DISTANCE_KM) {
+    let straightKm = haversineKm(originCoords, geocodeResult.coords);
+    let source: 'Google' | 'OpenStreetMap' = geocodeResult.source;
+
+    if (source === 'Google' && straightKm > SUSPICIOUS_DISTANCE_KM) {
       console.log(
         '[Delivery API] Google distance suspicious (>65km). Falling back to OpenStreetMap for:',
         city

@@ -165,6 +165,8 @@ class EmailService {
                     price: item.price,
                     quantity: item.quantity
                 })),
+                subtotal: orderData.subtotal,
+                deliveryFee: orderData.deliveryFee,
                 totalPrice: orderData.total
             };
             const ownerHtml = (0, email_templates_1.generateAdminEmailHtml)(templateData);

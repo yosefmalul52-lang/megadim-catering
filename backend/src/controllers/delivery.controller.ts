@@ -19,7 +19,11 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
           : undefined;
     // Type-safety: cartTotal may arrive as string from frontend
     const cartTotal = typeof body.cartTotal === 'number' ? body.cartTotal : Number(body.cartTotal);
-    const cartTotalNum = Number.isNaN(cartTotal) ? 0 : cartTotal;
+    if (!Number.isFinite(cartTotal) || cartTotal < 0) {
+      res.status(400).json({ error: 'cartTotal must be a non-negative number', isEligible: false });
+      return;
+    }
+    const cartTotalNum = cartTotal;
 
     if (!destinationCity) {
       res.status(400).json({ error: 'City is required' });
@@ -113,7 +117,9 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
       price: finalFee,
       originalPrice: finalFee === 0 ? result.price : undefined,
       isFree: finalFee === 0,
-      isEligible: true
+      isEligible: true,
+      isEstimated: !!(result as any).isEstimated,
+      estimationReason: (result as any).estimationReason
     });
     return;
   } catch (err: any) {
@@ -128,14 +134,20 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
     }
     console.error('Stack Trace:', err?.stack);
 
-    const details = err?.message ? String(err.message) : undefined;
-    const hasMapsKey = !!process.env.GOOGLE_MAPS_API_KEY;
-    res.status(500).json({
-      error: 'שגיאת שרת פנימית בחישוב המשלוח',
-      ...(details && { details }),
-      debugInfo: {
-        hasKey: hasMapsKey
-      }
+    // Never bubble an HTTP 500 from shipping calculation.
+    // Return a deterministic JSON fallback so checkout can continue.
+    const storeSettings = await StoreSettings.findOne().lean();
+    const flatFee = typeof (storeSettings as any)?.baseDeliveryFee === 'number'
+      ? (storeSettings as any).baseDeliveryFee
+      : 50;
+    res.status(200).json({
+      distance: 0,
+      price: flatFee,
+      isFree: false,
+      isEligible: true,
+      isEstimated: true,
+      estimationReason: 'CONTROLLER_EXCEPTION',
+      message: 'מחיר משלוח משוער זמנית. לא ניתן לחשב מרחק כרגע.'
     });
     return;
   }

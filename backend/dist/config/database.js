@@ -99,6 +99,9 @@ const connectDatabase = () => __awaiter(void 0, void 0, void 0, function* () {
         // Seed delivery pricing ONLY when collection is empty – never overwrite user data on restart
         const { runDeliveryPricingSeed } = yield Promise.resolve().then(() => __importStar(require('../seed/deliveryPricingSeed')));
         yield runDeliveryPricingSeed();
+        // Fix legacy videos.videoId_1 unique index (non-sparse) that blocks multiple Cloudinary uploads
+        const { ensureVideoIndexes } = yield Promise.resolve().then(() => __importStar(require('../utils/ensure-video-indexes')));
+        yield ensureVideoIndexes();
         // Handle connection events
         mongoose_1.default.connection.on('error', (err) => {
             console.error('❌ MongoDB connection error:', err);

@@ -16,6 +16,7 @@ exports.OrderService = void 0;
 const Order_1 = __importDefault(require("../models/Order"));
 const menuItem_1 = __importDefault(require("../models/menuItem"));
 const mongoose_1 = __importDefault(require("mongoose"));
+const holiday_order_utils_1 = require("../utils/holiday-order.utils");
 const webhook_util_1 = require("../utils/webhook.util");
 const email_service_1 = require("./email.service");
 const customer_service_1 = require("./customer.service");
@@ -278,6 +279,16 @@ class OrderService {
                 if (!productId)
                     continue;
                 try {
+                    if ((0, holiday_order_utils_1.isHolidayOrderProductId)(String(productId))) {
+                        const holiday = yield (0, holiday_order_utils_1.resolveHolidayOrderProduct)(String(productId), {
+                            name: item.name,
+                            imageUrl: item.imageUrl
+                        });
+                        if (holiday === null || holiday === void 0 ? void 0 : holiday.imageUrl) {
+                            item.imageUrl = String(holiday.imageUrl).trim();
+                        }
+                        continue;
+                    }
                     let product = yield menuItem_1.default.findById(productId).select('imageUrl').lean();
                     if (!(product === null || product === void 0 ? void 0 : product.imageUrl) && typeof productId === 'string') {
                         product = yield menuItem_1.default.findOne({ _id: productId }).select('imageUrl').lean();
@@ -373,7 +384,7 @@ class OrderService {
                 throw new Error('items array is required and must not be empty');
             }
             const normalizedItems = yield Promise.all(newItems.map((rawItem, index) => __awaiter(this, void 0, void 0, function* () {
-                var _j, _k, _q, _z, _2;
+                var _j, _k, _q, _z, _2, _3, _4;
                 const item = rawItem || {};
                 const productId = String(item.productId || item.id || '').trim();
                 const productName = String(item.name || '').trim();
@@ -383,6 +394,38 @@ class OrderService {
                 }
                 if (!Number.isFinite(quantity) || quantity <= 0) {
                     throw new Error(`items[${index}].quantity must be a positive number`);
+                }
+                if ((0, holiday_order_utils_1.isHolidayOrderProductId)(productId)) {
+                    const holidayProduct = yield (0, holiday_order_utils_1.resolveHolidayOrderProduct)(productId, {
+                        name: productName,
+                        price: item.price,
+                        description: item.description,
+                        imageUrl: item.imageUrl,
+                        category: item.category
+                    });
+                    if (!holidayProduct) {
+                        throw new Error(`Holiday product not found for items[${index}] (id=${productId})`);
+                    }
+                    const authenticPrice = Number(holidayProduct.price);
+                    if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
+                        throw new Error(`Invalid holiday product price for items[${index}]`);
+                    }
+                    return {
+                        productId,
+                        name: holidayProduct.name,
+                        price: authenticPrice,
+                        quantity,
+                        category: holidayProduct.category,
+                        selectedOption: ((_j = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _j === void 0 ? void 0 : _j.label)
+                            ? {
+                                label: String(item.selectedOption.label).trim(),
+                                amount: String(item.selectedOption.amount || '').trim() || undefined,
+                                price: Number((_k = item.selectedOption.price) !== null && _k !== void 0 ? _k : authenticPrice)
+                            }
+                            : undefined,
+                        imageUrl: holidayProduct.imageUrl,
+                        description: holidayProduct.description
+                    };
                 }
                 // Prevent CastError crash on invalid ObjectId values.
                 // Some legacy/cart flows send composite ids like "<objectId>-<timestamp>".
@@ -417,7 +460,7 @@ class OrderService {
                     return null;
                 });
                 if (!mongoose_1.default.Types.ObjectId.isValid(lookupProductId)) {
-                    const objectIdPrefix = (_j = lookupProductId.match(/^[a-fA-F0-9]{24}/)) === null || _j === void 0 ? void 0 : _j[0];
+                    const objectIdPrefix = (_q = lookupProductId.match(/^[a-fA-F0-9]{24}/)) === null || _q === void 0 ? void 0 : _q[0];
                     if (objectIdPrefix && mongoose_1.default.Types.ObjectId.isValid(objectIdPrefix)) {
                         lookupProductId = objectIdPrefix;
                         product = yield menuItem_1.default.findById(lookupProductId).lean();
@@ -441,8 +484,8 @@ class OrderService {
                 if (!product) {
                     throw new Error(`Product not found for items[${index}] (id=${lookupProductId}${productName ? `, name=${productName}` : ''})`);
                 }
-                const requestedVariantLabel = String(((_k = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _k === void 0 ? void 0 : _k.label) || (item === null || item === void 0 ? void 0 : item.variant) || (item === null || item === void 0 ? void 0 : item.size) || '').trim();
-                const requestedVariantAmount = String(((_q = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _q === void 0 ? void 0 : _q.amount) || '').trim();
+                const requestedVariantLabel = String(((_z = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _z === void 0 ? void 0 : _z.label) || (item === null || item === void 0 ? void 0 : item.variant) || (item === null || item === void 0 ? void 0 : item.size) || '').trim();
+                const requestedVariantAmount = String(((_2 = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _2 === void 0 ? void 0 : _2.amount) || '').trim();
                 let selectedOptionToSave;
                 let authenticPrice = Number(product.price);
                 if (requestedVariantLabel) {
@@ -492,12 +535,12 @@ class OrderService {
                         }
                     }
                 }
-                else if ((_z = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _z === void 0 ? void 0 : _z.label) {
+                else if ((_3 = item === null || item === void 0 ? void 0 : item.selectedOption) === null || _3 === void 0 ? void 0 : _3.label) {
                     // Preserve legacy payload shape if it already includes selectedOption details.
                     selectedOptionToSave = {
                         label: String(item.selectedOption.label).trim(),
                         amount: String(item.selectedOption.amount || '').trim() || undefined,
-                        price: Number((_2 = item.selectedOption.price) !== null && _2 !== void 0 ? _2 : authenticPrice)
+                        price: Number((_4 = item.selectedOption.price) !== null && _4 !== void 0 ? _4 : authenticPrice)
                     };
                 }
                 if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {

@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MenuController = void 0;
 const errorHandler_1 = require("../middleware/errorHandler");
 const menuItem_1 = __importDefault(require("../models/menuItem"));
+const shavuot_migration_service_1 = require("../services/shavuot-migration.service");
 class MenuController {
     constructor() {
         // Get all menu items
@@ -337,14 +338,22 @@ class MenuController {
             }
             // Build MongoDB query
             const query = {};
+            const includeArchived = req.query.includeArchived === 'true' || req.query.includeArchived === '1';
+            const includeUnavailable = req.query.includeUnavailable === 'true' || req.query.includeUnavailable === '1';
             if (category) {
                 query.category = category;
+            }
+            else if (!includeArchived) {
+                query.category = { $ne: shavuot_migration_service_1.ARCHIVED_HOLIDAY_CATEGORY };
             }
             if (tag) {
                 query.tags = { $in: [tag] };
             }
             if (available !== undefined) {
                 query.isAvailable = available === 'true';
+            }
+            else if (!includeUnavailable) {
+                query.isAvailable = { $ne: false };
             }
             if (popular !== undefined) {
                 query.isPopular = popular === 'true';
@@ -379,10 +388,12 @@ class MenuController {
             if (!category) {
                 throw (0, errorHandler_1.createValidationError)('Category is required');
             }
-            const menuItems = yield menuItem_1.default.find({
-                category: category,
-                isAvailable: true
-            }).sort({ order: 1 });
+            const menuItems = category === shavuot_migration_service_1.ARCHIVED_HOLIDAY_CATEGORY
+                ? []
+                : yield menuItem_1.default.find({
+                    category,
+                    isAvailable: { $ne: false }
+                }).sort({ order: 1 });
             res.status(200).json({
                 success: true,
                 data: menuItems,
@@ -396,8 +407,10 @@ class MenuController {
             const limit = parseInt(req.query.limit) || 6;
             const popularItems = yield menuItem_1.default.find({
                 isPopular: true,
-                isAvailable: true
-            }).limit(limit);
+                isAvailable: { $ne: false },
+                category: { $ne: shavuot_migration_service_1.ARCHIVED_HOLIDAY_CATEGORY }
+            })
+                .limit(limit);
             res.status(200).json({
                 success: true,
                 data: popularItems,
@@ -408,7 +421,10 @@ class MenuController {
         // Get menu categories
         this.getMenuCategories = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
             // Get distinct categories from MongoDB
-            const categoryNames = yield menuItem_1.default.distinct('category');
+            const categoryNames = yield menuItem_1.default.distinct('category', {
+                category: { $ne: shavuot_migration_service_1.ARCHIVED_HOLIDAY_CATEGORY },
+                isAvailable: { $ne: false }
+            });
             // Build category objects
             const categories = categoryNames.map((categoryName, index) => ({
                 id: categoryName.toLowerCase().replace(/\s+/g, '-'),

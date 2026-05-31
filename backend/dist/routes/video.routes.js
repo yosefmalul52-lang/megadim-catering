@@ -8,9 +8,10 @@ const router = (0, express_1.Router)();
 const videoController = new video_controller_1.VideoController();
 // Public routes
 router.get('/', videoController.getVideos);
-router.get('/:id', videoController.getVideoById);
-// Admin-only: stats and mutations
+// Admin-only: stats MUST be before /:id
 router.get('/stats', authenticate, requireAdmin, videoController.getVideoStatistics);
+router.get('/:id', videoController.getVideoById);
+// Admin mutations
 router.post('/', authenticate, requireAdmin, videoController.addVideo);
 router.put('/:id', authenticate, requireAdmin, videoController.updateVideo);
 router.delete('/:id', authenticate, requireAdmin, videoController.deleteVideo);

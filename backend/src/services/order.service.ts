@@ -142,6 +142,8 @@ export class OrderService {
       customerDetails,
       items: orderItems,
       totalPrice: payload.totalAmount,
+      subtotal: payload.subtotal ?? null,
+      deliveryFee: payload.deliveryFee ?? null,
       status,
       ...(marketingData ? { marketingData } : {})
     });
@@ -400,7 +402,20 @@ export class OrderService {
         const quantity = Number(item.quantity);
 
         if (!productId) {
-          throw new Error(`items[${index}].productId (or id) is required`);
+          // Allow free-text catering menu items — no productId, no DB price lookup.
+          if (!productName) {
+            throw new Error(`items[${index}] must have either productId or name`);
+          }
+          const freePrice = Number(item.price);
+          return {
+            productId: '',
+            name: productName,
+            price: Number.isFinite(freePrice) && freePrice >= 0 ? freePrice : 0,
+            quantity,
+            category: String(item.category || '').trim(),
+            imageUrl: String(item.imageUrl || '').trim(),
+            description: String(item.description || '').trim()
+          };
         }
         if (!Number.isFinite(quantity) || quantity <= 0) {
           throw new Error(`items[${index}].quantity must be a positive number`);
