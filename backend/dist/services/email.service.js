@@ -163,14 +163,20 @@ class EmailService {
                 cartItems: orderData.items.map((item) => ({
                     name: item.name,
                     price: item.price,
-                    quantity: item.quantity
+                    quantity: item.quantity,
+                    category: item.category
                 })),
                 subtotal: orderData.subtotal,
                 deliveryFee: orderData.deliveryFee,
-                totalPrice: orderData.total
+                totalPrice: orderData.total,
+                orderNumber: orderData.orderNumber,
+                cateringKind: orderData.cateringKind,
+                cateringExtraInfo: orderData.cateringExtraInfo
             };
             const ownerHtml = (0, email_templates_1.generateAdminEmailHtml)(templateData);
-            const customerHtml = (0, email_templates_1.generateCustomerEmailHtml)(templateData);
+            const customerHtml = orderData.cateringKind
+                ? (0, email_templates_1.generateCateringCustomerEmailHtml)(templateData)
+                : (0, email_templates_1.generateCustomerEmailHtml)(templateData);
             const customerReplyTo = (typeof orderData.customerEmail === 'string' ? orderData.customerEmail.trim() : '') ||
                 (typeof customerEmail === 'string' ? customerEmail.trim() : '') ||
                 '';
@@ -179,7 +185,9 @@ class EmailService {
                 from: getWebsiteFromHeader(),
                 to: ownerEmail,
                 replyTo: customerReplyTo || undefined,
-                subject: `הזמנה חדשה התקבלה 🍽️ - ${businessName}`,
+                subject: orderData.cateringKind
+                    ? `בקשת קייטרינג חדשה${orderData.orderNumber ? ` - ${orderData.orderNumber}` : ''} - ${businessName}`
+                    : `הזמנה חדשה התקבלה 🍽️${orderData.orderNumber ? ` - ${orderData.orderNumber}` : ''} - ${businessName}`,
                 html: ownerHtml
             });
             // 2. Send receipt to the customer (if customer email provided)
@@ -189,7 +197,9 @@ class EmailService {
                     from: getWebsiteFromHeader(),
                     replyTo: ownerEmail,
                     to: customerEmailTrimmed,
-                    subject: `אישור הזמנה - ${businessName}`,
+                    subject: orderData.cateringKind
+                        ? `אישור קבלת בקשת קייטרינג${orderData.orderNumber ? ` ${orderData.orderNumber}` : ''} - ${businessName}`
+                        : `אישור הזמנה${orderData.orderNumber ? ` ${orderData.orderNumber}` : ''} - ${businessName}`,
                     html: customerHtml
                 });
             }
@@ -198,10 +208,11 @@ class EmailService {
     /**
      * Send order confirmation email to the business owner (legacy: used by order.service after DB save).
      * Agency model: sends via EMAIL_USER, appears from BUSINESS_NAME, to OWNER_EMAIL (client).
+     * Uses the same branded HTML templates as the newer sendOrderEmails flow.
      */
     sendOrderEmail(order) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _j, _k, _q, _z, _2, _3, _4, _6, _7;
+            var _j, _k, _q, _z, _2, _3, _4, _6, _7, _8, _9;
             try {
                 const businessName = process.env.BUSINESS_NAME || 'Megadim';
                 const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
@@ -210,43 +221,50 @@ class EmailService {
                     return;
                 }
                 const customerReplyEmail = (((_j = order.customerDetails) === null || _j === void 0 ? void 0 : _j.email) || '').toString().trim();
-                const itemsList = order.items
-                    .map((item, index) => `${index + 1}. ${item.name}\n   כמות: ${item.quantity}\n   מחיר ליחידה: ₪${item.price}\n   סה"כ: ₪${(item.price * item.quantity).toFixed(2)}`)
-                    .join('\n');
-                const customerInfo = `
-שם: ${((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.fullName) || 'לא צוין'}
-טלפון: ${((_q = order.customerDetails) === null || _q === void 0 ? void 0 : _q.phone) || 'לא צוין'}
-אימייל: ${((_z = order.customerDetails) === null || _z === void 0 ? void 0 : _z.email) || 'לא צוין'}
-כתובת: ${((_2 = order.customerDetails) === null || _2 === void 0 ? void 0 : _2.address) || 'לא צוין'}
-הערות: ${((_3 = order.customerDetails) === null || _3 === void 0 ? void 0 : _3.notes) || 'אין הערות'}
-      `.trim();
+                const deliveryType = ((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.deliveryMethod) === 'delivery' ? 'delivery' : 'pickup';
+                const addressRaw = (_q = order.customerDetails) === null || _q === void 0 ? void 0 : _q.address;
+                const addressStr = typeof addressRaw === 'string'
+                    ? addressRaw
+                    : addressRaw && typeof addressRaw === 'object'
+                        ? [addressRaw.city, addressRaw.street, addressRaw.apartment].filter(Boolean).join(', ')
+                        : undefined;
+                const templateData = {
+                    customerName: ((_z = order.customerDetails) === null || _z === void 0 ? void 0 : _z.fullName) || 'לא צוין',
+                    customerPhone: ((_2 = order.customerDetails) === null || _2 === void 0 ? void 0 : _2.phone) || 'לא צוין',
+                    orderType: deliveryType,
+                    eventDate: (_3 = order.customerDetails) === null || _3 === void 0 ? void 0 : _3.eventDate,
+                    address: addressStr,
+                    notes: (_4 = order.customerDetails) === null || _4 === void 0 ? void 0 : _4.notes,
+                    cartItems: (order.items || []).map((item) => ({
+                        name: item.name,
+                        price: Number(item.price) || 0,
+                        quantity: Number(item.quantity) || 0
+                    })),
+                    subtotal: (_6 = order.subtotal) !== null && _6 !== void 0 ? _6 : (_7 = order.customerDetails) === null || _7 === void 0 ? void 0 : _7.subtotal,
+                    deliveryFee: (_8 = order.deliveryFee) !== null && _8 !== void 0 ? _8 : (_9 = order.customerDetails) === null || _9 === void 0 ? void 0 : _9.deliveryFee,
+                    totalPrice: order.totalPrice,
+                    orderNumber: order.orderNumber
+                };
+                const ownerHtml = (0, email_templates_1.generateAdminEmailHtml)(templateData);
+                const customerHtml = (0, email_templates_1.generateCustomerEmailHtml)(templateData);
                 yield this.sendMailWithLogging('order:legacy-admin', {
                     from: getWebsiteFromHeader(),
                     to: ownerEmail,
                     replyTo: customerReplyEmail || undefined,
-                    subject: `הזמנה חדשה #${((_4 = order._id) === null || _4 === void 0 ? void 0 : _4.toString().substring(0, 8)) || 'N/A'} - ${businessName}`,
-                    html: `
-          <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-            <h2 style="color: #0E1A24; text-align: center;">הזמנה חדשה התקבלה</h2>
-            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h3 style="color: #cbb69e; border-bottom: 2px solid #cbb69e; padding-bottom: 10px;">פרטי ההזמנה</h3>
-              <p><strong>מספר הזמנה:</strong> ${((_6 = order._id) === null || _6 === void 0 ? void 0 : _6.toString()) || 'N/A'}</p>
-              <p><strong>תאריך:</strong> ${new Date(order.createdAt || Date.now()).toLocaleString('he-IL')}</p>
-              <p><strong>סטטוס:</strong> ${order.status}</p>
-              <p><strong>סה"כ לתשלום:</strong> <span style="font-size: 1.2em; color: #cbb69e; font-weight: bold;">₪${order.totalPrice.toFixed(2)}</span></p>
-            </div>
-            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h3 style="color: #cbb69e; border-bottom: 2px solid #cbb69e; padding-bottom: 10px;">פרטי הלקוח</h3>
-              <pre style="white-space: pre-wrap; font-family: Arial, sans-serif; line-height: 1.6;">${customerInfo}</pre>
-            </div>
-            <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h3 style="color: #cbb69e; border-bottom: 2px solid #cbb69e; padding-bottom: 10px;">פריטי ההזמנה</h3>
-              <pre style="white-space: pre-wrap; font-family: Arial, sans-serif; line-height: 1.6;">${itemsList}</pre>
-            </div>
-          </div>
-        `,
-                    text: `הזמנה חדשה התקבלה\n\nמספר הזמנה: ${((_7 = order._id) === null || _7 === void 0 ? void 0 : _7.toString()) || 'N/A'}\nתאריך: ${new Date(order.createdAt || Date.now()).toLocaleString('he-IL')}\nסטטוס: ${order.status}\nסה"כ: ₪${order.totalPrice.toFixed(2)}\n\nפרטי הלקוח:\n${customerInfo}\n\nפריטי ההזמנה:\n${itemsList}`
+                    subject: `הזמנה חדשה התקבלה 🍽️${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`,
+                    html: ownerHtml
                 });
+                // Also send receipt to the customer when email is available
+                if (customerReplyEmail) {
+                    yield this.sendMailWithLogging('order:legacy-customer-receipt', {
+                        from: getWebsiteFromHeader(),
+                        replyTo: ownerEmail,
+                        to: customerReplyEmail,
+                        subject: `אישור הזמנה${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`,
+                        html: customerHtml
+                    });
+                    console.log('✅ Order receipt sent to customer:', customerReplyEmail);
+                }
                 console.log('✅ Order confirmation email sent:', order._id);
             }
             catch (error) {
@@ -331,11 +349,16 @@ class EmailService {
                 notesParts.push(`הערות: ${data.remarks.trim()}`);
             const notes = notesParts.join(' | ');
             const items = [];
-            (data.salads || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `סלט: ${String(s).trim()}`, quantity: 1, price: 0 }));
-            (data.firstCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `מנה ראשונה: ${String(s).trim()}`, quantity: 1, price: 0 }));
-            (data.mainCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `מנה עיקרית: ${String(s).trim()}`, quantity: 1, price: 0 }));
-            (data.sidesEvening || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `תוספת ערב: ${String(s).trim()}`, quantity: 1, price: 0 }));
-            (data.sidesMorning || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: `תוספת בוקר: ${String(s).trim()}`, quantity: 1, price: 0 }));
+            (data.salads || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'סלטים' }));
+            (data.firstCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'מנות ראשונות' }));
+            (data.mainCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'מנות עיקריות' }));
+            (data.sidesEvening || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'תוספות ערב' }));
+            (data.sidesMorning || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'תוספות בוקר' }));
+            const cateringExtraInfo = [
+                { label: 'מספר מנות', value: String(data.numberOfPortions) },
+                { label: 'סוג ארוחה', value: mealTimeLabel },
+                { label: 'סעודה שלישית', value: data.seudaShlishit === 'yes' ? 'כן' : 'לא' }
+            ].filter((r) => r.value && r.value.trim());
             const orderData = {
                 customerName: data.fullName,
                 phone: data.phone,
@@ -343,9 +366,11 @@ class EmailService {
                 eventDate: data.eventDate,
                 deliveryType: data.deliveryType,
                 address: data.address || undefined,
-                notes,
+                notes: data.remarks && data.remarks.trim() ? data.remarks : undefined,
                 items,
-                total: 0
+                total: 0,
+                cateringKind: 'shabbat',
+                cateringExtraInfo
             };
             yield this.sendOrderEmails(orderData, ownerEmail, customerEmail !== null && customerEmail !== void 0 ? customerEmail : data.email);
         });

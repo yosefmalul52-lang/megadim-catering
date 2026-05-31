@@ -266,7 +266,8 @@
               >
                 <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
                 <span *ngIf="!isSubmitting">בצע הזמנה</span>
-                <span *ngIf="isSubmitting">שולח...</span>
+                <span *ngIf="isSubmitting && !isRedirectingToPayment">שולח הזמנה...</span>
+                <span *ngIf="isSubmitting && isRedirectingToPayment">מעביר לתשלום...</span>
               </button>
             </div>
           </div>

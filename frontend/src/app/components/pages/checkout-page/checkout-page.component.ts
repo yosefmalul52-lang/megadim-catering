@@ -22,7 +22,7 @@ import { MarketingService } from '../../../services/marketing.service';
 import { toYYYYMMDD } from '../../../utils/date.utils';
 import { environment } from '../../../../environments/environment';
 import { Subject, of } from 'rxjs';
-import { catchError, debounceTime, switchMap, takeUntil } from 'rxjs/operators';
+import { catchError, debounceTime, map, switchMap, takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-checkout-page',
@@ -93,6 +93,12 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
   cartSummary = this.cartService.cartSummary;
   settings: SiteSettings | null = null;
   isSubmitting = false;
+  /**
+   * Set to true (while isSubmitting is still true) once the order has been
+   * saved and we are waiting for the payment-initiate response before
+   * redirecting the customer to the provider's payment page.
+   */
+  isRedirectingToPayment = false;
   /** Minimum date for event (today + minimumLeadDays); set after settings load */
   minDate: Date = this.getMinDateForLeadDays(2);
   /** Specific dates open for orders (YYYY-MM-DD); from store settings */
@@ -423,13 +429,14 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     }
 
     this.isSubmitting = true;
+    this.isRedirectingToPayment = false;
+
     const formValue = this.orderForm.value;
     const deliveryMethod = (formValue.deliveryType === 'delivery' ? 'delivery' : 'pickup') as 'delivery' | 'pickup';
     const eventDateStr = formValue.eventDate ? this.formatDate(formValue.eventDate) : undefined;
     const summary = this.cartService.cartSummary;
     const subtotal = summary.totalPrice ?? 0;
     const deliveryFee = deliveryMethod === 'delivery' ? this.deliveryFee : 0;
-    const totalAmount = this.grandTotal;
     const items = summary.items.map(i => ({
       id: i.id,
       name: i.name,
@@ -468,11 +475,29 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
       ...(Object.keys(utms).length > 0 ? { marketingData: utms } : {})
     };
 
+    // ── Step 1: Create the order record ───────────────────────────────────────
     this.http
       .post<{ success: boolean; orderId: string; order?: unknown }>(`${environment.apiUrl}/orders`, orderData)
+      .pipe(
+        switchMap((orderRes) => {
+          const orderId = orderRes.orderId;
+          if (!orderId) throw new Error('Missing orderId in server response');
+
+          // ── Step 2: Initiate pre-auth hold ──────────────────────────────────
+          this.isRedirectingToPayment = true;
+          return this.http
+            .post<{ success: boolean; redirectUrl: string; transactionId?: string; authCode?: string }>(
+              `${environment.apiUrl}/payment/initiate/${orderId}`,
+              {}
+            )
+            .pipe(map((paymentRes) => ({ ...paymentRes, orderId })));
+        })
+      )
       .subscribe({
-        next: (res) => {
+        next: (result) => {
+          // Clear client state before leaving the page
           this.cartService.clearCart();
+          this.removeCoupon();
           this.orderForm.reset({
             deliveryType: 'pickup',
             city: '',
@@ -484,26 +509,20 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
             notes: ''
           });
           this.deliveryFee = 0;
-          this.removeCoupon();
-          this.isSubmitting = false;
-          this.snackBar.open('ההזמנה התקבלה בהצלחה', 'סגור', {
-            duration: 3000,
-            horizontalPosition: 'start',
-            verticalPosition: 'top'
-          });
-          this.router.navigate(
-            ['/order-confirmation', res.orderId],
-            { state: { order: (res as any).order } }
-          );
+
+          // Hard-redirect to provider HPP.
+          // In mock mode this resolves to: /order-confirmation/:orderId?mock=1
+          window.location.href = result.redirectUrl;
         },
         error: (err) => {
-          console.error('Error placing order:', err);
+          console.error('Checkout error:', err);
+          this.isSubmitting = false;
+          this.isRedirectingToPayment = false;
           this.snackBar.open(
-            err.error?.message || err.error?.error || 'שגיאה בשליחת ההזמנה. נסו שוב.',
+            err.error?.message || err.error?.error || 'שגיאה בתהליך ההזמנה. נסו שוב.',
             'סגור',
             { duration: 5000, horizontalPosition: 'start', verticalPosition: 'top' }
           );
-          this.isSubmitting = false;
         }
       });
   }

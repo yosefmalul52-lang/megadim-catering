@@ -71,6 +71,7 @@ import userRoutes from './routes/user.routes';
 import campaignRoutes from './routes/campaign.routes';
 import holidayEventRoutes from './routes/holiday-event.routes';
 import customerRoutes from './routes/customer.routes';
+import paymentRoutes from './routes/payment.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -218,6 +219,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/campaign', campaignRoutes);
 app.use('/api/holiday-events', holidayEventRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler);

@@ -77,6 +77,15 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   dateUpdatingId: string | null = null;
   isEditingItems = false;
   editableItems: EditableOrderItem[] = [];
+  /** True while a capture request is in flight. */
+  isCapturing = false;
+  /** True while a void request is in flight. */
+  isVoiding = false;
+  /**
+   * Set to true when admin saves edited items on an 'authorized' order.
+   * Warns that the capture amount will differ from the pre-auth hold amount.
+   */
+  authorizedAmountMismatchWarning = false;
 
   /** Ordered list of catering categories used in view and edit modes. */
   readonly CATERING_CATEGORY_ORDER = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
@@ -1122,6 +1131,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.closeModal();
 
         this.successMessage = 'פריטי ההזמנה עודכנו בהצלחה';
+        // If the order was authorized, flag a potential amount mismatch for the UI warning
+        if (this.selectedOrder?.paymentStatus === 'authorized') {
+          this.authorizedAmountMismatchWarning = true;
+        }
         setTimeout(() => (this.successMessage = ''), 3000);
         // Keep data in sync with server snapshot.
         this.loadOrders();
@@ -1256,5 +1269,115 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   trackByOrderId(index: number, order: Order): string {
     return order._id || order.id || '';
+  }
+
+  // ─── Payment actions ──────────────────────────────────────────────────────
+
+  /** Human-readable label for paymentStatus. */
+  getPaymentStatusLabel(status: Order['paymentStatus']): string {
+    const labels: Record<string, string> = {
+      pending: 'ממתין לתשלום',
+      awaiting_payment: 'ממתין לאישור ספק',
+      authorized: 'מאושר (טרם חויב)',
+      captured: 'חויב',
+      voided: 'בוטל (הסכום שוחרר)',
+      failed: 'נכשל'
+    };
+    return labels[status ?? 'pending'] ?? status ?? '—';
+  }
+
+  /**
+   * True when admin has edited order items while the order is 'authorized'.
+   * The new totalPrice might differ from authorizedAmount — admin needs to be aware.
+   */
+  get isAmountMismatch(): boolean {
+    if (!this.selectedOrder) return false;
+    if (this.selectedOrder.paymentStatus !== 'authorized') return false;
+    const authorized = this.selectedOrder.authorizedAmount;
+    if (authorized == null) return false;
+    return Math.abs(Number(this.selectedOrder.totalPrice) - authorized) > 0.01;
+  }
+
+  /**
+   * Finalise the charge for the selected order.
+   * Only callable when paymentStatus === 'authorized'.
+   */
+  capturePayment(): void {
+    const order = this.selectedOrder;
+    if (!order) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId || this.isCapturing) return;
+
+    if (
+      this.isAmountMismatch &&
+      !window.confirm(
+        `שים לב: סכום ההרשאה המקורית היה ₪${order.authorizedAmount?.toFixed(2)}, ` +
+        `אך הסכום הנוכחי הוא ₪${order.totalPrice.toFixed(2)}.\n\n` +
+        `חיוב בסכום שונה מההרשאה עשוי לדרוש אישור נוסף מהספק.\n\n` +
+        `להמשיך עם חיוב בסכום ₪${order.totalPrice.toFixed(2)}?`
+      )
+    ) {
+      return;
+    }
+
+    this.isCapturing = true;
+    this.orderService.capturePayment(orderId).subscribe({
+      next: (res) => {
+        this.isCapturing = false;
+        // Update selected order and the local list immediately
+        const patch: Partial<Order> = { paymentStatus: 'captured', status: 'processing' };
+        this.selectedOrder = { ...order, ...patch };
+        this._patchOrderInLists(orderId, patch);
+        this.successMessage = res.message || 'החיוב בוצע בהצלחה';
+        setTimeout(() => (this.successMessage = ''), 4000);
+        this.loadStats();
+      },
+      error: (err) => {
+        this.isCapturing = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בביצוע החיוב';
+        setTimeout(() => (this.errorMessage = ''), 4000);
+      }
+    });
+  }
+
+  /**
+   * Release the pre-auth hold when admin cancels the order before capture.
+   * Only callable when paymentStatus === 'authorized'.
+   */
+  voidPayment(): void {
+    const order = this.selectedOrder;
+    if (!order) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId || this.isVoiding) return;
+
+    if (!window.confirm('לבטל את ההרשאה ולשחרר את ההחזקה בכרטיס האשראי של הלקוח?')) return;
+
+    this.isVoiding = true;
+    this.orderService.voidPayment(orderId).subscribe({
+      next: (res) => {
+        this.isVoiding = false;
+        const patch: Partial<Order> = { paymentStatus: 'voided', status: 'cancelled' };
+        this.selectedOrder = { ...order, ...patch };
+        this._patchOrderInLists(orderId, patch);
+        this.successMessage = res.message || 'ההרשאה בוטלה וההחזקה שוחררה';
+        setTimeout(() => (this.successMessage = ''), 4000);
+        this.loadStats();
+      },
+      error: (err) => {
+        this.isVoiding = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בביטול ההרשאה';
+        setTimeout(() => (this.errorMessage = ''), 4000);
+      }
+    });
+  }
+
+  /** Patch a single order in both `orders` and `archiveOrders` arrays without a full reload. */
+  private _patchOrderInLists(orderId: string, patch: Partial<Order>): void {
+    const apply = (list: Order[]) => {
+      const idx = list.findIndex((o) => (o._id || o.id || '').toString() === orderId);
+      if (idx !== -1) list[idx] = { ...list[idx], ...patch };
+    };
+    apply(this.orders);
+    apply(this.archiveOrders);
   }
 }

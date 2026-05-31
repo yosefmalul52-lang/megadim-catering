@@ -168,6 +168,7 @@ class OrderController {
                 yield (0, coupon_service_1.incrementCouponUsage)(couponIdToIncrement, body.phone);
                 yield (0, coupon_service_1.updateCouponRevenue)(couponIdToIncrement, body.totalAmount);
             }
+            const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
             // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
             try {
                 const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
@@ -188,7 +189,8 @@ class OrderController {
                         items: body.items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price })),
                         subtotal: Number(body.subtotal) || 0,
                         deliveryFee: recalculatedDeliveryFee,
-                        total: body.totalAmount
+                        total: body.totalAmount,
+                        orderNumber: plainOrder.orderNumber
                     };
                     yield email_service_1.emailService.sendOrderEmails(orderDataForEmail, ownerEmail, body.email);
                     console.log('Order emails sent: admin + customer receipt');
@@ -200,7 +202,6 @@ class OrderController {
             catch (emailErr) {
                 console.error('Email failed to send, but order was saved:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
             }
-            const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
             res.status(201).json({
                 success: true,
                 orderId: savedOrder._id.toString(),

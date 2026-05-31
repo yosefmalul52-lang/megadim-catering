@@ -101,6 +101,12 @@ const OrderSchema = new mongoose_1.Schema({
     numberOfPortions: { type: mongoose_1.Schema.Types.Mixed, required: false },
     mealTime: { type: String, required: false },
     mealTypes: { type: String, required: false },
+    subtotal: { type: Number, default: null },
+    deliveryFee: { type: Number, default: null },
+    cateringKind: { type: String, enum: ['shabbat', 'events'], required: false, index: true },
+    eventType: { type: String, required: false },
+    guestCount: { type: Number, required: false },
+    venue: { type: String, required: false },
     marketingData: {
         utm_source: { type: String, trim: true },
         utm_medium: { type: String, trim: true },
@@ -122,7 +128,18 @@ const OrderSchema = new mongoose_1.Schema({
     assignedAt: {
         type: Date,
         default: null
-    }
+    },
+    // ── Payment pipeline ────────────────────────────────────────────────────────
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'awaiting_payment', 'authorized', 'captured', 'voided', 'failed'],
+        default: 'pending',
+        index: true
+    },
+    authCode: { type: String, required: false, trim: true },
+    transactionId: { type: String, required: false, trim: true },
+    authorizedAmount: { type: Number, required: false, default: null },
+    paymentSecurityToken: { type: String, required: false, select: false } // excluded from default queries
 }, {
     timestamps: true,
     collection: 'orders',

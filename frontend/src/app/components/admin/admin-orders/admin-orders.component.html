@@ -837,11 +837,70 @@
                     {{ getStatusLabel(selectedOrder.status) }}
                   </span>
                 </div>
+                <!-- Payment status row – only shown when a payment field is present -->
+                @if (selectedOrder.paymentStatus) {
+                  <div class="summary-row">
+                    <span class="summary-label">סטטוס תשלום:</span>
+                    <span
+                      class="summary-value payment-status-badge"
+                      [ngClass]="'payment-' + selectedOrder.paymentStatus"
+                    >
+                      {{ getPaymentStatusLabel(selectedOrder.paymentStatus) }}
+                    </span>
+                  </div>
+                }
+                @if (selectedOrder.authorizedAmount != null) {
+                  <div class="summary-row">
+                    <span class="summary-label">סכום שהוסמך:</span>
+                    <span class="summary-value">₪{{ selectedOrder.authorizedAmount | number:'1.2-2' }}</span>
+                  </div>
+                }
                 <div class="summary-row">
                   <span class="summary-label">תאריך הזמנה:</span>
                   <span class="summary-value">{{ selectedOrder.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
                 </div>
               </div>
+
+              <!-- ──  Payment Actions ──────────────────────────────────────── -->
+              @if (selectedOrder.paymentStatus === 'authorized') {
+                <!-- Amount-mismatch warning: admin edited items after pre-auth -->
+                @if (isAmountMismatch || authorizedAmountMismatchWarning) {
+                  <div class="payment-warning-box">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>
+                      <strong>שים לב:</strong> הסכום הנוכחי (₪{{ selectedOrder.totalPrice | number:'1.2-2' }})
+                      שונה מסכום ההרשאה המקורית (₪{{ selectedOrder.authorizedAmount | number:'1.2-2' }}).
+                      חיוב בסכום שונה עלול לדרוש אישור נוסף מחברת האשראי.
+                    </span>
+                  </div>
+                }
+                <div class="payment-action-row">
+                  <button
+                    type="button"
+                    class="btn-capture-payment"
+                    [disabled]="isCapturing || isVoiding"
+                    (click)="capturePayment()"
+                  >
+                    @if (isCapturing) {
+                      <i class="fas fa-spinner fa-spin"></i> מחייב...
+                    } @else {
+                      <i class="fas fa-check-circle"></i> אשר וחייב (₪{{ selectedOrder.totalPrice | number:'1.2-2' }})
+                    }
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-void-payment"
+                    [disabled]="isCapturing || isVoiding"
+                    (click)="voidPayment()"
+                  >
+                    @if (isVoiding) {
+                      <i class="fas fa-spinner fa-spin"></i> מבטל...
+                    } @else {
+                      <i class="fas fa-times-circle"></i> בטל הרשאה
+                    }
+                  </button>
+                </div>
+              }
             </div>
           </div>
         </div>

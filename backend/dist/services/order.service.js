@@ -110,7 +110,7 @@ class OrderService {
     /** Create order from checkout payload (POST /api/orders). Saves to DB, sends admin email, returns saved order. */
     createOrderFromCheckout(payload) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _j;
+            var _j, _k, _q;
             const addressStr = typeof payload.address === 'string'
                 ? payload.address
                 : payload.address && typeof payload.address === 'object'
@@ -141,7 +141,7 @@ class OrderService {
                 customerDetails.isPaid = payload.paymentStatus === 'paid';
             }
             const marketingData = (0, webhook_util_1.sanitizeMarketingData)(payload.marketingData);
-            const order = new Order_1.default(Object.assign({ userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null, orderNumber: this.generateOrderNumber(), customerDetails, items: orderItems, totalPrice: payload.totalAmount, status }, (marketingData ? { marketingData } : {})));
+            const order = new Order_1.default(Object.assign({ userId: (_j = payload.userId) !== null && _j !== void 0 ? _j : null, orderNumber: this.generateOrderNumber(), customerDetails, items: orderItems, totalPrice: payload.totalAmount, subtotal: (_k = payload.subtotal) !== null && _k !== void 0 ? _k : null, deliveryFee: (_q = payload.deliveryFee) !== null && _q !== void 0 ? _q : null, status }, (marketingData ? { marketingData } : {})));
             const savedOrder = yield order.save();
             console.log('✅ OrderService: Checkout order saved:', savedOrder._id);
             try {
@@ -390,7 +390,20 @@ class OrderService {
                 const productName = String(item.name || '').trim();
                 const quantity = Number(item.quantity);
                 if (!productId) {
-                    throw new Error(`items[${index}].productId (or id) is required`);
+                    // Allow free-text catering menu items — no productId, no DB price lookup.
+                    if (!productName) {
+                        throw new Error(`items[${index}] must have either productId or name`);
+                    }
+                    const freePrice = Number(item.price);
+                    return {
+                        productId: '',
+                        name: productName,
+                        price: Number.isFinite(freePrice) && freePrice >= 0 ? freePrice : 0,
+                        quantity,
+                        category: String(item.category || '').trim(),
+                        imageUrl: String(item.imageUrl || '').trim(),
+                        description: String(item.description || '').trim()
+                    };
                 }
                 if (!Number.isFinite(quantity) || quantity <= 0) {
                     throw new Error(`items[${index}].quantity must be a positive number`);

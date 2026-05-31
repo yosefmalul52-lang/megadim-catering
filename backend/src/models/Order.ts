@@ -41,6 +41,30 @@ export interface IOrder extends Document {
   assignedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
+  /**
+   * Payment lifecycle status — separate from the operational `status` field so
+   * the kitchen/delivery pipeline and the payment pipeline can evolve independently.
+   *
+   * pending        → no payment action taken yet
+   * authorized     → pre-auth hold placed on card; awaiting capture
+   * captured       → charge finalised
+   * voided         → pre-auth hold released (admin cancelled before capture)
+   * failed         → payment attempt failed
+   */
+  paymentStatus?: 'pending' | 'awaiting_payment' | 'authorized' | 'captured' | 'voided' | 'failed';
+  /** Provider-issued authorization/transaction code returned by the pre-auth call. */
+  authCode?: string;
+  /** Provider's transaction ID used to reference the pre-auth when capturing or voiding. */
+  transactionId?: string;
+  /** Amount that was authorized — used to warn admin if totalPrice changed after auth. */
+  authorizedAmount?: number;
+  /**
+   * One-time random token generated server-side when the payment page URL is built.
+   * Embedded in the Tranzila HPP URL (pdesc / contact fields).
+   * Tranzila echoes it back in the success redirect so we can detect spoofing.
+   * Never exposed to the client.
+   */
+  paymentSecurityToken?: string;
 }
 
 // Order Schema - userId MUST be at root level
@@ -137,7 +161,18 @@ const OrderSchema: Schema<IOrder> = new Schema({
   assignedAt: {
     type: Date,
     default: null
-  }
+  },
+  // ── Payment pipeline ────────────────────────────────────────────────────────
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'awaiting_payment', 'authorized', 'captured', 'voided', 'failed'],
+    default: 'pending',
+    index: true
+  },
+  authCode: { type: String, required: false, trim: true },
+  transactionId: { type: String, required: false, trim: true },
+  authorizedAmount: { type: Number, required: false, default: null },
+  paymentSecurityToken: { type: String, required: false, select: false } // excluded from default queries
 }, {
   timestamps: true,
   collection: 'orders',

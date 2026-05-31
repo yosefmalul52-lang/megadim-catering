@@ -116,8 +116,11 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
         tags: [],
         adminNotes: '',
         dietaryInfo: '',
-        city: city || '',
-        orderHistory: []
+        city: city || ''
+        // NOTE: orderHistory intentionally omitted here.
+        // $addToSet below handles initialization + first entry in one operation.
+        // Having both $setOnInsert.orderHistory and $addToSet.orderHistory targets
+        // the same path, which MongoDB rejects as ConflictingUpdateOperators.
       },
       $max: {
         lastOrderDate

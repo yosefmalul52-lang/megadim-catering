@@ -104,6 +104,21 @@ export interface Order {
   mealTime?: string;
   /** Catering-specific: human-readable meal types summary. */
   mealTypes?: string;
+  // ── Payment pipeline ────────────────────────────────────────────────────
+  /**
+   * pending        → no payment action taken yet
+   * authorized     → pre-auth hold placed; awaiting admin capture
+   * captured       → charge finalised
+   * voided         → hold released (order cancelled before capture)
+   * failed         → payment attempt failed
+   */
+  paymentStatus?: 'pending' | 'awaiting_payment' | 'authorized' | 'captured' | 'voided' | 'failed';
+  /** Provider-issued auth code from the pre-auth response. */
+  authCode?: string;
+  /** Provider's transaction ID — used to capture or void. */
+  transactionId?: string;
+  /** Amount that was pre-authorized — used to warn if totalPrice changed after auth. */
+  authorizedAmount?: number;
 }
 
 export interface DriverOrderAssignmentPayload {
@@ -556,5 +571,66 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
         return of({ days: {} });
       })
     );
+  }
+
+  // ─── Payment ──────────────────────────────────────────────────────────────
+
+  /** Admin: capture a pre-authorized payment. */
+  capturePayment(orderId: string): Observable<{ success: boolean; captureRef?: string; message?: string }> {
+    return this.http
+      .post<{ success: boolean; captureRef?: string; message?: string }>(
+        `${environment.apiUrl}/payment/capture/${orderId}`,
+        {}
+      )
+      .pipe(
+        catchError((err) => {
+          console.error('Error capturing payment:', err);
+          throw err;
+        })
+      );
+  }
+
+  /** Admin: void (release) a pre-authorized hold, e.g. when cancelling the order. */
+  voidPayment(orderId: string): Observable<{ success: boolean; message?: string }> {
+    return this.http
+      .post<{ success: boolean; message?: string }>(
+        `${environment.apiUrl}/payment/void/${orderId}`,
+        {}
+      )
+      .pipe(
+        catchError((err) => {
+          console.error('Error voiding payment:', err);
+          throw err;
+        })
+      );
+  }
+
+  /** Polling fallback: query the current payment status for an order. */
+  getPaymentStatus(orderId: string): Observable<{
+    paymentStatus: Order['paymentStatus'];
+    transactionId?: string;
+    authCode?: string;
+    authorizedAmount?: number;
+  }> {
+    return this.http
+      .get<{
+        success: boolean;
+        paymentStatus: Order['paymentStatus'];
+        transactionId?: string;
+        authCode?: string;
+        authorizedAmount?: number;
+      }>(`${environment.apiUrl}/payment/status/${orderId}`)
+      .pipe(
+        map((res) => ({
+          paymentStatus: res.paymentStatus,
+          transactionId: res.transactionId,
+          authCode: res.authCode,
+          authorizedAmount: res.authorizedAmount
+        })),
+        catchError((err) => {
+          console.error('Error fetching payment status:', err);
+          throw err;
+        })
+      );
   }
 }
