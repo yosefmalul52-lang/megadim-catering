@@ -15,6 +15,7 @@ import { ToastComponent } from './components/shared/toast/toast.component';
 import { LanguageService } from './services/language.service';
 import { MarketingService } from './services/marketing.service';
 import { AnalyticsService } from './services/analytics.service';
+import { MetaPixelService } from './services/meta-pixel.service';
 import { MAIN_NAV_LINKS } from './nav-links';
 import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 
@@ -97,6 +98,7 @@ export class AppComponent implements OnInit {
   private router = inject(Router);
   private platformId = inject(PLATFORM_ID);
   private analyticsService = inject(AnalyticsService);
+  private metaPixelService = inject(MetaPixelService);
 
   readonly whatsappHref = CONTACT_WHATSAPP_HREF;
 
@@ -127,6 +129,7 @@ export class AppComponent implements OnInit {
     });
 
     this.analyticsService.initializeAnalytics();
+    this.metaPixelService.initializePixel();
 
     // Check if current route is login or admin
     this.updatePageVisibility();
@@ -151,6 +154,7 @@ export class AppComponent implements OnInit {
     }
     this.showCookieBanner = false;
     this.analyticsService.initializeAnalytics();
+    this.metaPixelService.initializePixel();
   }
 
   acceptEssentialOnly(): void {
