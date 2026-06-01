@@ -166,6 +166,7 @@ export class TranzilaService {
     params.set('pdesc',   order.paymentSecurityToken);
     params.set('contact', order.paymentSecurityToken);
     params.set('success_url_address', successUrl);
+    params.set('TranzilaTK', '1');   // Request a secure card token (ccard) in the callback
 
     return `${hostedBase}?${params.toString()}`;
   }
@@ -173,15 +174,16 @@ export class TranzilaService {
   /**
    * Capture (force/settle) a previously authorised transaction — V1 REST API.
    *
-   * Maps to txn_type=force with reference_txn_id (the ConfirmationCode / transaction_id
-   * returned by Tranzila when the customer completed the HPP payment form).
-   *
-   * No card details are required: Tranzila already holds them against the reference_txn_id.
+   * Uses the secure card token (ccard) issued by Tranzila via TranzilaTK=1 during the
+   * HPP session. The token replaces the raw card number so no PCI-sensitive data is stored.
    */
   async capturePayment(
     transactionId: string,
     amount: number,
-    authCode?: string
+    authCode?: string,
+    cardToken?: string,
+    expireMonth?: number,
+    expireYear?: number
   ): Promise<TranzilaCaptureResult> {
     const terminal  = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
     const appKey    = (process.env.TRANZILA_APP_KEY       || '').trim();
@@ -192,24 +194,24 @@ export class TranzilaService {
     if (!appSecret)             throw new Error('TRANZILA_APP_SECRET is not set');
     if (!transactionId?.trim()) throw new Error('transactionId is required for capture');
 
+    const authCodeStr  = (authCode  || '').trim();
+    const cardTokenStr = (cardToken || '').trim();
+
+    if (!authCodeStr)  throw new Error('authCode (ConfirmationCode) is required for force capture');
+    if (!cardTokenStr) throw new Error('cardToken (ccard) is required for force capture — ensure TranzilaTK=1 is set');
+
     const roundedAmount = Math.round((Number(amount) || 0) * 100) / 100;
     const refTxnId      = Number(transactionId.trim());
 
-    const authCodeStr = (authCode || '').trim();
-    if (!authCodeStr) throw new Error('authCode (ConfirmationCode) is required for force capture');
-
-    // V1 schema requires card fields even for force (token-based) transactions.
-    // Dummy values satisfy schema validation; actual charge is driven by reference_txn_id + authorization_number.
     const body = {
       terminal_name:        terminal,
       txn_type:             'force',
       txn_currency_code:    'ILS',
       reference_txn_id:     refTxnId,
       authorization_number: authCodeStr,
-      card_number:          '0000000000000000',
-      expire_month:         12,
-      expire_year:          2099,
-      cvv:                  '000',
+      card_number:          cardTokenStr,
+      expire_month:         Number(expireMonth),
+      expire_year:          Number(expireYear),
       items: [
         {
           name:         'הזמנת קייטרינג',

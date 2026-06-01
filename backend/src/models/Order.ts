@@ -56,6 +56,12 @@ export interface IOrder extends Document {
   authCode?: string;
   /** Provider's transaction ID used to reference the pre-auth when capturing or voiding. */
   transactionId?: string;
+  /** Tranzila secure card token (ccard field from TranzilaTK=1 callback) — used instead of raw card number. */
+  cardToken?: string;
+  /** Card expiry month (1–12) from callback — stored for force capture. */
+  expireMonth?: number;
+  /** Card expiry year (YYYY) from callback — stored for force capture. */
+  expireYear?: number;
   /** Amount that was authorized — used to warn admin if totalPrice changed after auth. */
   authorizedAmount?: number;
   /**
@@ -169,8 +175,11 @@ const OrderSchema: Schema<IOrder> = new Schema({
     default: 'pending',
     index: true
   },
-  authCode: { type: String, required: false, trim: true },
+  authCode:      { type: String, required: false, trim: true },
   transactionId: { type: String, required: false, trim: true },
+  cardToken:     { type: String, required: false, trim: true },
+  expireMonth:   { type: Number, required: false },
+  expireYear:    { type: Number, required: false },
   authorizedAmount: { type: Number, required: false, default: null },
   paymentSecurityToken: { type: String, required: false, select: false } // excluded from default queries
 }, {

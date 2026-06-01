@@ -181,14 +181,19 @@ export class PaymentController {
       data['Orderid']
     ) as string | undefined;
 
-    // index   = Tranzila's internal transaction ID → used as reference_txn_id in V1 capture/void
-    // ConfirmationCode = Shva/bank authorization number → used as authorization_number in V1 reversal
+    // index            = Tranzila's internal transaction ID → reference_txn_id in V1 capture/void
+    // ConfirmationCode = Shva/bank authorization number   → authorization_number in V1 force/reversal
+    // ccard            = Secure card token (TranzilaTK=1) → card_number in V1 force capture
+    // expmonth/expyear = Card expiry from Tranzila         → expire_month/expire_year in V1 force
     const tranzilaIndex = (data['index'] || data['Index']) as string | undefined;
     const confirmationCode = (
       data['ConfirmationCode'] || data['TransactionId'] || data['transactionId']
     ) as string | undefined;
 
-    const authCode = (data['AuthCode'] || data['authCode']) as string | undefined;
+    const authCode    = (data['AuthCode'] || data['authCode']) as string | undefined;
+    const cardToken   = (data['ccard']    || data['Ccard'])    as string | undefined;
+    const expMonthRaw = (data['expmonth'] || data['ExpMonth']) as string | undefined;
+    const expYearRaw  = (data['expyear']  || data['ExpYear'])  as string | undefined;
 
     const returnedToken = (
       data['pdesc']   || data['PDesc'] ||
@@ -255,21 +260,33 @@ export class PaymentController {
     }
 
     // ── 6. All checks passed — authorize ─────────────────────────────────────
-    // transactionId ← Tranzila `index`           (V1 reference_txn_id for capture/void)
-    // authCode      ← Tranzila `ConfirmationCode` (V1 authorization_number for reversal)
+    // transactionId ← Tranzila `index`            (V1 reference_txn_id for capture/void)
+    // authCode      ← Tranzila `ConfirmationCode`  (V1 authorization_number for force/reversal)
+    // cardToken     ← Tranzila `ccard`             (secure token, replaces raw card_number in V1 force)
+    // expireMonth   ← Tranzila `expmonth`          (card expiry month)
+    // expireYear    ← Tranzila `expyear`            (card expiry year YY → converted to YYYY)
+    const expMonth = expMonthRaw ? Number(expMonthRaw) : undefined;
+    const expYear  = expYearRaw
+      ? (expYearRaw.length === 2 ? Number('20' + expYearRaw) : Number(expYearRaw))
+      : undefined;
+
     await Order.findByIdAndUpdate(orderId, {
       $set: {
         paymentStatus: 'authorized',
         ...(tranzilaIndex    ? { transactionId: String(tranzilaIndex) }    : {}),
         ...(confirmationCode ? { authCode:       String(confirmationCode) } : {}),
-        // Fallback: if Tranzila didn't send index but sent AuthCode, store it
-        ...(authCode && !confirmationCode ? { authCode: String(authCode) } : {})
+        ...(authCode && !confirmationCode ? { authCode: String(authCode) } : {}),
+        ...(cardToken                 ? { cardToken }    : {}),
+        ...(expMonth !== undefined    ? { expireMonth: expMonth } : {}),
+        ...(expYear  !== undefined    ? { expireYear:  expYear  } : {})
       }
     });
     console.log(
       `[payment:success] Order ${orderId} authorized.`,
       `index(ref)=${tranzilaIndex}`,
-      `ConfirmationCode(auth)=${confirmationCode}`
+      `ConfirmationCode(auth)=${confirmationCode}`,
+      `cardToken=${cardToken ? '(present)' : '(absent)'}`,
+      `expiry=${expMonth}/${expYear}`
     );
 
     return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
@@ -322,7 +339,10 @@ export class PaymentController {
       result = await tranzilaService.capturePayment(
         order.transactionId,
         order.totalPrice,
-        order.authCode
+        order.authCode,
+        order.cardToken,
+        order.expireMonth,
+        order.expireYear
       );
     } catch (err: any) {
       console.error('[payment:capture] TranzilaService error:', err.message);
