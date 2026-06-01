@@ -45,14 +45,20 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
   const nonce       = crypto.randomBytes(20).toString('hex'); // 40 hex chars
   const requestTime = String(Date.now());                     // Unix ms as string
 
-  // Concatenation: appKey + requestTime + nonce — no delimiters (per Tranzila V1 docs)
-  const dataToSign = cleanKey + requestTime + nonce;
+  // Data: appSecret + requestTime + nonce (no delimiters)
+  // Key:  appKey (75-char public key used as HMAC key — candidate A)
+  const dataToSign = cleanSecret + requestTime + nonce;
 
-  // Encoding: base64
-  const signature = crypto
-    .createHmac('sha256', cleanSecret)
+  // Encoding: base64url (base64 with +→-, /→_, trailing = removed)
+  const signatureBase64 = crypto
+    .createHmac('sha256', cleanKey)
     .update(dataToSign)
     .digest('base64');
+
+  const signature = signatureBase64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 
   // ── Debug: inspect signing inputs in Render logs ──────────────────────────
   const peekKey    = cleanKey.length > 4
