@@ -52,16 +52,19 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
   const hmacKey    = cleanSecret + requestTime + nonce;
   const dataToSign = cleanKey;
 
-  // Encoding: base64url (base64 with +→-, /→_, trailing = removed)
+  // Encoding: hex (last untried variant)
+  const signatureHex = crypto
+    .createHmac('sha256', hmacKey)
+    .update(dataToSign)
+    .digest('hex');
+
+  // Also compute base64 for comparison in logs
   const signatureBase64 = crypto
     .createHmac('sha256', hmacKey)
     .update(dataToSign)
     .digest('base64');
 
-  const signature = signatureBase64
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  const signature = signatureHex;
 
   // ── Debug: inspect signing inputs in Render logs ──────────────────────────
   const peekKey    = cleanKey.length > 4
@@ -72,10 +75,13 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
     : '(too short)';
   console.log(`[tranzila:auth] app_key   : '${peekKey}' (length ${cleanKey.length})`);
   console.log(`[tranzila:auth] app_secret: '${peekSecret}' (length ${cleanSecret.length})`);
-  console.log('[tranzila:auth] nonce     :', nonce);
-  console.log('[tranzila:auth] time      :', requestTime);
-  console.log('[tranzila:auth] dataToSign:', dataToSign);
-  console.log('[tranzila:auth] signature :', signature);
+  console.log('[tranzila:auth] nonce        :', nonce);
+  console.log('[tranzila:auth] time         :', requestTime);
+  console.log('[tranzila:auth] hmacKey len  :', hmacKey.length);
+  console.log('[tranzila:auth] dataToSign   :', dataToSign);
+  console.log('[tranzila:auth] sig (hex)    :', signatureHex);
+  console.log('[tranzila:auth] sig (base64) :', signatureBase64);
+  console.log('[tranzila:auth] SENDING      :', signature, '← hex');
   // ─────────────────────────────────────────────────────────────────────────
 
   return {
