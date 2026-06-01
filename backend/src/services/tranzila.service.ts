@@ -38,16 +38,32 @@ export type TranzilaCaptureResult = {
  * - request_time: Unix timestamp in milliseconds
  */
 function generateTranzilaHeaders(appKey: string, appSecret: string): Record<string, string> {
+  // Aggressively clean both values — strip whitespace, quotes, or hidden chars
+  const cleanKey    = appKey.trim().replace(/['"]/g, '');
+  const cleanSecret = appSecret.trim().replace(/['"]/g, '');
+
   const nonce       = crypto.randomBytes(20).toString('hex'); // 40 hex chars
   const requestTime = String(Date.now());                     // Unix ms as string
 
+  // Concatenation as per Tranzila docs: appKey + requestTime + nonce (no delimiters)
+  const dataToSign = cleanKey + requestTime + nonce;
+
   const signature = crypto
-    .createHmac('sha256', appSecret)
-    .update(appKey + requestTime + nonce)
+    .createHmac('sha256', cleanSecret)
+    .update(dataToSign)
     .digest('hex');
 
+  // ── Debug: inspect signing inputs in Render logs ──────────────────────────
+  console.log('[tranzila:auth] app_key   length:', cleanKey.length);
+  console.log('[tranzila:auth] secret    length:', cleanSecret.length);
+  console.log('[tranzila:auth] nonce     :', nonce);
+  console.log('[tranzila:auth] time      :', requestTime);
+  console.log('[tranzila:auth] dataToSign:', dataToSign);
+  console.log('[tranzila:auth] signature :', signature);
+  // ─────────────────────────────────────────────────────────────────────────
+
   return {
-    'X-tranzila-api-app-key':      appKey,
+    'X-tranzila-api-app-key':      cleanKey,
     'X-tranzila-api-nonce':        nonce,
     'X-tranzila-api-request-time': requestTime,
     'X-tranzila-api-access-token': signature,
