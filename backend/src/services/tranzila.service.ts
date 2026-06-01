@@ -198,7 +198,13 @@ export class TranzilaService {
     const cardTokenStr = (cardToken || '').trim();
 
     if (!authCodeStr)  throw new Error('authCode (ConfirmationCode) is required for force capture');
-    if (!cardTokenStr) throw new Error('cardToken (ccard) is required for force capture — ensure TranzilaTK=1 is set');
+    if (!cardTokenStr) throw new Error('Cannot force capture: Missing card token. This order may have been authorized before tokenization was enabled.');
+
+    const expMonth = Number(expireMonth);
+    const expYear  = Number(expireYear);
+    if (!expireMonth || !expireYear || !Number.isFinite(expMonth) || !Number.isFinite(expYear) || expMonth < 1 || expMonth > 12) {
+      throw new Error('Missing or invalid expiration date from initial authorization.');
+    }
 
     const roundedAmount = Math.round((Number(amount) || 0) * 100) / 100;
     const refTxnId      = Number(transactionId.trim());
@@ -210,8 +216,8 @@ export class TranzilaService {
       reference_txn_id:     refTxnId,
       authorization_number: authCodeStr,
       card_number:          cardTokenStr,
-      expire_month:         Number(expireMonth),
-      expire_year:          Number(expireYear),
+      expire_month:         expMonth,
+      expire_year:          expYear,
       items: [
         {
           name:         'הזמנת קייטרינג',
@@ -222,7 +228,9 @@ export class TranzilaService {
       ]
     };
 
-    console.log(`[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | body=${JSON.stringify(body)}`);
+    // Redact card_number (token) from logs — do not mutate the actual payload
+    const logBody = { ...body, card_number: '***' };
+    console.log(`[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | body=${JSON.stringify(logBody)}`);
 
     try {
       const resp = await axios.post<TranzilaV1Response>(

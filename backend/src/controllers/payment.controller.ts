@@ -152,7 +152,7 @@ export class PaymentController {
     // ── Sanitized diagnostic log — omit pdesc/contact to avoid token leakage ──
     const logQuery = { ...req.query } as Record<string, any>;
     const logBody  = { ...req.body  } as Record<string, any>;
-    for (const k of ['pdesc', 'PDesc', 'contact', 'Contact']) {
+    for (const k of ['pdesc', 'PDesc', 'contact', 'Contact', 'ccard', 'Ccard', 'ccno', 'expmonth', 'expyear']) {
       delete logQuery[k];
       delete logBody[k];
     }
