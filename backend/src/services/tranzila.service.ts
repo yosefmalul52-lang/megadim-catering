@@ -166,7 +166,8 @@ export class TranzilaService {
     params.set('pdesc',   order.paymentSecurityToken);
     params.set('contact', order.paymentSecurityToken);
     params.set('success_url_address', successUrl);
-    params.set('TranzilaTK', '1');   // Request a secure card token (ccard) in the callback
+    // NOTE: TranzilaTK=1 must be sent as a POST body field, not a GET query param.
+    // The frontend submits a hidden <form method="POST"> that includes it.
 
     return `${hostedBase}?${params.toString()}`;
   }
