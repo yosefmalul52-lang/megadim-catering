@@ -34,31 +34,30 @@ export type TranzilaCaptureResult = {
  * Signature formula (per Tranzila docs):
  *   HMAC-SHA256(key = APP_SECRET, data = APP_KEY + request_time + nonce)
  *
- * - nonce:        40-character hex string, unique per request
- * - request_time: Unix timestamp in milliseconds
+ * - nonce:        40-character hex string (crypto.randomBytes(20).toString('hex'))
+ * - request_time: Unix timestamp in SECONDS (Math.floor(Date.now() / 1000))
  */
 function generateTranzilaHeaders(appKey: string, appSecret: string): Record<string, string> {
   // Aggressively clean both values — strip whitespace, quotes, or hidden chars
   const cleanKey    = appKey.trim().replace(/['"]/g, '');
   const cleanSecret = appSecret.trim().replace(/['"]/g, '');
 
-  const nonce       = crypto.randomBytes(40).toString('hex'); // 80 hex chars = 40 bytes
-  const requestTime = String(Date.now());                     // Unix ms as string
+  const nonce       = crypto.randomBytes(20).toString('hex'); // 40-character hex string
+  const requestTime = Math.floor(Date.now() / 1000).toString(); // Unix seconds (not ms)
 
-  // Per Tranzila docs: "hash_hmac using 'sha256' on application key with secret + request-time + nonce"
-  // Mapping to hash_hmac(algo, data, key):
-  //   data = "application key" = appKey (the public key)
-  //   key  = "secret + request-time + nonce" = appSecret + requestTime + nonce (concatenated, no delimiters)
+  // Tranzila V1 HMAC formula (confirmed by support):
+  //   key  = appSecret + requestTime + nonce
+  //   data = appKey
+  //   output = lowercase hex (mirrors PHP hash_hmac default)
   const hmacKey    = cleanSecret + requestTime + nonce;
   const dataToSign = cleanKey;
 
-  // Encoding: hex (last untried variant)
   const signatureHex = crypto
     .createHmac('sha256', hmacKey)
     .update(dataToSign)
     .digest('hex');
 
-  // Also compute base64 for comparison in logs
+  // Keep base64 in logs for reference only
   const signatureBase64 = crypto
     .createHmac('sha256', hmacKey)
     .update(dataToSign)
