@@ -42,7 +42,7 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
   const cleanKey    = appKey.trim().replace(/['"]/g, '');
   const cleanSecret = appSecret.trim().replace(/['"]/g, '');
 
-  const nonce       = crypto.randomBytes(20).toString('hex'); // 40 hex chars
+  const nonce       = crypto.randomBytes(40).toString('hex'); // 80 hex chars = 40 bytes
   const requestTime = String(Date.now());                     // Unix ms as string
 
   // Per Tranzila docs: "hash_hmac using 'sha256' on application key with secret + request-time + nonce"
