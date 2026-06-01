@@ -193,12 +193,14 @@ export class TranzilaService {
     if (!appSecret)             throw new Error('TRANZILA_APP_SECRET is not set');
     if (!transactionId?.trim()) throw new Error('transactionId is required for capture');
 
-    const roundedAmount   = Math.round((Number(amount) || 0) * 100) / 100;
-    const refTxnId        = Number(transactionId.trim());
+    const roundedAmount = Math.round((Number(amount) || 0) * 100) / 100;
+    const refTxnId      = Number(transactionId.trim());
 
-    const body: Record<string, unknown> = {
+    // Minimal, clean body — no null/undefined fields, matches Tranzila V1 spec exactly
+    const body = {
       terminal_name:    terminal,
       txn_type:         'force',
+      txn_currency_code: 'ILS',
       reference_txn_id: refTxnId,
       items: [
         {
@@ -210,7 +212,7 @@ export class TranzilaService {
       ]
     };
 
-    console.log(`[tranzila:v1] capture → force | ref=${refTxnId} | amount=${roundedAmount}`);
+    console.log(`[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | body=${JSON.stringify(body)}`);
 
     try {
       const resp = await axios.post<TranzilaV1Response>(
@@ -285,16 +287,16 @@ export class TranzilaService {
 
     const refTxnId = Number(transactionId.trim());
 
-    const body: Record<string, unknown> = {
+    // Minimal, clean body — no null/undefined fields, matches Tranzila V1 spec
+    const body = {
       terminal_name:        terminal,
       txn_type:             'reversal',
+      txn_currency_code:    'ILS',
       reference_txn_id:     refTxnId,
-      // authorization_number is required by Tranzila for reversal;
-      // fall back to '0000000' if not stored (safe default per Tranzila docs example)
       authorization_number: (authCode || '0000000').trim()
     };
 
-    console.log(`[tranzila:v1] void → reversal | ref=${refTxnId}`);
+    console.log(`[tranzila:v1] void → reversal | terminal=${terminal} | ref=${refTxnId} | body=${JSON.stringify(body)}`);
 
     try {
       const resp = await axios.post<TranzilaV1Response>(
