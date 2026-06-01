@@ -423,7 +423,7 @@ export class SettingsController {
     try {
       let savedDoc: any;
       await session.withTransaction(async () => {
-        savedDoc = await StoreSettings.findOneAndUpdate({}, update, {
+        savedDoc = await (StoreSettings as any).findOneAndUpdate({}, update, {
           new: true,
           upsert: true,
           setDefaultsOnInsert: true,
