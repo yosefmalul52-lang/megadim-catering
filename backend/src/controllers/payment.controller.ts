@@ -372,7 +372,7 @@ export class PaymentController {
       return res.status(200).json({ success: true, message: 'Authorization voided (mock)' });
     }
 
-    const result = await tranzilaService.voidPayment(order.transactionId);
+    const result = await tranzilaService.voidPayment(order.transactionId, order.authCode);
 
     if (!result.ok) {
       return res.status(502).json({ success: false, message: result.error || 'Void failed at Tranzila' });

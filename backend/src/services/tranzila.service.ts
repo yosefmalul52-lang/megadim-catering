@@ -1,19 +1,24 @@
 /**
  * tranzila.service.ts
  *
- * Tranzila (Israeli payment provider) adapter.
+ * Tranzila (Israeli payment provider) adapter — V1 REST API.
  *
  * Required ENV vars:
- *   TRANZILA_TERMINAL_NAME   – your supplier / terminal name
- *   TRANZILA_HOSTED_URL      – (optional) hosted-payment-page base URL
- *                              defaults to https://direct.tranzila.com/{terminal}/iframe.php
- *   TRANZILA_SUCCESS_URL     – backend URL Tranzila redirects the browser to after payment
- *                              e.g. https://api.megadim-catering.com/api/payment/success
- *   TRANZILA_CAPTURE_URL     – (optional) server-to-server CGI endpoint for capture/void
- *                              defaults to https://secure5.tranzila.com/cgi-bin/tranzila71u.cgi
- *   TRANZILA_CAPTURE_PASSWORD – terminal password for server-to-server calls
+ *   TRANZILA_TERMINAL_NAME  – terminal name (e.g. megadim1)
+ *   TRANZILA_APP_KEY        – public application key (from Tranzila portal)
+ *   TRANZILA_APP_SECRET     – private application secret (from Tranzila portal)
+ *   TRANZILA_HOSTED_URL     – (optional) HPP base URL
+ *                             defaults to https://direct.tranzila.com/{terminal}/iframe.php
+ *   TRANZILA_SUCCESS_URL    – backend URL Tranzila redirects the browser to after payment
+ *                             e.g. https://api.megadim-catering.com/api/payment/success
+ *
+ * NOTE: TRANZILA_CAPTURE_URL and TRANZILA_CAPTURE_PASSWORD are obsolete (old CGI API).
+ * The V1 API uses HMAC-SHA256 headers for authentication instead of a plain password.
  */
+import crypto from 'crypto';
 import axios from 'axios';
+
+const TRANZILA_V1_URL = 'https://api.tranzila.com/v1/transaction/credit_card/create';
 
 export type TranzilaCaptureResult = {
   ok: boolean;
@@ -21,37 +26,48 @@ export type TranzilaCaptureResult = {
   parsed?: Record<string, string>;
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Auth Header Helper ───────────────────────────────────────────────────────
 
-function parseTranzilaResponse(raw: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  const parts = raw
-    .split(/[\n&]+/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  for (const part of parts) {
-    const idx = part.indexOf('=');
-    if (idx === -1) continue;
-    const k = part.slice(0, idx).trim();
-    const v = part.slice(idx + 1).trim();
-    if (!k) continue;
-    try {
-      out[k] = decodeURIComponent(v);
-    } catch {
-      out[k] = v;
-    }
-  }
-  return out;
+/**
+ * Generates the 4 HMAC-signed headers required by the Tranzila V1 REST API.
+ *
+ * Signature formula (per Tranzila docs):
+ *   HMAC-SHA256(key = APP_SECRET, data = APP_KEY + request_time + nonce)
+ *
+ * - nonce:        40-character hex string, unique per request
+ * - request_time: Unix timestamp in milliseconds
+ */
+function generateTranzilaHeaders(appKey: string, appSecret: string): Record<string, string> {
+  const nonce       = crypto.randomBytes(20).toString('hex'); // 40 hex chars
+  const requestTime = String(Date.now());                     // Unix ms as string
+
+  const signature = crypto
+    .createHmac('sha256', appSecret)
+    .update(appKey + requestTime + nonce)
+    .digest('hex');
+
+  return {
+    'X-tranzila-api-app-key':      appKey,
+    'X-tranzila-api-nonce':        nonce,
+    'X-tranzila-api-request-time': requestTime,
+    'X-tranzila-api-access-token': signature,
+    'Content-Type':                'application/json'
+  };
 }
 
-function decodeHtmlEntities(input: string): string {
-  return input
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
+// ─── Response type ────────────────────────────────────────────────────────────
+
+interface TranzilaV1Response {
+  error_code: number;
+  message: string;
+  transaction_result?: {
+    processor_response_code?: string;
+    transaction_id?: number;
+    auth_number?: string;
+    amount?: number;
+    card_type_name?: string;
+    last_4?: string;
+  };
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -79,6 +95,9 @@ export class TranzilaService {
    * Anti-spoofing: we embed a server-generated `paymentSecurityToken` into `pdesc`
    * and `contact`. Tranzila echoes these back in the return call so we can verify
    * the callback wasn't forged.
+   *
+   * NOTE: The HPP flow (direct.tranzila.com) is separate from the V1 REST API and
+   * remains unchanged. Only capturePayment / voidPayment use the new V1 endpoint.
    */
   generateAuthUrl(order: {
     _id: unknown;
@@ -94,149 +113,177 @@ export class TranzilaService {
       (process.env.TRANZILA_HOSTED_URL || '').trim() ||
       `https://direct.tranzila.com/${encodeURIComponent(terminal)}/iframe.php`;
 
-    // Prefer the caller's per-order URL (contains orderId) over the bare env URL
     const successUrl =
       order.successUrl?.trim() ||
       (process.env.TRANZILA_SUCCESS_URL || '').trim();
     if (!successUrl) throw new Error('TRANZILA_SUCCESS_URL is not set in environment');
 
     const params = new URLSearchParams();
-    params.set('tranmode', 'V');            // Authorization only (pre-auth)
-    params.set('Oredrid', String(order._id)); // Tranzila echoes this back as Oredrid
-    params.set('myid',    String(order._id)); // Tranzila standard field — also echoed back
+    params.set('tranmode', 'V');              // Authorization only (pre-auth / J5)
+    params.set('Oredrid', String(order._id)); // Tranzila echoes this back
+    params.set('myid',    String(order._id)); // Standard echo field
     params.set('sum', String(Math.round((Number(order.totalPrice) || 0) * 100) / 100));
-    params.set('currency', '1');            // 1 = NIS
+    params.set('currency', '1');              // 1 = NIS
     params.set('success_url', successUrl);
     // Anti-spoofing: Tranzila echoes pdesc + contact back in the redirect
     params.set('pdesc',   order.paymentSecurityToken);
     params.set('contact', order.paymentSecurityToken);
-    // Some Tranzila configs use this alternate key
     params.set('success_url_address', successUrl);
 
     return `${hostedBase}?${params.toString()}`;
   }
 
   /**
-   * Capture a previously authorised transaction (server-to-server, tranmode=J).
+   * Capture (force/settle) a previously authorised transaction — V1 REST API.
    *
-   * `transactionId` is the ConfirmationCode / index Tranzila sent back during auth.
-   * Falls back through several common CGI endpoint variants if the first returns 404.
+   * Maps to txn_type=force with reference_txn_id (the ConfirmationCode / transaction_id
+   * returned by Tranzila when the customer completed the HPP payment form).
+   *
+   * No card details are required: Tranzila already holds them against the reference_txn_id.
    */
   async capturePayment(
     transactionId: string,
     amount: number,
     authCode?: string
   ): Promise<TranzilaCaptureResult> {
-    const terminal = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
-    if (!terminal) throw new Error('TRANZILA_TERMINAL_NAME is not set');
+    const terminal  = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
+    const appKey    = (process.env.TRANZILA_APP_KEY       || '').trim();
+    const appSecret = (process.env.TRANZILA_APP_SECRET    || '').trim();
+
+    if (!terminal)              throw new Error('TRANZILA_TERMINAL_NAME is not set');
+    if (!appKey)                throw new Error('TRANZILA_APP_KEY is not set');
+    if (!appSecret)             throw new Error('TRANZILA_APP_SECRET is not set');
     if (!transactionId?.trim()) throw new Error('transactionId is required for capture');
 
-    const pw = (process.env.TRANZILA_CAPTURE_PASSWORD || '').trim();
-    if (!pw) throw new Error('TRANZILA_CAPTURE_PASSWORD is not set');
+    const roundedAmount   = Math.round((Number(amount) || 0) * 100) / 100;
+    const refTxnId        = Number(transactionId.trim());
 
-    // Try configured endpoint first, then fall back to common alternatives
-    const captureUrlCandidates: string[] = [];
-    const configuredUrl = (process.env.TRANZILA_CAPTURE_URL || '').trim();
-    if (configuredUrl && /^https?:\/\//i.test(configuredUrl)) captureUrlCandidates.push(configuredUrl);
-    captureUrlCandidates.push(
-      'https://secure5.tranzila.com/cgi-bin/tranzila71u.cgi',
-      'https://secure5.tranzila.com/cgi-bin/tranzila71.cgi',
-      'https://secure5.tranzila.com/cgi-bin/tranzila31h.cgi'
-    );
+    const body: Record<string, unknown> = {
+      terminal_name:    terminal,
+      txn_type:         'force',
+      reference_txn_id: refTxnId,
+      items: [
+        {
+          name:         'הזמנת קייטרינג',
+          type:         'I',
+          unit_price:   roundedAmount,
+          units_number: 1
+        }
+      ]
+    };
 
-    const sum = String(Math.round((Number(amount) || 0) * 100) / 100);
-    const normalizedTx = String(transactionId).trim();
+    console.log(`[tranzila:v1] capture → force | ref=${refTxnId} | amount=${roundedAmount}`);
 
-    const body = new URLSearchParams();
-    body.set('supplier',   terminal);
-    body.set('TranzilaPW', pw);
-    body.set('tranmode',   'J');   // Delayed capture of pre-authorised transaction
-    body.set('authnr',     normalizedTx);
-    body.set('index',      normalizedTx);
-    body.set('sum',        sum);
-    if (authCode?.trim()) body.set('AuthCode', authCode.trim());
-
-    let lastErr: unknown = null;
-    for (const captureUrl of captureUrlCandidates) {
-      try {
-        const resp = await axios.post(captureUrl, body.toString(), {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    try {
+      const resp = await axios.post<TranzilaV1Response>(
+        TRANZILA_V1_URL,
+        body,
+        {
+          headers: generateTranzilaHeaders(appKey, appSecret),
           timeout: 15_000
-        });
-
-        const raw = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
-        console.log('[tranzila] capture raw response:', raw.slice(0, 300));
-
-        // Detect WAF / HTML block pages
-        const rawLower = raw.toLowerCase();
-        if (rawLower.includes('<html') || rawLower.includes('<body')) {
-          const redFontMatch = raw.match(/<font[^>]*color\s*=\s*["']?red[^>]*>([\s\S]*?)<\/font>/i);
-          const bMatch        = raw.match(/<b[^>]*>([\s\S]*?)<\/b>/i);
-          const extracted     = (redFontMatch?.[1] || bMatch?.[1] || '').trim();
-          const cleaned = extracted
-            ? decodeHtmlEntities(extracted.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
-            : 'Tranzila WAF / IP block';
-          throw new Error(`Tranzila WAF blocked: ${cleaned}`);
         }
+      );
 
-        const parsed       = parseTranzilaResponse(raw);
-        const responseCode = (parsed['Response'] || parsed['response'] || '').trim();
+      const data = resp.data;
+      const raw  = JSON.stringify(data);
+      console.log('[tranzila:v1] capture response:', raw.slice(0, 300));
 
-        if (responseCode && responseCode !== '000') {
-          throw new Error(`Tranzila Error Code: ${responseCode}`);
-        }
-        if (!responseCode) {
-          const snippet = raw.length > 300 ? `${raw.slice(0, 300)}…` : raw;
-          throw new Error(`Unexpected Tranzila response (no Response=000): ${snippet}`);
-        }
-
-        return { ok: true, raw, parsed };
-      } catch (err: any) {
-        lastErr = err;
-        if (err?.response?.status === 404) continue; // try next endpoint
-        throw err;
+      if (data.error_code !== 0) {
+        throw new Error(`Tranzila V1 Error ${data.error_code}: ${data.message}`);
       }
-    }
 
-    throw lastErr || new Error('Tranzila capture failed: no valid endpoint');
+      // Map to parsed dict for backward compatibility with payment.controller.ts
+      // (controller reads result.parsed?.['index'] for the capture reference)
+      const parsed: Record<string, string> = {
+        error_code: String(data.error_code),
+        message:    data.message || 'success'
+      };
+      if (data.transaction_result) {
+        const tr = data.transaction_result;
+        if (tr.transaction_id !== undefined) {
+          parsed['index']          = String(tr.transaction_id);
+          parsed['transaction_id'] = String(tr.transaction_id);
+        }
+        if (tr.auth_number)             parsed['auth_number'] = tr.auth_number;
+        if (tr.processor_response_code) parsed['Response']    = tr.processor_response_code;
+      }
+
+      return { ok: true, raw, parsed };
+
+    } catch (err: any) {
+      // Surface Tranzila's own error body when available
+      if (err?.response?.data) {
+        const errData = err.response.data as Partial<TranzilaV1Response>;
+        const msg = errData?.message || `HTTP ${err.response.status}`;
+        throw new Error(
+          `Tranzila V1 capture failed (${err.response.status}): ${msg} — ${JSON.stringify(errData).slice(0, 200)}`
+        );
+      }
+      throw err;
+    }
   }
 
   /**
-   * Void a pre-authorised transaction — releases the hold on the customer's card.
-   * Uses tranmode=V (Void).
+   * Void (reversal) a pre-authorised transaction — V1 REST API.
+   *
+   * Maps to txn_type=reversal. Releases the credit-limit hold on the customer's card.
+   * Only valid when paymentStatus === 'authorized'.
+   *
+   * @param transactionId  Tranzila transaction_id (ConfirmationCode) from HPP callback
+   * @param authCode       auth_number / AuthCode returned by Tranzila during pre-auth
    */
-  async voidPayment(transactionId: string): Promise<{ ok: boolean; error?: string }> {
-    const terminal = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
-    if (!terminal) throw new Error('TRANZILA_TERMINAL_NAME is not set');
+  async voidPayment(
+    transactionId: string,
+    authCode?: string
+  ): Promise<{ ok: boolean; error?: string }> {
+    const terminal  = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
+    const appKey    = (process.env.TRANZILA_APP_KEY       || '').trim();
+    const appSecret = (process.env.TRANZILA_APP_SECRET    || '').trim();
+
+    if (!terminal)              throw new Error('TRANZILA_TERMINAL_NAME is not set');
+    if (!appKey)                throw new Error('TRANZILA_APP_KEY is not set');
+    if (!appSecret)             throw new Error('TRANZILA_APP_SECRET is not set');
     if (!transactionId?.trim()) throw new Error('transactionId is required for void');
 
-    const pw = (process.env.TRANZILA_CAPTURE_PASSWORD || '').trim();
-    if (!pw) throw new Error('TRANZILA_CAPTURE_PASSWORD is not set');
+    const refTxnId = Number(transactionId.trim());
 
-    const captureUrl =
-      (process.env.TRANZILA_CAPTURE_URL || 'https://secure5.tranzila.com/cgi-bin/tranzila71u.cgi').trim();
+    const body: Record<string, unknown> = {
+      terminal_name:        terminal,
+      txn_type:             'reversal',
+      reference_txn_id:     refTxnId,
+      // authorization_number is required by Tranzila for reversal;
+      // fall back to '0000000' if not stored (safe default per Tranzila docs example)
+      authorization_number: (authCode || '0000000').trim()
+    };
 
-    const body = new URLSearchParams();
-    body.set('supplier',   terminal);
-    body.set('TranzilaPW', pw);
-    body.set('tranmode',   'V');   // Void
-    body.set('index',      String(transactionId).trim());
+    console.log(`[tranzila:v1] void → reversal | ref=${refTxnId}`);
 
     try {
-      const resp = await axios.post(captureUrl, body.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        timeout: 15_000
-      });
+      const resp = await axios.post<TranzilaV1Response>(
+        TRANZILA_V1_URL,
+        body,
+        {
+          headers: generateTranzilaHeaders(appKey, appSecret),
+          timeout: 15_000
+        }
+      );
 
-      const raw = typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
-      console.log('[tranzila] void raw response:', raw.slice(0, 300));
+      const data = resp.data;
+      const raw  = JSON.stringify(data);
+      console.log('[tranzila:v1] void response:', raw.slice(0, 300));
 
-      const parsed       = parseTranzilaResponse(raw);
-      const responseCode = (parsed['Response'] || parsed['response'] || '').trim();
+      if (data.error_code === 0) return { ok: true };
+      return {
+        ok:    false,
+        error: `Tranzila V1 reversal error ${data.error_code}: ${data.message}`
+      };
 
-      if (responseCode === '000') return { ok: true };
-      return { ok: false, error: `Tranzila void error ${responseCode}: ${raw.slice(0, 200)}` };
     } catch (err: any) {
+      if (err?.response?.data) {
+        const errData = err.response.data as Partial<TranzilaV1Response>;
+        const msg = errData?.message || `HTTP ${err.response.status}`;
+        return { ok: false, error: `Tranzila V1 void failed: ${msg}` };
+      }
       return { ok: false, error: err?.message || 'Tranzila void request failed' };
     }
   }
