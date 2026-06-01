@@ -195,12 +195,17 @@ export class TranzilaService {
     const roundedAmount = Math.round((Number(amount) || 0) * 100) / 100;
     const refTxnId      = Number(transactionId.trim());
 
-    // Minimal, clean body — no null/undefined fields, matches Tranzila V1 spec exactly
+    // V1 schema requires card fields even for force (token-based) transactions.
+    // Dummy values satisfy schema validation; actual charge is applied via reference_txn_id.
     const body = {
-      terminal_name:    terminal,
-      txn_type:         'force',
+      terminal_name:     terminal,
+      txn_type:          'force',
       txn_currency_code: 'ILS',
-      reference_txn_id: refTxnId,
+      reference_txn_id:  refTxnId,
+      card_number:       '0000000000000000',
+      expire_month:      12,
+      expire_year:       2099,
+      cvv:               '000',
       items: [
         {
           name:         'הזמנת קייטרינג',
