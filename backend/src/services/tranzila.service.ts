@@ -195,17 +195,21 @@ export class TranzilaService {
     const roundedAmount = Math.round((Number(amount) || 0) * 100) / 100;
     const refTxnId      = Number(transactionId.trim());
 
+    const authCodeStr = (authCode || '').trim();
+    if (!authCodeStr) throw new Error('authCode (ConfirmationCode) is required for force capture');
+
     // V1 schema requires card fields even for force (token-based) transactions.
-    // Dummy values satisfy schema validation; actual charge is applied via reference_txn_id.
+    // Dummy values satisfy schema validation; actual charge is driven by reference_txn_id + authorization_number.
     const body = {
-      terminal_name:     terminal,
-      txn_type:          'force',
-      txn_currency_code: 'ILS',
-      reference_txn_id:  refTxnId,
-      card_number:       '0000000000000000',
-      expire_month:      12,
-      expire_year:       2099,
-      cvv:               '000',
+      terminal_name:        terminal,
+      txn_type:             'force',
+      txn_currency_code:    'ILS',
+      reference_txn_id:     refTxnId,
+      authorization_number: authCodeStr,
+      card_number:          '0000000000000000',
+      expire_month:         12,
+      expire_year:          2099,
+      cvv:                  '000',
       items: [
         {
           name:         'הזמנת קייטרינג',
