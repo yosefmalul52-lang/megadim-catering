@@ -181,9 +181,11 @@ export class PaymentController {
       data['Orderid']
     ) as string | undefined;
 
+    // index   = Tranzila's internal transaction ID → used as reference_txn_id in V1 capture/void
+    // ConfirmationCode = Shva/bank authorization number → used as authorization_number in V1 reversal
+    const tranzilaIndex = (data['index'] || data['Index']) as string | undefined;
     const confirmationCode = (
-      data['ConfirmationCode'] || data['index'] ||
-      data['TransactionId']   || data['transactionId']
+      data['ConfirmationCode'] || data['TransactionId'] || data['transactionId']
     ) as string | undefined;
 
     const authCode = (data['AuthCode'] || data['authCode']) as string | undefined;
@@ -253,15 +255,22 @@ export class PaymentController {
     }
 
     // ── 6. All checks passed — authorize ─────────────────────────────────────
+    // transactionId ← Tranzila `index`           (V1 reference_txn_id for capture/void)
+    // authCode      ← Tranzila `ConfirmationCode` (V1 authorization_number for reversal)
     await Order.findByIdAndUpdate(orderId, {
       $set: {
         paymentStatus: 'authorized',
-        // Store Tranzila's real confirmation code / index for future capture
-        ...(confirmationCode ? { transactionId: String(confirmationCode) } : {}),
-        ...(authCode         ? { authCode: String(authCode) }             : {})
+        ...(tranzilaIndex    ? { transactionId: String(tranzilaIndex) }    : {}),
+        ...(confirmationCode ? { authCode:       String(confirmationCode) } : {}),
+        // Fallback: if Tranzila didn't send index but sent AuthCode, store it
+        ...(authCode && !confirmationCode ? { authCode: String(authCode) } : {})
       }
     });
-    console.log(`[payment:success] Order ${orderId} authorized. confirmationCode=${confirmationCode}`);
+    console.log(
+      `[payment:success] Order ${orderId} authorized.`,
+      `index(ref)=${tranzilaIndex}`,
+      `ConfirmationCode(auth)=${confirmationCode}`
+    );
 
     return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
   });
