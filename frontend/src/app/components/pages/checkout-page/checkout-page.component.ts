@@ -510,11 +510,9 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
           });
           this.deliveryFee = 0;
 
-          // Submit via hidden POST form so TranzilaTK=1 is sent as a POST body field.
-          // Tranzila ignores TranzilaTK when it arrives as a GET query param (treated as
-          // a custom echo field), but honours it when sent via POST body.
-          // In mock mode redirectUrl is an internal Angular route — detect and fall back.
-          this.redirectViaPostForm(result.redirectUrl);
+          // Redirect to Tranzila HPP (tranmode=VK — verify + card token generation).
+          // In mock mode this resolves to: /order-confirmation/:orderId?mock=1
+          window.location.href = result.redirectUrl;
         },
         error: (err) => {
           console.error('Checkout error:', err);
@@ -527,62 +525,6 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
           );
         }
       });
-  }
-
-  /**
-   * Submits to the Tranzila HPP via a dynamically-created hidden POST form.
-   *
-   * This is required because Tranzila only honours TranzilaTK=1 when received as a
-   * POST body parameter. When it appears in the GET query string it is treated as a
-   * custom echo field and the card token (ccard) is NOT returned in the callback.
-   *
-   * For internal/mock URLs (no hostname match) we fall back to window.location.href.
-   */
-  private redirectViaPostForm(redirectUrl: string): void {
-    // Mock mode: internal Angular route — plain redirect is fine
-    if (!redirectUrl.startsWith('http')) {
-      window.location.href = redirectUrl;
-      return;
-    }
-
-    let actionUrl: string;
-    let queryParams: Record<string, string> = {};
-
-    try {
-      const parsed = new URL(redirectUrl);
-      actionUrl = `${parsed.origin}${parsed.pathname}`;
-      parsed.searchParams.forEach((value, key) => {
-        queryParams[key] = value;
-      });
-    } catch {
-      // Malformed URL — fall back to GET redirect
-      window.location.href = redirectUrl;
-      return;
-    }
-
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = actionUrl;
-    form.style.display = 'none';
-
-    // Convert every query param to a hidden POST field
-    for (const [key, value] of Object.entries(queryParams)) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = value;
-      form.appendChild(input);
-    }
-
-    // The critical tokenization flag — sent as POST body so Tranzila processes it
-    const tkInput = document.createElement('input');
-    tkInput.type = 'hidden';
-    tkInput.name = 'TranzilaTK';
-    tkInput.value = '1';
-    form.appendChild(tkInput);
-
-    document.body.appendChild(form);
-    form.submit();
   }
 
   private formatDate(date: Date | string | null): string {

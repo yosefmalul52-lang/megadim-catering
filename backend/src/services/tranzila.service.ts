@@ -156,7 +156,7 @@ export class TranzilaService {
     if (!successUrl) throw new Error('TRANZILA_SUCCESS_URL is not set in environment');
 
     const params = new URLSearchParams();
-    params.set('tranmode', 'V');              // Authorization only (pre-auth / J5)
+    params.set('tranmode', 'VK');             // Verify (j5 pre-auth) + generate card Token
     params.set('Oredrid', String(order._id)); // Tranzila echoes this back
     params.set('myid',    String(order._id)); // Standard echo field
     params.set('sum', String(Math.round((Number(order.totalPrice) || 0) * 100) / 100));
@@ -166,8 +166,6 @@ export class TranzilaService {
     params.set('pdesc',   order.paymentSecurityToken);
     params.set('contact', order.paymentSecurityToken);
     params.set('success_url_address', successUrl);
-    // NOTE: TranzilaTK=1 must be sent as a POST body field, not a GET query param.
-    // The frontend submits a hidden <form method="POST"> that includes it.
 
     return `${hostedBase}?${params.toString()}`;
   }

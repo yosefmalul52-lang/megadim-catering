@@ -152,7 +152,7 @@ export class PaymentController {
     // ── Sanitized diagnostic log — omit pdesc/contact to avoid token leakage ──
     const logQuery = { ...req.query } as Record<string, any>;
     const logBody  = { ...req.body  } as Record<string, any>;
-    for (const k of ['pdesc', 'PDesc', 'contact', 'Contact', 'ccard', 'Ccard', 'ccno', 'expmonth', 'expyear']) {
+    for (const k of ['pdesc', 'PDesc', 'contact', 'Contact', 'ccard', 'Ccard', 'ccno', 'TranzilaTK', 'expmonth', 'expyear']) {
       delete logQuery[k];
       delete logBody[k];
     }
@@ -183,7 +183,8 @@ export class PaymentController {
 
     // index            = Tranzila's internal transaction ID → reference_txn_id in V1 capture/void
     // ConfirmationCode = Shva/bank authorization number   → authorization_number in V1 force/reversal
-    // ccard            = Secure card token (TranzilaTK=1) → card_number in V1 force capture
+    // TranzilaTK       = Card token issued by tranmode=VK  → card_number in V1 force capture (primary)
+    // ccard            = Alternate token field name        → card_number in V1 force capture (fallback)
     // expmonth/expyear = Card expiry from Tranzila         → expire_month/expire_year in V1 force
     const tranzilaIndex = (data['index'] || data['Index']) as string | undefined;
     const confirmationCode = (
@@ -191,7 +192,8 @@ export class PaymentController {
     ) as string | undefined;
 
     const authCode    = (data['AuthCode'] || data['authCode']) as string | undefined;
-    const cardToken   = (data['ccard']    || data['Ccard'])    as string | undefined;
+    // tranmode=VK returns the token in the 'TranzilaTK' field; 'ccard' is the fallback field name
+    const cardToken   = (data['TranzilaTK'] || data['ccard'] || data['Ccard']) as string | undefined;
     const expMonthRaw = (data['expmonth'] || data['ExpMonth']) as string | undefined;
     const expYearRaw  = (data['expyear']  || data['ExpYear'])  as string | undefined;
 
