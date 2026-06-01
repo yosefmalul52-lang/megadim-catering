@@ -14,7 +14,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const mongoose_1 = __importDefault(require("mongoose"));
 // Import models - using require for CommonJS compatibility
 const User = require('../models/User');
 const Employee = require('../models/Employee');
@@ -93,51 +92,7 @@ const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             });
             return;
         }
-        // ================ EXTREME DEBUGGING ================
-        console.log('================ AUTH DEBUG ================');
-        console.log('1. Connection DB Name:', mongoose_1.default.connection.name); // Which DB are we in?
-        console.log('2. Connection DB Host:', mongoose_1.default.connection.host);
-        console.log('3. Connection DB Port:', mongoose_1.default.connection.port);
-        console.log('4. Collection Name:', User.collection.name); // Which collection?
-        console.log('5. Token ID to find:', decoded.id);
-        console.log('6. Token ID type:', typeof decoded.id);
-        console.log('7. Token ID stringified:', String(decoded.id));
-        // Check if ANY user exists
-        const count = yield User.countDocuments();
-        console.log('8. Total Users in this DB:', count);
-        // Try to find any user to verify DB connection
-        const sampleUser = yield User.findOne();
-        if (sampleUser) {
-            console.log('9. Sample user found:', {
-                id: sampleUser._id,
-                idString: String(sampleUser._id),
-                username: sampleUser.username
-            });
-        }
-        else {
-            console.log('9. Sample user: ❌ No users found in collection');
-        }
-        // Try to find the specific user
-        console.log('10. Searching for user with ID:', userId);
         const user = yield User.findById(userId);
-        console.log('11. Search Result:', user ? '✅ Found' : '❌ Not Found');
-        if (user) {
-            console.log('12. Found user details:', {
-                id: user._id,
-                idString: String(user._id),
-                username: user.username,
-                role: user.role
-            });
-        }
-        else {
-            console.log('12. User not found - ID comparison:', {
-                searchedId: String(userId),
-                searchedIdType: typeof userId,
-                sampleUserId: sampleUser ? String(sampleUser._id) : 'N/A',
-                idsMatch: sampleUser ? String(userId) === String(sampleUser._id) : 'N/A'
-            });
-        }
-        console.log('============================================');
         if (!user) {
             res.status(404).json({
                 success: false,
@@ -145,13 +100,6 @@ const authenticate = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
             });
             return;
         }
-        console.log('✅ User found:', {
-            userId: user._id,
-            userIdString: String(user._id),
-            username: user.username,
-            role: user.role,
-            fullName: user.fullName
-        });
         if (!user.isActive) {
             res.status(403).json({
                 success: false,

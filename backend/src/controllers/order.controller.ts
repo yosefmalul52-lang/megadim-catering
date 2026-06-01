@@ -274,48 +274,16 @@ export class OrderController {
 
   // Submit new order (checkout)
   submitOrder = asyncHandler(async (req: Request, res: Response) => {
-    // Log the incoming request for debugging
-    console.log('📥 Received order request:', JSON.stringify(req.body, null, 2));
-    console.log('📥 Request headers:', req.headers);
-    
     const orderData: CreateOrderRequest = req.body;
 
-    // Extract userId from token if authenticated (optional - allows guest orders)
-    // KZ: Handle both 'id' and '_id' to be safe - token payload uses 'id'
     const user = (req as any).user;
-    
-    // KZ: Log ENTIRE req.user object
-    console.log('KZ Controller - FULL REQ.USER:', JSON.stringify(user, null, 2));
-    console.log('KZ Controller - user?.id:', user?.id);
-    console.log('KZ Controller - user?._id:', user?._id);
-    console.log('KZ Controller - user object keys:', user ? Object.keys(user) : 'null');
-    
-    // KZ: Handle both 'id' and '_id' to be safe
     const userIdFromToken = user?.id || user?._id;
-    console.log('KZ Controller Extracted ID:', userIdFromToken);
-    
-    if (!userIdFromToken) {
-      // If we want to allow guests, pass null. If we enforce users, throw error here with clear message.
-      console.warn('KZ Warning: User appears to be Guest (no ID found in req.user)');
-      console.warn('KZ: This will cause "User ID is required" error if userId is required in Order model');
-    }
-    
     const userId = userIdFromToken;
-    
-    // DEBUG: Log extracted userId
-    console.log('📝 Creating Order for User ID:', userId);
-    console.log('📝 Extracted userId:', userId);
-    console.log('📝 userId type:', typeof userId);
+
+    console.log('📥 Order submission — user:', userId ? `ID ${userId}` : 'Guest');
 
     // Basic validation with detailed error messages
     if (!orderData.customerName || !orderData.phone || !orderData.items || orderData.items.length === 0) {
-      console.error('❌ Validation failed - missing required fields:', {
-        hasCustomerName: !!orderData.customerName,
-        hasPhone: !!orderData.phone,
-        hasItems: !!orderData.items,
-        itemsLength: orderData.items?.length || 0,
-        orderData: JSON.stringify(orderData, null, 2)
-      });
       throw createValidationError('Customer name, phone, and items are required');
     }
 

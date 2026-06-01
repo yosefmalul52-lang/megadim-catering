@@ -31,9 +31,9 @@ class OrderService {
     // Submit a new order
     submitOrder(orderData_1) {
         return __awaiter(this, arguments, void 0, function* (orderData, userId = null) {
+            var _j, _k;
             try {
-                console.log('📝 OrderService: Creating order for user:', userId || 'Guest');
-                console.log('📝 OrderService: Order data:', JSON.stringify(orderData, null, 2));
+                console.log('📝 OrderService: Creating order for user:', userId || 'Guest', '| items:', (_k = (_j = orderData.items) === null || _j === void 0 ? void 0 : _j.length) !== null && _k !== void 0 ? _k : 0);
                 // Map items to include category and imageUrl if missing
                 const orderItems = orderData.items.map(item => {
                     let category = item.category;

@@ -21,8 +21,7 @@ export class OrderService {
   // Submit a new order
   async submitOrder(orderData: CreateOrderRequest, userId: string | null = null): Promise<OrderResponse> {
     try {
-      console.log('📝 OrderService: Creating order for user:', userId || 'Guest');
-      console.log('📝 OrderService: Order data:', JSON.stringify(orderData, null, 2));
+      console.log('📝 OrderService: Creating order for user:', userId || 'Guest', '| items:', orderData.items?.length ?? 0);
 
       // Map items to include category and imageUrl if missing
       const orderItems = orderData.items.map(item => {

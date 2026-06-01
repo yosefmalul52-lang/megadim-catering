@@ -57,6 +57,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const express_mongo_sanitize_1 = __importDefault(require("express-mongo-sanitize"));
 const database_1 = require("./config/database");
 // Import routes
 const menu_routes_1 = __importDefault(require("./routes/menu.routes"));
@@ -165,6 +166,9 @@ app.use('/api', generalApiLimiter);
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true })); // For handling form data, including multipart
 app.use((0, cookie_parser_1.default)());
+// Strip MongoDB operators ($-prefixed keys) from req.body, req.params, req.query
+// to prevent NoSQL injection (defense-in-depth alongside Mongoose schema validation)
+app.use((0, express_mongo_sanitize_1.default)());
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.status(200).json({

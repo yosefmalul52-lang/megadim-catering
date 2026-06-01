@@ -46,6 +46,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
 import { connectDatabase } from './config/database';
 
 // Import routes
@@ -166,6 +167,10 @@ app.use('/api', generalApiLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // For handling form data, including multipart
 app.use(cookieParser());
+
+// Strip MongoDB operators ($-prefixed keys) from req.body, req.params, req.query
+// to prevent NoSQL injection (defense-in-depth alongside Mongoose schema validation)
+app.use(mongoSanitize());
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

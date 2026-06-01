@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
 import { Request, Response, NextFunction } from 'express';
 
 // Import models - using require for CommonJS compatibility
@@ -93,54 +92,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // ================ EXTREME DEBUGGING ================
-    console.log('================ AUTH DEBUG ================');
-    console.log('1. Connection DB Name:', mongoose.connection.name); // Which DB are we in?
-    console.log('2. Connection DB Host:', mongoose.connection.host);
-    console.log('3. Connection DB Port:', mongoose.connection.port);
-    console.log('4. Collection Name:', User.collection.name); // Which collection?
-    console.log('5. Token ID to find:', decoded.id);
-    console.log('6. Token ID type:', typeof decoded.id);
-    console.log('7. Token ID stringified:', String(decoded.id));
-    
-    // Check if ANY user exists
-    const count = await User.countDocuments();
-    console.log('8. Total Users in this DB:', count);
-    
-    // Try to find any user to verify DB connection
-    const sampleUser = await User.findOne();
-    if (sampleUser) {
-      console.log('9. Sample user found:', {
-        id: sampleUser._id,
-        idString: String(sampleUser._id),
-        username: sampleUser.username
-      });
-    } else {
-      console.log('9. Sample user: ❌ No users found in collection');
-    }
-    
-    // Try to find the specific user
-    console.log('10. Searching for user with ID:', userId);
     const user = await User.findById(userId);
-    console.log('11. Search Result:', user ? '✅ Found' : '❌ Not Found');
-    
-    if (user) {
-      console.log('12. Found user details:', {
-        id: user._id,
-        idString: String(user._id),
-        username: user.username,
-        role: user.role
-      });
-    } else {
-      console.log('12. User not found - ID comparison:', {
-        searchedId: String(userId),
-        searchedIdType: typeof userId,
-        sampleUserId: sampleUser ? String(sampleUser._id) : 'N/A',
-        idsMatch: sampleUser ? String(userId) === String(sampleUser._id) : 'N/A'
-      });
-    }
-    console.log('============================================');
-    
+
     if (!user) {
       res.status(404).json({
         success: false,
@@ -148,14 +101,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       });
       return;
     }
-
-    console.log('✅ User found:', {
-      userId: user._id,
-      userIdString: String(user._id),
-      username: user.username,
-      role: user.role,
-      fullName: user.fullName
-    });
 
     if (!user.isActive) {
       res.status(403).json({
