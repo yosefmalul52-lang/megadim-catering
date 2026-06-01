@@ -45,13 +45,16 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
   const nonce       = crypto.randomBytes(20).toString('hex'); // 40 hex chars
   const requestTime = String(Date.now());                     // Unix ms as string
 
-  // Data: appSecret + requestTime + nonce (no delimiters)
-  // Key:  appKey (75-char public key used as HMAC key — candidate A)
-  const dataToSign = cleanSecret + requestTime + nonce;
+  // Per Tranzila docs: "hash_hmac using 'sha256' on application key with secret + request-time + nonce"
+  // Mapping to hash_hmac(algo, data, key):
+  //   data = "application key" = appKey (the public key)
+  //   key  = "secret + request-time + nonce" = appSecret + requestTime + nonce (concatenated, no delimiters)
+  const hmacKey    = cleanSecret + requestTime + nonce;
+  const dataToSign = cleanKey;
 
   // Encoding: base64url (base64 with +→-, /→_, trailing = removed)
   const signatureBase64 = crypto
-    .createHmac('sha256', cleanKey)
+    .createHmac('sha256', hmacKey)
     .update(dataToSign)
     .digest('base64');
 
