@@ -54,8 +54,14 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
     .digest('hex');
 
   // ── Debug: inspect signing inputs in Render logs ──────────────────────────
-  console.log('[tranzila:auth] app_key   length:', cleanKey.length);
-  console.log('[tranzila:auth] secret    length:', cleanSecret.length);
+  const peekKey    = cleanKey.length > 4
+    ? `${cleanKey.slice(0, 2)}...${cleanKey.slice(-2)}`
+    : '(too short)';
+  const peekSecret = cleanSecret.length > 4
+    ? `${cleanSecret.slice(0, 2)}...${cleanSecret.slice(-2)}`
+    : '(too short)';
+  console.log(`[tranzila:auth] app_key   : '${peekKey}' (length ${cleanKey.length})`);
+  console.log(`[tranzila:auth] app_secret: '${peekSecret}' (length ${cleanSecret.length})`);
   console.log('[tranzila:auth] nonce     :', nonce);
   console.log('[tranzila:auth] time      :', requestTime);
   console.log('[tranzila:auth] dataToSign:', dataToSign);
