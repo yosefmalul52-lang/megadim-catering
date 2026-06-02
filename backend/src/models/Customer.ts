@@ -30,7 +30,6 @@ const CustomerSchema: Schema<ICustomer> = new Schema(
       type: String,
       required: true,
       unique: true,
-      index: true,
       trim: true
     },
     fullName: {
@@ -105,7 +104,6 @@ const CustomerSchema: Schema<ICustomer> = new Schema(
   }
 );
 
-CustomerSchema.index({ normalizedPhone: 1 }, { unique: true });
 CustomerSchema.index({ manualStatus: 1, updatedAt: -1 });
 CustomerSchema.index({ customerCategory: 1, updatedAt: -1 });
 

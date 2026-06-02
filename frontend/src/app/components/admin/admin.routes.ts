@@ -79,12 +79,6 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./delivery-management/delivery-management.component').then(m => m.DeliveryManagementComponent)
       },
       {
-        path: 'delivery-pricing',
-        canActivate: [adminRouteRolesGuard],
-        data: { adminRoles: [...AD] },
-        loadComponent: () => import('./admin-delivery-pricing/admin-delivery-pricing.component').then(m => m.AdminDeliveryPricingComponent)
-      },
-      {
         path: 'shopping',
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },

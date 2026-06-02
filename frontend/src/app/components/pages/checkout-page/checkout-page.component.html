@@ -103,7 +103,7 @@
                     <div
                       class="delivery-card"
                       [class.active]="orderForm.get('deliveryType')?.value === 'delivery'"
-                      [class.disabled]="deliveryIneligible"
+                      [class.disabled]="deliveryIneligible || deliveryOutOfRange || deliveryGeocodingFailed"
                       (click)="onSelectDeliveryCard()"
                       role="button"
                       tabindex="0"
@@ -115,10 +115,11 @@
                     </div>
                   </div>
                 </div>
-                <p class="delivery-eligibility-warning" *ngIf="deliveryIneligible && deliveryEligibilityMessage">
-                  {{ deliveryEligibilityMessage }}
-                </p>
                 <ng-container *ngIf="orderForm.get('deliveryType')?.value === 'delivery'">
+                  <div class="delivery-error-banner" *ngIf="deliveryErrorMessage && !deliveryFeeLoading" role="alert">
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                    {{ deliveryErrorMessage }}
+                  </div>
                   <div class="field-row field-row-full">
                     <div class="custom-dropdown-container">
                       <label class="field-label" for="city">יישוב <span class="required-star">*</span></label>
@@ -144,9 +145,6 @@
                     <span class="delivery-fee-loading" *ngIf="deliveryFeeLoading">
                       <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> מחשב דמי משלוח...
                     </span>
-                    <p class="delivery-error" *ngIf="deliveryError && !deliveryFeeLoading">
-                      {{ deliveryError }}
-                    </p>
                   </div>
                   <div class="field-row field-row-full">
                     <label class="field-label" for="streetAddress">רחוב ומספר בית <span class="required-star">*</span></label>

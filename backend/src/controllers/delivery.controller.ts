@@ -123,6 +123,17 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
     });
     return;
   } catch (err: any) {
+    // Geocoding hard failure — both Google and OSM couldn't locate the city.
+    // Return a clear 400 so the frontend can block checkout and show a helpful message.
+    if (err?.message === 'GEOCODING_FAILED') {
+      console.warn('[Delivery API] GEOCODING_FAILED — city could not be located by any geocoder.');
+      res.status(400).json({
+        error: 'לא הצלחנו לאתר את הכתובת שהוזנה. אנא ודאו שהעיר כתובה נכון.',
+        code: 'GEOCODING_FAILED'
+      });
+      return;
+    }
+
     console.error('❌ [Delivery Controller Error] Crash occurred in calculateFee:');
     if (err?.response) {
       console.error('Data:', err.response.data);
@@ -134,8 +145,7 @@ export async function postCalculateFee(req: Request, res: Response): Promise<voi
     }
     console.error('Stack Trace:', err?.stack);
 
-    // Never bubble an HTTP 500 from shipping calculation.
-    // Return a deterministic JSON fallback so checkout can continue.
+    // Unexpected internal error — return a safe flat-rate so checkout is not completely broken.
     const storeSettings = await StoreSettings.findOne().lean();
     const flatFee = typeof (storeSettings as any)?.baseDeliveryFee === 'number'
       ? (storeSettings as any).baseDeliveryFee
@@ -161,78 +171,6 @@ export async function getPricing(req: Request, res: Response): Promise<void> {
   } catch (err: any) {
     console.error('Delivery getPricing error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch pricing tiers' });
-  }
-}
-
-/** POST /api/delivery/pricing – create a new tier */
-export async function createPricing(req: Request, res: Response): Promise<void> {
-  try {
-    const { minDistanceKm, maxDistanceKm, price } = req.body ?? {};
-
-    if (minDistanceKm === undefined || maxDistanceKm === undefined || price === undefined) {
-      res.status(400).json({ error: 'נא למלא את כל השדות: ממרחק, עד מרחק, ומחיר.' });
-      return;
-    }
-
-    const min = Number(minDistanceKm);
-    const max = Number(maxDistanceKm);
-    const prc = Number(price);
-
-    if (Number.isNaN(min) || Number.isNaN(max) || Number.isNaN(prc)) {
-      res.status(400).json({ error: 'הערכים חייבים להיות מספרים תקינים.' });
-      return;
-    }
-
-    const newTier = new DeliveryPricing({ minDistanceKm: min, maxDistanceKm: max, price: prc, isActive: true });
-    const savedTier = await newTier.save();
-
-    res.status(201).json(savedTier);
-    return;
-  } catch (error: any) {
-    console.error('❌ [Create Pricing Tier Error]:', error);
-    res.status(500).json({
-      error: 'שגיאת שרת פנימית בעת שמירת אזור החלוקה',
-      details: error?.message
-    });
-    return;
-  }
-}
-
-/** PUT /api/delivery/pricing/:id – update a tier */
-export async function updatePricing(req: Request, res: Response): Promise<void> {
-  try {
-    const { id } = req.params;
-    const { minDistanceKm, maxDistanceKm, price, isActive } = req.body || {};
-    const update: Record<string, unknown> = {};
-    if (typeof minDistanceKm === 'number') update.minDistanceKm = minDistanceKm;
-    if (typeof maxDistanceKm === 'number') update.maxDistanceKm = maxDistanceKm;
-    if (typeof price === 'number') update.price = price;
-    if (typeof isActive === 'boolean') update.isActive = isActive;
-    const doc = await DeliveryPricing.findByIdAndUpdate(id, update, { new: true }).lean();
-    if (!doc) {
-      res.status(404).json({ error: 'Pricing tier not found' });
-      return;
-    }
-    res.status(200).json(doc);
-  } catch (err: any) {
-    console.error('Delivery updatePricing error:', err);
-    res.status(500).json({ error: err.message || 'Failed to update pricing tier' });
-  }
-}
-
-/** DELETE /api/delivery/pricing/:id – delete a tier */
-export async function deletePricing(req: Request, res: Response): Promise<void> {
-  try {
-    const { id } = req.params;
-    const doc = await DeliveryPricing.findByIdAndDelete(id);
-    if (!doc) {
-      res.status(404).json({ error: 'Pricing tier not found' });
-      return;
-    }
-    res.status(200).json({ deleted: true, id });
-  } catch (err: any) {
-    console.error('Delivery deletePricing error:', err);
-    res.status(500).json({ error: err.message || 'Failed to delete pricing tier' });
   }
 }
 

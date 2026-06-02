@@ -81,7 +81,6 @@ const CouponSchema: Schema<ICoupon> = new Schema(
   { timestamps: true, collection: 'coupons' }
 );
 
-CouponSchema.index({ code: 1 });
 CouponSchema.index({ isActive: 1, expiresAt: 1 });
 CouponSchema.index({ usedByPhones: 1 });
 

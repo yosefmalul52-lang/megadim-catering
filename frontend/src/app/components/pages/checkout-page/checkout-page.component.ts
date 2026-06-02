@@ -79,12 +79,12 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
   deliveryFeeLoading = false;
   /** True when destination is outside defined delivery area (OUT_OF_RANGE from API) */
   deliveryOutOfRange = false;
-  /** User-facing error message from delivery fee API (400 / other errors) */
-  deliveryError: string | null = null;
+  /** True when both Google and OSM geocoders failed to locate the entered city */
+  deliveryGeocodingFailed = false;
   /** True when cart total is below the minimum order amount for the matched delivery tier. */
   deliveryIneligible = false;
-  /** Detailed eligibility message shown under delivery options when ineligible. */
-  deliveryEligibilityMessage: string | null = null;
+  /** Single consolidated inline error shown above the city input when delivery cannot proceed. */
+  deliveryErrorMessage: string | null = null;
   private readonly deliveryRecalculate$ = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
 
@@ -171,9 +171,8 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
 
           this.deliveryFeeLoading = true;
           this.deliveryOutOfRange = false;
-          this.deliveryError = null;
           this.deliveryIneligible = false;
-          this.deliveryEligibilityMessage = null;
+          this.deliveryErrorMessage = null;
           return this.deliveryService.calculateFee(city, cartTotal).pipe(
             catchError((err) => of({ __error: err } as any))
           );
@@ -189,10 +188,12 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
           this.resetDeliveryState();
           if (err.status === 400 && err.error?.code === 'OUT_OF_RANGE') {
             this.deliveryOutOfRange = true;
-            this.deliveryError =
-              err.error?.error || 'היעד מחוץ לאזור החלוקה הרגיל. אנא צרו קשר לתיאום טלפוני.';
+            this.deliveryErrorMessage = 'הכתובת שהזנתם נמצאת מחוץ לאזורי החלוקה שלנו.';
+          } else if (err.status === 400 && err.error?.code === 'GEOCODING_FAILED') {
+            this.deliveryGeocodingFailed = true;
+            this.deliveryErrorMessage = 'לא הצלחנו לאתר את הכתובת במדויק. אנא ודאו שהזנתם עיר תקינה.';
           } else {
-            this.deliveryError =
+            this.deliveryErrorMessage =
               (err.error && typeof err.error === 'object' && err.error.error)
                 ? String(err.error.error)
                 : 'שגיאה בחישוב דמי המשלוח. אנא נסו שנית.';
@@ -210,20 +211,16 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
           this.originalDeliveryFee = 0;
           this.deliveryOutOfRange = false;
           this.deliveryFeeLoading = false;
-          this.deliveryEligibilityMessage = `לא ניתן לבצע משלוח לאזור זה. מינימום ההזמנה הנדרש הוא ${minRequired} ₪ (חסר לך ${amountShort} ₪). אנא הוסף מוצרים או בחר באיסוף עצמי.`;
-          this.deliveryError = this.deliveryEligibilityMessage;
-          this.orderForm.get('deliveryType')?.setValue('pickup');
-          this.updateAddressValidators();
+          this.deliveryErrorMessage = `לא הגעתם למינימום ההזמנה הנדרש למשלוח לאזור זה. נדרש ${minRequired} ₪ (חסר ${amountShort} ₪).`;
           return;
         }
         this.deliveryIneligible = false;
-        this.deliveryEligibilityMessage = null;
         this.deliveryFee = res.price;
         this.isDeliveryFree = res.isFree === true;
         this.originalDeliveryFee = res.originalPrice ?? res.price;
         this.deliveryFeeLoading = false;
         this.deliveryOutOfRange = false;
-        this.deliveryError = null;
+        this.deliveryErrorMessage = null;
       });
 
     this.locationService.getIsraeliCities().subscribe(cities => {
@@ -268,14 +265,22 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     this.originalDeliveryFee = 0;
     this.deliveryFeeLoading = false;
     this.deliveryOutOfRange = false;
-    this.deliveryError = null;
+    this.deliveryGeocodingFailed = false;
     this.deliveryIneligible = false;
-    this.deliveryEligibilityMessage = null;
+    this.deliveryErrorMessage = null;
   }
 
-  /** Handle click/keyboard on the Delivery card, respecting eligibility. */
+  /** Handle click/keyboard on the Delivery card, respecting all blocking conditions. */
   onSelectDeliveryCard(): void {
-    if (this.deliveryIneligible) {
+    if (this.deliveryIneligible || this.deliveryOutOfRange || this.deliveryGeocodingFailed) {
+      if (this.deliveryErrorMessage) {
+        this.snackBar.open(this.deliveryErrorMessage, 'סגור', {
+          duration: 5000,
+          horizontalPosition: 'start',
+          verticalPosition: 'top',
+          panelClass: ['snack-warning']
+        });
+      }
       return;
     }
     this.orderForm.get('deliveryType')?.setValue('delivery');
@@ -398,9 +403,14 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     this.recalculateDeliveryIfNeeded();
   }
 
-  /** Submit disabled when delivery selected but destination is out of range */
+  /** Submit disabled when form invalid, submitting, or delivery selected with an active error. */
   get isSubmitDisabled(): boolean {
-    return this.orderForm?.invalid || this.isSubmitting || (this.orderForm?.get('deliveryType')?.value === 'delivery' && this.deliveryOutOfRange);
+    const isDelivery = this.orderForm?.get('deliveryType')?.value === 'delivery';
+    return (
+      this.orderForm?.invalid ||
+      this.isSubmitting ||
+      (isDelivery && !!this.deliveryErrorMessage)
+    );
   }
 
   private updateAddressValidators(): void {

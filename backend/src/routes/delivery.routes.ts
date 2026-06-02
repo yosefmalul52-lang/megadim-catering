@@ -2,9 +2,6 @@ import { Router } from 'express';
 import {
   postCalculateFee,
   getPricing,
-  createPricing,
-  updatePricing,
-  deletePricing,
   getCityOverrides,
   createCityOverride,
   updateCityOverride,
@@ -23,11 +20,8 @@ router.get('/', (req, res) => {
 
 router.post('/calculate-fee', asyncHandler(postCalculateFee as any));
 
-/** Public: pricing and cities (for checkout). Admin-only: mutations. */
+/** Public: pricing tiers (read-only; managed via PUT /api/settings/delivery). */
 router.get('/pricing', asyncHandler(getPricing as any));
-router.post('/pricing', authenticate, requireAdmin, asyncHandler(createPricing as any));
-router.put('/pricing/:id', authenticate, requireAdmin, asyncHandler(updatePricing as any));
-router.delete('/pricing/:id', authenticate, requireAdmin, asyncHandler(deletePricing as any));
 
 router.get('/cities', asyncHandler(getCityOverrides as any));
 router.post('/cities', authenticate, requireAdmin, asyncHandler(createCityOverride as any));

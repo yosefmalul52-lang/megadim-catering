@@ -30,10 +30,6 @@ interface LatLng {
   lon: number;
 }
 
-const DEFAULT_ESTIMATED_DELIVERY_FEE = Number(process.env.DELIVERY_FALLBACK_FEE) > 0
-  ? Number(process.env.DELIVERY_FALLBACK_FEE)
-  : 50;
-
 interface GeocodeResult {
   coords: LatLng;
   source: 'Google' | 'OpenStreetMap';
@@ -91,9 +87,10 @@ async function geocodeCityWithGoogle(city: string): Promise<LatLng> {
 /**
  * Reliable geocoding flow:
  * 1) Google Geocoding
- * 2) OpenStreetMap fallback on Google failure
+ * 2) OpenStreetMap (Nominatim) fallback on Google failure
+ * Throws GEOCODING_FAILED if both sources return no result.
  */
-async function geocodeCityWithFallback(city: string): Promise<GeocodeResult | null> {
+async function geocodeCityWithFallback(city: string): Promise<GeocodeResult> {
   try {
     const googleCoords = await geocodeCityWithGoogle(city);
     return { coords: googleCoords, source: 'Google' };
@@ -106,29 +103,42 @@ async function geocodeCityWithFallback(city: string): Promise<GeocodeResult | nu
     if (osmCoords) {
       return { coords: osmCoords, source: 'OpenStreetMap' };
     }
-    return null;
+    console.error(
+      `[Delivery API] Both Google and OSM failed to geocode "${city}". Throwing GEOCODING_FAILED.`
+    );
+    throw new Error('GEOCODING_FAILED');
   }
 }
 
 /**
  * Fetch latitude/longitude using OpenStreetMap Nominatim (no API key).
- * Requires User-Agent header or Nominatim blocks the request.
+ * MUST include a descriptive User-Agent header — Nominatim blocks requests without one.
+ * Uses the free-form `q=` parameter with an ", ישראל" suffix for better Israeli city matching.
  */
 async function geocodeCityWithOSM(city: string): Promise<LatLng | null> {
-  const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`;
+  const query = city.includes('ישראל') ? city : `${city}, ישראל`;
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=il`;
   try {
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'MegadimCatering/1.0' }
+      headers: {
+        'User-Agent': 'Megadim-Catering-System/1.0 (contact: info@magadim.co.il)',
+        'Accept-Language': 'he,en'
+      }
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(`[OSM Geocoding] Request failed with HTTP ${response.status}`);
+      return null;
+    }
     const data = await response.json();
     if (!Array.isArray(data) || data.length === 0) return null;
     const first = data[0];
-    const lat = typeof first.lat === 'number' ? first.lat : Number(first.lat);
-    const lon = typeof first.lon === 'number' ? first.lon : Number(first.lon);
+    const lat = typeof first.lat === 'number' ? first.lat : parseFloat(first.lat);
+    const lon = typeof first.lon === 'number' ? first.lon : parseFloat(first.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    console.log(`[OSM Geocoding] Found "${query}" → lat=${lat}, lon=${lon}`);
     return { lat, lon };
-  } catch {
+  } catch (err: any) {
+    console.error('[OSM Geocoding] Request threw exception:', err?.message);
     return null;
   }
 }
@@ -211,18 +221,8 @@ export async function calculateDeliveryFee(
     // Priority 2: Smart Geocoding – Google first, OSM fallback on error/suspicious distance
     const destinationAddress = city.includes('ישראל') ? city : `${city}, ישראל`;
     const originCoords: LatLng = { lat: ORIGIN_LAT, lon: ORIGIN_LON };
+    // Throws GEOCODING_FAILED if both Google and OSM return no result
     const geocodeResult = await geocodeCityWithFallback(destinationAddress);
-    if (!geocodeResult) {
-      console.warn(
-        `[Delivery API] Geocoding unavailable for "${destinationAddress}". Using estimated fallback fee: ${DEFAULT_ESTIMATED_DELIVERY_FEE}₪`
-      );
-      return {
-        distance: 0,
-        price: DEFAULT_ESTIMATED_DELIVERY_FEE,
-        isEstimated: true,
-        estimationReason: 'GEOCODING_UNAVAILABLE'
-      };
-    }
 
     let straightKm = haversineKm(originCoords, geocodeResult.coords);
     let source: 'Google' | 'OpenStreetMap' = geocodeResult.source;
