@@ -24,7 +24,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { routerLink: '/admin/delivery-pricing', iconClass: 'fas fa-map-marked-alt', label: 'תמחור משלוחים', roles: ['admin'] },
   { routerLink: '/admin/shopping', iconClass: 'fas fa-shopping-basket', label: 'רשימת קניות', roles: ['admin'] },
   { routerLink: '/admin/gallery', iconClass: 'fas fa-images', label: 'ניהול גלריה', roles: ['admin'] },
-  { routerLink: '/admin/settings', iconClass: 'fas fa-cog', label: 'הגדרות אתר', roles: ['admin'] }
+  { routerLink: '/admin/settings',    iconClass: 'fas fa-cog',                  label: 'הגדרות אתר',          roles: ['admin'] },
+  { routerLink: '/admin/accounting',  iconClass: 'fas fa-file-invoice-dollar',  label: 'הנהלת חשבונות',       roles: ['admin'] }
 ];
 
 export function canSeeNavItem(role: string | undefined, item: AdminNavItem): boolean {

@@ -101,6 +101,12 @@ export const adminRoutes: Routes = [
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },
         loadComponent: () => import('./admin-settings/admin-settings.component').then(m => m.AdminSettingsComponent)
+      },
+      {
+        path: 'accounting',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () => import('./accounting/accounting-management.component').then(m => m.AccountingManagementComponent)
       }
     ]
   }

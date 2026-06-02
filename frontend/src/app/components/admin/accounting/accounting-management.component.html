@@ -1,0 +1,201 @@
+<div class="accounting-page" dir="rtl">
+
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <h1 class="page-title">הנהלת חשבונות</h1>
+    <p class="page-subtitle">סיכום הכנסות, עסקאות ואיחוד רשומות חיצוניות</p>
+  </div>
+
+  <!-- ── Metrics grid ─────────────────────────────────────────────────────── -->
+  <div class="metrics-grid" *ngIf="!summaryLoading && !summaryError && summary">
+    <div class="metric-card total">
+      <span class="metric-label">הכנסה כוללת</span>
+      <span class="metric-value">{{ formatAmount(summary.grandTotal) }}</span>
+    </div>
+    <div class="metric-card online">
+      <span class="metric-label">מכירות אתר (מקוון)</span>
+      <span class="metric-value">{{ formatAmount(summary.onlineTotal) }}</span>
+    </div>
+    <div class="metric-card external">
+      <span class="metric-label">מכירות חיצוניות</span>
+      <span class="metric-value">{{ formatAmount(summary.externalTotal) }}</span>
+    </div>
+  </div>
+
+  <div class="loading-row" *ngIf="summaryLoading">
+    <mat-spinner diameter="32"></mat-spinner>
+    <span>טוען נתונים...</span>
+  </div>
+  <p class="error-msg" *ngIf="summaryError">{{ summaryError }}</p>
+
+  <!-- ── Filters ─────────────────────────────────────────────────────────── -->
+  <section class="filters-bar">
+    <div class="filter-group">
+      <label class="filter-label">מקור</label>
+      <select class="filter-select" [(ngModel)]="filterSource" [ngModelOptions]="{standalone: true}">
+        <option value="">הכל</option>
+        <option value="online">אתר</option>
+        <option value="external">חיצוני</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">מתאריך</label>
+      <input type="date" class="filter-input" [(ngModel)]="filterFrom" [ngModelOptions]="{standalone: true}" />
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">עד תאריך</label>
+      <input type="date" class="filter-input" [(ngModel)]="filterTo" [ngModelOptions]="{standalone: true}" />
+    </div>
+    <div class="filter-actions">
+      <button mat-flat-button color="primary" (click)="applyFilters()">סנן</button>
+      <button mat-stroked-button (click)="resetFilters()">אפס</button>
+    </div>
+  </section>
+
+  <!-- ── Transactions table ───────────────────────────────────────────────── -->
+  <section class="table-section">
+    <div class="table-header-row">
+      <h2 class="section-title">עסקאות</h2>
+      <span class="tx-count" *ngIf="meta.total > 0">{{ meta.total }} רשומות</span>
+    </div>
+
+    <div class="loading-row" *ngIf="txLoading">
+      <mat-spinner diameter="28"></mat-spinner>
+      <span>טוען עסקאות...</span>
+    </div>
+    <p class="error-msg" *ngIf="txError">{{ txError }}</p>
+
+    <div class="table-wrapper" *ngIf="!txLoading && !txError">
+      <table class="tx-table" *ngIf="transactions.length > 0">
+        <thead>
+          <tr>
+            <th>תאריך</th>
+            <th>לקוח / מזהה</th>
+            <th>מקור</th>
+            <th>סכום</th>
+            <th>קובץ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let tx of transactions; trackBy: trackById">
+            <td>{{ formatDate(tx.date) }}</td>
+            <td class="client-cell">
+              <span>{{ tx.clientName }}</span>
+              <small *ngIf="tx.invoiceNum" class="sub-text">חשבונית {{ tx.invoiceNum }}</small>
+            </td>
+            <td>
+              <span class="source-badge" [class.online]="tx.source === 'online'" [class.external]="tx.source === 'external'">
+                {{ tx.source === 'online' ? 'אתר' : 'חיצוני' }}
+              </span>
+            </td>
+            <td class="amount-cell">{{ formatAmount(tx.amount) }}</td>
+            <td>
+              <a *ngIf="tx.fileUrl" [href]="tx.fileUrl" target="_blank" rel="noopener noreferrer" class="file-link">
+                <mat-icon>open_in_new</mat-icon>
+              </a>
+              <span *ngIf="!tx.fileUrl" class="no-file">—</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="empty-msg" *ngIf="transactions.length === 0">אין עסקאות בטווח הנבחר.</p>
+
+      <!-- Pagination -->
+      <div class="pagination" *ngIf="meta.totalPages > 1">
+        <button mat-icon-button [disabled]="meta.page <= 1" (click)="goToPage(meta.page - 1)">
+          <mat-icon>chevron_right</mat-icon>
+        </button>
+        <button
+          *ngFor="let p of pages"
+          class="page-btn"
+          [class.active]="p === meta.page"
+          (click)="goToPage(p)"
+        >{{ p }}</button>
+        <button mat-icon-button [disabled]="meta.page >= meta.totalPages" (click)="goToPage(meta.page + 1)">
+          <mat-icon>chevron_left</mat-icon>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Drag & Drop zone ─────────────────────────────────────────────────── -->
+  <section class="upload-section">
+    <h2 class="section-title">הוספת רשומה חיצונית</h2>
+    <div
+      class="drop-zone"
+      [class.drag-over]="isDragOver"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+      (click)="fileInput.click()"
+      role="button"
+      tabindex="0"
+      (keydown.enter)="fileInput.click()"
+      aria-label="גרור קובץ חשבונית לכאן או לחץ לבחירה"
+    >
+      <mat-icon class="drop-icon">upload_file</mat-icon>
+      <p class="drop-label">גרור חשבונית לכאן (PDF / תמונה)</p>
+      <p class="drop-sub">או לחץ לבחירת קובץ</p>
+      <input #fileInput type="file" accept=".pdf,image/*" style="display:none" (change)="onFileInputChange($event)" />
+    </div>
+
+    <div class="no-file-entry">
+      <button mat-stroked-button (click)="openModal(null!)">הוסף רשומה ידנית ללא קובץ</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- ── Modal overlay ─────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal-box" dir="rtl" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">{{ pendingFile ? 'פרטי חשבונית — ' + pendingFile.name : 'רשומה חיצונית' }}</h3>
+      <button class="modal-close" (click)="closeModal()" aria-label="סגור">✕</button>
+    </div>
+
+    <form [formGroup]="invoiceForm" class="modal-form" (ngSubmit)="pendingFile ? submitInvoice() : submitExternalNoFile()">
+
+      <div class="form-row">
+        <label class="form-label">שם לקוח <span class="req">*</span></label>
+        <input class="form-input" formControlName="clientName" placeholder="שם מלא" />
+        <span class="field-error" *ngIf="invoiceForm.get('clientName')?.invalid && invoiceForm.get('clientName')?.touched">
+          שדה חובה
+        </span>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">סכום (₪) <span class="req">*</span></label>
+        <input class="form-input" formControlName="amount" type="number" min="0.01" step="0.01" placeholder="0.00" />
+        <span class="field-error" *ngIf="invoiceForm.get('amount')?.invalid && invoiceForm.get('amount')?.touched">
+          יש להזין סכום חיובי
+        </span>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">תאריך <span class="req">*</span></label>
+        <input class="form-input" formControlName="issueDate" type="date" />
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">מספר חשבונית</label>
+        <input class="form-input" formControlName="invoiceNumber" placeholder="רשות" />
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">תיאור</label>
+        <textarea class="form-input" formControlName="description" rows="2" placeholder="תיאור קצר (רשות)"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" mat-flat-button color="primary" [disabled]="uploadProgress">
+          <mat-spinner *ngIf="uploadProgress" diameter="18"></mat-spinner>
+          <span *ngIf="!uploadProgress">{{ pendingFile ? 'העלה ושמור' : 'שמור' }}</span>
+        </button>
+        <button type="button" mat-stroked-button (click)="closeModal()" [disabled]="uploadProgress">ביטול</button>
+      </div>
+
+    </form>
+  </div>
+</div>
