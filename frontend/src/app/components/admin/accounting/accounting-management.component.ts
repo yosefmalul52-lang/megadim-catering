@@ -2,7 +2,7 @@ import {
   Component, OnInit, inject, HostListener, ElementRef, ViewChild
 } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -26,6 +26,7 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     MatCardModule,
     MatButtonModule,
     MatSelectModule,
