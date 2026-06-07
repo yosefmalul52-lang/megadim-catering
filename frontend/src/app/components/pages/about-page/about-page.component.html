@@ -1,62 +1,179 @@
-<div class="about-page-container">
-  <!-- Hero: editorial grid -->
+<div class="about-page">
+  <!-- Cinematic Hero -->
   <section class="about-hero" aria-label="נעים להכיר מגדים">
-    <div class="about-hero-grid">
-      <div class="about-hero-image">
-        <img ngSrc="v1768297872/Saturday-tab_dit4ng.png" alt="הסיפור של מגדים" width="600" height="400" loading="lazy" />
-      </div>
-      <div class="about-hero-text">
-        <h1 class="about-hero-title">
-          <span class="gold-accent-bar" aria-hidden="true"></span>
-          נעים להכיר <span class="gold-text">מגדים</span>
+    <div class="about-hero__grain" aria-hidden="true"></div>
+    <div class="about-hero__watermark" aria-hidden="true">מגדים</div>
+    <div class="about-hero__glow about-hero__glow--gold" aria-hidden="true"></div>
+    <div class="about-hero__glow about-hero__glow--navy" aria-hidden="true"></div>
+
+    <div class="about-hero__inner">
+      <div class="about-hero__content about-reveal">
+        <h1 class="about-hero__title">
+          <span class="about-hero__title-line">נעים להכיר</span>
+          <span class="about-hero__title-accent">מגדים</span>
         </h1>
-        <p>
+        <p class="about-hero__lead">
           קייטרינג "מגדים" נולד מתוך תשוקה עמוקה לאמנות הבישול ומתוך אהבה לאוכל שעושה טוב בלב.
         </p>
-        <p>
-          עבורנו, אוכל הוא לא רק טעם — הוא ניחוחות מעוררי זיכרון, הוא תחושה של בית והוא הדרך הכי טובה לחגוג את הרגעים היפים של החיים.
+        <p class="about-hero__text">
+          עבורנו, אוכל הוא לא רק טעם — הוא ניחוחות מעוררי זיכרון, תחושה של בית והדרך הכי טובה לחגוג את הרגעים היפים של החיים.
         </p>
+        <div class="about-hero__chips" aria-label="הדגשות">
+          <span class="about-hero__chip">כשר למהדרין</span>
+          <span class="about-hero__chip">טרי מדי יום</span>
+          <span class="about-hero__chip">טעם ביתי</span>
+        </div>
       </div>
+
+      <div class="about-hero__visual about-reveal about-reveal--delay">
+        <div class="about-hero__frame" aria-hidden="true"></div>
+        <div class="about-hero__frame about-hero__frame--inner" aria-hidden="true"></div>
+        <div class="about-hero__image-wrap">
+          <img
+            ngSrc="v1768297872/Saturday-tab_dit4ng.png"
+            alt="שולחן שבת מסורתי — קייטרינג מגדים"
+            width="640"
+            height="480"
+            priority
+            class="about-hero__image"
+          />
+          <div class="about-hero__image-scrim" aria-hidden="true"></div>
+        </div>
+        <div class="about-hero__float about-hero__float--kosher">
+          <mat-icon aria-hidden="true">verified</mat-icon>
+          <span>כשר למהדרין</span>
+        </div>
+        <div class="about-hero__float about-hero__float--rating">
+          <span class="about-hero__float-value">5.0</span>
+          <span class="about-hero__float-label">דירוג בגוגל</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-hero__stats about-reveal about-reveal--delay-2">
+      @for (stat of stats; track stat.label; let last = $last) {
+        <div class="about-hero__stat">
+          <span class="about-hero__stat-value">{{ stat.value }}</span>
+          <span class="about-hero__stat-label">{{ stat.label }}</span>
+        </div>
+        @if (!last) {
+          <span class="about-hero__stat-sep" aria-hidden="true"></span>
+        }
+      }
     </div>
   </section>
 
-  <!-- Features: FontAwesome icons, luxurious cards -->
-  <section class="about-services" aria-label="מה אנחנו מציעים">
-    <h2 class="services-title">מה אנחנו מציעים?</h2>
-    <div class="services-grid">
-      <div class="service-card">
-        <div class="icon-circle">
-          <i class="fa-solid fa-utensils" aria-hidden="true"></i>
-        </div>
-        <h3>השבת של מגדים</h3>
-        <p>אוכל מוכן לשבת ברמה אחרת. קחו הביתה את הטעמים שלנו.</p>
-      </div>
-      <div class="service-card">
-        <div class="icon-circle">
-          <i class="fa-solid fa-briefcase" aria-hidden="true"></i>
-        </div>
-        <h3>מענה למוסדות</h3>
-        <p>ארוחות מזינות, טריות ובריאות למוסדות כל השבוע.</p>
-      </div>
-      <div class="service-card">
-        <div class="icon-circle">
-          <i class="fa-solid fa-glass-cheers" aria-hidden="true"></i>
-        </div>
-        <h3>אירועים עם נשמה</h3>
-        <p>אירועי בוטיק או חגיגות גדולות, עם תפריט שמשלב טעמים ביתיים.</p>
-      </div>
+  <!-- Story timeline -->
+  <section class="about-story" aria-label="הסיפור שלנו">
+    <div class="about-story__head about-reveal">
+      <p class="about-story__eyebrow">המסע שלנו</p>
+      <h2 class="about-story__title">מהבית — אל השולחן שלכם</h2>
+    </div>
+    <div class="about-story__track">
+      @for (milestone of milestones; track milestone.title; let i = $index) {
+        <article class="about-milestone about-reveal" [style.--delay]="i * 0.12 + 's'">
+          <div class="about-milestone__node" aria-hidden="true">
+            <span class="about-milestone__year">{{ milestone.year }}</span>
+          </div>
+          <div class="about-milestone__card">
+            <h3 class="about-milestone__title">{{ milestone.title }}</h3>
+            <p class="about-milestone__text">{{ milestone.text }}</p>
+          </div>
+        </article>
+      }
     </div>
   </section>
 
-  <!-- Vision: chef quote + signature badge -->
-  <section class="about-vision" aria-label="החזון שלנו">
-    <span class="quote-watermark" aria-hidden="true">"</span>
-    <div class="vision-content">
-      <h2>החזון שלנו</h2>
-      <p class="vision-quote">
-        בכל מנה שיוצאת מהמטבח שלנו מושקעת מחשבה על האורח שיטעם אותה. אנחנו כאן כדי להפוך את האירוע שלכם לחוויה קולינרית שתישאר עוד זמן רב.
+  <!-- Pillars -->
+  <section class="about-pillars" aria-label="ערכי מגדים">
+    <div class="about-pillars__head about-reveal">
+      <p class="about-pillars__eyebrow">למה מגדים</p>
+      <h2 class="about-pillars__title">מה מניע אותנו בכל יום</h2>
+    </div>
+    <div class="about-pillars__inner">
+      @for (pillar of pillars; track pillar.title; let i = $index) {
+        <article class="about-pillar about-reveal" [style.--delay]="i * 0.08 + 's'">
+          <div class="about-pillar__icon" aria-hidden="true">
+            <mat-icon>{{ pillar.icon }}</mat-icon>
+          </div>
+          <h3 class="about-pillar__title">{{ pillar.title }}</h3>
+          <p class="about-pillar__text">{{ pillar.text }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <!-- Services bento -->
+  <section class="about-services" aria-labelledby="services-heading">
+    <div class="about-services__head about-reveal">
+      <h2 id="services-heading" class="about-services__title">מה אנחנו מציעים?</h2>
+      <p class="about-services__subtitle">
+        משפחות, אירועים ומוסדות — פתרון קולינרי מלא תחת קורת גג אחת
       </p>
-      <div class="vision-signature">מגדים — מביאים את הבית לאירוע</div>
+    </div>
+
+    <div class="about-services__grid">
+      @for (service of services; track service.title; let i = $index) {
+        <a
+          class="service-card about-reveal"
+          [class.service-card--featured]="service.featured"
+          [routerLink]="service.route"
+          [style.--delay]="i * 0.1 + 's'"
+        >
+          <div class="service-card__media">
+            <img
+              [ngSrc]="service.image"
+              [alt]="service.title"
+              width="480"
+              height="320"
+              loading="lazy"
+              class="service-card__img"
+            />
+            <div class="service-card__overlay" aria-hidden="true"></div>
+            <span class="service-card__number" aria-hidden="true">{{ service.number }}</span>
+          </div>
+          <div class="service-card__body">
+            <div class="service-card__icon" aria-hidden="true">
+              <mat-icon>{{ service.icon }}</mat-icon>
+            </div>
+            <h3 class="service-card__title">{{ service.title }}</h3>
+            <p class="service-card__text">{{ service.text }}</p>
+            <span class="service-card__link">
+              לפרטים נוספים
+              <mat-icon aria-hidden="true">arrow_back</mat-icon>
+            </span>
+          </div>
+        </a>
+      }
+    </div>
+  </section>
+
+  <!-- Vision -->
+  <section class="about-vision" aria-label="החזון שלנו">
+    <div class="about-vision__side" aria-hidden="true">
+      <span class="about-vision__side-text">מגדים</span>
+    </div>
+    <div class="about-vision__inner about-reveal">
+      <span class="about-vision__mark" aria-hidden="true">"</span>
+      <h2 class="about-vision__title">החזון שלנו</h2>
+      <blockquote class="about-vision__quote">
+        בכל מנה שיוצאת מהמטבח שלנו מושקעת מחשבה על האורח שיטעם אותה. אנחנו כאן כדי להפוך את האירוע שלכם לחוויה קולינרית שתישאר עוד זמן רב.
+      </blockquote>
+      <p class="about-vision__signature">מגדים — מביאים את הבית לאירוע</p>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="about-cta" aria-label="יצירת קשר">
+    <div class="about-cta__pattern" aria-hidden="true"></div>
+    <div class="about-cta__inner about-reveal">
+      <p class="about-cta__eyebrow">נשמח לשמוע מכם</p>
+      <h2 class="about-cta__title">מוכנים לטעום את מגדים?</h2>
+      <p class="about-cta__text">בחרו מהתפריט שלנו או דברו איתנו — נתאים לכם חוויה קולינרית בדיוק כמו שאתם אוהבים.</p>
+      <div class="about-cta__actions">
+        <a class="about-cta__btn about-cta__btn--gold" routerLink="/ready-for-shabbat">לתפריט השבת</a>
+        <a class="about-cta__btn about-cta__btn--outline" routerLink="/contact">דברו איתנו</a>
+      </div>
     </div>
   </section>
 </div>

@@ -18,6 +18,38 @@
   gap: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
+  background: transparent !important;
+  overflow: visible !important;
+
+  .mat-drawer-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+}
+
+app-header,
+app-search-bar,
+app-footer {
+  display: block;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+app-search-bar {
+  position: fixed;
+  inset: 0;
+  width: 0;
+  height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible;
+  pointer-events: none;
+  border: none;
 }
 
 .mobile-sidenav {
@@ -206,33 +238,3 @@
   }
 }
 
-// Floating WhatsApp button – must be above cookie banner (higher z-index)
-.fab-whatsapp {
-  position: fixed;
-  left: 20px;
-  bottom: 20px;
-  z-index: 9999;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background-color: #25D366;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease;
-  text-decoration: none;
-
-  &:hover {
-    color: white;
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  }
-
-  &:focus-visible {
-    outline: 2px solid #25D366;
-    outline-offset: 3px;
-  }
-}

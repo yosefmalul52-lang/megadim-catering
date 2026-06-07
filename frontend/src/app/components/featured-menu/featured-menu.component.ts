@@ -1,144 +1,174 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { CartService } from '../../services/cart.service';
 import { MenuService, MenuItem } from '../../services/menu.service';
+import { QuantitySelectorComponent } from '../shared/quantity-selector/quantity-selector.component';
 
 interface Category {
   id: string;
   name: string;
-  image: string; // Path to icon/image
-  filterValue: string; // The value to filter by on the Shabbat page
+  image: string;
 }
 
 @Component({
   selector: 'app-featured-menu',
   standalone: true,
-  imports: [CommonModule, NgOptimizedImage, RouterModule, MatButtonModule, MatIconModule, MatSnackBarModule],
+  imports: [
+    CommonModule,
+    RouterModule,
+    MatIconModule,
+    MatSnackBarModule,
+    QuantitySelectorComponent,
+  ],
   templateUrl: './featured-menu.component.html',
-  styleUrls: ['./featured-menu.component.scss']
+  styleUrls: ['./featured-menu.component.scss'],
 })
 export class FeaturedMenuComponent implements OnInit {
-  // Categories aligned with 'Ready for Shabbat' sections
-  categories: Category[] = [
-    { id: 'salads', name: 'סלטים', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png', filterValue: 'salads' },
-    { id: 'fish', name: 'דגים', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906619/IMG_9719_mmhoct.jpg', filterValue: 'fish' },
-    { id: 'main', name: 'מנות עיקריות', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906616/IMG_9691_vlsp6w.jpg', filterValue: 'main' },
-    { id: 'sides', name: 'תוספות', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906623/IMG_9705_voigt1.jpg', filterValue: 'sides' },
-    { id: 'desserts', name: 'ממולאים', image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768169598/magadim-catering/zvaljwkf37merstx1wmx.jpg', filterValue: 'desserts' }
+  private readonly cartService = inject(CartService);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly menuService = inject(MenuService);
+
+  @ViewChild('categoryTrack') categoryTrack?: ElementRef<HTMLElement>;
+
+  readonly categories: Category[] = [
+    {
+      id: 'salads',
+      name: 'סלטים',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
+    },
+    {
+      id: 'fish',
+      name: 'דגים',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906619/IMG_9719_mmhoct.jpg',
+    },
+    {
+      id: 'main',
+      name: 'מנות עיקריות',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906616/IMG_9691_vlsp6w.jpg',
+    },
+    {
+      id: 'sides',
+      name: 'תוספות',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906623/IMG_9705_voigt1.jpg',
+    },
+    {
+      id: 'stuffed',
+      name: 'ממולאים',
+      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768169598/magadim-catering/zvaljwkf37merstx1wmx.jpg',
+    },
   ];
 
-  // Featured products from Main Courses category (Dynamic Data)
-  featuredMainCourses: MenuItem[] = [];
+  displayedProducts: MenuItem[] = [];
   isLoading = false;
-  visibleProductsCount = 6; // default for desktop/tablet
-
-  constructor(
-    private cartService: CartService,
-    private router: Router,
-    private snackBar: MatSnackBar,
-    private menuService: MenuService
-  ) {}
+  private readonly itemQuantities: Record<string, number> = {};
 
   ngOnInit(): void {
-    this.setVisibleProductsCount();
-    this.loadFeaturedMainCourses();
+    this.loadFeaturedProducts();
   }
 
-  private setVisibleProductsCount(): void {
-    if (typeof window === 'undefined') {
-      this.visibleProductsCount = 6;
-      return;
-    }
-    const width = window.innerWidth || 0;
-    this.visibleProductsCount = width < 768 ? 4 : 6;
+  getCategoryRoute(category: Category): string[] {
+    return ['/ready-for-shabbat', category.id];
   }
 
-  private loadFeaturedMainCourses(): void {
+  scrollCategories(direction: -1 | 1): void {
+    const el = this.categoryTrack?.nativeElement;
+    if (!el) return;
+    el.scrollBy({ left: direction * 220, behavior: 'smooth' });
+  }
+
+  private loadFeaturedProducts(): void {
     this.isLoading = true;
-    this.menuService.getMenuItems().subscribe({
-      next: (items: MenuItem[]) => {
-        // Filter only items where isFeatured === true
-        const featuredItems = items.filter(item => item.isFeatured === true);
-        
-        // Keep full featured list; actual count is controlled by visibleProductsCount in template
-        this.featuredMainCourses = featuredItems;
+    this.menuService.getFeaturedItems().subscribe({
+      next: (items) => {
+        this.displayedProducts = items;
         this.isLoading = false;
       },
-      error: (error) => {
-        console.error('Error loading featured main courses:', error);
+      error: () => {
+        this.displayedProducts = [];
         this.isLoading = false;
-        // Fallback to empty array on error
-        this.featuredMainCourses = [];
-      }
+      },
     });
   }
 
+  isAvailable(item: MenuItem): boolean {
+    return item.isAvailable !== false;
+  }
+
+  getQuantity(item: MenuItem): number {
+    const id = this.getItemId(item);
+    return this.itemQuantities[id] ?? 1;
+  }
+
+  setQuantity(item: MenuItem, qty: number): void {
+    const id = this.getItemId(item);
+    if (!id) return;
+    this.itemQuantities[id] = Math.max(1, qty);
+  }
+
+  getServingHint(item: MenuItem): string | null {
+    return item.servingSize?.trim() || null;
+  }
+
+  getPriceLabel(item: MenuItem): string {
+    const price = this.getUnitPrice(item);
+    return price > 0 ? `₪${price}` : '';
+  }
+
+  private getUnitPrice(item: MenuItem): number {
+    if (item.pricingOptions?.length) {
+      return item.pricingOptions[0].price;
+    }
+    if (item.pricingVariants?.length) {
+      return item.pricingVariants[0].price;
+    }
+    if (item.price != null && item.price > 0) {
+      return item.price;
+    }
+    if (item.pricePer100g != null && item.pricePer100g > 0) {
+      return item.pricePer100g;
+    }
+    return 0;
+  }
+
   addToCart(item: MenuItem): void {
-    // Get price using helper method
-    const price = this.getPrice(item);
-    
+    if (!this.isAvailable(item)) return;
+
+    const itemId = this.getItemId(item);
+    const quantity = this.getQuantity(item);
+    const price = this.getUnitPrice(item);
+    const name = item.name;
+
     if (price <= 0) {
-      console.error(`Cannot add ${item.name} to cart: no price available`);
-      this.snackBar.open('לא ניתן להוסיף את הפריט לסל - אין מחיר זמין', 'סגור', {
+      this.snackBar.open('לא ניתן להוסיף את הפריט לסל — אין מחיר זמין', 'סגור', {
         duration: 3000,
         direction: 'rtl',
-        panelClass: ['error-snackbar']
       });
       return;
     }
 
-    // Convert MenuItem to CartItem format
-    this.cartService.addItem({
-      id: item.id || item._id || '',
-      name: item.name,
-      price: price,
-      imageUrl: item.imageUrl,
-      description: item.description,
-      category: item.category
-    });
+    this.cartService.addToCart(
+      {
+        id: itemId,
+        name,
+        price,
+        imageUrl: item.imageUrl,
+        description: item.description,
+        category: item.category,
+      },
+      quantity
+    );
+    this.cartService.openCart();
 
-    // Feedback
     this.snackBar.open(`${item.name} התווסף להזמנה בהצלחה!`, 'סגור', {
-      duration: 3000,
+      duration: 2500,
       direction: 'rtl',
-      panelClass: ['success-snackbar']
     });
-  }
-
-  getPrice(item: MenuItem): number {
-    // Priority 1: pricingOptions (first option price)
-    if (item.pricingOptions && item.pricingOptions.length > 0) {
-      return item.pricingOptions[0].price;
-    }
-    
-    // Priority 2: pricingVariants (first variant price)
-    if (item.pricingVariants && item.pricingVariants.length > 0) {
-      return item.pricingVariants[0].price;
-    }
-    
-    // Priority 3: single price
-    if (item.price !== undefined && item.price !== null) {
-      return item.price;
-    }
-    
-    // Priority 4: pricePer100g (calculate approximate price for 400g)
-    if (item.pricePer100g !== undefined && item.pricePer100g !== null) {
-      return item.pricePer100g * 4; // Approximate price for 400g serving
-    }
-    
-    return 0;
   }
 
   getItemId(item: MenuItem): string {
     return (item.id || item._id || '').toString();
-  }
-
-  navigateToCategory(category: Category): void {
-    // Navigates to the category detail page
-    this.router.navigate(['/ready-for-shabbat', category.id]);
   }
 }

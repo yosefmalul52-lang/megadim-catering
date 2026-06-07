@@ -581,6 +581,37 @@ export class MenuService {
       .slice(0, limit);
   }
 
+  /** Items marked "הצג במומלצים בדף הבית" in admin dashboard */
+  getFeaturedItems(): Observable<MenuItem[]> {
+    return this.http
+      .get<{ success: boolean; data: MenuItem[] }>(`${environment.apiUrl}/menu/featured`)
+      .pipe(
+        map((response) => this.processFeaturedItems(response?.data ?? [])),
+        catchError((error) => {
+          console.error('Failed to load featured menu items:', error);
+          return of([]);
+        })
+      );
+  }
+
+  private filterFeaturedItems(items: MenuItem[]): MenuItem[] {
+    return items
+      .filter((item) => item.isFeatured === true && item.isAvailable !== false)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  private processFeaturedItems(items: MenuItem[]): MenuItem[] {
+    return this.filterFeaturedItems(
+      items
+        .map((item) => ({
+          ...item,
+          id: item._id || item.id || '',
+          imageUrl: this.sanitizeImageUrl(item.imageUrl),
+        }))
+        .filter((item) => item.id)
+    );
+  }
+
   searchItems(query: string): MenuItem[] {
     const searchTerm = query.toLowerCase();
     return this.menuItemsSubject.value.filter(item =>

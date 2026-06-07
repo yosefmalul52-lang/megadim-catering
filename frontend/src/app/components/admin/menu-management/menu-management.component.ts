@@ -91,6 +91,7 @@ const DEFAULT_CATEGORIES = [
                       <h3 class="item-name">{{ item.name }}</h3>
                       <div class="item-badges">
                         <span *ngIf="item.isPopular" class="badge badge-popular">⭐ מומלץ</span>
+                        <span *ngIf="item.isFeatured === true" class="badge badge-featured">דף הבית</span>
                         <span *ngIf="item.isAvailable === false" class="badge badge-unavailable">לא זמין</span>
                       </div>
                     </div>
@@ -143,6 +144,17 @@ const DEFAULT_CATEGORIES = [
                           >
                           <span class="toggle-slider"></span>
                           <span class="toggle-label" [class.active]="item.isPopular === true">{{ item.isPopular ? 'מוצג' : 'מוסתר' }}</span>
+                        </label>
+
+                        <label class="toggle-switch" [title]="item.isFeatured === true ? 'מוצג בדף הבית - לחץ להסרה' : 'לא מוצג בדף הבית - לחץ להוספה'">
+                          <input 
+                            type="checkbox" 
+                            [checked]="item.isFeatured === true"
+                            (change)="toggleStatus(item, 'isFeatured', $event)"
+                            [attr.aria-label]="'הצגה בדף הבית עבור ' + item.name"
+                          >
+                          <span class="toggle-slider"></span>
+                          <span class="toggle-label" [class.active]="item.isFeatured === true">דף הבית</span>
                         </label>
                       </div>
                     </div>
@@ -691,6 +703,11 @@ const DEFAULT_CATEGORIES = [
     .badge-unavailable {
       background: #f8f9fa;
       color: #6c757d;
+    }
+
+    .badge-featured {
+      background: rgba(224, 192, 117, 0.2);
+      color: #8a6d2b;
     }
 
     .item-description {
@@ -1971,7 +1988,7 @@ export class MenuManagementComponent implements OnInit {
       tags: item.tags?.join(', ') || '',
       isAvailable: item.isAvailable !== false,
       isPopular: item.isPopular === true,
-      isFeatured: Boolean(item.isFeatured) // Explicitly convert to boolean
+      isFeatured: item.isFeatured === true
     });
     
     // Load recipe ingredients if they exist
@@ -2247,7 +2264,7 @@ export class MenuManagementComponent implements OnInit {
     }
   }
 
-  toggleStatus(item: MenuItem, field: 'isAvailable' | 'isPopular', event: Event): void {
+  toggleStatus(item: MenuItem, field: 'isAvailable' | 'isPopular' | 'isFeatured', event: Event): void {
     const checkbox = event.target as HTMLInputElement;
     const newValue = checkbox.checked;
     const itemId = item.id || item._id || '';
@@ -2287,7 +2304,8 @@ export class MenuManagementComponent implements OnInit {
     }
     
     // Show field name in Hebrew
-    const fieldName = field === 'isAvailable' ? 'מלאי' : 'מומלץ';
+    const fieldName =
+      field === 'isAvailable' ? 'מלאי' : field === 'isFeatured' ? 'דף הבית' : 'מומלץ';
     const statusText = newValue ? 'מופעל' : 'כבוי';
     
     // Call API to update in database

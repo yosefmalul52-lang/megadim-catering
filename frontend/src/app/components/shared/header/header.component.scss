@@ -10,6 +10,10 @@ $white: #FFFFFF;
   padding: 0 !important;
   border: none !important;
   box-shadow: none !important;
+  position: relative;
+  z-index: 3;
+  font-size: 1rem;
+  line-height: normal;
 }
 
 .main-header {
@@ -130,20 +134,51 @@ $white: #FFFFFF;
     }
   }
   
-  // Left Side: Separator + User Actions
+  // Left Side: Kosher stamp + Separator + User Actions
   .left-section {
     display: flex;
     align-items: center;
-    gap: 25px;
+    gap: 20px;
     overflow: visible;
     border: none !important;
     border-left: none !important;
     border-right: none !important;
+
+    .kosher-logo-link {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      text-decoration: none;
+      line-height: 0;
+      opacity: 0.95;
+      transition: opacity 0.2s ease;
+
+      &:hover {
+        opacity: 1;
+      }
+
+      @media (max-width: 960px) {
+        display: none;
+      }
+    }
+
+    .kosher-stamp-logo {
+      display: block;
+      height: 54px;
+      width: auto;
+      max-width: 200px;
+      object-fit: contain;
+    }
     
     .separator {
       height: 40px;
       width: 1px;
       background-color: #ddd;
+      flex-shrink: 0;
+
+      @media (max-width: 960px) {
+        display: none;
+      }
     }
     
     .user-actions {
@@ -429,6 +464,8 @@ $white: #FFFFFF;
 
 // Row 3: Nav
 .nav-bar {
+  position: relative;
+  z-index: 5;
   background-color: $navy;
   min-height: 50px;
   display: flex;
@@ -436,8 +473,8 @@ $white: #FFFFFF;
   justify-content: center;
   padding: 0 1rem;
   margin-bottom: 0 !important;
-  border-bottom: none !important;
-  box-shadow: none !important; // Remove any shadow that might create a visible line
+  border-bottom: 2px solid $gold !important;
+  box-shadow: none !important;
 
   .desktop-nav {
     display: flex;

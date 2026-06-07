@@ -11,11 +11,12 @@ import { SiteSettingsService, SiteSettings } from '../../../../services/site-set
 import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
+import { WhatsappCtaComponent } from '../../../shared/whatsapp-cta/whatsapp-cta.component';
 
 @Component({
   selector: 'app-salads',
   standalone: true,
-  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent, WhatsappCtaComponent],
   template: `
     <div class="salads-page">
       <app-page-banner [message]="settings?.pageAnnouncements?.['salads']?.bannerText"></app-page-banner>
@@ -139,10 +140,12 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         </div>
       </div>
     </div>
+
+    <app-whatsapp-cta variant="sticky" ctaLocation="menu_sticky"></app-whatsapp-cta>
   `,
   styles: [`
     .salads-page {
-      padding: 2rem 0;
+      padding: 2rem 0 calc(5rem + env(safe-area-inset-bottom));
       min-height: 70vh;
       background-color: white;
     }

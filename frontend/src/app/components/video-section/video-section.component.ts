@@ -1,7 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -18,13 +17,15 @@ export interface UnifiedMediaItem {
   mediaUrl: string;
   type: 'video' | 'image';
   order: number;
-  sourceItem: Video | GalleryItem;
+  sourceItem: Video | GalleryItem | null;
 }
+
+const GENERIC_TITLES = new Set(['אירוע מגדים', 'megadim event']);
 
 @Component({
   selector: 'app-video-section',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatIconModule],
   templateUrl: './video-section.component.html',
   styleUrls: ['./video-section.component.scss']
 })
@@ -32,6 +33,101 @@ export class VideoSectionComponent implements OnInit {
   private videoService = inject(VideoService);
   private galleryService = inject(GalleryService);
   private dialog = inject(MatDialog);
+
+  private readonly minDisplayCount = 10;
+
+  private readonly showcaseFillers: UnifiedMediaItem[] = [
+    {
+      id: 'showcase-1',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg',
+      type: 'image',
+      order: 100,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-2',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg',
+      type: 'image',
+      order: 101,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-3',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg',
+      type: 'image',
+      order: 102,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-4',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768906619/IMG_9719_mmhoct.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768906619/IMG_9719_mmhoct.jpg',
+      type: 'image',
+      order: 103,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-5',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768906616/IMG_9691_vlsp6w.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768906616/IMG_9691_vlsp6w.jpg',
+      type: 'image',
+      order: 104,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-6',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768906623/IMG_9705_voigt1.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768906623/IMG_9705_voigt1.jpg',
+      type: 'image',
+      order: 105,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-7',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768906621/IMG_9702_f9k2xj.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768906621/IMG_9702_f9k2xj.jpg',
+      type: 'image',
+      order: 106,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-8',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768906613/IMG_9721_rrsv3d.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768906613/IMG_9721_rrsv3d.jpg',
+      type: 'image',
+      order: 107,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-9',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768914768/IMG_9679_ad0nxy.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768914768/IMG_9679_ad0nxy.jpg',
+      type: 'image',
+      order: 108,
+      sourceItem: null,
+    },
+    {
+      id: 'showcase-10',
+      title: '',
+      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_900/v1768906611/IMG_9750_v7mval.jpg',
+      mediaUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1768906611/IMG_9750_v7mval.jpg',
+      type: 'image',
+      order: 109,
+      sourceItem: null,
+    },
+  ];
 
   mediaItems: UnifiedMediaItem[] = [];
   isLoading = false;
@@ -47,18 +143,47 @@ export class VideoSectionComponent implements OnInit {
       videos: this.videoService.getVideos(true).pipe(catchError(() => of([] as Video[]))),
       galleryImages: this.galleryService
         .getGalleryItems('image', true)
-        .pipe(catchError(() => of([] as GalleryItem[])))
+        .pipe(catchError(() => of([] as GalleryItem[]))),
     }).subscribe({
       next: ({ videos, galleryImages }) => {
-        this.mediaItems = this.mergeAndSortMedia(videos, galleryImages);
+        this.mediaItems = this.buildDisplayItems(videos, galleryImages);
         this.isLoading = false;
       },
       error: (error) => {
         console.error('Error loading media items:', error);
-        this.mediaItems = [];
+        this.mediaItems = this.buildDisplayItems([], []);
         this.isLoading = false;
-      }
+      },
     });
+  }
+
+  private buildDisplayItems(videos: Video[], galleryImages: GalleryItem[]): UnifiedMediaItem[] {
+    const fromApi = this.mergeAndSortMedia(videos, galleryImages);
+    const padded = this.padWithShowcase(fromApi).map((item) => ({
+      ...item,
+      title: this.sanitizeTitle(item.title),
+    }));
+    return this.arrangeForGalleryLayout(padded);
+  }
+
+  private arrangeForGalleryLayout(items: UnifiedMediaItem[]): UnifiedMediaItem[] {
+    if (items.length < 10) return items;
+
+    const videos = items.filter((item) => item.type === 'video');
+    const largePrimary = videos[0] ?? items[0];
+    const largeSecondary =
+      videos[1] ??
+      items.find((item) => item.id !== largePrimary.id) ??
+      largePrimary;
+    const used = new Set([largePrimary.id, largeSecondary.id]);
+    const smallSlots = items.filter((item) => !used.has(item.id)).slice(0, 8);
+
+    return [
+      largePrimary,
+      ...smallSlots.slice(0, 4),
+      largeSecondary,
+      ...smallSlots.slice(4, 8),
+    ];
   }
 
   private mergeAndSortMedia(videos: Video[], galleryImages: GalleryItem[]): UnifiedMediaItem[] {
@@ -67,6 +192,27 @@ export class VideoSectionComponent implements OnInit {
       galleryImages.filter((g) => g.type === 'image' && !!g.url?.trim())
     ).map((g) => this.mapGalleryToUnified(g));
     return [...videoItems, ...imageItems];
+  }
+
+  private padWithShowcase(items: UnifiedMediaItem[]): UnifiedMediaItem[] {
+    const usedUrls = new Set(items.map((i) => i.imageUrl));
+    const result = [...items];
+
+    for (const filler of this.showcaseFillers) {
+      if (result.length >= this.minDisplayCount) break;
+      if (usedUrls.has(filler.imageUrl)) continue;
+      usedUrls.add(filler.imageUrl);
+      result.push({ ...filler, id: `${filler.id}-${result.length}` });
+    }
+
+    return result.slice(0, this.minDisplayCount);
+  }
+
+  private sanitizeTitle(title: string): string {
+    const trimmed = title?.trim() ?? '';
+    if (!trimmed) return '';
+    if (GENERIC_TITLES.has(trimmed.toLowerCase())) return '';
+    return trimmed;
   }
 
   private sortByOrder<T extends { order?: number }>(items: T[]): T[] {
@@ -82,7 +228,7 @@ export class VideoSectionComponent implements OnInit {
       mediaUrl: video.videoUrl || video.youtubeUrl || '',
       type: 'video',
       order: video.order ?? 0,
-      sourceItem: video
+      sourceItem: video,
     };
   }
 
@@ -95,16 +241,16 @@ export class VideoSectionComponent implements OnInit {
       mediaUrl: item.url,
       type: 'image',
       order: item.order ?? 0,
-      sourceItem: item
+      sourceItem: item,
     };
   }
 
   onMediaClick(item: UnifiedMediaItem): void {
-    if (item.type === 'video') {
+    if (item.type === 'video' && item.sourceItem) {
       this.openVideoModal(item.sourceItem as Video);
-    } else {
-      this.openImageLightbox(item);
+      return;
     }
+    this.openImageLightbox(item);
   }
 
   private openVideoModal(video: Video): void {
@@ -113,28 +259,39 @@ export class VideoSectionComponent implements OnInit {
       width: '90%',
       maxWidth: '900px',
       data: {
-        title: video.title,
+        title: this.sanitizeTitle(video.title || ''),
         source,
         videoId: video.videoId,
-        videoUrl: video.videoUrl
-      }
+        videoUrl: video.videoUrl,
+      },
     });
   }
 
   private openImageLightbox(item: UnifiedMediaItem): void {
+    const title = this.sanitizeTitle(item.title);
     this.dialog.open(ImageLightboxModalComponent, {
       width: '90%',
       maxWidth: '1000px',
       data: {
-        title: item.title || undefined,
-        imageUrl: item.imageUrl
+        title: title || undefined,
+        imageUrl: item.imageUrl,
       },
-      panelClass: 'image-lightbox-panel'
+      panelClass: 'image-lightbox-panel',
     });
   }
 
   trackByMediaId(_index: number, item: UnifiedMediaItem): string {
     return item.id;
+  }
+
+  getTypeLabel(item: UnifiedMediaItem): string {
+    return item.type === 'video' ? 'סרטון' : 'תמונה';
+  }
+
+  getAriaLabel(item: UnifiedMediaItem): string {
+    const kind = item.type === 'video' ? 'הפעלת סרטון' : 'הגדלת תמונה';
+    const title = this.sanitizeTitle(item.title);
+    return title ? `${kind}: ${title}` : kind;
   }
 
   onImageError(event: Event): void {

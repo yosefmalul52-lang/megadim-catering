@@ -76,7 +76,7 @@ export class MenuController {
           tags: ['דג', 'בריא'],
           isAvailable: true,
           isPopular: true,
-          isFeatured: true
+          isFeatured: false
         },
         {
           name: 'נסיכת הנילוס',
@@ -122,7 +122,7 @@ export class MenuController {
           tags: ['עוף', 'מסורתי'],
           isAvailable: true,
           isPopular: true,
-          isFeatured: true
+          isFeatured: false
         },
         {
           name: 'אסאדו בבישול ארוך',
@@ -133,7 +133,7 @@ export class MenuController {
           tags: ['בשרי', 'מיוחד'],
           isAvailable: true,
           isPopular: true,
-          isFeatured: true
+          isFeatured: false
         },
         {
           name: 'שניצל ביתי',
@@ -428,6 +428,22 @@ export class MenuController {
       success: true,
       data: popularItems,
       count: popularItems.length,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // Homepage featured items (admin: "הצג במומלצים בדף הבית")
+  getFeaturedMenuItems = asyncHandler(async (req: Request, res: Response) => {
+    const featuredItems = await MenuItem.find({
+      isFeatured: { $eq: true },
+      isAvailable: { $ne: false },
+      category: { $ne: ARCHIVED_HOLIDAY_CATEGORY }
+    }).sort({ order: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: featuredItems,
+      count: featuredItems.length,
       timestamp: new Date().toISOString()
     });
   });

@@ -23,6 +23,15 @@ if (fs.existsSync(backendEnvPath)) {
   }
 }
 
+// Silence non-error console output in production (keep console.error)
+if (process.env.NODE_ENV === 'production') {
+  const noop = (): void => undefined;
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.warn = noop;
+}
+
 // Aggressively normalize GOOGLE_MAPS_API_KEY to avoid hidden characters / quotes / spaces
 if (typeof process.env.GOOGLE_MAPS_API_KEY === 'string') {
   process.env.GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY.replace(/['" ]/g, '').trim();

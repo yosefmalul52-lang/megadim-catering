@@ -3,13 +3,6 @@ import { isPlatformBrowser } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 
-declare global {
-  interface Window {
-    fbq?: (...args: unknown[]) => void;
-    _fbq?: unknown;
-  }
-}
-
 const PIXEL_ID = '554257163533711';
 
 /**

@@ -11,13 +11,13 @@ import { SearchBarComponent } from './components/shared/search-bar/search-bar.co
 import { CartModalComponent } from './components/shared/cart-modal/cart-modal.component';
 import { FooterComponent } from './components/shared/footer/footer.component';
 import { ToastComponent } from './components/shared/toast/toast.component';
+import { WhatsappCtaComponent } from './components/shared/whatsapp-cta/whatsapp-cta.component';
 
 import { LanguageService } from './services/language.service';
 import { MarketingService } from './services/marketing.service';
 import { AnalyticsService } from './services/analytics.service';
 import { MetaPixelService } from './services/meta-pixel.service';
 import { MAIN_NAV_LINKS } from './nav-links';
-import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
 
 @Component({
   selector: 'app-root',
@@ -33,7 +33,8 @@ import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
     SearchBarComponent,
     CartModalComponent,
     FooterComponent,
-    ToastComponent
+    ToastComponent,
+    WhatsappCtaComponent
   ],
   template: `
     <div class="app-container" [dir]="textDir">
@@ -45,18 +46,14 @@ import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
       </mat-sidenav>
       
       <!-- Header (hidden only on admin / time-clock / employee / my-zone) -->
-      <app-header *ngIf="!isLoginOrAdminPage" [sidenav]="sidenav"></app-header>
-      
-      <!-- Search Bar -->
-      <app-search-bar *ngIf="!isLoginOrAdminPage"></app-search-bar>
-      
-      <!-- Main Content (full-screen class only when header/footer hidden) -->
-      <main class="main-content" [class.full-screen]="isLoginOrAdminPage">
+      <app-header *ngIf="!isLoginOrAdminPage" [sidenav]="sidenav"></app-header><!--
+      --><main class="main-content" [class.full-screen]="isLoginOrAdminPage">
         <router-outlet></router-outlet>
-      </main>
-      
-      <!-- Footer (hidden only on admin / time-clock / employee / my-zone) -->
-      <app-footer *ngIf="!isLoginOrAdminPage"></app-footer>
+      </main><!--
+      --><app-footer *ngIf="!isLoginOrAdminPage"></app-footer>
+
+      <!-- Search overlay (fixed; placed after layout flow to avoid header/content gap) -->
+      <app-search-bar *ngIf="!isLoginOrAdminPage"></app-search-bar>
       
       <!-- Cart Modal -->
       <app-cart-modal *ngIf="!isLoginOrAdminPage"></app-cart-modal>
@@ -78,17 +75,11 @@ import { CONTACT_WHATSAPP_HREF } from './constants/contact.constants';
       </div>
     </div>
 
-    <!-- Floating WhatsApp Button (bottom-left so it doesn't overlap accessibility on the right) -->
-    <a
+    <app-whatsapp-cta
       *ngIf="!isLoginOrAdminPage"
-      [href]="whatsappHref"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="fab-whatsapp"
-      aria-label="צרו קשר בוואטסאפ"
-    >
-      <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
-    </a>
+      variant="fab"
+      ctaLocation="global_fab"
+    ></app-whatsapp-cta>
     </div>
   `,
   styleUrls: ['./app.component.scss']
@@ -99,8 +90,6 @@ export class AppComponent implements OnInit {
   private platformId = inject(PLATFORM_ID);
   private analyticsService = inject(AnalyticsService);
   private metaPixelService = inject(MetaPixelService);
-
-  readonly whatsappHref = CONTACT_WHATSAPP_HREF;
 
   // Content direction property (NOT document direction)
   textDir: 'rtl' | 'ltr' = 'rtl';

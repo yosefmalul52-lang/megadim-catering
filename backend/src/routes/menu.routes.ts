@@ -18,6 +18,7 @@ const menuController = new MenuController();
 // Public routes
 router.get('/', menuController.getAllMenuItems);
 router.get('/popular', menuController.getPopularMenuItems);
+router.get('/featured', menuController.getFeaturedMenuItems);
 router.get('/categories', menuController.getMenuCategories);
 router.get('/category/:category', menuController.getMenuItemsByCategory);
 router.get('/stats', menuController.getMenuStatistics);

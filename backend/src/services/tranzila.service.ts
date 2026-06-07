@@ -65,23 +65,21 @@ function generateTranzilaHeaders(appKey: string, appSecret: string): Record<stri
 
   const signature = signatureHex;
 
-  // ── Debug: inspect signing inputs in Render logs ──────────────────────────
-  const peekKey    = cleanKey.length > 4
-    ? `${cleanKey.slice(0, 2)}...${cleanKey.slice(-2)}`
-    : '(too short)';
-  const peekSecret = cleanSecret.length > 4
-    ? `${cleanSecret.slice(0, 2)}...${cleanSecret.slice(-2)}`
-    : '(too short)';
-  console.log(`[tranzila:auth] app_key   : '${peekKey}' (length ${cleanKey.length})`);
-  console.log(`[tranzila:auth] app_secret: '${peekSecret}' (length ${cleanSecret.length})`);
-  console.log('[tranzila:auth] nonce        :', nonce);
-  console.log('[tranzila:auth] time         :', requestTime);
-  console.log('[tranzila:auth] hmacKey len  :', hmacKey.length);
-  console.log('[tranzila:auth] dataToSign   :', dataToSign);
-  console.log('[tranzila:auth] sig (hex)    :', signatureHex);
-  console.log('[tranzila:auth] sig (base64) :', signatureBase64);
-  console.log('[tranzila:auth] SENDING      :', signature, '← hex');
-  // ─────────────────────────────────────────────────────────────────────────
+  if (process.env.NODE_ENV !== 'production') {
+    const peekKey =
+      cleanKey.length > 4 ? `${cleanKey.slice(0, 2)}...${cleanKey.slice(-2)}` : '(too short)';
+    const peekSecret =
+      cleanSecret.length > 4 ? `${cleanSecret.slice(0, 2)}...${cleanSecret.slice(-2)}` : '(too short)';
+    console.log(`[tranzila:auth] app_key   : '${peekKey}' (length ${cleanKey.length})`);
+    console.log(`[tranzila:auth] app_secret: '${peekSecret}' (length ${cleanSecret.length})`);
+    console.log('[tranzila:auth] nonce        :', nonce);
+    console.log('[tranzila:auth] time         :', requestTime);
+    console.log('[tranzila:auth] hmacKey len  :', hmacKey.length);
+    console.log('[tranzila:auth] dataToSign   :', dataToSign);
+    console.log('[tranzila:auth] sig (hex)    :', signatureHex);
+    console.log('[tranzila:auth] sig (base64) :', signatureBase64);
+    console.log('[tranzila:auth] SENDING      :', signature, '← hex');
+  }
 
   return {
     'X-tranzila-api-app-key':      cleanKey,

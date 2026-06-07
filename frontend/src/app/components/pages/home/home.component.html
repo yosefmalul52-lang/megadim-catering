@@ -1,0 +1,165 @@
+<div class="home-page">
+  <!-- Hero -->
+  <section class="hero" aria-label="ברוכים הבאים לקייטרינג מגדים">
+    <div class="hero__media">
+      <img
+        ngSrc="v1768222488/hero1_ime6hz.png"
+        alt="קייטרינג בשרי כשר למהדרין לאירועים – שולחן ערוך ומנות בשר פרימיום | קייטרינג מגדים"
+        width="1920"
+        height="1080"
+        priority
+        sizes="100vw"
+      />
+    </div>
+    <div class="hero__scrim" aria-hidden="true"></div>
+
+    <div class="hero__inner">
+      <h1 class="hero__title" [attr.aria-label]="heroTitleFull">
+        <span class="hero__title-text">{{ heroTitleDisplayed }}</span><span
+          class="hero__title-cursor"
+          [class.hero__title-cursor--hidden]="heroTitleComplete"
+          aria-hidden="true"
+        ></span>
+      </h1>
+      <p class="hero__lead">
+        מגדים — קייטרינג בוטיק כשר למהדרין, עם טעמים ביתיים שמרגישים מוכרים מהרגע הראשון
+        ומוגשים ברמה שלא מתפשרת על טריות ואיכות.
+      </p>
+      <div class="hero__cta-block">
+        <a class="hero__cta-ghost" routerLink="/ready-for-shabbat">
+          לצפייה בתפריט המלא לחצו
+          <span class="hero__cta-arrows" aria-hidden="true">&raquo;</span>
+        </a>
+        <p class="hero__kosher">
+          <mat-icon aria-hidden="true">verified</mat-icon>
+          כשר למהדרין
+        </p>
+      </div>
+    </div>
+
+    <div class="hero__zigzag" aria-hidden="true">
+      <svg viewBox="0 0 1200 36" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon fill="#e0c075" points="0,36 60,0 120,36 180,0 240,36 300,0 360,36 420,0 480,36 540,0 600,36 660,0 720,36 780,0 840,36 900,0 960,36 1020,0 1080,36 1140,0 1200,36 1200,36 0,36"/>
+        <polygon fill="#1f3540" points="30,36 90,0 150,36 210,0 270,36 330,0 390,36 450,0 510,36 570,0 630,36 690,0 750,36 810,0 870,36 930,0 990,36 1050,0 1110,36 1170,0 1200,18 1200,36 0,36"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Category cards (reference layout) -->
+  <section class="categories" aria-labelledby="categories-heading">
+    <h2 id="categories-heading" class="categories__question">איזה שירות מתאים לכם היום?</h2>
+
+    <div class="categories__grid">
+      @for (card of serviceCards; track card.route) {
+        <a class="category-card" [routerLink]="card.route">
+          <img
+            [ngSrc]="card.image"
+            [alt]="card.alt"
+            width="600"
+            height="800"
+            class="category-card__img"
+            [style.object-position]="card.imagePosition"
+          />
+          <div class="category-card__overlay" aria-hidden="true"></div>
+          <div class="category-card__text">
+            <span class="category-card__line-white">{{ card.lineWhite }}</span>
+            <span class="category-card__line-gold">{{ card.lineGold }}</span>
+          </div>
+        </a>
+      }
+    </div>
+  </section>
+
+  <app-featured-menu></app-featured-menu>
+
+  <app-about></app-about>
+
+  <app-video-section></app-video-section>
+
+  <!-- Testimonials -->
+  <section class="reviews" aria-labelledby="reviews-heading">
+    <div class="reviews__spotlight" aria-live="polite">
+      <div class="reviews__spotlight-inner">
+        <div class="reviews__title-wrap" #reviewsTitleWrap>
+          <h2 id="reviews-heading" class="reviews__spotlight-title">לקוחות מספרים על מגדים</h2>
+          <span
+            class="reviews__title-accent"
+            [class.reviews__title-accent--visible]="reviewsAccentVisible"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 140 10" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+              <path
+                class="reviews__title-accent-path"
+                pathLength="1"
+                d="M2,6 C16,1 30,9 44,5 S72,1 86,6 S108,9 122,4 S134,2 138,6"
+              />
+            </svg>
+          </span>
+        </div>
+
+        <div class="reviews__spotlight-text-wrap">
+          @for (review of testimonials; track review.name; let i = $index) {
+            <p
+              class="reviews__spotlight-text"
+              [class.reviews__spotlight-text--active]="i === featuredReviewIndex"
+              [attr.aria-hidden]="i !== featuredReviewIndex"
+            >
+              "{{ review.text }}"
+            </p>
+          }
+        </div>
+
+        <div class="reviews__dots" role="tablist" aria-label="בחירת המלצה">
+          @for (review of testimonials; track review.name; let i = $index) {
+            <button
+              type="button"
+              class="reviews__dot"
+              role="tab"
+              [class.reviews__dot--active]="i === featuredReviewIndex"
+              [attr.aria-selected]="i === featuredReviewIndex"
+              [attr.aria-label]="'המלצה ' + (i + 1) + ' מתוך ' + testimonials.length"
+              (click)="setFeaturedReview(i)"
+            ></button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-cta" aria-label="הזמנה">
+    <div class="home-cta__inner">
+      <h2 class="home-cta__title">שבת נעימה מתחילה כאן</h2>
+      <p class="home-cta__text">
+        מזמינים ממגדים — ואנחנו מביאים אליכם הביתה אוכל טרי, ביתי וכשר למהדרין.
+        מתאים לשבתות קבועות, לחגים ולאירועים משפחתיים.
+      </p>
+      <ul class="home-cta__perks" aria-label="יתרונות ההזמנה">
+        <li class="home-cta__perk">
+          <mat-icon aria-hidden="true">home</mat-icon>
+          משלוח עד הבית
+        </li>
+        <li class="home-cta__perk">
+          <mat-icon aria-hidden="true">restaurant</mat-icon>
+          מנות מוכנות לשבת וחג
+        </li>
+        <li class="home-cta__perk">
+          <mat-icon aria-hidden="true">verified</mat-icon>
+          כשר למהדרין
+        </li>
+      </ul>
+      <div class="home-cta__actions">
+        <a class="btn btn--gold" routerLink="/ready-for-shabbat">לתפריט השבת</a>
+        <a class="btn btn--outline" routerLink="/contact">דברו איתנו</a>
+      </div>
+    </div>
+  </section>
+
+  <app-page-popup
+    [show]="showPopup"
+    [title]="(settings?.pageAnnouncements?.['home']?.popupTitle) ?? ''"
+    [text]="(settings?.pageAnnouncements?.['home']?.popupText) ?? ''"
+    [linkText]="(settings?.pageAnnouncements?.['home']?.popupLinkText) ?? ''"
+    [linkUrl]="(settings?.pageAnnouncements?.['home']?.popupLinkUrl) ?? ''"
+    (close)="closePopup()"
+  ></app-page-popup>
+</div>

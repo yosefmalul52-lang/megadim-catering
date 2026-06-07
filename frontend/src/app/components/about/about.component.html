@@ -1,51 +1,56 @@
-<section class="our-story-section">
-  <!-- Top SVG Wave Divider -->
-  <div class="custom-shape-divider-top">
-    <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-      <path d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" class="shape-fill"></path>
+<section class="story" aria-labelledby="story-heading">
+  <div class="story__transition" aria-hidden="true">
+    <svg viewBox="0 0 1200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="40" fill="#f3f3f3"/>
+      <path fill="#1f3540" d="M0,40 L0,18 L40,0 L80,18 L120,0 L160,18 L200,0 L240,18 L280,0 L320,18 L360,0 L400,18 L440,0 L480,18 L520,0 L560,18 L600,0 L640,18 L680,0 L720,18 L760,0 L800,18 L840,0 L880,18 L920,0 L960,18 L1000,0 L1040,18 L1080,0 L1120,18 L1160,0 L1200,18 L1200,40 Z"/>
+      <path fill="none" stroke="#e0c075" stroke-width="2" d="M0,20 L40,4 L80,20 L120,4 L160,20 L200,4 L240,20 L280,4 L320,20 L360,4 L400,20 L440,4 L480,20 L520,4 L560,20 L600,4 L640,20 L680,4 L720,20 L760,4 L800,20 L840,4 L880,20 L920,4 L960,20 L1000,4 L1040,20 L1080,4 L1120,20 L1160,4 L1200,20"/>
     </svg>
   </div>
-  
-  <div class="container">
-    <div class="story-content">
-      <div class="elegant-title-dark">
-        <span class="line right-line"></span>
-        <h2 class="section-title">הסיפור שלנו</h2>
-        <span class="line left-line"></span>
+
+  <div class="story__body">
+    <div class="story__inner">
+      <div class="story__media" aria-hidden="true">
+        <img
+          src="https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto,w_1200/v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg"
+          alt=""
+          loading="lazy"
+        />
       </div>
-      
-      <div class="divider-icon">
-        <mat-icon>restaurant_menu</mat-icon>
-      </div>
-      
-      <h3 class="story-subtitle">קולינריה יהודית שורשית בטעם של בית</h3>
-      
-      <div class="text-block">
-        <p class="story-text">
-          בקייטרינג מגדים, אנחנו מאמינים שאוכל הוא הרבה מעבר לטעם – הוא הגשר שמחבר בין אנשים, מסורת וזיכרונות ילדות.
-          כבר שנים שאנחנו משכימים קום בכל בוקר מחדש עם מטרה אחת: להביא אל השולחן שלכם את הטעמים האותנטיים והאהובים, בדיוק כמו במטבח של סבתא, אבל עם הקפדה ואיכות של מטבח מקצועי.
-        </p>
-        <p class="story-text">
-          המטבח שלנו מתבסס על חומרי גלם טריים הנבחרים בקפידה, תבלינים איכותיים ושיטות בישול מסורתיות ששומרות על הטעם והערכים התזונתיים.
-          בין אם מדובר בארוחת שבת משפחתית אינטימית או באירוע חגיגי רב-משתתפים, אנחנו כאן כדי להעניק לכם שקט נפשי וחוויה קולינרית עשירה, מפנקת וכשרה למהדרין.
-        </p>
-      </div>
-      
-      <div class="action-stack">
-        <div class="kosher-badge-wrapper">
-          <span class="kosher-text">כשר למהדרין בהשגחת רבנות מטה בנימין | בשרים: מומלצי ארגון "כושרות"</span>
-          <mat-icon class="check-icon">verified</mat-icon>
+
+      <div class="story__content">
+        <h2 id="story-heading" class="story__title">הסיפור שלנו</h2>
+        <p class="story__hook">קולינריה יהודית שורשית בטעם של בית</p>
+
+        <div class="story__text">
+          <p>
+            בקייטרינג מגדים, אנחנו מאמינים שאוכל הוא הרבה מעבר לטעם – הוא הגשר שמחבר בין אנשים, מסורת וזיכרונות ילדות.
+            כבר שנים שאנחנו משכימים קום בכל בוקר מחדש עם מטרה אחת: להביא אל השולחן שלכם את הטעמים האותנטיים והאהובים, בדיוק כמו במטבח של סבתא, אבל עם הקפדה ואיכות של מטבח מקצועי.
+          </p>
+          <p>
+            המטבח שלנו מתבסס על חומרי גלם טריים הנבחרים בקפידה, תבלינים איכותיים ושיטות בישול מסורתיות ששומרות על הטעם והערכים התזונתיים.
+            בין אם מדובר בארוחת שבת משפחתית אינטימית או באירוע חגיגי רב-משתתפים, אנחנו כאן כדי להעניק לכם שקט נפשי וחוויה קולינרית עשירה, מפנקת וכשרה למהדרין.
+          </p>
         </div>
-        <button mat-stroked-button class="gold-outline-btn" routerLink="/about">קראו עוד עלינו</button>
+
+        <div class="story__footer">
+          <p class="story__kosher">
+            <mat-icon aria-hidden="true">verified</mat-icon>
+            <span>כשר למהדרין בהשגחת רבנות מטה בנימין · בשרים: מומלצי ארגון "כושרות"</span>
+          </p>
+          <a class="story__cta" routerLink="/about">
+            קראו עוד עלינו
+            <span aria-hidden="true">&raquo;</span>
+          </a>
+        </div>
       </div>
     </div>
   </div>
-  
-  <!-- Bottom SVG Wave Divider -->
-  <div class="custom-shape-divider-bottom">
-    <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-      <path d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" class="shape-fill"></path>
+
+  <div class="story__transition story__transition--bottom" aria-hidden="true">
+    <svg viewBox="0 0 1200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1200" height="40" fill="#f3f3f3"/>
+      <path fill="#1f3540" d="M0,40 L0,18 L40,0 L80,18 L120,0 L160,18 L200,0 L240,18 L280,0 L320,18 L360,0 L400,18 L440,0 L480,18 L520,0 L560,18 L600,0 L640,18 L680,0 L720,18 L760,0 L800,18 L840,0 L880,18 L920,0 L960,18 L1000,0 L1040,18 L1080,0 L1120,18 L1160,0 L1200,18 L1200,40 Z"/>
+      <path fill="none" stroke="#e0c075" stroke-width="2" d="M0,20 L40,4 L80,20 L120,4 L160,20 L200,4 L240,20 L280,4 L320,20 L360,4 L400,20 L440,4 L480,20 L520,4 L560,20 L600,4 L640,20 L680,4 L720,20 L760,4 L800,20 L840,4 L880,20 L920,4 L960,20 L1000,4 L1040,20 L1080,4 L1120,20 L1160,4 L1200,20"/>
     </svg>
   </div>
 </section>
-

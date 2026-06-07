@@ -85,7 +85,7 @@ body {
   margin: 0 !important;
   padding: 0 !important;
   font-family: Roboto, "Helvetica Neue", sans-serif;
-  background-color: #1a2b3c !important; // Dark blue (same as navbar) - if gap appears, it blends in
+  background-color: #1f3540 !important;
   box-sizing: border-box;
 }
 
@@ -123,6 +123,50 @@ body {
   margin: 0; 
   padding: 0; 
   overflow-x: hidden; 
+}
+
+// Prevent hairline gaps between header and page content
+.mat-sidenav-container,
+.mat-drawer-container {
+  background-color: transparent !important;
+}
+
+.mat-sidenav-content,
+.mat-drawer-content {
+  background-color: transparent !important;
+  overflow: visible !important;
+}
+
+app-search-bar {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 0;
+  height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible;
+  pointer-events: none;
+  border: none;
+}
+
+main.main-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+  overflow: visible !important;
+}
+
+main.main-content > * {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+app-header {
+  position: relative;
+  z-index: 2;
 }
 
 /* Admin dashboard – polished main (viewport) scrollbar */

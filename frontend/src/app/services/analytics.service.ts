@@ -4,13 +4,6 @@ import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
-declare global {
-  interface Window {
-    dataLayer?: unknown[];
-    gtag?: (...args: unknown[]) => void;
-  }
-}
-
 const COOKIE_CONSENT_ALL = 'all';
 /** Legacy banner stored this value; treat like full marketing consent for GA4. */
 const COOKIE_CONSENT_LEGACY_ACCEPTED = 'accepted';

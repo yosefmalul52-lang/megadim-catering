@@ -1,42 +1,52 @@
-<section class="video-section">
-  <div class="container">
-    <div class="loading-state" *ngIf="isLoading">
-      <mat-icon class="spinner">hourglass_empty</mat-icon>
-      <span>טוען...</span>
-    </div>
-
-    <div *ngIf="!isLoading && mediaItems.length > 0">
-      <div class="section-header">
-        <div class="elegant-title-light">
-          <span class="line right-line-light"></span>
-          <h2 class="section-title">טעימה מהאירועים שלנו</h2>
-          <span class="line left-line-light"></span>
-        </div>
+@if (isLoading) {
+  <section class="media-gallery media-gallery--loading" aria-busy="true" aria-label="טוען גלריה">
+    <div class="media-gallery__inner">
+      <div class="media-gallery__loading">
+        <span class="media-gallery__spinner" aria-hidden="true"></span>
+        <span>טוען גלריה...</span>
       </div>
+    </div>
+  </section>
+} @else if (mediaItems.length > 0) {
+  <section class="media-gallery" aria-labelledby="gallery-heading">
+    <div class="media-gallery__inner">
+      <header class="media-gallery__head">
+        <p class="media-gallery__eyebrow">מהשטח</p>
+        <h2 id="gallery-heading" class="media-gallery__title">טעימה מהאירועים שלנו</h2>
+        <p class="media-gallery__lead">סרטונים ותמונות מאירועים אמיתיים — הטעם, האווירה והרמה של מגדים</p>
+      </header>
 
-      <div class="videos-grid media-grid">
-        <div
-          *ngFor="let item of mediaItems; trackBy: trackByMediaId"
-          class="video-item media-item"
-          [class.media-item--image]="item.type === 'image'"
-          [class.media-item--video]="item.type === 'video'"
-          (click)="onMediaClick(item)"
-        >
-          <div class="video-thumbnail-wrapper">
-            <img
-              [src]="item.imageUrl"
-              [alt]="(item.title || (item.type === 'video' ? 'סרטון אירוע' : 'תמונת אירוע')) + ' – קייטרינג בשרי כשר למהדרין | מגדים'"
-              (error)="onImageError($event)"
-            />
-            <div class="play-overlay" *ngIf="item.type === 'video'">
-              <mat-icon>play_circle_filled</mat-icon>
+      <div class="media-gallery__grid">
+        @for (item of mediaItems; track trackByMediaId($index, item)) {
+          <article
+            class="media-card"
+            [class.media-card--video]="item.type === 'video'"
+            [class.media-card--image]="item.type === 'image'"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="getAriaLabel(item)"
+            (click)="onMediaClick(item)"
+            (keydown.enter)="onMediaClick(item)"
+            (keydown.space)="$event.preventDefault(); onMediaClick(item)"
+          >
+            <div class="media-card__media">
+              <img
+                [src]="item.imageUrl"
+                [alt]="item.type === 'video' ? 'סרטון מאירוע מגדים' : 'תמונה מאירוע מגדים'"
+                loading="lazy"
+                (error)="onImageError($event)"
+              />
+
+              @if (item.type === 'video') {
+                <span class="media-card__badge">{{ getTypeLabel(item) }}</span>
+                <span class="media-card__play" aria-hidden="true">
+                  <mat-icon>play_arrow</mat-icon>
+                </span>
+              }
             </div>
-          </div>
-          <div class="video-title" *ngIf="item.title">
-            <h3>{{ item.title }}</h3>
-          </div>
-        </div>
+          </article>
+        }
       </div>
     </div>
-  </div>
-</section>
+  </section>
+}
