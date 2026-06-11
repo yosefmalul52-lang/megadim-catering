@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CONTACT_WHATSAPP_HREF } from '../../../constants/contact.constants';
 import { SiteSettingsService } from '../../../services/site-settings.service';
 import { Order } from '../../../services/order.service';
+import { CartService } from '../../../services/cart.service';
 
 @Component({
   selector: 'app-order-confirmation',
@@ -16,6 +17,7 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private siteSettings = inject(SiteSettingsService);
+  private cartService = inject(CartService);
 
   order: Order | null = null;
   orderId: string | null = null;
@@ -48,6 +50,9 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
       this.route.snapshot.paramMap.get('id') ||
       (this.order?._id || this.order?.id)?.toString() ||
       null;
+
+    // Payment succeeded (this page is only reached via payment success / mock redirect).
+    this.cartService.clearCart();
   }
 
   ngOnDestroy(): void {

@@ -38,6 +38,14 @@ else {
         console.log('[env] Loaded default .env from CWD');
     }
 }
+// Silence non-error console output in production (keep console.error)
+if (process.env.NODE_ENV === 'production') {
+    const noop = () => undefined;
+    console.log = noop;
+    console.info = noop;
+    console.debug = noop;
+    console.warn = noop;
+}
 // Aggressively normalize GOOGLE_MAPS_API_KEY to avoid hidden characters / quotes / spaces
 if (typeof process.env.GOOGLE_MAPS_API_KEY === 'string') {
     process.env.GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY.replace(/['" ]/g, '').trim();
@@ -83,6 +91,7 @@ const campaign_routes_1 = __importDefault(require("./routes/campaign.routes"));
 const holiday_event_routes_1 = __importDefault(require("./routes/holiday-event.routes"));
 const customer_routes_1 = __importDefault(require("./routes/customer.routes"));
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
+const accounting_routes_1 = __importDefault(require("./routes/accounting.routes"));
 // Import 404 handler
 const notFoundHandler_1 = require("./middleware/notFoundHandler");
 const email_service_1 = require("./services/email.service");
@@ -218,6 +227,7 @@ app.use('/api/customers', customer_routes_1.default);
 app.use('/api/campaign', campaign_routes_1.default);
 app.use('/api/holiday-events', holiday_event_routes_1.default);
 app.use('/api/payment', payment_routes_1.default);
+app.use('/api/admin/accounting', accounting_routes_1.default);
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler_1.notFoundHandler);
 // Global Error Handler (must be last)

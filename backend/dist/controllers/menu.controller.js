@@ -85,7 +85,7 @@ class MenuController {
                         tags: ['דג', 'בריא'],
                         isAvailable: true,
                         isPopular: true,
-                        isFeatured: true
+                        isFeatured: false
                     },
                     {
                         name: 'נסיכת הנילוס',
@@ -130,7 +130,7 @@ class MenuController {
                         tags: ['עוף', 'מסורתי'],
                         isAvailable: true,
                         isPopular: true,
-                        isFeatured: true
+                        isFeatured: false
                     },
                     {
                         name: 'אסאדו בבישול ארוך',
@@ -141,7 +141,7 @@ class MenuController {
                         tags: ['בשרי', 'מיוחד'],
                         isAvailable: true,
                         isPopular: true,
-                        isFeatured: true
+                        isFeatured: false
                     },
                     {
                         name: 'שניצל ביתי',
@@ -415,6 +415,20 @@ class MenuController {
                 success: true,
                 data: popularItems,
                 count: popularItems.length,
+                timestamp: new Date().toISOString()
+            });
+        }));
+        // Homepage featured items (admin: "הצג במומלצים בדף הבית")
+        this.getFeaturedMenuItems = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
+            const featuredItems = yield menuItem_1.default.find({
+                isFeatured: { $eq: true },
+                isAvailable: { $ne: false },
+                category: { $ne: shavuot_migration_service_1.ARCHIVED_HOLIDAY_CATEGORY }
+            }).sort({ order: 1 });
+            res.status(200).json({
+                success: true,
+                data: featuredItems,
+                count: featuredItems.length,
                 timestamp: new Date().toISOString()
             });
         }));

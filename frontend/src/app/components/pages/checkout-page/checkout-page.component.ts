@@ -1,6 +1,6 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
@@ -46,6 +46,7 @@ import { catchError, debounceTime, map, switchMap, takeUntil } from 'rxjs/operat
 export class CheckoutPageComponent implements OnInit, OnDestroy {
   private cartService = inject(CartService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
   private snackBar = inject(MatSnackBar);
   private fb = inject(FormBuilder);
@@ -99,6 +100,8 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
    * redirecting the customer to the provider's payment page.
    */
   isRedirectingToPayment = false;
+  /** Shown when user returns from a failed Tranzila payment redirect. */
+  paymentErrorMessage: string | null = null;
   /** Minimum date for event (today + minimumLeadDays); set after settings load */
   minDate: Date = this.getMinDateForLeadDays(2);
   /** Specific dates open for orders (YYYY-MM-DD); from store settings */
@@ -124,7 +127,7 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.orderForm = this.fb.group({
       fullName: ['', [Validators.required]],
-      phone: ['', [Validators.required]],
+      phone: ['', [Validators.required, Validators.minLength(9)]],
       customerEmail: ['', [Validators.required, Validators.email]],
       eventDate: [null, [Validators.required]],
       deliveryType: ['pickup' as 'pickup' | 'delivery', [Validators.required]],
@@ -222,6 +225,23 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
         this.deliveryOutOfRange = false;
         this.deliveryErrorMessage = null;
       });
+
+    this.route.queryParams.subscribe((params) => {
+      const code = String(params['paymentError'] || '').trim();
+      if (!code) {
+        this.paymentErrorMessage = null;
+        return;
+      }
+      const messages: Record<string, string> = {
+        declined: 'התשלום נדחה. העגלה שלכם נשמרה — ניתן לנסות שוב.',
+        security: 'אימות התשלום נכשל. העגלה שלכם נשמרה — ניתן לנסות שוב.',
+        amount_mismatch: 'סכום התשלום לא תואם להזמנה. העגלה שלכם נשמרה — ניתן לנסות שוב.',
+        missing_order: 'לא נמצאה הזמנה לתשלום. העגלה שלכם נשמרה — ניתן לנסות שוב.',
+        order_not_found: 'ההזמנה לא נמצאה. העגלה שלכם נשמרה — ניתן לנסות שוב.'
+      };
+      this.paymentErrorMessage =
+        messages[code] || 'התשלום לא הושלם. העגלה שלכם נשמרה — ניתן לנסות שוב.';
+    });
 
     this.locationService.getIsraeliCities().subscribe(cities => {
       this.citiesList = cities;
@@ -403,14 +423,10 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     this.recalculateDeliveryIfNeeded();
   }
 
-  /** Submit disabled when form invalid, submitting, or delivery selected with an active error. */
+  /** Submit disabled while submitting or when delivery cannot be calculated. */
   get isSubmitDisabled(): boolean {
     const isDelivery = this.orderForm?.get('deliveryType')?.value === 'delivery';
-    return (
-      this.orderForm?.invalid ||
-      this.isSubmitting ||
-      (isDelivery && !!this.deliveryErrorMessage)
-    );
+    return this.isSubmitting || (isDelivery && !!this.deliveryErrorMessage);
   }
 
   private updateAddressValidators(): void {
@@ -435,6 +451,12 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     }
     if (this.orderForm.invalid) {
       this.orderForm.markAllAsTouched();
+      this.scrollToFirstInvalidField();
+      this.snackBar.open('נא למלא את כל השדות החובה לפני המשך', 'סגור', {
+        duration: 4000,
+        horizontalPosition: 'start',
+        verticalPosition: 'top'
+      });
       return;
     }
 
@@ -505,21 +527,7 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (result) => {
-          // Clear client state before leaving the page
-          this.cartService.clearCart();
-          this.removeCoupon();
-          this.orderForm.reset({
-            deliveryType: 'pickup',
-            city: '',
-            streetAddress: '',
-            fullName: '',
-            phone: '',
-            customerEmail: '',
-            eventDate: null,
-            notes: ''
-          });
-          this.deliveryFee = 0;
-
+          // Cart is cleared only after confirmed payment on the order-confirmation page.
           // Redirect to Tranzila HPP (tranmode=VK — verify + card token generation).
           // In mock mode this resolves to: /order-confirmation/:orderId?mock=1
           window.location.href = result.redirectUrl;
@@ -535,6 +543,34 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
           );
         }
       });
+  }
+
+  private scrollToFirstInvalidField(): void {
+    const invalidControlNames = [
+      'fullName',
+      'phone',
+      'customerEmail',
+      'eventDate',
+      'deliveryType',
+      'city',
+      'streetAddress',
+      'termsAccepted'
+    ];
+    for (const name of invalidControlNames) {
+      const control = this.orderForm.get(name);
+      if (!control || !control.invalid) continue;
+      const el =
+        document.getElementById(name) ||
+        document.querySelector(`[formcontrolname="${name}"]`) ||
+        document.querySelector(`[ng-reflect-name="${name}"]`);
+      if (el && 'scrollIntoView' in el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (el instanceof HTMLElement && typeof el.focus === 'function') {
+          el.focus();
+        }
+      }
+      break;
+    }
   }
 
   private formatDate(date: Date | string | null): string {

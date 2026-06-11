@@ -136,10 +136,14 @@ const OrderSchema = new mongoose_1.Schema({
         default: 'pending',
         index: true
     },
-    authCode: { type: String, required: false, trim: true },
+    authCode: { type: String, required: false, trim: true, select: false },
     transactionId: { type: String, required: false, trim: true },
+    cardToken: { type: String, required: false, trim: true, select: false },
+    expireMonth: { type: Number, required: false, select: false },
+    expireYear: { type: Number, required: false, select: false },
     authorizedAmount: { type: Number, required: false, default: null },
-    paymentSecurityToken: { type: String, required: false, select: false } // excluded from default queries
+    paymentSecurityToken: { type: String, required: false, select: false }, // excluded from default queries
+    confirmationEmailSentAt: { type: Date, required: false, default: null }
 }, {
     timestamps: true,
     collection: 'orders',

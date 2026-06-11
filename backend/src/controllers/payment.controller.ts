@@ -22,9 +22,40 @@ import crypto from 'crypto';
 import { Request, Response } from 'express';
 import Order from '../models/Order';
 import { TranzilaService } from '../services/tranzila.service';
-import { asyncHandler, createValidationError, createNotFoundError } from '../middleware/errorHandler';
+import { upsertCustomerFromOrder, normalizePhone } from '../services/customer.service';
+import { emailService } from '../services/email.service';
+import { ORDER_PAYMENT_OPERATION_SELECT } from '../utils/order-projection.util';
+import {
+  asyncHandler,
+  createValidationError,
+  createNotFoundError,
+  createForbiddenError
+} from '../middleware/errorHandler';
 
 const tranzilaService = new TranzilaService();
+
+function userCanAccessOrderPaymentStatus(order: Record<string, unknown>, user: Record<string, unknown>): boolean {
+  if (String(user?.role || '') === 'admin') return true;
+
+  const userId = String(user?.id || user?._id || '').trim();
+  const orderUserId = order?.userId != null ? String(order.userId).trim() : '';
+  if (userId && orderUserId && userId === orderUserId) return true;
+
+  const details = (order?.customerDetails ?? {}) as Record<string, unknown>;
+  const orderPhone = normalizePhone(details.phone);
+  const userPhone = normalizePhone(user?.phone);
+  if (orderPhone && userPhone && orderPhone === userPhone) return true;
+
+  const orderEmail = String(details.email || '')
+    .trim()
+    .toLowerCase();
+  const userEmail = String(user?.username || '')
+    .trim()
+    .toLowerCase();
+  if (orderEmail && userEmail && orderEmail === userEmail) return true;
+
+  return false;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTROLLER
@@ -64,6 +95,11 @@ export class PaymentController {
       return res.status(200).json({ success: true, redirectUrl, alreadyInitiated: true });
     }
     if (order.paymentStatus === 'authorized') {
+      try {
+        await emailService.sendOrderConfirmationAfterPayment(orderId);
+      } catch (emailErr) {
+        console.error('[payment] confirmation email failed (already authorized):', { orderId }, emailErr);
+      }
       return res.status(200).json({
         success: true, alreadyAuthorized: true,
         redirectUrl: `${frontendBase}/order-confirmation/${orderId}`
@@ -104,7 +140,18 @@ export class PaymentController {
       // In mock mode, immediately mark as authorized so admin can see and capture
       await Order.findByIdAndUpdate(orderId, {
         $set: { paymentStatus: 'authorized', transactionId: `MOCK-${Date.now()}` }
-      });    } else {
+      });
+      try {
+        await upsertCustomerFromOrder(order.toObject ? order.toObject() : order);
+      } catch (crmErr) {
+        console.error('[crm] payment backup upsert failed (mock authorize):', { orderId }, crmErr);
+      }
+      try {
+        await emailService.sendOrderConfirmationAfterPayment(orderId);
+      } catch (emailErr) {
+        console.error('[payment] confirmation email failed (mock authorize):', { orderId }, emailErr);
+      }
+    } else {
       // ── Real Tranzila mode ───────────────────────────────────────────────────
       try {
         // Embed orderId in success_url so it arrives reliably regardless of which
@@ -234,6 +281,17 @@ export class PaymentController {
 
     // ── 3. Idempotency ──────────────────────────────────────────────────────
     if (order.paymentStatus === 'authorized' || order.paymentStatus === 'captured') {
+      // Safety net: backfill CRM if the initial order-save hook failed on a prior visit.
+      try {
+        await upsertCustomerFromOrder(order.toObject ? order.toObject() : order);
+      } catch (crmErr) {
+        console.error('[crm] payment backup upsert failed (idempotent redirect):', { orderId }, crmErr);
+      }
+      try {
+        await emailService.sendOrderConfirmationAfterPayment(String(orderId));
+      } catch (emailErr) {
+        console.error('[payment] confirmation email failed (idempotent redirect):', { orderId }, emailErr);
+      }
       return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
     }
 
@@ -291,6 +349,24 @@ export class PaymentController {
       `expiry=${expMonth}/${expYear}`
     );
 
+    // Safety net: ensure CRM customer exists even if the order-save hook failed earlier.
+    try {
+      const refreshedOrder = await Order.findById(orderId).lean();
+      if (refreshedOrder) {
+        await upsertCustomerFromOrder(refreshedOrder);
+      } else {
+        await upsertCustomerFromOrder(order.toObject ? order.toObject() : order);
+      }
+    } catch (crmErr) {
+      console.error('[crm] payment backup upsert failed (payment success):', { orderId }, crmErr);
+    }
+
+    try {
+      await emailService.sendOrderConfirmationAfterPayment(String(orderId));
+    } catch (emailErr) {
+      console.error('[payment] confirmation email failed (payment success):', { orderId }, emailErr);
+    }
+
     return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
   });
 
@@ -304,7 +380,7 @@ export class PaymentController {
     const { orderId } = req.params;
     if (!orderId) throw createValidationError('orderId is required');
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).select(ORDER_PAYMENT_OPERATION_SELECT);
     if (!order) throw createNotFoundError('Order');
 
     if (order.paymentStatus !== 'authorized') {
@@ -382,7 +458,7 @@ export class PaymentController {
     const { orderId } = req.params;
     if (!orderId) throw createValidationError('orderId is required');
 
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).select(ORDER_PAYMENT_OPERATION_SELECT);
     if (!order) throw createNotFoundError('Order');
 
     if (order.paymentStatus !== 'authorized') {
@@ -424,15 +500,30 @@ export class PaymentController {
     const { orderId } = req.params;
     if (!orderId) throw createValidationError('orderId is required');
 
-    const order = await Order.findById(orderId).lean();
+    const user = (req as any).user;
+    if (!user) throw createForbiddenError('Authentication required');
+
+    const order = await Order.findById(orderId)
+      .select('paymentStatus authorizedAmount transactionId authCode userId customerDetails')
+      .lean();
     if (!order) throw createNotFoundError('Order');
 
-    return res.status(200).json({
+    if (!userCanAccessOrderPaymentStatus(order as unknown as Record<string, unknown>, user)) {
+      throw createForbiddenError('Forbidden');
+    }
+
+    const isAdmin = String(user?.role || '') === 'admin';
+    const payload: Record<string, unknown> = {
       success: true,
-      paymentStatus:    order.paymentStatus   || 'pending',
-      transactionId:    order.transactionId,
-      authCode:         order.authCode,
-      authorizedAmount: order.authorizedAmount
-    });
+      paymentStatus: order.paymentStatus || 'pending',
+      authorizedAmount: order.authorizedAmount ?? null
+    };
+
+    if (isAdmin) {
+      payload.transactionId = order.transactionId ?? null;
+      payload.authCode = order.authCode ?? null;
+    }
+
+    return res.status(200).json(payload);
   });
 }

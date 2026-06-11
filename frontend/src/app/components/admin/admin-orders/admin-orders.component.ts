@@ -56,14 +56,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   private phoneFrequency: Record<string, number> = {};
 
   orders: Order[] = [];
+  failedOrders: Order[] = [];
   archiveOrders: Order[] = [];
   stats: DashboardStats = { pendingCount: 0, eventsTodayCount: 0, monthlyRevenue: 0 };
   /** Top-level tab: Shabbat (e-commerce) vs Shabbat Catering form vs Events Catering. */
   orderSourceTab: 'shabbat' | 'catering' | 'events' = 'shabbat';
-  currentTab: 'pending' | 'processing' | 'ready' | 'archive' = 'pending';
+  currentTab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive' = 'pending';
   isLoading = true;
   isRefreshing = false;
   isLoadingArchive = false;
+  isLoadingFailed = false;
   statusUpdatingId: string | null = null;
   selectedOrder: Order | null = null;
   orderToEditStatus: Order | null = null;
@@ -89,6 +91,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   /** Ordered list of catering categories used in view and edit modes. */
   readonly CATERING_CATEGORY_ORDER = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
+  readonly EVENTS_CATERING_CATEGORY_ORDER = [
+    'תפריט בסיס',
+    'שדרוגים',
+    'בר קבלת פנים',
+    'סלטים',
+    'מנות ראשונות',
+    'מנות עיקריות',
+    'תוספות',
+    'קינוחים'
+  ];
   /** New catering item fields used in the catering edit panel. */
   cateringNewItemName = '';
   cateringNewItemCategory = 'סלטים';
@@ -115,6 +127,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadStats();
     this.loadOrders();
+    this.loadFailedOrders();
     this.loadArchiveOrders();
     this.startAutoRefresh();
     this.route.queryParams.subscribe((params) => {
@@ -194,6 +207,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.isRefreshing = true;
     this.trackKpi('orders_manual_refresh');
     this.loadOrders();
+    if (this.currentTab === 'failed') this.loadFailedOrders();
     if (this.currentTab === 'archive') this.loadArchiveOrders();
   }
 
@@ -221,6 +235,22 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
+  loadFailedOrders(): void {
+    this.isLoadingFailed = true;
+    this.orderService.getAllOrders(false, undefined, 'failed').subscribe({
+      next: (list) => {
+        this.failedOrders = list;
+        this.pruneSelection();
+        this.isLoadingFailed = false;
+      },
+      error: () => {
+        this.isLoadingFailed = false;
+        this.errorMessage = 'שגיאה בטעינת הזמנות שנכשלו';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
   loadArchiveOrders(): void {
     this.isLoadingArchive = true;
     this.orderService.getAllOrders(true).subscribe({
@@ -238,10 +268,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'archive'): void {
+  setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive'): void {
     this.currentTab = tab;
     this.activeOrderMenuId = null;
     this.clearSelection();
+    if (tab === 'failed') this.loadFailedOrders();
     if (tab === 'archive') this.loadArchiveOrders();
   }
 
@@ -369,9 +400,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return this.shabbatOrders;
   }
 
+  private getFailedOrdersBySource(): Order[] {
+    if (this.orderSourceTab === 'catering') {
+      return this.failedOrders.filter((o) => this.isShabbatCateringOrder(o));
+    }
+    if (this.orderSourceTab === 'events') {
+      return this.failedOrders.filter((o) => this.isEventCateringOrder(o));
+    }
+    return this.failedOrders.filter((o) => !this.isCateringOrder(o));
+  }
+
   get filteredOrders(): Order[] {
     let list: Order[];
     if (this.currentTab === 'archive') list = this.getArchiveBySource();
+    else if (this.currentTab === 'failed') list = this.getFailedOrdersBySource();
     else {
       const sourceList = this.getActiveOrdersBySource();
       list = sourceList.filter((o) => {
@@ -390,7 +432,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   private pruneSelection(): void {
     const allowedIds = new Set(
-      [...this.orders, ...this.archiveOrders]
+      [...this.orders, ...this.failedOrders, ...this.archiveOrders]
         .map((order) => this.getOrderId(order))
         .filter(Boolean)
     );
@@ -502,12 +544,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   get countArchive(): number {
     return this.getArchiveBySource().length;
   }
+  get countFailed(): number {
+    return this.getFailedOrdersBySource().length;
+  }
 
   get emptyStateMessage(): string {
     const messages: Record<string, string> = {
       pending: 'אין הזמנות ממתינות כרגע',
       processing: 'אין הזמנות בטיפול כרגע',
       ready: 'אין הזמנות מוכנות כרגע',
+      failed: 'אין הזמנות שנכשלו או ננטשו',
       archive: 'אין פריטים בארכיון'
     };
     return messages[this.currentTab] || 'אין הזמנות';
@@ -523,6 +569,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.orderService.deleteOrder(orderId).subscribe({
       next: () => {
         this.orders = this.orders.filter((o) => (o._id || o.id) !== orderId);
+        this.failedOrders = this.failedOrders.filter((o) => (o._id || o.id) !== orderId);
         this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
         this.archiveOrders = [...this.archiveOrders, { ...order, isDeleted: true }];
         this.rebuildPhoneFrequency();
@@ -664,10 +711,15 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       if (Object.keys(byCategory).length === 0) {
         itemsHtml = '<tr><td colspan="2" style="text-align:center;color:#888;">אין פרטים שמורים</td></tr>';
       } else {
-        itemsHtml = Object.entries(byCategory)
-          .map(([cat, names]) =>
+        const categoryOrder = this.getCateringCategoryOrder(order);
+        const sortedCategories = [
+          ...categoryOrder.filter((c) => byCategory[c]),
+          ...Object.keys(byCategory).filter((c) => !categoryOrder.includes(c))
+        ];
+        itemsHtml = sortedCategories
+          .map((cat) =>
             `<tr class="cat-header"><td colspan="2"><strong>${cat}</strong></td></tr>` +
-            names.map(n => `<tr><td>${n}</td><td>✓</td></tr>`).join('')
+            byCategory[cat].map(n => `<tr><td>${n}</td><td>✓</td></tr>`).join('')
           )
           .join('');
       }
@@ -688,19 +740,23 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           <div class="section-title">פרטי קייטרינג</div>
           ${ (order as any).eventType ? `<p><strong>סוג אירוע:</strong> ${ (order as any).eventType }</p>` : '' }
           ${ (order as any).guestCount ? `<p><strong>מספר אורחים:</strong> ${ (order as any).guestCount }</p>` : '' }
+          ${ cd.deliveryType ? `<p><strong>אספקה:</strong> ${ cd.deliveryType === 'delivery' ? 'משלוח לכתובת' : 'איסוף עצמי' }</p>` : '' }
+          ${ (order.subtotal ?? cd.pricePerPortion) ? `<p><strong>מחיר למנה (משוער):</strong> ₪${Number(order.subtotal ?? cd.pricePerPortion).toFixed(0)}</p>` : '' }
           ${ (order as any).venue ? `<p><strong>מיקום האירוע:</strong> ${ (order as any).venue }</p>` : '' }
           ${ (order as any).numberOfPortions && !(order as any).eventType ? `<p><strong>מספר מנות:</strong> ${ (order as any).numberOfPortions }</p>` : '' }
           ${ (order as any).mealTypes ? `<p><strong>סוג ארוחה:</strong> ${ (order as any).mealTypes }</p>` : '' }
         </div>`
       : '';
 
-    // Summary block — hide for catering with totalPrice 0
-    const summaryHtml = (isCatering && totalPrice === 0)
+    // Summary block — hide for shabbat catering with totalPrice 0; show estimate for events
+    const isEventsCatering = (order as any).cateringKind === 'events';
+    const summaryHtml = (isCatering && totalPrice === 0 && !isEventsCatering)
       ? ''
       : `<div class="summary">
-          <div class="summary-row"><span>סכום פריטים:</span><span>₪${subtotal.toFixed(2)}</span></div>
-          ${!isPickup ? `<div class="summary-row"><span>דמי משלוח:</span><span>₪${deliveryFee.toFixed(2)}</span></div>` : ''}
-          <div class="summary-row total-row"><span>סה"כ לתשלום:</span><span>₪${totalPrice.toFixed(2)}</span></div>
+          ${!isEventsCatering ? `<div class="summary-row"><span>סכום פריטים:</span><span>₪${subtotal.toFixed(2)}</span></div>` : ''}
+          ${isEventsCatering && (order.subtotal ?? cd.pricePerPortion) ? `<div class="summary-row"><span>מחיר למנה (משוער):</span><span>₪${Number(order.subtotal ?? cd.pricePerPortion).toFixed(0)}</span></div>` : ''}
+          ${!isPickup && !isEventsCatering ? `<div class="summary-row"><span>דמי משלוח:</span><span>₪${deliveryFee.toFixed(2)}</span></div>` : ''}
+          <div class="summary-row total-row"><span>${isEventsCatering ? 'סה״כ משוער:' : 'סה"כ לתשלום:'}</span><span>₪${totalPrice.toFixed(isEventsCatering ? 0 : 2)}</span></div>
         </div>`;
 
     const html = `
@@ -889,12 +945,18 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return !!this.selectedOrder && this.isCateringOrder(this.selectedOrder);
   }
 
+  /** Category display order for catering orders in admin view/edit. */
+  private getCateringCategoryOrder(order?: Order | null): string[] {
+    if (order?.cateringKind === 'events') return this.EVENTS_CATERING_CATEGORY_ORDER;
+    return this.CATERING_CATEGORY_ORDER;
+  }
+
   /**
    * Returns editableItems grouped by category in the defined catering order.
    * Used in the edit panel for catering orders.
    */
   getCateringItemsByCategory(): { category: string; items: EditableOrderItem[]; startIndex: number }[] {
-    const order = this.CATERING_CATEGORY_ORDER;
+    const categoryOrder = this.getCateringCategoryOrder(this.selectedOrder);
     const grouped: Record<string, EditableOrderItem[]> = {};
     this.editableItems.forEach((item) => {
       const cat = item.category || 'כללי';
@@ -904,7 +966,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const result: { category: string; items: EditableOrderItem[]; startIndex: number }[] = [];
     let offset = 0;
     // Defined order first
-    order.forEach((cat) => {
+    categoryOrder.forEach((cat) => {
       if (grouped[cat]) {
         result.push({ category: cat, items: grouped[cat], startIndex: offset });
         offset += grouped[cat].length;
@@ -912,7 +974,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
     // Any extra categories not in the defined order
     Object.keys(grouped).forEach((cat) => {
-      if (!order.includes(cat)) {
+      if (!categoryOrder.includes(cat)) {
         result.push({ category: cat, items: grouped[cat], startIndex: offset });
         offset += grouped[cat].length;
       }
@@ -925,7 +987,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
    */
   getCateringViewItemsByCategory(): { category: string; items: { name: string }[] }[] {
     if (!this.selectedOrder) return [];
-    const order = this.CATERING_CATEGORY_ORDER;
+    const categoryOrder = this.getCateringCategoryOrder(this.selectedOrder);
     const grouped: Record<string, { name: string }[]> = {};
     (this.selectedOrder.items || []).forEach((item) => {
       const cat = (item as any).category || 'כללי';
@@ -933,11 +995,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       grouped[cat].push({ name: item.name });
     });
     const result: { category: string; items: { name: string }[] }[] = [];
-    order.forEach((cat) => {
+    categoryOrder.forEach((cat) => {
       if (grouped[cat]) result.push({ category: cat, items: grouped[cat] });
     });
     Object.keys(grouped).forEach((cat) => {
-      if (!order.includes(cat)) result.push({ category: cat, items: grouped[cat] });
+      if (!categoryOrder.includes(cat)) result.push({ category: cat, items: grouped[cat] });
     });
     return result;
   }
@@ -1277,7 +1339,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   getPaymentStatusLabel(status: Order['paymentStatus']): string {
     const labels: Record<string, string> = {
       pending: 'ממתין לתשלום',
-      awaiting_payment: 'ממתין לאישור ספק',
+      awaiting_payment: 'ננטש (לא הושלם תשלום)',
       authorized: 'מאושר (טרם חויב)',
       captured: 'חויב',
       voided: 'בוטל (הסכום שוחרר)',

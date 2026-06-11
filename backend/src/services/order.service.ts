@@ -9,6 +9,7 @@ import { CreateOrderRequest, CreateCheckoutOrderRequest, OrderResponse } from '.
 import { sanitizeMarketingData } from '../utils/webhook.util';
 import { emailService } from './email.service';
 import { upsertCustomerFromOrder } from './customer.service';
+import { ORDER_ADMIN_LIST_SELECT, ORDER_API_DETAIL_SELECT } from '../utils/order-projection.util';
 
 export class OrderService {
   // Categories that should only show units, not calculated weight
@@ -163,6 +164,7 @@ export class OrderService {
   async getOrdersByUserId(userId: string): Promise<IOrder[]> {
     try {
       const orders = await Order.find({ userId: userId })
+        .select(ORDER_API_DETAIL_SELECT)
         .sort({ createdAt: -1 })
         .lean();
       
@@ -174,6 +176,7 @@ export class OrderService {
   }
 
   // Get all orders with filters (Admin). archive=true => isDeleted or cancelled; otherwise active only (isDeleted false).
+  // paymentFilter: 'valid' (default) excludes failed/abandoned online payments; 'failed' returns only those.
   async getAllOrders(filters: {
     status?: string;
     limit?: number;
@@ -181,6 +184,7 @@ export class OrderService {
     startDate?: Date;
     endDate?: Date;
     archive?: boolean;
+    paymentFilter?: 'valid' | 'failed';
   }): Promise<{ orders: IOrder[]; total: number }> {
     try {
       const query: any = {};
@@ -189,6 +193,11 @@ export class OrderService {
         query.$or = [{ isDeleted: true }, { status: 'cancelled' }];
       } else {
         query.isDeleted = { $ne: true };
+        if (filters.paymentFilter === 'failed') {
+          query.paymentStatus = { $in: ['failed', 'awaiting_payment'] as const };
+        } else {
+          query.paymentStatus = { $nin: ['failed', 'awaiting_payment'] as const };
+        }
       }
 
       if (filters.status) {
@@ -207,6 +216,7 @@ export class OrderService {
 
       const total = await Order.countDocuments(query);
       const orders = await Order.find(query)
+        .select(ORDER_ADMIN_LIST_SELECT)
         .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
         .limit(filters.limit || 100)
         .skip(filters.offset || 0)
@@ -228,7 +238,9 @@ export class OrderService {
       const order = await Order.findOne({
         _id: orderId,
         userId: userId
-      }).lean();
+      })
+        .select(ORDER_API_DETAIL_SELECT)
+        .lean();
 
       if (!order || !order.items?.length) return order as IOrder | null;
 
@@ -244,7 +256,7 @@ export class OrderService {
   /** Get order by ID without user filter (admin only). */
   async getOrderByIdForAdmin(orderId: string): Promise<IOrder | null> {
     try {
-      const order = await Order.findOne({ _id: orderId }).lean();
+      const order = await Order.findOne({ _id: orderId }).select(ORDER_API_DETAIL_SELECT).lean();
       if (!order || !order.items?.length) return order as IOrder | null;
       await this.enrichOrderItemsImageUrlPublic(order.items);
       return order as IOrder | null;
@@ -260,7 +272,9 @@ export class OrderService {
         _id: orderId,
         assignedDriverId: driverUserId,
         isDeleted: { $ne: true }
-      }).lean();
+      })
+        .select(ORDER_API_DETAIL_SELECT)
+        .lean();
       if (!order || !order.items?.length) return order as IOrder | null;
       await this.enrichOrderItemsImageUrlPublic(order.items);
       return order as IOrder | null;
@@ -315,7 +329,9 @@ export class OrderService {
         orderId,
         { $set: updateData },
         { new: true }
-      ).lean();
+      )
+        .select(ORDER_API_DETAIL_SELECT)
+        .lean();
 
       return order as IOrder | null;
     } catch (error: any) {
@@ -341,7 +357,9 @@ export class OrderService {
       },
       { $set: { status } },
       { new: true }
-    ).lean();
+    )
+      .select(ORDER_API_DETAIL_SELECT)
+      .lean();
     return updated as IOrder | null;
   }
 
@@ -359,6 +377,7 @@ export class OrderService {
       if (opts.toDate) query['customerDetails.eventDate'].$lte = opts.toDate;
     }
     const rows = await Order.find(query)
+      .select(ORDER_API_DETAIL_SELECT)
       .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
       .limit(Math.max(1, Math.min(Number(opts?.limit || 300), 1000)))
       .lean();
@@ -379,7 +398,9 @@ export class OrderService {
       set.assignedDriverName = String(driver.fullName || driver.username || '').trim();
       set.assignedAt = new Date();
     }
-    const updated = await Order.findByIdAndUpdate(orderId, { $set: set }, { new: true }).lean();
+    const updated = await Order.findByIdAndUpdate(orderId, { $set: set }, { new: true })
+      .select(ORDER_API_DETAIL_SELECT)
+      .lean();
     return updated as IOrder | null;
   }
 
@@ -614,18 +635,25 @@ export class OrderService {
       0
     );
 
-    const updated = await Order.findByIdAndUpdate(
-      orderId,
+    const updateResult = await Order.updateOne(
+      { _id: orderId },
       {
         $set: {
           items: normalizedItems,
           totalPrice: Math.round(recalculatedTotalPrice * 100) / 100
         }
-      },
-      { new: true }
-    ).lean();
+      }
+    );
+    if (updateResult.matchedCount === 0) return null;
 
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
     return updated as IOrder | null;
+  }
+
+  /** Re-fetch order from DB for customer-facing emails (avoids stale embedded items). */
+  async getOrderByIdForEmail(orderId: string): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return order as IOrder | null;
   }
 
   /** Update order event/delivery date (Admin). Sets customerDetails.eventDate (stored as YYYY-MM-DD). */
@@ -643,7 +671,7 @@ export class OrderService {
       );
       if (updateResult.matchedCount === 0) return null;
 
-      const updated = await Order.findById(orderId).lean();
+      const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
       return updated as IOrder | null;
     } catch (error: any) {
       console.error('Error updating order event date:', error);
@@ -658,7 +686,10 @@ export class OrderService {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
 
-    const activeQuery = { isDeleted: { $ne: true } };
+    const activeQuery = {
+      isDeleted: { $ne: true },
+      paymentStatus: { $nin: ['failed', 'awaiting_payment'] as const }
+    };
     const [pendingCount, eventsTodayCount, monthlyRevenueResult] = await Promise.all([
       Order.countDocuments({ ...activeQuery, status: { $in: ['pending', 'new'] } }),
       Order.countDocuments({ ...activeQuery, 'customerDetails.eventDate': todayStr }),
@@ -667,7 +698,8 @@ export class OrderService {
           $match: {
             isDeleted: { $ne: true },
             createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-            status: { $ne: 'cancelled' }
+            status: { $ne: 'cancelled' },
+            paymentStatus: { $in: ['authorized', 'captured'] as const }
           }
         },
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
@@ -750,6 +782,7 @@ export class OrderService {
   async getRecentOrders(limit: number = 10): Promise<IOrder[]> {
     try {
       const orders = await Order.find()
+        .select(ORDER_ADMIN_LIST_SELECT)
         .sort({ createdAt: -1 })
         .limit(limit)
         .lean();
@@ -769,7 +802,9 @@ export class OrderService {
         orderId,
         { $set: { isDeleted: true } },
         { new: true }
-      ).lean();
+      )
+        .select(ORDER_API_DETAIL_SELECT)
+        .lean();
       return order as IOrder | null;
     } catch (error: any) {
       console.error('Error deleting order:', error);
@@ -784,7 +819,9 @@ export class OrderService {
         orderId,
         { $set: { isDeleted: false, status: 'pending' } },
         { new: true }
-      ).lean();
+      )
+        .select(ORDER_API_DETAIL_SELECT)
+        .lean();
       return order as IOrder | null;
     } catch (error: any) {
       console.error('Error restoring order:', error);
@@ -888,6 +925,7 @@ export class OrderService {
           { 'customerDetails.email': { $regex: query, $options: 'i' } }
         ]
       })
+        .select(ORDER_ADMIN_LIST_SELECT)
         .sort({ createdAt: -1 })
         .lean();
 

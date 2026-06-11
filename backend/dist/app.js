@@ -76,10 +76,10 @@ if (process.env.NODE_ENV === 'development') {
 else {
     app.use((0, morgan_1.default)('combined'));
 }
-// Rate limiting
+// Rate limiting (relaxed in development to avoid blocking local page loads)
 const limiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: process.env.NODE_ENV === 'production' ? 100 : 1000,
     message: {
         error: 'Too many requests from this IP, please try again later.',
         retryAfter: '15 minutes'

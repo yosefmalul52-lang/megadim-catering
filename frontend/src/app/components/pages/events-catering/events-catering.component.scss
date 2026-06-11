@@ -106,6 +106,13 @@ $text-gray: #4b5563;
     }
   }
   
+  .reception-note {
+    text-align: center;
+    color: $text-gray;
+    font-size: 1rem;
+    margin: 1.5rem 0 0;
+  }
+
   .pricing-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -197,6 +204,99 @@ $text-gray: #4b5563;
   }
 }
 
+// === MENU HIERARCHY ===
+.menu-hierarchy-base {
+  padding-bottom: 2rem;
+
+  .base-single-showcase {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+}
+
+.menu-hierarchy-upgrades {
+  background-color: $warm-bg;
+  padding-top: 3rem;
+
+  .upgrades-three-grid {
+    margin-bottom: 2.5rem;
+  }
+}
+
+.upgrades-three-grid {
+  .upgrade-card-static {
+    position: relative;
+  }
+}
+
+.reception-note-inline {
+  font-size: 0.9rem;
+  color: $text-gray;
+  margin: 0 0 1rem;
+  text-align: center;
+}
+
+.tier-tabs {
+  display: flex;
+  border: 1px solid #ddd;
+  margin-bottom: 1rem;
+
+  .tier-tab {
+    flex: 1;
+    padding: 10px 12px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: $text-gray;
+    background: $white;
+    border: none;
+    border-left: 1px solid #ddd;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+
+    &:first-child {
+      border-left: none;
+    }
+
+    &.active {
+      background: rgba($gold, 0.15);
+      color: $navy;
+    }
+
+    &.disabled {
+      cursor: default;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+  }
+
+  &.tier-tabs-preview {
+    margin-top: 0.5rem;
+  }
+}
+
+.tier-tab-panel {
+  text-align: center;
+
+  .price-display {
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .features-list {
+    align-items: flex-end;
+  }
+}
+
+.reception-card-with-tabs {
+  .tier-tab-panel .compact-features {
+    text-align: right;
+    align-items: flex-end;
+    margin-top: 0.5rem;
+  }
+}
+
 // === COURSES SECTION ===
 .courses-section {
   padding: 4rem 0;
@@ -232,116 +332,114 @@ $text-gray: #4b5563;
     grid-template-columns: repeat(3, 1fr);
     gap: 30px;
     margin-bottom: 4rem;
-    
-    .course-card {
-      background: $white;
-      padding: 3rem 35px 40px 35px; // Increased top padding to 3rem (icons removed)
-      border-radius: 0 !important; // Square corners
+  }
+
+  .course-card {
+    background: $white;
+    padding: 3rem 35px 40px 35px;
+    border-radius: 0 !important;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    border-top: 4px solid $gold;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12);
+    }
+
+    &.main-course {
+      border-top-width: 5px;
+    }
+
+    h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: $dark-blue;
       text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-      border-top: 4px solid $gold;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      
-      &:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 25px 50px rgba(0,0,0,0.12);
-      }
-      
-      &.main-course {
-        border-top-width: 5px;
-      }
-      
-      h3 {
+      margin-top: 0;
+    }
+
+    .sub-text {
+      color: $text-gray;
+      font-size: 1rem;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    .price-display {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 5px;
+      margin-bottom: 30px;
+
+      .price-amount {
         font-size: 1.5rem;
         font-weight: 700;
-        margin-bottom: 12px;
         color: $dark-blue;
-        text-align: center;
-        margin-top: 0; // Ensure title sits at top
+        line-height: 1;
       }
-      
-      .sub-text {
-        color: $text-gray;
+
+      .price-currency {
         font-size: 1rem;
-        margin-bottom: 25px;
-        text-align: center;
+        font-weight: 700;
+        color: $dark-blue;
+        line-height: 1;
       }
-      
-      .price-display {
-        display: flex;
-        align-items: baseline;
-        justify-content: center;
-        gap: 5px;
-        margin-bottom: 30px;
-        
-        .price-amount {
-          font-size: 1.5rem; // Reduced by half (was 3rem)
-          font-weight: 700;
-          color: $dark-blue;
-          line-height: 1;
-        }
-        
-        .price-currency {
-          font-size: 1rem; // Reduced by half (was 2rem)
-          font-weight: 700;
-          color: $dark-blue; // Changed from gold to dark blue/black
-          line-height: 1;
-        }
-        
-        .price-label {
-          font-size: 1rem;
-          color: $text-gray;
-          font-weight: 400;
-          margin-right: 5px;
-        }
+
+      .price-label {
+        font-size: 1rem;
+        color: $text-gray;
+        font-weight: 400;
+        margin-right: 5px;
       }
-      
-      .features-list {
-        list-style: none;
-        padding: 0;
-        margin: 0 auto;
-        max-width: 90%;
+    }
+
+    .features-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 auto;
+      max-width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+
+      li {
         display: flex;
-        flex-direction: column;
-        align-items: flex-end; // Align items to the right (RTL)
-        
-        li {
-          display: flex;
-          align-items: flex-start; // Aligns icon to top of multi-line text
-          justify-content: flex-end; // Aligns content to the right (in RTL)
+        align-items: flex-start;
+        justify-content: flex-end;
+        text-align: right;
+        gap: 10px;
+        margin-bottom: 18px;
+        font-size: 1.05rem;
+        color: $text-gray;
+        line-height: 1.6;
+        width: 100%;
+
+        .check-icon {
+          color: $gold;
+          font-weight: bold;
+          font-size: 1.2rem;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .list-text {
+          flex: 1;
           text-align: right;
-          gap: 10px;
-          margin-bottom: 18px; // Increased gap for better readability
-          font-size: 1.05rem;
-          color: $text-gray;
-          line-height: 1.6;
-          width: 100%;
-          
-          .check-icon {
-            color: $gold;
-            font-weight: bold;
-            font-size: 1.2rem;
-            flex-shrink: 0;
-            margin-top: 2px;
-          }
-          
-          .list-text {
-            flex: 1;
-            text-align: right;
-          }
-          
-          &.extra-offer {
+        }
+
+        &.extra-offer {
+          color: $dark-blue;
+          margin-top: 20px;
+          border-top: 1px dashed #ccc;
+          padding-top: 18px;
+          font-size: 0.95rem;
+
+          .list-text strong {
             color: $dark-blue;
-            margin-top: 20px;
-            border-top: 1px dashed #ccc;
-            padding-top: 18px;
-            font-size: 0.95rem;
-            
-            .list-text {
-              strong {
-                color: $dark-blue;
-              }
-            }
           }
         }
       }
@@ -906,6 +1004,8 @@ $ev-white: #ffffff;
   border-top: 4px solid $ev-gold;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   position: relative;
+  direction: rtl;
+  text-align: right;
 
   .form-success {
     padding: 60px 32px;
@@ -948,6 +1048,7 @@ $ev-white: #ffffff;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-direction: row;
     padding: 25px 30px;
     border-bottom: 1px solid #f0f0f0;
     position: sticky;
@@ -960,6 +1061,8 @@ $ev-white: #ffffff;
       font-weight: 700;
       color: $ev-dark;
       margin: 0;
+      text-align: right;
+      flex: 1;
     }
 
     .close-btn {
@@ -971,6 +1074,7 @@ $ev-white: #ffffff;
       align-items: center;
       color: #666;
       transition: color 0.2s;
+      flex-shrink: 0;
 
       &:hover { color: $ev-dark; }
 
@@ -980,9 +1084,92 @@ $ev-white: #ffffff;
 
   .order-form {
     padding: 30px;
+    direction: rtl;
+    text-align: right;
+
+    .course-card {
+      background: $ev-white;
+      padding: 2rem 1.25rem 1.5rem;
+      text-align: right;
+      box-shadow: 0 12px 28px rgba($ev-dark, 0.08);
+      border-top: 4px solid $ev-gold;
+
+      &.main-course {
+        border-top-width: 5px;
+      }
+
+      h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: $ev-dark;
+        margin: 0 0 0.75rem;
+        text-align: right;
+      }
+
+      .price-display {
+        display: flex;
+        align-items: baseline;
+        justify-content: flex-start;
+        gap: 5px;
+        margin-bottom: 1rem;
+
+        .price-amount {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: $ev-dark;
+        }
+
+        .price-currency {
+          font-size: 1rem;
+          font-weight: 700;
+          color: $ev-dark;
+        }
+
+        .price-label {
+          font-size: 1rem;
+          color: #666;
+          margin-inline-start: 5px;
+        }
+      }
+
+      .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+
+        li {
+          display: flex;
+          align-items: flex-start;
+          flex-direction: row;
+          justify-content: flex-start;
+          gap: 8px;
+          margin-bottom: 10px;
+          font-size: 0.92rem;
+          color: #444;
+          width: 100%;
+          text-align: right;
+
+          .check-icon {
+            color: $ev-gold;
+            font-weight: 700;
+            flex-shrink: 0;
+          }
+
+          .list-text {
+            flex: 1;
+            text-align: right;
+          }
+        }
+      }
+    }
 
     .form-section {
       margin-bottom: 40px;
+      text-align: right;
 
       .section-title {
         font-size: 1.4rem;
@@ -1005,21 +1192,41 @@ $ev-white: #ffffff;
         }
       }
 
+      .form-grid,
+      .selects-grid {
+        .form-group {
+          min-width: 0;
+        }
+      }
+
       .form-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 20px;
+        width: 100%;
+        align-items: start;
 
         @media (max-width: 768px) { grid-template-columns: 1fr; }
       }
 
       .form-group {
+        text-align: right;
+        min-width: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+
+        &.form-group-span-full {
+          grid-column: 1 / -1;
+        }
+
         label {
           display: block;
           font-size: 1rem;
           font-weight: 700;
           color: $ev-dark;
           margin-bottom: 0.5rem;
+          text-align: right;
         }
 
         input[type="text"],
@@ -1030,6 +1237,8 @@ $ev-white: #ffffff;
         select,
         textarea {
           width: 100%;
+          max-width: 100%;
+          min-width: 0;
           height: 45px;
           padding: 0 15px;
           border: 1px solid #ccc;
@@ -1039,6 +1248,8 @@ $ev-white: #ffffff;
           color: #1a1a1a;
           box-sizing: border-box;
           transition: border-color 0.2s;
+          direction: rtl;
+          text-align: right;
 
           &:focus {
             outline: none;
@@ -1051,12 +1262,115 @@ $ev-white: #ffffff;
           padding: 12px 15px;
           resize: vertical;
         }
+
+        select {
+          appearance: auto;
+          cursor: pointer;
+        }
+
+        .full-width {
+          width: 100%;
+        }
+
+        .field-error {
+          margin: 6px 0 0;
+          font-size: 0.9rem;
+          color: #b91c1c;
+          text-align: right;
+        }
+      }
+
+      ::ng-deep mat-form-field.event-date-field {
+        width: 100%;
+        direction: rtl;
+        margin: 0;
+        display: block;
+
+        .mat-mdc-form-field-subscript-wrapper {
+          display: none;
+        }
+
+        .mat-mdc-text-field-wrapper {
+          height: 45px;
+          padding: 0;
+        }
+
+        .mat-mdc-form-field-flex {
+          height: 45px;
+          align-items: center;
+        }
+
+        .mat-mdc-form-field-infix {
+          min-height: 45px;
+          height: 45px;
+          padding-top: 0;
+          padding-bottom: 0;
+          padding-right: 15px;
+          padding-left: 0;
+          width: 100%;
+        }
+
+        .mdc-notched-outline__leading,
+        .mdc-notched-outline__notch,
+        .mdc-notched-outline__trailing {
+          border-color: #ccc !important;
+          border-radius: 0 !important;
+        }
+
+        &.mat-focused .mdc-notched-outline__leading,
+        &.mat-focused .mdc-notched-outline__notch,
+        &.mat-focused .mdc-notched-outline__trailing {
+          border-color: $ev-gold !important;
+          border-width: 1px !important;
+        }
+
+        &.mat-form-field-invalid .mdc-notched-outline__leading,
+        &.mat-form-field-invalid .mdc-notched-outline__notch,
+        &.mat-form-field-invalid .mdc-notched-outline__trailing {
+          border-color: #ccc !important;
+        }
+
+        input.mat-mdc-input-element {
+          height: 45px;
+          margin: 0;
+          padding: 0;
+          font-size: 1rem;
+          font-family: 'Heebo', sans-serif;
+          color: #1a1a1a;
+          direction: rtl;
+          text-align: right;
+        }
+
+        .mat-datepicker-toggle {
+          .mat-mdc-icon-button {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+          }
+        }
       }
 
       .selects-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 20px;
+        width: 100%;
+        align-items: start;
+
+        .form-group {
+          min-width: 0;
+          width: 100%;
+        }
+
+        select {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+        }
+
+        &.compact-grid {
+          grid-template-columns: 1fr;
+        }
 
         @media (max-width: 768px) { grid-template-columns: 1fr; }
       }
@@ -1064,12 +1378,13 @@ $ev-white: #ffffff;
       .radio-group {
         display: flex;
         gap: 30px;
-        justify-content: center;
+        justify-content: flex-start;
         flex-wrap: wrap;
 
         .radio-label {
           display: flex;
           align-items: center;
+          flex-direction: row;
           gap: 8px;
           cursor: pointer;
           font-size: 1.05rem;
@@ -1114,10 +1429,89 @@ $ev-white: #ffffff;
       }
     }
 
+    .menu-form-base {
+      .selection-group {
+        margin-bottom: 1.75rem;
+
+        .selection-group-title {
+          font-size: 1rem;
+          font-weight: 700;
+          color: $ev-dark;
+          margin: 0 0 0.75rem;
+          padding-bottom: 0.35rem;
+          border-bottom: 2px solid $ev-gold;
+          text-align: right;
+        }
+      }
+    }
+
+    .menu-form-upgrades {
+      .upgrade-options {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .upgrade-option {
+        padding: 1rem 0;
+        border-bottom: 1px solid #eee;
+        text-align: right;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        &.active .upgrade-select-row {
+          color: $ev-dark;
+        }
+
+        .upgrade-select-row {
+          display: flex;
+          align-items: center;
+          flex-direction: row;
+          gap: 10px;
+          cursor: pointer;
+          font-size: 1rem;
+          font-weight: 600;
+          color: #444;
+          text-align: right;
+
+          input[type='checkbox'] {
+            width: 18px;
+            height: 18px;
+            accent-color: $ev-gold;
+            flex-shrink: 0;
+          }
+        }
+
+        .upgrade-selections {
+          margin-top: 1rem;
+          padding-top: 0.25rem;
+
+          .tier-tabs {
+            direction: rtl;
+            max-width: 280px;
+
+            .tier-tab {
+              font-size: 0.9rem;
+              padding: 8px 12px;
+              border-left: none;
+              border-right: 1px solid #ddd;
+
+              &:first-child {
+                border-right: none;
+              }
+            }
+          }
+        }
+      }
+    }
+
     .form-footer {
       margin-top: 40px;
       padding-top: 30px;
       border-top: 1px solid #f0f0f0;
+      text-align: center;
 
       .form-error-msg {
         color: #c0392b;

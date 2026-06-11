@@ -230,37 +230,14 @@ export class OrderController {
 
     const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
 
-    // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
-    try {
-      const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
-      if (ownerEmail) {
-        const addressStr =
-          typeof body.address === 'string'
-            ? body.address
-            : body.address && typeof body.address === 'object'
-              ? [body.address.city, body.address.street, body.address.apartment].filter(Boolean).join(', ')
-              : undefined;
-        const orderDataForEmail: OrderEmailData = {
-          customerName: body.customerName,
-          phone: body.phone,
-          customerEmail: body.email,
-          eventDate: body.eventDate,
-          deliveryType: body.deliveryMethod,
-          address: addressStr,
-          notes: body.notes,
-          items: body.items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price })),
-          subtotal: Number(body.subtotal) || 0,
-          deliveryFee: recalculatedDeliveryFee,
-          total: body.totalAmount,
-          orderNumber: (plainOrder as any).orderNumber
-        };
-        await emailService.sendOrderEmails(orderDataForEmail, ownerEmail, body.email);
-        console.log('Order emails sent: admin + customer receipt');
-      } else {
-        console.warn('OWNER_EMAIL not set – skipping order emails');
+    // Manual / offline orders: confirm immediately. Online checkout defers until payment success.
+    if (body.manualOrder === true) {
+      try {
+        await emailService.sendOrderEmail(plainOrder as any);
+        console.log('Manual order emails sent on creation');
+      } catch (emailErr: any) {
+        console.error('Email failed to send for manual order, but order was saved:', emailErr?.message || emailErr);
       }
-    } catch (emailErr: any) {
-      console.error('Email failed to send, but order was saved:', emailErr?.message || emailErr);
     }
 
     res.status(201).json({
@@ -387,16 +364,20 @@ export class OrderController {
   });
 
   // Get all orders (Admin only). ?archive=1 returns archived/cancelled orders.
+  // ?paymentFilter=failed returns failed/abandoned online-payment orders only.
   getAllOrders = asyncHandler(async (req: Request, res: Response) => {
-    const { status, limit, offset, startDate, endDate, archive } = req.query;
-    
+    const { status, limit, offset, startDate, endDate, archive, paymentFilter } = req.query;
+    const paymentFilterValue =
+      paymentFilter === 'failed' ? ('failed' as const) : ('valid' as const);
+
     const filters = {
       status: status as any,
       limit: limit ? parseInt(limit as string, 10) : 100,
       offset: offset ? parseInt(offset as string, 10) : 0,
       startDate: startDate ? new Date(startDate as string) : undefined,
       endDate: endDate ? new Date(endDate as string) : undefined,
-      archive: archive === '1' || archive === 'true'
+      archive: archive === '1' || archive === 'true',
+      paymentFilter: archive === '1' || archive === 'true' ? undefined : paymentFilterValue
     };
 
     const { orders, total } = await this.orderService.getAllOrders(filters);
@@ -502,7 +483,10 @@ export class OrderController {
 
     if (status === 'processing') {
       try {
-        await emailService.sendOrderApprovedToCustomer(updatedOrder);
+        const freshOrder = await this.orderService.getOrderByIdForEmail(id);
+        if (freshOrder) {
+          await emailService.sendOrderApprovedToCustomer(freshOrder);
+        }
       } catch (emailErr: any) {
         console.error('Order status updated to processing but approval email failed:', emailErr?.message || emailErr);
       }
@@ -576,6 +560,12 @@ export class OrderController {
     }
     if (!updatedOrder) {
       throw createNotFoundError('Order');
+    }
+
+    try {
+      await emailService.sendOrderUpdateEmail(updatedOrder);
+    } catch (emailErr: any) {
+      console.error('Order items updated but update email failed:', emailErr?.message || emailErr);
     }
 
     res.status(200).json({

@@ -119,6 +119,16 @@ $border: #e2e8f0;
   color: $brand-dark;
 }
 
+.tab-btn-failed.active {
+  color: #b91c1c;
+  border-bottom-color: #b91c1c;
+}
+
+.tab-btn-failed .tab-badge {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .tab-btn.active {
   background: rgba($brand-gold, 0.2);
   color: $brand-dark;

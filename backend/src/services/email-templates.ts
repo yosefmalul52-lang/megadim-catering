@@ -88,10 +88,89 @@ function toValidMoney(value: unknown): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+const SHABBAT_CATERING_CATEGORIES = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
+const EVENTS_CATERING_CATEGORIES = [
+  'תפריט בסיס',
+  'שדרוגים',
+  'בר קבלת פנים',
+  'סלטים',
+  'מנות ראשונות',
+  'מנות עיקריות',
+  'תוספות',
+  'קינוחים'
+];
+
+function getCateringCategoryOrder(cateringKind?: 'shabbat' | 'events'): string[] {
+  return cateringKind === 'events' ? EVENTS_CATERING_CATEGORIES : SHABBAT_CATERING_CATEGORIES;
+}
+
+function buildCateringGroupedItemsHtml(
+  cartItems: OrderTemplateData['cartItems'],
+  cateringKind?: 'shabbat' | 'events'
+): string {
+  const byCategory: Record<string, string[]> = {};
+  const categoryOrder = getCateringCategoryOrder(cateringKind);
+
+  cartItems.forEach((item) => {
+    const cat = item.category || 'בחירות';
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(cleanItemName(item.name));
+  });
+
+  const sortedCategories = [
+    ...categoryOrder.filter((c) => byCategory[c]),
+    ...Object.keys(byCategory).filter((c) => !categoryOrder.includes(c))
+  ];
+
+  if (sortedCategories.length === 0) return '';
+
+  return (
+    '<h3 style="color:' +
+    DARK +
+    ';border-bottom:2px solid ' +
+    GOLD +
+    ';padding-bottom:8px;font-size:18px;font-family:' +
+    FONT +
+    ';margin-top:24px;">פירוט התפריט</h3>' +
+    sortedCategories
+      .map(
+        (cat) =>
+          `<div style="margin-bottom:14px;">` +
+          `<div style="font-size:14px;font-weight:700;color:${GOLD};background:${DARK};padding:5px 10px;display:inline-block;margin-bottom:6px;">${escapeHtml(cat)}</div>` +
+          `<ul style="margin:0;padding:0 16px;list-style:none;">` +
+          byCategory[cat]
+            .map(
+              (name) =>
+                `<li style="padding:3px 0;font-size:15px;color:${DARK};font-family:${FONT};">` +
+                `<span style="color:${GOLD};margin-left:6px;">✓</span> ${escapeHtml(name)}` +
+                `</li>`
+            )
+            .join('') +
+          `</ul></div>`
+      )
+      .join('')
+  );
+}
+
+function buildCateringExtraInfoRows(orderData: OrderTemplateData): string {
+  return (orderData.cateringExtraInfo || [])
+    .filter((row) => row.value && row.value.trim())
+    .map(
+      (row) =>
+        `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">${escapeHtml(row.label)}:&rlm;</td>` +
+        `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(row.value)}</bdi>&rlm;</td></tr>`
+    )
+    .join('');
+}
+
 /**
  * Admin/office template: clean, high-contrast, brand colors.
  */
 export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
+  if (orderData.cateringKind) {
+    return generateCateringAdminEmailHtml(orderData);
+  }
+
   const orderTypeLabel = orderData.orderType === 'delivery' ? 'משלוח' : 'איסוף עצמי';
   const aggregatedItems = aggregateCartItems(orderData.cartItems);
   const subtotal = toValidMoney(orderData.subtotal);
@@ -402,52 +481,105 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
 }
 
 /**
+ * Admin catering template — grouped menu details for Shabbat/events forms.
+ */
+export function generateCateringAdminEmailHtml(orderData: OrderTemplateData): string {
+  const isEvents = orderData.cateringKind === 'events';
+  const orderTypeLabel = orderData.orderType === 'delivery' ? 'משלוח' : 'איסוף עצמי';
+  const itemsSection = buildCateringGroupedItemsHtml(orderData.cartItems, orderData.cateringKind);
+  const extraInfoRows = buildCateringExtraInfoRows(orderData);
+
+  const dateRow = orderData.eventDate
+    ? `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">תאריך האירוע:&rlm;</td>` +
+      `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(formatToIsraeliDate(orderData.eventDate))}</bdi>&rlm;</td></tr>`
+    : '';
+
+  const addressRow =
+    orderData.address && orderData.address.trim()
+      ? `<tr><td dir="rtl" style="padding:7px 0;color:#666;font-family:${FONT};font-size:15px;">${isEvents && orderData.orderType !== 'delivery' ? 'מיקום' : 'כתובת'}:&rlm;</td>` +
+        `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(orderData.address)}</bdi>&rlm;</td></tr>`
+      : '';
+
+  const notesRow =
+    orderData.notes && orderData.notes.trim()
+      ? `<div dir="rtl" style="margin-top:16px;padding:12px 14px;background:#fcfaf5;border-right:4px solid ${GOLD};color:${DARK};font-family:${FONT};font-size:14px;"><strong>הערות:</strong> <bdi>${escapeHtml(orderData.notes)}</bdi></div>`
+      : '';
+
+  const pricePerPortion = toValidMoney(orderData.subtotal);
+  const totalEstimate = toValidMoney(orderData.totalPrice);
+  const priceSummary =
+    isEvents && (pricePerPortion !== null || totalEstimate !== null)
+      ? `<div dir="rtl" style="margin-top:20px;padding:14px 16px;background:${DARK};color:${WHITE};font-family:${FONT};">` +
+        (pricePerPortion !== null
+          ? `<p style="margin:0 0 6px;font-size:15px;">מחיר למנה (משוער): <span style="color:${GOLD};font-weight:bold;">₪${pricePerPortion.toFixed(0)}</span></p>`
+          : '') +
+        (totalEstimate !== null
+          ? `<p style="margin:0;font-size:17px;font-weight:bold;">סה״כ לתשלום (משוער): <span style="color:${GOLD};">₪${totalEstimate.toFixed(0)}</span></p>`
+          : '') +
+        `</div>`
+      : '';
+
+  return (
+    '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"></head>' +
+    '<body style="margin:0;padding:0;font-family:' +
+    FONT +
+    ';">' +
+    '<div dir="rtl" style="font-family:' +
+    FONT +
+    ';background-color:#f7f8f9;padding:30px 10px;direction:rtl;text-align:right;">' +
+    '<table width="100%" style="max-width:650px;margin:0 auto;background:' +
+    WHITE +
+    ';overflow:hidden;border:1px solid ' +
+    GOLD +
+    ';border-collapse:collapse;box-shadow:0 4px 15px rgba(0,0,0,0.05);">' +
+    '<tr><td style="background-color:' +
+    DARK +
+    ';padding:30px;text-align:center;border-bottom:4px solid ' +
+    GOLD +
+    ';">' +
+    '<h2 style="margin:0;color:' +
+    GOLD +
+    ';font-size:24px;font-weight:bold;font-family:' +
+    FONT +
+    ';">בקשת קייטרינג חדשה — ' +
+    (isEvents ? 'אירועים' : 'שבת וחג') +
+    '</h2>' +
+    (orderData.orderNumber
+      ? `<p style="margin:8px 0 0;color:${WHITE};font-size:14px;font-family:${FONT};">הזמנה מס׳ ${escapeHtml(orderData.orderNumber)} · ${orderTypeLabel}</p>`
+      : `<p style="margin:8px 0 0;color:${WHITE};font-size:14px;font-family:${FONT};">${orderTypeLabel}</p>`) +
+    '</td></tr>' +
+    '<tr><td style="padding:30px;">' +
+    '<h3 style="color:' +
+    DARK +
+    ';border-bottom:2px solid ' +
+    GOLD +
+    ';padding-bottom:8px;font-size:18px;font-family:' +
+    FONT +
+    ';margin-top:0;">פרטי הלקוח</h3>' +
+    '<table width="100%" style="border-collapse:collapse;font-size:15px;">' +
+    `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};">שם:&rlm;</td><td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerName)}</bdi>&rlm;</td></tr>` +
+    `<tr><td dir="rtl" style="padding:7px 0;color:#666;font-family:${FONT};">טלפון:&rlm;</td><td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerPhone)}</bdi>&rlm;</td></tr>` +
+    dateRow +
+    extraInfoRows +
+    addressRow +
+    '</table>' +
+    notesRow +
+    itemsSection +
+    priceSummary +
+    '</td></tr>' +
+    '</table></div></body></html>'
+  );
+}
+
+/**
  * Catering-specific customer email.
  * Shows items grouped by category without prices, plus a prominent
  * "a representative will contact you" notice.
  */
 export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData): string {
   const isEvents = orderData.cateringKind === 'events';
-
-  // Group items by category
-  const byCategory: Record<string, string[]> = {};
-  const CATEGORY_ORDER = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
-
-  orderData.cartItems.forEach((item) => {
-    const cat = item.category || 'בחירות';
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push(cleanItemName(item.name));
-  });
-
-  // Sort categories
-  const sortedCategories = [
-    ...CATEGORY_ORDER.filter((c) => byCategory[c]),
-    ...Object.keys(byCategory).filter((c) => !CATEGORY_ORDER.includes(c))
-  ];
-
-  const itemsSection = sortedCategories.length > 0
-    ? '<h3 style="color:' + DARK + ';border-bottom:2px solid ' + GOLD + ';padding-bottom:8px;font-size:18px;font-family:' + FONT + ';margin-top:24px;">בחירת תפריט</h3>' +
-      sortedCategories.map((cat) =>
-        `<div style="margin-bottom:14px;">` +
-        `<div style="font-size:14px;font-weight:700;color:${GOLD};background:${DARK};padding:5px 10px;display:inline-block;margin-bottom:6px;">${escapeHtml(cat)}</div>` +
-        `<ul style="margin:0;padding:0 16px;list-style:none;">` +
-        byCategory[cat].map((name) =>
-          `<li style="padding:3px 0;font-size:15px;color:${DARK};font-family:${FONT};">` +
-          `<span style="color:${GOLD};margin-left:6px;">✓</span> ${escapeHtml(name)}` +
-          `</li>`
-        ).join('') +
-        `</ul></div>`
-      ).join('')
-    : '';
-
-  // Extra info rows (meal type, guest count, etc.)
-  const extraInfoRows = (orderData.cateringExtraInfo || [])
-    .filter((row) => row.value && row.value.trim())
-    .map((row) =>
-      `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">${escapeHtml(row.label)}:&rlm;</td>` +
-      `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(row.value)}</bdi>&rlm;</td></tr>`
-    )
-    .join('');
+  const itemsSection = buildCateringGroupedItemsHtml(orderData.cartItems, orderData.cateringKind);
+  const extraInfoRows = buildCateringExtraInfoRows(orderData);
 
   const dateRow = orderData.eventDate
     ? `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">תאריך האירוע:&rlm;</td>` +
@@ -466,6 +598,21 @@ export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData):
   const headerTitle = isEvents
     ? 'קיבלנו את בקשתך לקייטרינג לאירוע!'
     : 'קיבלנו את בקשתך לקייטרינג שבת וחג!';
+
+  const pricePerPortion = toValidMoney(orderData.subtotal);
+  const totalEstimate = toValidMoney(orderData.totalPrice);
+  const priceSummary =
+    isEvents && (pricePerPortion !== null || totalEstimate !== null)
+      ? `<div dir="rtl" style="margin-top:20px;padding:14px 16px;background:#f7f3ea;border:1px solid ${GOLD};font-family:${FONT};">` +
+        (pricePerPortion !== null
+          ? `<p style="margin:0 0 6px;font-size:15px;color:${DARK};">מחיר למנה (משוער): <strong>₪${pricePerPortion.toFixed(0)}</strong></p>`
+          : '') +
+        (totalEstimate !== null
+          ? `<p style="margin:0;font-size:16px;color:${DARK};">סה״כ לתשלום (משוער): <strong style="color:${DARK};">₪${totalEstimate.toFixed(0)}</strong></p>`
+          : '') +
+        `<p style="margin:10px 0 0;font-size:13px;color:#666;">המחיר הסופי יאושר על ידי נציג מטעמנו.</p>` +
+        `</div>`
+      : '';
 
   return (
     '<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"></head>' +
@@ -497,8 +644,9 @@ export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData):
     '</table>' +
     notesRow +
 
-    // Items (only for shabbat catering that has items)
+    // Menu selections
     itemsSection +
+    priceSummary +
 
     '</td></tr>' +
 

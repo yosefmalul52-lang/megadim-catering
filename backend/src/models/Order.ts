@@ -71,6 +71,8 @@ export interface IOrder extends Document {
    * Never exposed to the client.
    */
   paymentSecurityToken?: string;
+  /** Set when checkout confirmation emails (admin + customer) were sent after successful payment. */
+  confirmationEmailSentAt?: Date;
 }
 
 // Order Schema - userId MUST be at root level
@@ -175,13 +177,14 @@ const OrderSchema: Schema<IOrder> = new Schema({
     default: 'pending',
     index: true
   },
-  authCode:      { type: String, required: false, trim: true },
+  authCode:      { type: String, required: false, trim: true, select: false },
   transactionId: { type: String, required: false, trim: true },
-  cardToken:     { type: String, required: false, trim: true },
-  expireMonth:   { type: Number, required: false },
-  expireYear:    { type: Number, required: false },
+  cardToken:     { type: String, required: false, trim: true, select: false },
+  expireMonth:   { type: Number, required: false, select: false },
+  expireYear:    { type: Number, required: false, select: false },
   authorizedAmount: { type: Number, required: false, default: null },
-  paymentSecurityToken: { type: String, required: false, select: false } // excluded from default queries
+  paymentSecurityToken: { type: String, required: false, select: false }, // excluded from default queries
+  confirmationEmailSentAt: { type: Date, required: false, default: null }
 }, {
   timestamps: true,
   collection: 'orders',

@@ -317,8 +317,6 @@ async function syncCustomerIsRegisteredFromUsers(): Promise<void> {
 
 export async function getCustomers(req: Request, res: Response): Promise<void> {
   try {
-    await syncCustomerIsRegisteredFromUsers();
-
     const search = String(req.query.search || '').trim();
     const manualStatus = String(req.query.manualStatus || '').trim();
     const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 1000);

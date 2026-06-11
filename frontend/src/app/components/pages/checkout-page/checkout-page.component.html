@@ -13,6 +13,11 @@
       <a routerLink="/" class="btn-back">חזרה לתפריט</a>
     </div>
 
+    <div class="payment-error-banner" *ngIf="cartItems.length > 0 && paymentErrorMessage" role="alert">
+      <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+      {{ paymentErrorMessage }}
+    </div>
+
     <div class="checkout-layout" *ngIf="cartItems.length > 0">
       <div class="form-column">
         <mat-card class="form-card">
@@ -31,7 +36,7 @@
                       placeholder="הזן שם מלא"
                       required
                     >
-                    <span class="field-error" *ngIf="orderForm.get('fullName')?.invalid && orderForm.get('fullName')?.touched">שם מלא נדרש</span>
+                    <span class="field-error" *ngIf="orderForm.get('fullName')?.invalid && orderForm.get('fullName')?.touched">שדה חובה</span>
                   </div>
                   <div class="field-row">
                     <label class="field-label" for="phone">טלפון <span class="required-star">*</span></label>
@@ -43,7 +48,9 @@
                       placeholder="052-123-4567"
                       required
                     >
-                    <span class="field-error" *ngIf="orderForm.get('phone')?.invalid && orderForm.get('phone')?.touched">טלפון נדרש</span>
+                    <span class="field-error" *ngIf="orderForm.get('phone')?.invalid && orderForm.get('phone')?.touched">
+                      {{ orderForm.get('phone')?.hasError('required') ? 'שדה חובה' : 'אנא הזינו מספר טלפון תקין' }}
+                    </span>
                   </div>
                 </div>
                 <div class="field-row field-row-full">
@@ -57,7 +64,7 @@
                     required
                   >
                   <span class="field-error" *ngIf="orderForm.get('customerEmail')?.invalid && orderForm.get('customerEmail')?.touched">
-                    {{ orderForm.get('customerEmail')?.hasError('required') ? 'אימייל נדרש' : 'נא להזין אימייל תקין' }}
+                    {{ orderForm.get('customerEmail')?.hasError('required') ? 'שדה חובה' : 'אנא הזינו כתובת אימייל תקינה' }}
                   </span>
                 </div>
                 <div class="field-row field-row-full">
@@ -79,7 +86,7 @@
                       ניתן להזמין מינימום {{ minimumLeadDays }} ימים מראש
                     </mat-hint>
                   </mat-form-field>
-                  <span class="field-error" *ngIf="orderForm.get('eventDate')?.invalid && orderForm.get('eventDate')?.touched">נא לבחור תאריך אירוע (רק בימים המותרים)</span>
+                  <span class="field-error" *ngIf="orderForm.get('eventDate')?.invalid && orderForm.get('eventDate')?.touched">שדה חובה — אנא בחרו תאריך אירוע</span>
                 </div>
               </section>
 
@@ -141,7 +148,7 @@
                         </li>
                       </ul>
                     </div>
-                    <span class="field-error" *ngIf="orderForm.get('city')?.invalid && orderForm.get('city')?.touched">נא לבחור יישוב</span>
+                    <span class="field-error" *ngIf="orderForm.get('city')?.invalid && orderForm.get('city')?.touched">אנא בחרו עיר</span>
                     <span class="delivery-fee-loading" *ngIf="deliveryFeeLoading">
                       <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> מחשב דמי משלוח...
                     </span>
@@ -156,7 +163,7 @@
                       placeholder="רחוב, מספר בית"
                     >
                     <small class="helper-text">נא לציין קומה, דירה וקוד כניסה במידה ויש</small>
-                    <span class="field-error" *ngIf="orderForm.get('streetAddress')?.invalid && orderForm.get('streetAddress')?.touched">נא להזין רחוב ומספר בית</span>
+                    <span class="field-error" *ngIf="orderForm.get('streetAddress')?.invalid && orderForm.get('streetAddress')?.touched">שדה חובה — אנא הזינו רחוב ומספר בית</span>
                   </div>
                 </ng-container>
               </section>
@@ -249,7 +256,7 @@
               <label for="terms">אני מאשר/ת את האמור לעיל ומסכים/ה לתנאים ולמדיניות הביטולים.</label>
             </div>
             <div *ngIf="orderForm.get('termsAccepted')?.invalid && orderForm.get('termsAccepted')?.touched" class="error-text">
-              חובה לאשר את התנאים והמדיניות כדי לבצע הזמנה.
+              שדה חובה — יש לאשר את התנאים והמדיניות כדי לבצע הזמנה.
             </div>
             <div class="checkout-actions">
               <a routerLink="/cart" class="btn-premium btn-secondary">

@@ -54,7 +54,7 @@
           </button>
         </div>
       </div>
-      @if (autoRefreshEnabled && currentTab !== 'archive') {
+      @if (autoRefreshEnabled && currentTab !== 'archive' && currentTab !== 'failed') {
         <div class="auto-refresh-indicator">
           <i class="fas fa-circle pulse"></i>
           <span>עדכון אוטומטי פעיל (כל 30 שניות)</span>
@@ -120,9 +120,11 @@
           <option value="cancelled">בוטל</option>
         </select>
         <button type="button" class="btn-bulk" (click)="applyBulkStatus()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">עדכן סטטוס</button>
-        @if (currentTab !== 'archive') {
+        @if (currentTab !== 'archive' && currentTab !== 'failed') {
           <button type="button" class="btn-bulk" (click)="bulkArchiveSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">העבר לארכיון</button>
-        } @else {
+        } @else if (currentTab === 'failed') {
+          <button type="button" class="btn-bulk" (click)="bulkArchiveSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">העבר לארכיון</button>
+        } @else if (currentTab === 'archive') {
           <button type="button" class="btn-bulk" (click)="bulkRestoreSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">שחזר</button>
           <button type="button" class="btn-bulk danger" (click)="bulkPermanentDeleteSelected()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">מחיקה לצמיתות</button>
         }
@@ -164,6 +166,16 @@
       </button>
       <button
         type="button"
+        class="tab-btn tab-btn-failed"
+        [class.active]="currentTab === 'failed'"
+        (click)="setCurrentTab('failed')"
+        role="tab"
+      >
+        נכשלו / ננטשו
+        <span class="tab-badge">{{ countFailed }}</span>
+      </button>
+      <button
+        type="button"
         class="tab-btn"
         [class.active]="currentTab === 'archive'"
         (click)="setCurrentTab('archive')"
@@ -174,7 +186,7 @@
       </button>
     </nav>
 
-    @if (isLoading && currentTab !== 'archive') {
+    @if (isLoading && currentTab !== 'archive' && currentTab !== 'failed') {
       <div class="loading">
         <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
         <span>טוען הזמנות...</span>
@@ -186,8 +198,18 @@
         <span>טוען ארכיון...</span>
       </div>
     }
+    @if (currentTab === 'failed' && isLoadingFailed) {
+      <div class="loading">
+        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+        <span>טוען הזמנות שנכשלו...</span>
+      </div>
+    }
 
-    @if (!isLoading && (currentTab !== 'archive' || !isLoadingArchive)) {
+    @if (
+      (!isLoading && currentTab !== 'archive' && currentTab !== 'failed') ||
+      (currentTab === 'archive' && !isLoadingArchive) ||
+      (currentTab === 'failed' && !isLoadingFailed)
+    ) {
       <!-- Shabbat orders: desktop table -->
       @if (orderSourceTab === 'shabbat') {
         <div class="table-container orders-desktop">
@@ -522,6 +544,7 @@
           <p>
             @if (orderSourceTab === 'catering') { הזמנות קייטרינג שבת וחג יופיעו כאן כאשר יישמרו במערכת. }
             @else if (orderSourceTab === 'events') { הזמנות קייטרינג לאירועים יופיעו כאן כאשר יישמרו במערכת. }
+            @else if (currentTab === 'failed') { הזמנות עם תשלום שנכשל או שננטש לפני השלמתו יופיעו כאן }
             @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן }
             @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }
           </p>
@@ -633,6 +656,18 @@
                 <div class="detail-row">
                   <span class="detail-label">מספר אורחים:</span>
                   <span class="detail-value">{{ selectedOrder.guestCount }}</span>
+                </div>
+              }
+              @if (selectedOrder.cateringKind === 'events' && selectedOrder.customerDetails?.deliveryType) {
+                <div class="detail-row">
+                  <span class="detail-label">אספקה:</span>
+                  <span class="detail-value">{{ selectedOrder.customerDetails.deliveryType === 'delivery' ? 'משלוח לכתובת' : 'איסוף עצמי' }}</span>
+                </div>
+              }
+              @if (selectedOrder.cateringKind === 'events' && (selectedOrder.subtotal ?? selectedOrder.customerDetails?.pricePerPortion)) {
+                <div class="detail-row">
+                  <span class="detail-label">מחיר למנה (משוער):</span>
+                  <span class="detail-value">₪{{ (selectedOrder.subtotal ?? selectedOrder.customerDetails?.pricePerPortion) | number:'1.0-0' }}</span>
                 </div>
               }
               @if (selectedOrder.cateringKind === 'events' && (selectedOrder.venue || selectedOrder.customerDetails?.address)) {

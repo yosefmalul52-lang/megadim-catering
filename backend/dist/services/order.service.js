@@ -20,6 +20,7 @@ const holiday_order_utils_1 = require("../utils/holiday-order.utils");
 const webhook_util_1 = require("../utils/webhook.util");
 const email_service_1 = require("./email.service");
 const customer_service_1 = require("./customer.service");
+const order_projection_util_1 = require("../utils/order-projection.util");
 class OrderService {
     constructor() {
         // Categories that should only show units, not calculated weight
@@ -160,6 +161,7 @@ class OrderService {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const orders = yield Order_1.default.find({ userId: userId })
+                    .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                     .sort({ createdAt: -1 })
                     .lean();
                 return orders;
@@ -171,6 +173,7 @@ class OrderService {
         });
     }
     // Get all orders with filters (Admin). archive=true => isDeleted or cancelled; otherwise active only (isDeleted false).
+    // paymentFilter: 'valid' (default) excludes failed/abandoned online payments; 'failed' returns only those.
     getAllOrders(filters) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -180,6 +183,12 @@ class OrderService {
                 }
                 else {
                     query.isDeleted = { $ne: true };
+                    if (filters.paymentFilter === 'failed') {
+                        query.paymentStatus = { $in: ['failed', 'awaiting_payment'] };
+                    }
+                    else {
+                        query.paymentStatus = { $nin: ['failed', 'awaiting_payment'] };
+                    }
                 }
                 if (filters.status) {
                     query.status = filters.status;
@@ -195,6 +204,7 @@ class OrderService {
                 }
                 const total = yield Order_1.default.countDocuments(query);
                 const orders = yield Order_1.default.find(query)
+                    .select(order_projection_util_1.ORDER_ADMIN_LIST_SELECT)
                     .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
                     .limit(filters.limit || 100)
                     .skip(filters.offset || 0)
@@ -218,7 +228,9 @@ class OrderService {
                 const order = yield Order_1.default.findOne({
                     _id: orderId,
                     userId: userId
-                }).lean();
+                })
+                    .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                    .lean();
                 if (!order || !((_j = order.items) === null || _j === void 0 ? void 0 : _j.length))
                     return order;
                 yield this.enrichOrderItemsImageUrlPublic(order.items);
@@ -235,7 +247,7 @@ class OrderService {
         return __awaiter(this, void 0, void 0, function* () {
             var _j;
             try {
-                const order = yield Order_1.default.findOne({ _id: orderId }).lean();
+                const order = yield Order_1.default.findOne({ _id: orderId }).select(order_projection_util_1.ORDER_API_DETAIL_SELECT).lean();
                 if (!order || !((_j = order.items) === null || _j === void 0 ? void 0 : _j.length))
                     return order;
                 yield this.enrichOrderItemsImageUrlPublic(order.items);
@@ -255,7 +267,9 @@ class OrderService {
                     _id: orderId,
                     assignedDriverId: driverUserId,
                     isDeleted: { $ne: true }
-                }).lean();
+                })
+                    .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                    .lean();
                 if (!order || !((_j = order.items) === null || _j === void 0 ? void 0 : _j.length))
                     return order;
                 yield this.enrichOrderItemsImageUrlPublic(order.items);
@@ -313,7 +327,9 @@ class OrderService {
                     updateData.deliveryDate = updates.deliveryDate;
                 if (updates.notes !== undefined)
                     updateData['customerDetails.notes'] = updates.notes;
-                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: updateData }, { new: true }).lean();
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: updateData }, { new: true })
+                    .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                    .lean();
                 return order;
             }
             catch (error) {
@@ -332,7 +348,9 @@ class OrderService {
                 _id: orderId,
                 assignedDriverId: driverUserId,
                 isDeleted: { $ne: true }
-            }, { $set: { status } }, { new: true }).lean();
+            }, { $set: { status } }, { new: true })
+                .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                .lean();
             return updated;
         });
     }
@@ -350,6 +368,7 @@ class OrderService {
                     query['customerDetails.eventDate'].$lte = opts.toDate;
             }
             const rows = yield Order_1.default.find(query)
+                .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                 .sort({ 'customerDetails.eventDate': 1, createdAt: -1 })
                 .limit(Math.max(1, Math.min(Number((opts === null || opts === void 0 ? void 0 : opts.limit) || 300), 1000)))
                 .lean();
@@ -369,7 +388,9 @@ class OrderService {
                 set.assignedDriverName = String(driver.fullName || driver.username || '').trim();
                 set.assignedAt = new Date();
             }
-            const updated = yield Order_1.default.findByIdAndUpdate(orderId, { $set: set }, { new: true }).lean();
+            const updated = yield Order_1.default.findByIdAndUpdate(orderId, { $set: set }, { new: true })
+                .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                .lean();
             return updated;
         });
     }
@@ -575,13 +596,23 @@ class OrderService {
                 };
             })));
             const recalculatedTotalPrice = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            const updated = yield Order_1.default.findByIdAndUpdate(orderId, {
+            const updateResult = yield Order_1.default.updateOne({ _id: orderId }, {
                 $set: {
                     items: normalizedItems,
                     totalPrice: Math.round(recalculatedTotalPrice * 100) / 100
                 }
-            }, { new: true }).lean();
+            });
+            if (updateResult.matchedCount === 0)
+                return null;
+            const updated = yield Order_1.default.findById(orderId).select(order_projection_util_1.ORDER_API_DETAIL_SELECT).lean();
             return updated;
+        });
+    }
+    /** Re-fetch order from DB for customer-facing emails (avoids stale embedded items). */
+    getOrderByIdForEmail(orderId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const order = yield Order_1.default.findById(orderId).select(order_projection_util_1.ORDER_API_DETAIL_SELECT).lean();
+            return order;
         });
     }
     /** Update order event/delivery date (Admin). Sets customerDetails.eventDate (stored as YYYY-MM-DD). */
@@ -596,7 +627,7 @@ class OrderService {
                 const updateResult = yield Order_1.default.updateOne({ _id: orderId }, { $set: { 'customerDetails.eventDate': dateStr } });
                 if (updateResult.matchedCount === 0)
                     return null;
-                const updated = yield Order_1.default.findById(orderId).lean();
+                const updated = yield Order_1.default.findById(orderId).select(order_projection_util_1.ORDER_API_DETAIL_SELECT).lean();
                 return updated;
             }
             catch (error) {
@@ -613,7 +644,10 @@ class OrderService {
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
             const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
-            const activeQuery = { isDeleted: { $ne: true } };
+            const activeQuery = {
+                isDeleted: { $ne: true },
+                paymentStatus: { $nin: ['failed', 'awaiting_payment'] }
+            };
             const [pendingCount, eventsTodayCount, monthlyRevenueResult] = yield Promise.all([
                 Order_1.default.countDocuments(Object.assign(Object.assign({}, activeQuery), { status: { $in: ['pending', 'new'] } })),
                 Order_1.default.countDocuments(Object.assign(Object.assign({}, activeQuery), { 'customerDetails.eventDate': todayStr })),
@@ -622,7 +656,8 @@ class OrderService {
                         $match: {
                             isDeleted: { $ne: true },
                             createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-                            status: { $ne: 'cancelled' }
+                            status: { $ne: 'cancelled' },
+                            paymentStatus: { $in: ['authorized', 'captured'] }
                         }
                     },
                     { $group: { _id: null, total: { $sum: '$totalPrice' } } }
@@ -703,6 +738,7 @@ class OrderService {
         return __awaiter(this, arguments, void 0, function* (limit = 10) {
             try {
                 const orders = yield Order_1.default.find()
+                    .select(order_projection_util_1.ORDER_ADMIN_LIST_SELECT)
                     .sort({ createdAt: -1 })
                     .limit(limit)
                     .lean();
@@ -719,7 +755,9 @@ class OrderService {
     deleteOrder(orderId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: true } }, { new: true }).lean();
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: true } }, { new: true })
+                    .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                    .lean();
                 return order;
             }
             catch (error) {
@@ -732,7 +770,9 @@ class OrderService {
     restoreOrder(orderId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: false, status: 'pending' } }, { new: true }).lean();
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: false, status: 'pending' } }, { new: true })
+                    .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                    .lean();
                 return order;
             }
             catch (error) {
@@ -830,6 +870,7 @@ class OrderService {
                         { 'customerDetails.email': { $regex: query, $options: 'i' } }
                     ]
                 })
+                    .select(order_projection_util_1.ORDER_ADMIN_LIST_SELECT)
                     .sort({ createdAt: -1 })
                     .lean();
                 return orders;

@@ -21,95 +21,108 @@
       </p>
     </div>
   </section>
-  
-  <!-- Packages Section (Overlapping Hero) -->
-  <section class="packages-section">
+
+  <!-- Layer 1: Base Menu (single card) -->
+  <section class="courses-section menu-hierarchy-base">
     <div class="container">
       <div class="section-title-wrapper">
         <span class="side-line"></span>
-        <h2 class="section-title">בר קבלת פנים</h2>
+        <h2 class="section-title">תפריט בסיסי לאירוע</h2>
         <span class="side-line"></span>
       </div>
-      
-      <div class="pricing-grid">
-        <div class="pricing-card">
-          <div class="price">30 ₪</div>
-          <div class="price-label">למנה</div>
-          <h3>בר קבלת פנים</h3>
+
+      <div class="base-single-showcase">
+        <div class="course-card main-course">
+          <h3>{{ basePackage.title }}</h3>
+          <div class="price-display">
+            <span class="price-amount">{{ basePackage.pricePerPortion }}</span>
+            <span class="price-currency">₪</span>
+            <span class="price-label">למנה</span>
+          </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 4 סוגים</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">2 מנות בשריות</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">2 מנות צמחוניות</span></li>
-          </ul>
-        </div>
-        
-        <div class="pricing-card featured">
-          <div class="price">45 ₪</div>
-          <div class="price-label">למנה</div>
-          <h3>בר קבלת פנים משודרג</h3>
-          <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 6 סוגים עשירים ומגוונים</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">אידיאלי לאירועים שרוצים "וואו" כבר בכניסה</span></li>
+            @for (item of basePackage.includes; track item) {
+              <li><span class="check-icon">✓</span><span class="list-text">{{ item }}</span></li>
+            }
           </ul>
         </div>
       </div>
     </div>
   </section>
-  
-  <!-- Courses Section -->
-  <section class="courses-section">
+
+  <!-- Layer 2: Three optional upgrades -->
+  <section class="courses-section menu-hierarchy-upgrades">
     <div class="container">
       <div class="section-title-wrapper">
         <span class="side-line"></span>
-        <h2 class="section-title">מנות ראשונות ועיקריות</h2>
+        <h2 class="section-title">שדרוגים ותוספות</h2>
         <span class="side-line"></span>
       </div>
-      
-      <div class="courses-grid">
-        <div class="course-card">
-          <h3>מנות ראשונות</h3>
+
+      <div class="courses-grid upgrades-three-grid">
+        <div class="course-card upgrade-card-static">
+          <h3>{{ firstCourseUpgrade.title }}</h3>
           <div class="price-display">
-            <span class="price-amount">20</span>
+            <span class="price-amount">{{ firstCourseUpgrade.pricePerPortion }}</span>
             <span class="price-currency">₪</span>
             <span class="price-label">למנה</span>
           </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 2 סוגים</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">מוגשות בצורה מוקפדת ומזמינה</span></li>
+            @for (item of firstCourseUpgrade.includes; track item) {
+              <li><span class="check-icon">✓</span><span class="list-text">{{ item }}</span></li>
+            }
           </ul>
         </div>
-        
-        <div class="course-card main-course">
-          <h3>מנות עיקריות</h3>
+
+        <div class="course-card upgrade-card-static">
+          <h3>{{ dessertsUpgrade.title }}</h3>
           <div class="price-display">
-            <span class="price-amount">70</span>
+            <span class="price-amount">{{ dessertsUpgrade.pricePerPortion }}</span>
             <span class="price-currency">₪</span>
             <span class="price-label">למנה</span>
           </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">בחירה של 2 מנות עיקריות</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">3 סוגי תוספות לבחירה</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">שילוב בין טעמים אהובים לקלאסיקות מנצחות</span></li>
-            <li class="extra-offer">
-              <span class="list-text"><strong>➕ תוספת מנה שלישית:</strong> 5 ₪ בלבד (פתרון לקהל מגוון)</span>
-            </li>
+            @for (item of dessertsUpgrade.includes; track item) {
+              <li><span class="check-icon">✓</span><span class="list-text">{{ item }}</span></li>
+            }
           </ul>
         </div>
-        
-        <div class="course-card">
-          <h3>קינוחי ביסקוטי</h3>
-          <div class="price-display">
-            <span class="price-amount">8</span>
-            <span class="price-currency">₪</span>
-            <span class="price-label">לאדם</span>
+
+        <div class="course-card upgrade-card-static reception-card-with-tabs">
+          <h3>{{ receptionBarUpgrade.title }}</h3>
+          <p class="reception-note-inline">{{ receptionBarUpgrade.minStationsNote }}</p>
+
+          <div class="tier-tabs" role="tablist">
+            @for (tier of receptionBarUpgrade.tiers; track tier.id) {
+              <button
+                type="button"
+                class="tier-tab"
+                role="tab"
+                [class.active]="previewReceptionTab === tier.id"
+                [attr.aria-selected]="previewReceptionTab === tier.id"
+                (click)="setPreviewReceptionTab(tier.id)"
+              >
+                {{ tier.title }}
+              </button>
+            }
           </div>
-          <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">קינוחי ביס איכותיים</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">סוגרים את האירוע עם חיוך</span></li>
-          </ul>
+
+          @if (previewReceptionTier; as tier) {
+            <div class="tier-tab-panel" role="tabpanel">
+              <div class="price-display">
+                <span class="price-amount">{{ tier.pricePerPortion }}</span>
+                <span class="price-currency">₪</span>
+                <span class="price-label">למנה</span>
+              </div>
+              <ul class="features-list">
+                @for (feature of tier.features; track feature) {
+                  <li><span class="check-icon">✓</span><span class="list-text">{{ feature }}</span></li>
+                }
+              </ul>
+            </div>
+          }
         </div>
       </div>
-      
+
       <div class="kosher-banner">
         <mat-icon>verified</mat-icon>
         <div class="kosher-text">
@@ -119,7 +132,7 @@
       </div>
     </div>
   </section>
-  
+
   <!-- Conditions Section -->
   <section class="conditions-section">
     <div class="container">
@@ -128,42 +141,32 @@
         <h2 class="section-title">תנאים ומשלוחים</h2>
         <span class="side-line"></span>
       </div>
-      
+
       <div class="conditions-grid">
         <div class="condition-item">
           <mat-icon>shopping_cart</mat-icon>
-          <div>
-            <strong>מינימום הזמנה:</strong> 600 ₪
-          </div>
+          <div><strong>מינימום הזמנה:</strong> 600 ₪</div>
         </div>
         <div class="condition-item">
           <mat-icon>event_busy</mat-icon>
-          <div>
-            <strong>דד-ליין:</strong> עד יומיים לפני, שעה 13:00
-          </div>
+          <div><strong>דד-ליין:</strong> עד יומיים לפני, שעה 13:00</div>
         </div>
         <div class="condition-item">
           <mat-icon>edit_note</mat-icon>
-          <div>
-            <strong>תפריט:</strong> מותאם אישית לפי רצון הלקוח
-          </div>
+          <div><strong>תפריט:</strong> מותאם אישית לפי רצון הלקוח</div>
         </div>
         <div class="condition-item">
           <mat-icon>local_shipping</mat-icon>
-          <div>
-            <strong>משלוח:</strong> 200–600 ₪ (לפי מרחק) או איסוף עצמי
-          </div>
+          <div><strong>משלוח:</strong> 200–600 ₪ (לפי מרחק) או איסוף עצמי</div>
         </div>
         <div class="condition-item note">
           <mat-icon>info</mat-icon>
-          <div>
-            <strong>תוספות (בתשלום):</strong> יין, שתייה, חד"פ, תפעול
-          </div>
+          <div><strong>תוספות (בתשלום):</strong> יין, שתייה, חד"פ, תפעול</div>
         </div>
       </div>
     </div>
   </section>
-  
+
   <!-- CTA Section -->
   <section class="cta-section">
     <div class="container">
@@ -189,7 +192,7 @@
   <!-- Order Form Modal -->
   @if (showOrderForm) {
     <div class="events-order-overlay" (click)="closeOrderForm()">
-      <div class="events-order-modal" (click)="$event.stopPropagation()">
+      <div class="events-order-modal" dir="rtl" (click)="$event.stopPropagation()">
 
         <div class="modal-header">
           <h2>טופס הזמנת קייטרינג לאירוע</h2>
@@ -206,9 +209,9 @@
             <button type="button" class="close-success-btn" (click)="closeOrderForm()">סגור</button>
           </div>
         } @else {
-          <form class="order-form" (ngSubmit)="submitOrder()" novalidate>
+          <form class="order-form" dir="rtl" (ngSubmit)="submitOrder()" novalidate>
 
-            <!-- Section 1: Personal Details -->
+            <!-- Personal Details -->
             <div class="form-section">
               <h3 class="section-title">פרטים אישיים</h3>
               <div class="form-grid">
@@ -231,7 +234,7 @@
               </div>
             </div>
 
-            <!-- Section 2: Event Details -->
+            <!-- Event Details -->
             <div class="form-section">
               <h3 class="section-title">פרטי האירוע</h3>
               <div class="form-grid">
@@ -246,126 +249,178 @@
                 </div>
                 <div class="form-group">
                   <label>תאריך האירוע *</label>
-                  <input type="date" [(ngModel)]="orderForm.eventDate" name="eventDate" required>
+                  <mat-form-field appearance="outline" class="full-width event-date-field">
+                    <input
+                      matInput
+                      [matDatepicker]="eventDatePicker"
+                      [(ngModel)]="eventDateControl"
+                      name="eventDate"
+                      [matDatepickerFilter]="dateFilter"
+                      [min]="minEventDateObj"
+                      (ngModelChange)="onEventDateChange($event)"
+                    >
+                    <mat-datepicker-toggle matSuffix [for]="eventDatePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #eventDatePicker></mat-datepicker>
+                  </mat-form-field>
+                  @if (eventDateError) {
+                    <p class="field-error">{{ eventDateError }}</p>
+                  }
                 </div>
-                <div class="form-group">
+                <div class="form-group form-group-span-full">
                   <label>מיקום האירוע</label>
                   <input type="text" [(ngModel)]="orderForm.venue" name="venue" placeholder="שם האולם / כתובת">
                 </div>
               </div>
             </div>
 
-            <!-- Section 3: Reception Bar -->
-            <div class="form-section">
-              <h3 class="section-title">בר קבלת פנים</h3>
-              <div class="toggle-section">
-                <label class="toggle-label">
-                  <input type="checkbox" [(ngModel)]="orderForm.receptionBar" name="receptionBar">
-                  <span>כן, אני מעוניין בבר קבלת פנים</span>
-                </label>
+            <!-- Base Menu selections -->
+            <div class="form-section menu-form-base">
+              <h3 class="section-title">תפריט בסיסי לאירוע</h3>
+              <div class="base-item-selections">
+                <div class="selection-group">
+                  <h4 class="selection-group-title">8 סוגי סלטים</h4>
+                  <div class="selects-grid">
+                    @for (idx of saladIndexes; track idx) {
+                      <div class="form-group">
+                        <label>סלט {{ idx }}</label>
+                        <select [(ngModel)]="orderForm.salads[idx - 1]" [name]="'salad' + idx">
+                          <option value="" disabled selected>בחר סלט...</option>
+                          @for (opt of saladOptions; track opt) {
+                            <option [value]="opt">{{ opt }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <div class="selection-group">
+                  <h4 class="selection-group-title">מנה עיקרית — 2 סוגים לבחירה</h4>
+                  <div class="selects-grid">
+                    @for (idx of mainCourseIndexes; track idx) {
+                      <div class="form-group">
+                        <label>סוג {{ idx }}</label>
+                        <select [(ngModel)]="orderForm.mainCourses[idx - 1]" [name]="'mainCourse' + idx">
+                          <option value="" disabled selected>בחר סוג מנה עיקרית...</option>
+                          @for (opt of mainCourseOptions; track opt) {
+                            <option [value]="opt">{{ opt }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <div class="selection-group">
+                  <h4 class="selection-group-title">3 תוספות</h4>
+                  <div class="selects-grid">
+                    @for (idx of sideIndexes; track idx) {
+                      <div class="form-group">
+                        <label>תוספת {{ idx }}</label>
+                        <select [(ngModel)]="orderForm.sides[idx - 1]" [name]="'side' + idx">
+                          <option value="" disabled selected>בחר תוספת...</option>
+                          @for (opt of sideDishOptions; track opt) {
+                            <option [value]="opt">{{ opt }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                  </div>
+                </div>
               </div>
-              @if (orderForm.receptionBar) {
-                <div class="radio-group" style="margin-top:20px;">
-                  <label class="radio-label">
-                    <input type="radio" name="receptionBarVariant" value="standard" [(ngModel)]="orderForm.receptionBarVariant">
-                    <span>בר קבלת פנים רגיל — 4 סוגים (₪30 למנה)</span>
+            </div>
+
+            <!-- Upgrades -->
+            <div class="form-section menu-form-upgrades">
+              <h3 class="section-title">שדרוגים ותוספות</h3>
+              <div class="upgrade-options">
+
+                <div class="upgrade-option" [class.active]="isFirstCourseSelected">
+                  <label class="upgrade-select-row">
+                    <input
+                      type="checkbox"
+                      [checked]="isFirstCourseSelected"
+                      (change)="onFirstCourseToggle($any($event.target).checked)"
+                      name="upgradeFirstCourse"
+                    >
+                    <span>{{ firstCourseUpgrade.title }}</span>
                   </label>
-                  <label class="radio-label">
-                    <input type="radio" name="receptionBarVariant" value="premium" [(ngModel)]="orderForm.receptionBarVariant">
-                    <span>בר קבלת פנים משודרג — 6 סוגים (₪45 למנה)</span>
+                  @if (isFirstCourseSelected) {
+                    <div class="upgrade-selections">
+                      <div class="selects-grid compact-grid">
+                        @for (idx of firstCourseIndexes; track idx) {
+                          <div class="form-group">
+                            <label>מנה ראשונה {{ idx }}</label>
+                            <select [(ngModel)]="firstCourses[idx - 1]" [name]="'firstCourse' + idx">
+                              <option value="" disabled selected>בחר מנה ראשונה...</option>
+                              @for (opt of firstCourseUpgradeOptions; track opt) {
+                                <option [value]="opt">{{ opt }}</option>
+                              }
+                            </select>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="upgrade-option" [class.active]="isDessertsSelected">
+                  <label class="upgrade-select-row">
+                    <input
+                      type="checkbox"
+                      [checked]="isDessertsSelected"
+                      (change)="onDessertsToggle($any($event.target).checked)"
+                      name="upgradeDesserts"
+                    >
+                    <span>{{ dessertsUpgrade.title }}</span>
                   </label>
                 </div>
-              }
-            </div>
 
-            <!-- Section 4: Salads -->
-            <div class="form-section">
-              <h3 class="section-title">סלטים (עד 6 לבחירה)</h3>
-              <div class="selects-grid">
-                @for (idx of saladIndexes; track idx) {
-                  <div class="form-group">
-                    <label>סלט — בחירה {{ idx }}</label>
-                    <select [(ngModel)]="orderForm.salads[idx - 1]" [name]="'salad' + idx">
-                      <option value="" disabled selected>בחר סלט...</option>
-                      @for (opt of saladOptions; track opt) {
-                        <option [value]="opt">{{ opt }}</option>
-                      }
-                    </select>
-                  </div>
-                }
+                <div class="upgrade-option" [class.active]="isReceptionSelected">
+                  <label class="upgrade-select-row">
+                    <input
+                      type="checkbox"
+                      [checked]="isReceptionSelected"
+                      (change)="onReceptionToggle($any($event.target).checked)"
+                      name="upgradeReception"
+                    >
+                    <span>{{ receptionBarUpgrade.title }}</span>
+                  </label>
+                  @if (isReceptionSelected) {
+                    <div class="upgrade-selections">
+                      <div class="tier-tabs" role="tablist">
+                        @for (tier of receptionBarUpgrade.tiers; track tier.id) {
+                          <button
+                            type="button"
+                            class="tier-tab"
+                            role="tab"
+                            [class.active]="receptionTier === tier.id"
+                            [attr.aria-selected]="receptionTier === tier.id"
+                            (click)="onReceptionTierChange(tier.id)"
+                          >
+                            {{ tier.title }}
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="upgrade-option" [class.active]="isKosherUpgradeSelected">
+                  <label class="upgrade-select-row">
+                    <input
+                      type="checkbox"
+                      [checked]="isKosherUpgradeSelected"
+                      (change)="onKosherToggle($any($event.target).checked)"
+                      name="kosherUpgrade"
+                    >
+                    <span>כשרות מהדרין מחפוד (בשר ועוף) — תוספת {{ kosherUpgradePrice }} ₪ למנה</span>
+                  </label>
+                </div>
               </div>
             </div>
 
-            <!-- Section 5: First Courses -->
-            <div class="form-section">
-              <h3 class="section-title">מנות ראשונות (עד 2 לבחירה · ₪20 למנה)</h3>
-              <div class="selects-grid">
-                @for (idx of firstCourseIndexes; track idx) {
-                  <div class="form-group">
-                    <label>מנה ראשונה — בחירה {{ idx }}</label>
-                    <select [(ngModel)]="orderForm.firstCourses[idx - 1]" [name]="'firstCourse' + idx">
-                      <option value="" disabled selected>בחר מנה ראשונה...</option>
-                      @for (opt of firstCourseOptions; track opt) {
-                        <option [value]="opt">{{ opt }}</option>
-                      }
-                    </select>
-                  </div>
-                }
-              </div>
-            </div>
-
-            <!-- Section 6: Main Courses -->
-            <div class="form-section">
-              <h3 class="section-title">מנות עיקריות (עד 2 לבחירה · ₪70 למנה)</h3>
-              <div class="selects-grid">
-                @for (idx of mainCourseIndexes; track idx) {
-                  <div class="form-group">
-                    <label>מנה עיקרית — בחירה {{ idx }}</label>
-                    <select [(ngModel)]="orderForm.mainCourses[idx - 1]" [name]="'mainCourse' + idx">
-                      <option value="" disabled selected>בחר מנה עיקרית...</option>
-                      @for (opt of mainCourseOptions; track opt) {
-                        <option [value]="opt">{{ opt }}</option>
-                      }
-                    </select>
-                  </div>
-                }
-              </div>
-            </div>
-
-            <!-- Section 7: Sides -->
-            <div class="form-section">
-              <h3 class="section-title">תוספות (עד 3 לבחירה)</h3>
-              <div class="selects-grid">
-                @for (idx of sideIndexes; track idx) {
-                  <div class="form-group">
-                    <label>תוספת — בחירה {{ idx }}</label>
-                    <select [(ngModel)]="orderForm.sides[idx - 1]" [name]="'side' + idx">
-                      <option value="" disabled selected>בחר תוספת...</option>
-                      @for (opt of sideDishOptions; track opt) {
-                        <option [value]="opt">{{ opt }}</option>
-                      }
-                    </select>
-                  </div>
-                }
-              </div>
-            </div>
-
-            <!-- Section 8: Extras -->
-            <div class="form-section">
-              <h3 class="section-title">תוספות ושדרוגים</h3>
-              <div class="extras-grid">
-                <label class="toggle-label">
-                  <input type="checkbox" [(ngModel)]="orderForm.desserts" name="desserts">
-                  <span>קינוחי ביסקוטי — ₪8 לאדם</span>
-                </label>
-                <label class="toggle-label">
-                  <input type="checkbox" [(ngModel)]="orderForm.kosherUpgrade" name="kosherUpgrade">
-                  <span>שדרוג כשרות מהדרין מחפוד (בשר ועוף) — תוספת ₪7 למנה</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Section 9: Delivery + Notes -->
+            <!-- Delivery + Notes -->
             <div class="form-section">
               <h3 class="section-title">אספקה והערות</h3>
               <div class="radio-group">
@@ -390,7 +445,6 @@
               </div>
             </div>
 
-            <!-- Submit -->
             <div class="form-footer">
               @if (submitError) {
                 <p class="form-error-msg">{{ submitError }}</p>

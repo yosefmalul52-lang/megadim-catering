@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Customer from '../models/Customer';
 
 type OrderLike = {
@@ -76,22 +77,183 @@ function extractCityFromAddress(rawAddress: unknown): string {
   return firstChunk;
 }
 
+function crmLogContext(orderData: OrderLike): Record<string, unknown> {
+  const customer = (orderData?.customerDetails ?? {}) as Record<string, unknown>;
+  return {
+    orderId: orderData?._id ?? null,
+    rawPhone: customer.phone ?? null,
+    customerName: customer.fullName ?? null,
+    status: orderData?.status ?? null
+  };
+}
+
+function parseOrderObjectId(orderData: OrderLike): mongoose.Types.ObjectId | null {
+  const raw = String(orderData?._id || '').trim();
+  if (!raw || !/^[a-f0-9]{24}$/i.test(raw)) return null;
+  try {
+    return new mongoose.Types.ObjectId(raw);
+  } catch {
+    return null;
+  }
+}
+
+function buildProfileSet(customer: Record<string, unknown>): Record<string, unknown> {
+  const fullName = String(customer.fullName ?? '').trim();
+  const rawEmail = String(customer.email ?? '').trim().toLowerCase();
+  const email = isBusinessEmail(rawEmail) ? '' : rawEmail;
+  const city = extractCityFromAddress(customer.address);
+
+  const set: Record<string, unknown> = {};
+  if (fullName) set.fullName = fullName;
+  if (email) set.email = email;
+  if (city) set.city = city;
+  return set;
+}
+
+async function applyCustomerUpsert(
+  phoneForWrite: string,
+  orderOid: mongoose.Types.ObjectId | null,
+  set: Record<string, unknown>,
+  totalSpentDelta: number,
+  lastOrderDate: Date,
+  city: string
+): Promise<void> {
+  const updateDoc: Record<string, unknown> = {
+    $setOnInsert: {
+      normalizedPhone: phoneForWrite,
+      manualStatus: 'NONE',
+      customerCategory: 'all',
+      tags: [],
+      adminNotes: '',
+      dietaryInfo: '',
+      city: city || ''
+    },
+    $max: {
+      lastOrderDate
+    }
+  };
+
+  if (Object.keys(set).length > 0) {
+    updateDoc.$set = set;
+  }
+
+  if (orderOid) {
+    // Idempotent: filter excludes docs that already contain this order in orderHistory.
+    updateDoc.$addToSet = { orderHistory: orderOid };
+    updateDoc.$inc = {
+      totalSpent: totalSpentDelta,
+      orderCount: 1
+    };
+
+    await Customer.updateOne(
+      { normalizedPhone: phoneForWrite, orderHistory: { $ne: orderOid } },
+      updateDoc,
+      {
+        upsert: true,
+        runValidators: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    // Refresh profile fields even when this order was already counted.
+    if (Object.keys(set).length > 0) {
+      await Customer.updateOne(
+        { normalizedPhone: phoneForWrite },
+        { $set: set, $max: { lastOrderDate } },
+        { runValidators: true }
+      );
+    }
+    return;
+  }
+
+  updateDoc.$inc = {
+    totalSpent: totalSpentDelta,
+    orderCount: 1
+  };
+
+  await Customer.updateOne(
+    { normalizedPhone: phoneForWrite },
+    updateDoc,
+    {
+      upsert: true,
+      runValidators: true,
+      setDefaultsOnInsert: true
+    }
+  );
+}
+
+async function applyDuplicateMergeFallback(
+  phoneForMerge: string,
+  set: Record<string, unknown>,
+  totalSpentDelta: number,
+  lastOrderDate: Date,
+  orderOid: mongoose.Types.ObjectId | null
+): Promise<void> {
+  const mergeUpdate: Record<string, unknown> = {
+    $max: {
+      lastOrderDate
+    }
+  };
+
+  if (orderOid) {
+    mergeUpdate.$addToSet = { orderHistory: orderOid };
+    mergeUpdate.$inc = {
+      totalSpent: totalSpentDelta,
+      orderCount: 1
+    };
+    if (Object.keys(set).length > 0) {
+      mergeUpdate.$set = set;
+    }
+
+    await Customer.updateOne(
+      { normalizedPhone: phoneForMerge, orderHistory: { $ne: orderOid } },
+      mergeUpdate,
+      { runValidators: true }
+    );
+
+    if (Object.keys(set).length > 0) {
+      await Customer.updateOne(
+        { normalizedPhone: phoneForMerge },
+        { $set: set, $max: { lastOrderDate } },
+        { runValidators: true }
+      );
+    }
+    return;
+  }
+
+  mergeUpdate.$inc = {
+    totalSpent: totalSpentDelta,
+    orderCount: 1
+  };
+  if (Object.keys(set).length > 0) {
+    mergeUpdate.$set = set;
+  }
+
+  await Customer.updateOne({ normalizedPhone: phoneForMerge }, mergeUpdate, { runValidators: true });
+}
+
 /**
  * Upserts a single Customer document from an order payload/document.
  * This function is fail-open by design and should not break order flow.
+ * Idempotent per order: calling twice for the same order will not double-count stats.
  */
 export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<void> {
+  const logCtx = crmLogContext(orderData);
+
   try {
-    if (!isOrderCountableForCustomerStats(orderData)) return;
+    if (!isOrderCountableForCustomerStats(orderData)) {
+      console.error('[crm] upsert skipped: order not countable for customer stats', logCtx);
+      return;
+    }
 
     const customer = (orderData?.customerDetails ?? {}) as Record<string, unknown>;
-    const normalizedPhone = normalizePhone(customer.phone);
-    const phoneForWrite = normalizePhone(normalizedPhone);
-    if (!phoneForWrite) return;
+    const phoneForWrite = normalizePhone(customer.phone);
+    if (!phoneForWrite) {
+      console.error('[crm] upsert skipped: missing phone', logCtx);
+      return;
+    }
 
-    const fullName = String(customer.fullName ?? '').trim();
-    const rawEmail = String(customer.email ?? '').trim().toLowerCase();
-    const email = isBusinessEmail(rawEmail) ? '' : rawEmail;
+    const set = buildProfileSet(customer);
     const city = extractCityFromAddress(customer.address);
 
     const totalPriceNum = Number(orderData?.totalPrice);
@@ -100,134 +262,36 @@ export async function upsertCustomerFromOrder(orderData: OrderLike): Promise<voi
     const createdAtDate = orderData?.createdAt ? new Date(orderData.createdAt as any) : new Date();
     const lastOrderDate = Number.isNaN(createdAtDate.getTime()) ? new Date() : createdAtDate;
 
-    const set: Record<string, unknown> = {};
-    if (fullName) set.fullName = fullName;
-    if (email) set.email = email;
-    if (city) set.city = city;
-
-    const rawOrderId = String(orderData?._id || '').trim();
-    const orderId = rawOrderId && /^[a-f0-9]{24}$/i.test(rawOrderId) ? rawOrderId : '';
-
-    const updateDoc: Record<string, unknown> = {
-      $setOnInsert: {
-        normalizedPhone: phoneForWrite,
-        manualStatus: 'NONE',
-        customerCategory: 'all',
-        tags: [],
-        adminNotes: '',
-        dietaryInfo: '',
-        city: city || ''
-        // NOTE: orderHistory intentionally omitted here.
-        // $addToSet below handles initialization + first entry in one operation.
-        // Having both $setOnInsert.orderHistory and $addToSet.orderHistory targets
-        // the same path, which MongoDB rejects as ConflictingUpdateOperators.
-      },
-      $max: {
-        lastOrderDate
-      }
-    };
-
-    if (orderId) {
-      updateDoc.$addToSet = { orderHistory: orderId };
-      updateDoc.$inc = {
-        totalSpent: totalSpentDelta,
-        orderCount: 1
-      };
-    } else {
-      updateDoc.$inc = {
-        totalSpent: totalSpentDelta,
-        orderCount: 1
-      };
+    const orderOid = parseOrderObjectId(orderData);
+    if (!orderOid) {
+      console.error('[crm] upsert warning: invalid or missing order ObjectId — stats may not be idempotent', logCtx);
     }
 
-    if (Object.keys(set).length > 0) {
-      updateDoc.$set = set;
-    }
-
-    if (orderId) {
-      await Customer.findOneAndUpdate(
-        { normalizedPhone: phoneForWrite, orderHistory: { $ne: orderId } },
-        updateDoc,
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-          runValidators: true
-        }
-      );
-      // Always keep profile fields fresh even if this order was already counted.
-      if (Object.keys(set).length > 0) {
-        await Customer.updateOne({ normalizedPhone: phoneForWrite }, { $set: set }, { runValidators: true });
-      }
-      return;
-    }
-
-    await Customer.findOneAndUpdate({ normalizedPhone: phoneForWrite }, updateDoc, {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-      runValidators: true
-    });
+    await applyCustomerUpsert(phoneForWrite, orderOid, set, totalSpentDelta, lastOrderDate, city);
   } catch (err) {
     if (!isDuplicateNormalizedPhoneError(err)) {
-      console.error('Upsert Error:', err);
+      console.error('[crm] upsert failed:', logCtx, err);
       return;
     }
 
     try {
       const customer = (orderData?.customerDetails ?? {}) as Record<string, unknown>;
-      const fallbackPhone = normalizePhone(customer.phone);
-      const phoneForMerge = normalizePhone(fallbackPhone);
-      if (!phoneForMerge) return;
+      const phoneForMerge = normalizePhone(customer.phone);
+      if (!phoneForMerge) {
+        console.error('[crm] upsert failed: duplicate-key fallback missing phone', logCtx);
+        return;
+      }
 
-      const fullName = String(customer.fullName ?? '').trim();
-      const rawEmail = String(customer.email ?? '').trim().toLowerCase();
-      const email = isBusinessEmail(rawEmail) ? '' : rawEmail;
-      const city = extractCityFromAddress(customer.address);
-
+      const set = buildProfileSet(customer);
       const totalPriceNum = Number(orderData?.totalPrice);
       const totalSpentDelta = Number.isFinite(totalPriceNum) ? Math.max(0, totalPriceNum) : 0;
       const createdAtDate = orderData?.createdAt ? new Date(orderData.createdAt as any) : new Date();
       const lastOrderDate = Number.isNaN(createdAtDate.getTime()) ? new Date() : createdAtDate;
+      const orderOid = parseOrderObjectId(orderData);
 
-      const mergeSet: Record<string, unknown> = {};
-      if (fullName) mergeSet.fullName = fullName;
-      if (email) mergeSet.email = email;
-      if (city) mergeSet.city = city;
-      const rawOrderId = String(orderData?._id || '').trim();
-      const orderId = rawOrderId && /^[a-f0-9]{24}$/i.test(rawOrderId) ? rawOrderId : '';
-
-      const mergeUpdate: Record<string, unknown> = {
-        $max: {
-          lastOrderDate
-        }
-      };
-      if (orderId) {
-        mergeUpdate.$addToSet = { orderHistory: orderId };
-      }
-      mergeUpdate.$inc = {
-        totalSpent: totalSpentDelta,
-        orderCount: 1
-      };
-      if (Object.keys(mergeSet).length > 0) {
-        mergeUpdate.$set = mergeSet;
-      }
-
-      if (orderId) {
-        await Customer.updateOne(
-          { normalizedPhone: phoneForMerge, orderHistory: { $ne: orderId } },
-          mergeUpdate,
-          { runValidators: true }
-        );
-        if (Object.keys(mergeSet).length > 0) {
-          await Customer.updateOne({ normalizedPhone: phoneForMerge }, { $set: mergeSet }, { runValidators: true });
-        }
-      } else {
-        await Customer.updateOne({ normalizedPhone: phoneForMerge }, mergeUpdate, { runValidators: true });
-      }
+      await applyDuplicateMergeFallback(phoneForMerge, set, totalSpentDelta, lastOrderDate, orderOid);
     } catch (mergeErr) {
-      // Fail-open: checkout/order creation must not crash due to CRM sync races.
-      console.error('Upsert duplicate-merge fallback error:', mergeErr);
+      console.error('[crm] upsert failed: duplicate-merge fallback error', logCtx, mergeErr);
     }
   }
 }

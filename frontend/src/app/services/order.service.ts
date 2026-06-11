@@ -73,6 +73,8 @@ export interface Order {
     address?: string;
     notes?: string;
     eventDate?: string;
+    deliveryType?: 'pickup' | 'delivery';
+    pricePerPortion?: number;
     /** Fallback pricing for orders created before root-level subtotal/deliveryFee was added. */
     subtotal?: number;
     deliveryFee?: number;
@@ -221,9 +223,14 @@ export class OrderService {
   }
 
   // Admin methods for order management. archive=true for archived/cancelled orders.
-  getAllOrders(archive = false, limit?: number): Observable<Order[]> {
+  getAllOrders(
+    archive = false,
+    limit?: number,
+    paymentFilter?: 'valid' | 'failed'
+  ): Observable<Order[]> {
     const params: Record<string, string> = {};
     if (archive) params['archive'] = '1';
+    else if (paymentFilter === 'failed') params['paymentFilter'] = 'failed';
     if (typeof limit === 'number' && limit > 0) params['limit'] = String(limit);
     return this.http.get<{ success: boolean; data: Order[] }>(`${environment.apiUrl}/order`, { params }).pipe(
       map((response: { success: boolean; data: Order[] }) => {

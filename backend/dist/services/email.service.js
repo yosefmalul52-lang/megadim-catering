@@ -14,7 +14,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailService = exports.EmailService = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const Order_1 = __importDefault(require("../models/Order"));
 const email_templates_1 = require("./email-templates");
+const order_projection_util_1 = require("../utils/order-projection.util");
 /** Single source of truth: EMAIL_HOST, EMAIL_PORT (default 587), EMAIL_USER, EMAIL_PASS */
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
 const EMAIL_PASS = process.env.EMAIL_PASS;
@@ -206,6 +208,75 @@ class EmailService {
         });
     }
     /**
+     * Send checkout confirmation emails once after payment is authorized/captured.
+     * Idempotent: only the first caller wins via confirmationEmailSentAt.
+     */
+    sendOrderConfirmationAfterPayment(orderId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const claimed = yield Order_1.default.findOneAndUpdate({
+                _id: orderId,
+                confirmationEmailSentAt: null,
+                paymentStatus: { $in: ['authorized', 'captured'] }
+            }, { $set: { confirmationEmailSentAt: new Date() } }, { new: false })
+                .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
+                .lean();
+            if (!claimed) {
+                return;
+            }
+            yield this.sendOrderEmail(claimed);
+            console.log('✅ Order confirmation emails sent after payment:', orderId);
+        });
+    }
+    buildItemsListHtml(order) {
+        return (order.items || [])
+            .map((item, i) => `${i + 1}. ${escapeHtml(String(item.name || ''))} – כמות: ${Number(item.quantity) || 0}, סה"כ: ₪${((Number(item.price) || 0) * (Number(item.quantity) || 0)).toFixed(2)}`)
+            .join('<br/>');
+    }
+    /**
+     * Notify customer that an admin edited order items (uses persisted order snapshot).
+     */
+    sendOrderUpdateEmail(order) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _j, _k, _q, _z;
+            const toEmail = (((_j = order.customerDetails) === null || _j === void 0 ? void 0 : _j.email) || '').toString().trim();
+            if (!toEmail) {
+                console.warn('⚠️ Order updated but customer has no email – skipping update email');
+                return;
+            }
+            if (!EMAIL_USER || !EMAIL_PASS) {
+                console.warn('⚠️ Email not configured – skipping order update email to customer');
+                return;
+            }
+            const businessName = process.env.BUSINESS_NAME || 'Megadim';
+            const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+            const customerName = ((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.fullName) || 'לקוח/ה';
+            const orderLabel = order.orderNumber || ((_q = order._id) === null || _q === void 0 ? void 0 : _q.toString().slice(-8)) || '';
+            const itemsList = this.buildItemsListHtml(order);
+            const html = `
+      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #fafafa; border: 1px solid #e5e5e5;">
+        <h1 style="color: #0E1A24; margin: 0 0 16px;">הזמנתך עודכנה</h1>
+        <p style="color: #333; line-height: 1.6;">שלום ${escapeHtml(customerName)},</p>
+        <p style="color: #333; line-height: 1.6;">פרטי ההזמנה שלך עודכנו על ידי צוות מגדים.</p>
+        <div style="background: #fff; padding: 20px; margin: 20px 0; border: 1px solid #e5e5e5;">
+          <p style="margin: 0 0 8px;"><strong>מספר הזמנה:</strong> ${escapeHtml(String(orderLabel))}</p>
+          <p style="margin: 0 0 8px;"><strong>סה"כ:</strong> ₪${((_z = order.totalPrice) !== null && _z !== void 0 ? _z : 0).toFixed(2)}</p>
+          <p style="margin: 0 0 8px;"><strong>פריטים:</strong></p>
+          <div style="color: #555; font-size: 0.95em;">${itemsList}</div>
+        </div>
+        <p style="color: #666; font-size: 0.95em;">לשאלות נוספות – צרו איתנו קשר.</p>
+        <p style="color: #0E1A24;">בברכה,<br/>צוות ${escapeHtml(businessName)}</p>
+      </div>`;
+            yield this.sendMailWithLogging('order:updated-customer', {
+                from: getWebsiteFromHeader(),
+                replyTo: ownerEmail || undefined,
+                to: toEmail,
+                subject: `הזמנתך עודכנה${orderLabel ? ` – ${orderLabel}` : ''} - ${businessName}`,
+                html
+            });
+            console.log('✅ Order update email sent to customer:', toEmail);
+        });
+    }
+    /**
      * Send order confirmation email to the business owner (legacy: used by order.service after DB save).
      * Agency model: sends via EMAIL_USER, appears from BUSINESS_NAME, to OWNER_EMAIL (client).
      * Uses the same branded HTML templates as the newer sendOrderEmails flow.
@@ -297,9 +368,7 @@ class EmailService {
             const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
             const customerName = ((_k = order.customerDetails) === null || _k === void 0 ? void 0 : _k.fullName) || 'לקוח/ה';
             const orderIdShort = ((_q = order._id) === null || _q === void 0 ? void 0 : _q.toString().slice(-8)) || '';
-            const itemsList = (order.items || [])
-                .map((item, i) => `${i + 1}. ${item.name} – כמות: ${item.quantity}, סה"כ: ₪${((item.price || 0) * (item.quantity || 0)).toFixed(2)}`)
-                .join('<br/>');
+            const itemsList = this.buildItemsListHtml(order);
             const html = `
       <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: linear-gradient(180deg, #fefaf2 0%, #f7ecd3 100%); border: 1px solid #e2cfa4;">
         <div style="text-align: center; margin-bottom: 24px;">

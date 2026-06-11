@@ -169,38 +169,15 @@ class OrderController {
                 yield (0, coupon_service_1.updateCouponRevenue)(couponIdToIncrement, body.totalAmount);
             }
             const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
-            // Send to admin (you) + receipt to customer – like before; don't fail the request if email fails
-            try {
-                const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
-                if (ownerEmail) {
-                    const addressStr = typeof body.address === 'string'
-                        ? body.address
-                        : body.address && typeof body.address === 'object'
-                            ? [body.address.city, body.address.street, body.address.apartment].filter(Boolean).join(', ')
-                            : undefined;
-                    const orderDataForEmail = {
-                        customerName: body.customerName,
-                        phone: body.phone,
-                        customerEmail: body.email,
-                        eventDate: body.eventDate,
-                        deliveryType: body.deliveryMethod,
-                        address: addressStr,
-                        notes: body.notes,
-                        items: body.items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity, price: i.price })),
-                        subtotal: Number(body.subtotal) || 0,
-                        deliveryFee: recalculatedDeliveryFee,
-                        total: body.totalAmount,
-                        orderNumber: plainOrder.orderNumber
-                    };
-                    yield email_service_1.emailService.sendOrderEmails(orderDataForEmail, ownerEmail, body.email);
-                    console.log('Order emails sent: admin + customer receipt');
+            // Manual / offline orders: confirm immediately. Online checkout defers until payment success.
+            if (body.manualOrder === true) {
+                try {
+                    yield email_service_1.emailService.sendOrderEmail(plainOrder);
+                    console.log('Manual order emails sent on creation');
                 }
-                else {
-                    console.warn('OWNER_EMAIL not set – skipping order emails');
+                catch (emailErr) {
+                    console.error('Email failed to send for manual order, but order was saved:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
                 }
-            }
-            catch (emailErr) {
-                console.error('Email failed to send, but order was saved:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
             }
             res.status(201).json({
                 success: true,
@@ -305,15 +282,18 @@ class OrderController {
             });
         }));
         // Get all orders (Admin only). ?archive=1 returns archived/cancelled orders.
+        // ?paymentFilter=failed returns failed/abandoned online-payment orders only.
         this.getAllOrders = (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(this, void 0, void 0, function* () {
-            const { status, limit, offset, startDate, endDate, archive } = req.query;
+            const { status, limit, offset, startDate, endDate, archive, paymentFilter } = req.query;
+            const paymentFilterValue = paymentFilter === 'failed' ? 'failed' : 'valid';
             const filters = {
                 status: status,
                 limit: limit ? parseInt(limit, 10) : 100,
                 offset: offset ? parseInt(offset, 10) : 0,
                 startDate: startDate ? new Date(startDate) : undefined,
                 endDate: endDate ? new Date(endDate) : undefined,
-                archive: archive === '1' || archive === 'true'
+                archive: archive === '1' || archive === 'true',
+                paymentFilter: archive === '1' || archive === 'true' ? undefined : paymentFilterValue
             };
             const { orders, total } = yield this.orderService.getAllOrders(filters);
             res.status(200).json({
@@ -402,7 +382,10 @@ class OrderController {
             }
             if (status === 'processing') {
                 try {
-                    yield email_service_1.emailService.sendOrderApprovedToCustomer(updatedOrder);
+                    const freshOrder = yield this.orderService.getOrderByIdForEmail(id);
+                    if (freshOrder) {
+                        yield email_service_1.emailService.sendOrderApprovedToCustomer(freshOrder);
+                    }
                 }
                 catch (emailErr) {
                     console.error('Order status updated to processing but approval email failed:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
@@ -472,6 +455,12 @@ class OrderController {
             }
             if (!updatedOrder) {
                 throw (0, errorHandler_1.createNotFoundError)('Order');
+            }
+            try {
+                yield email_service_1.emailService.sendOrderUpdateEmail(updatedOrder);
+            }
+            catch (emailErr) {
+                console.error('Order items updated but update email failed:', (emailErr === null || emailErr === void 0 ? void 0 : emailErr.message) || emailErr);
             }
             res.status(200).json({
                 success: true,
