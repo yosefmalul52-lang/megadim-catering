@@ -74,7 +74,7 @@ class EmployeeService {
     updateEmployee(employeeId, updateData) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const employee = yield Employee_1.default.findByIdAndUpdate(employeeId, updateData, { new: true, runValidators: true });
+                const employee = yield Employee_1.default.findByIdAndUpdate(employeeId, updateData, { returnDocument: 'after', runValidators: true });
                 if (!employee) {
                     throw new Error('Employee not found');
                 }

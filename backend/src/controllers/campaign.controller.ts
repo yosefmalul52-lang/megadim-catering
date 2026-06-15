@@ -129,7 +129,7 @@ export const launchCampaign = asyncHandler(async (req: Request, res: Response) =
       const failed = await Campaign.findByIdAndUpdate(
         campaignId,
         { $set: { status: 'failed', n8nResponse: failurePayload } },
-        { new: true }
+        { returnDocument: 'after' }
       ).lean();
 
       return res.status(502).json({
@@ -148,7 +148,7 @@ export const launchCampaign = asyncHandler(async (req: Request, res: Response) =
           n8nResponse: responseJson || { ok: true }
         }
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     return res.status(200).json({
@@ -164,7 +164,7 @@ export const launchCampaign = asyncHandler(async (req: Request, res: Response) =
     const failed = await Campaign.findByIdAndUpdate(
       campaignId,
       { $set: { status: 'failed', n8nResponse: failurePayload } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     return res.status(502).json({

@@ -127,7 +127,7 @@ router.put('/:id', require('../middleware/auth').authenticate, (req, res) => __a
             }
         }
         // Update the menu item
-        const updatedItem = yield MenuItem.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true });
+        const updatedItem = yield MenuItem.findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after', runValidators: true });
         if (!updatedItem) {
             return res.status(404).json({
                 success: false,

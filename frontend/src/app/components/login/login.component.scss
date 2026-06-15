@@ -1,4 +1,5 @@
-@import '../../../assets/styles/theme';
+@use "sass:color";
+@use '../../../assets/styles/theme' as *;
 
 // ============================================
 // Login Container - Background
@@ -423,7 +424,7 @@
 
   &:hover {
     text-decoration: underline;
-    color: darken($color-gold, 8%);
+    color: color.adjust($color-gold, $lightness: -8%);
   }
 }
 

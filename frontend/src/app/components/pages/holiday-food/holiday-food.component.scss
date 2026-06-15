@@ -1,3 +1,5 @@
+@use "sass:color";
+
 $navy: #1f3540;
 $gold: #e0c075; // STRICT: Use this exact gold color
 $dark-blue: #1f2937;
@@ -824,7 +826,7 @@ $text-gray: #4b5563;
           box-shadow: 0 5px 15px rgba(224, 192, 117, 0.3);
           
           &:hover {
-            background: darken($gold, 5%);
+            background: color.adjust($gold, $lightness: -5%);
             box-shadow: 0 8px 20px rgba(224, 192, 117, 0.4);
             transform: translateY(-2px);
           }

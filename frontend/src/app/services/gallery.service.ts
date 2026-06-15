@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, of } from 'rxjs';
+import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 
 export interface GalleryItem {
@@ -40,7 +41,15 @@ export interface UpdateGalleryItemRequest {
 })
 export class GalleryService {
   private http = inject(HttpClient);
+  private snackBar = inject(MatSnackBar);
   private apiUrl = `${environment.apiUrl}/gallery`;
+
+  private static readonly LOAD_ERROR_MESSAGE = 'אירעה שגיאה בטעינת הנתונים, אנא רעננו את העמוד';
+
+  private handleDataLoadError(error: unknown): Observable<never> {
+    this.snackBar.open(GalleryService.LOAD_ERROR_MESSAGE, 'סגור', { duration: 6000 });
+    return throwError(() => error);
+  }
 
   private galleryItemsSubject = new BehaviorSubject<GalleryItem[]>([]);
   public galleryItems$ = this.galleryItemsSubject.asObservable();
@@ -62,7 +71,7 @@ export class GalleryService {
       }),
       catchError(error => {
         console.error('Error fetching gallery items:', error);
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }

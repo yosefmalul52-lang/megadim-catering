@@ -540,7 +540,7 @@ export async function updateCustomerCrm(req: Request, res: Response): Promise<vo
       }
     }
 
-    const customer = await Customer.findByIdAndUpdate(id, { $set: update }, { new: true }).lean();
+    const customer = await Customer.findByIdAndUpdate(id, { $set: update }, { returnDocument: 'after' }).lean();
     if (!customer) {
       res.status(404).json({ success: false, message: 'לקוח לא נמצא' });
       return;

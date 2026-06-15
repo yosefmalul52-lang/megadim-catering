@@ -23,6 +23,10 @@ export const CONTACT_PHONE_E164 = '972733678399';
 export const CONTACT_FACEBOOK_URL = 'https://www.facebook.com/Megadimcatering/';
 export const CONTACT_INSTAGRAM_URL = 'https://www.instagram.com/megadim_catering/';
 
+/** Kashrut recommendation page for Megadim Catering on Kosharot */
+export const KOSHAROT_RECOMMENDATION_URL =
+  'https://www.kosharot.co.il/index2.php?id=432646&lang=HEB';
+
 /** Append an encoded pre-filled message to a wa.me (or api.whatsapp.com) URL. */
 export function buildWhatsAppHref(baseHref: string, message: string): string {
   const trimmedBase = baseHref.trim();

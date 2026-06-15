@@ -2,8 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { forkJoin } from 'rxjs';
 import { VideoService, Video } from '../../services/video.service';
 import { GalleryService, GalleryItem } from '../../services/gallery.service';
 import { VideoPlayerModalComponent } from './video-player-modal.component';
@@ -140,10 +139,8 @@ export class VideoSectionComponent implements OnInit {
     this.isLoading = true;
 
     forkJoin({
-      videos: this.videoService.getVideos(true).pipe(catchError(() => of([] as Video[]))),
-      galleryImages: this.galleryService
-        .getGalleryItems('image', true)
-        .pipe(catchError(() => of([] as GalleryItem[]))),
+      videos: this.videoService.getVideos(true),
+      galleryImages: this.galleryService.getGalleryItems('image', true),
     }).subscribe({
       next: ({ videos, galleryImages }) => {
         this.mediaItems = this.buildDisplayItems(videos, galleryImages);
@@ -151,7 +148,6 @@ export class VideoSectionComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error loading media items:', error);
-        this.mediaItems = this.buildDisplayItems([], []);
         this.isLoading = false;
       },
     });

@@ -19,7 +19,7 @@ import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { MAIN_NAV_LINKS } from '../../../nav-links';
-import { CONTACT_TEL_HREF } from '../../../constants/contact.constants';
+import { CONTACT_TEL_HREF, KOSHAROT_RECOMMENDATION_URL } from '../../../constants/contact.constants';
 
 @Component({
   selector: 'app-header',
@@ -120,6 +120,8 @@ export class HeaderComponent implements OnInit {
     const e164 = digits.startsWith('0') ? '972' + digits.slice(1) : digits.startsWith('972') ? digits : '972' + digits;
     return 'tel:+' + e164;
   }
+
+  readonly kosharotUrl = KOSHAROT_RECOMMENDATION_URL;
 
   onSearchClick(): void {
     this.searchService.toggleSearch();

@@ -1,3 +1,5 @@
+@use "sass:color";
+
 $brand-gold: #e0c075;
 $brand-dark: #0E1A24;
 $slate: #475569;
@@ -197,7 +199,7 @@ $border: #e2e8f0;
 }
 
 .btn-create-order:hover {
-  background: darken($brand-gold, 8%);
+  background: color.adjust($brand-gold, $lightness: -8%);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
@@ -1072,8 +1074,8 @@ $border: #e2e8f0;
   color: #fff;
 
   &:hover:not(:disabled) {
-    background: darken($brand-dark, 6%);
-    border-color: darken($brand-dark, 6%);
+    background: color.adjust($brand-dark, $lightness: -6%);
+    border-color: color.adjust($brand-dark, $lightness: -6%);
   }
 }
 
@@ -1271,7 +1273,7 @@ $border: #e2e8f0;
 }
 
 .btn-save-items:hover:not(:disabled) {
-  background: darken($brand-dark, 6%);
+  background: color.adjust($brand-dark, $lightness: -6%);
 }
 
 .btn-cancel-items {
@@ -1561,7 +1563,7 @@ $border: #e2e8f0;
   align-items: center;
 
   &:hover {
-    background: darken($brand-dark, 6%);
+    background: color.adjust($brand-dark, $lightness: -6%);
   }
 }
 
@@ -1613,7 +1615,7 @@ $border: #e2e8f0;
   background: #166534;
   color: #fff;
 
-  &:hover:not(:disabled) { background: darken(#166534, 6%); }
+  &:hover:not(:disabled) { background: color.adjust(#166534, $lightness: -6%); }
 }
 
 .btn-void-payment {

@@ -2,6 +2,7 @@ import { ApplicationConfig, APP_INITIALIZER, importProvidersFrom } from '@angula
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { provideToastr } from 'ngx-toastr';
 import { TranslateModule, TranslateLoader, TranslationObject } from '@ngx-translate/core';
 import { HttpClient } from '@angular/common/http';
@@ -71,6 +72,7 @@ export const appConfig: ApplicationConfig = {
       autoDismiss: true
     }),
     importProvidersFrom(
+      MatSnackBarModule,
       TranslateModule.forRoot({
         fallbackLang: 'he',
         loader: {

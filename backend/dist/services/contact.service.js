@@ -120,7 +120,7 @@ class ContactService {
                 return null;
             const doc = yield Contact_1.default.findByIdAndUpdate(id, {
                 $set: set
-            }, { new: true, runValidators: true }).lean();
+            }, { returnDocument: 'after', runValidators: true }).lean();
             if (doc) {
                 console.log(`📝 Contact ${id} updated`);
             }

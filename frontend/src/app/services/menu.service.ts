@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { catchError, tap, map } from 'rxjs/operators';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 import { HolidayCatalogService } from './holiday-catalog.service';
 import { HolidayEventService } from './holiday-event.service';
@@ -64,8 +65,16 @@ export interface MenuCategory {
 })
 export class MenuService {
   private http = inject(HttpClient);
+  private snackBar = inject(MatSnackBar);
   private holidayCatalog = inject(HolidayCatalogService);
   private holidayEventService = inject(HolidayEventService);
+
+  private static readonly LOAD_ERROR_MESSAGE = 'אירעה שגיאה בטעינת הנתונים, אנא רעננו את העמוד';
+
+  private handleDataLoadError(error: unknown): Observable<never> {
+    this.snackBar.open(MenuService.LOAD_ERROR_MESSAGE, 'סגור', { duration: 6000 });
+    return throwError(() => error);
+  }
   
   private menuItemsSubject = new BehaviorSubject<MenuItem[]>([]);
   public menuItems$ = this.menuItemsSubject.asObservable();
@@ -442,8 +451,7 @@ export class MenuService {
           name: error.name
         });
         this.loadingSubject.next(false);
-        // Return empty array on error
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }
@@ -589,7 +597,7 @@ export class MenuService {
         map((response) => this.processFeaturedItems(response?.data ?? [])),
         catchError((error) => {
           console.error('Failed to load featured menu items:', error);
-          return of([]);
+          return this.handleDataLoadError(error);
         })
       );
   }
@@ -745,7 +753,7 @@ export class MenuService {
           this.holidayCatalog.setItems(items);
           return this.holidayCatalog.getById(id);
         }),
-        catchError(() => of(null))
+        catchError((error) => this.handleDataLoadError(error))
       );
     }
 
@@ -883,7 +891,7 @@ export class MenuService {
       }),
       catchError(error => {
         console.error('❌ Error in getProductsByCategory:', error);
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }

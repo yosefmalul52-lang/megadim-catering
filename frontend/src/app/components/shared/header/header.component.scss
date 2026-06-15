@@ -1,3 +1,5 @@
+@use "sass:color";
+
 $navy: #1f3540;
 $gold: #E0C075;
 $white: #FFFFFF;
@@ -358,7 +360,7 @@ $white: #FFFFFF;
     background: $navy;
     color: $white;
     &:hover:not(:disabled) {
-      background: darken($navy, 5%);
+      background: color.adjust($navy, $lightness: -5%);
     }
     &:disabled {
       opacity: 0.6;

@@ -272,7 +272,7 @@ export const updateHolidayEvent = async (req: Request, res: Response) => {
     const doc = await HolidayEvent.findByIdAndUpdate(
       id,
       { $set: updateSet },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!doc) {

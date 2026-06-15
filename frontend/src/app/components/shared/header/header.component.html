@@ -21,7 +21,13 @@
       
       <!-- Left Side (RTL End): Kosher stamp + Separator + User Actions -->
       <div class="left-section">
-        <a routerLink="/kosher" class="kosher-logo-link" aria-label="תעודת כשרות">
+        <a
+          [href]="kosharotUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="kosher-logo-link"
+          aria-label="כושרות - עמוד ההמלצה של קייטרינג מגדים"
+        >
           <img
             src="/assets/images/kosher-stamp-logo.png"
             alt="כשרות"

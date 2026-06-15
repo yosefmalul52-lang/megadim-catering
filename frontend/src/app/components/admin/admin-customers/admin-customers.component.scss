@@ -1,3 +1,5 @@
+@use "sass:color";
+
 $brand-gold: #c5a059;
 $brand-dark: #0E1A24;
 $slate: #475569;
@@ -1085,7 +1087,7 @@ $border: #e5e7eb;
   justify-content: center;
   border-radius: 8px;
   background: rgba($brand-gold, 0.14);
-  color: darken($brand-gold, 18%);
+  color: color.adjust($brand-gold, $lightness: -18%);
   font-size: 0.85rem;
 }
 
@@ -1202,7 +1204,7 @@ $border: #e5e7eb;
   width: 100%;
   padding: 0.9rem 1.5rem;
   margin-top: 0.85rem;
-  background: linear-gradient(135deg, $brand-gold 0%, darken($brand-gold, 6%) 100%);
+  background: linear-gradient(135deg, $brand-gold 0%, color.adjust($brand-gold, $lightness: -6%) 100%);
   color: $brand-dark;
   border: none;
   border-radius: 12px;

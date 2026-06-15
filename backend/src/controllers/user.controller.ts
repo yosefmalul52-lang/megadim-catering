@@ -88,7 +88,7 @@ export async function updateUserCrm(req: Request, res: Response): Promise<void> 
     if (body.dietaryInfo !== undefined) {
       update.dietaryInfo = typeof body.dietaryInfo === 'string' ? body.dietaryInfo : '';
     }
-    const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
+    const user = await User.findByIdAndUpdate(id, { $set: update }, { returnDocument: 'after' })
       .select('-password')
       .lean();
     if (!user) {

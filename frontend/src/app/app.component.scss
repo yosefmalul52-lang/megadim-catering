@@ -1,4 +1,4 @@
-@import '../assets/styles/theme';
+@use '../assets/styles/theme' as *;
 
 .app-container {
   min-height: 100vh;

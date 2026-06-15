@@ -150,7 +150,7 @@ export class ContactService {
       {
         $set: set
       },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).lean();
 
     if (doc) {

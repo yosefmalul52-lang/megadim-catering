@@ -1,4 +1,5 @@
-@import '../../../../assets/styles/theme';
+@use "sass:color";
+@use '../../../../assets/styles/theme' as *;
 
 $brand-gold: #e0c075;
 $brand-gold-light: #f0e4c4;
@@ -98,7 +99,7 @@ $whatsapp-green-dark: #20bd5a;
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(145deg, $brand-gold 0%, darken($brand-gold, 12%) 100%);
+  background: linear-gradient(145deg, $brand-gold 0%, color.adjust($brand-gold, $lightness: -12%) 100%);
   color: $brand-dark;
   box-shadow:
     0 6px 20px rgba($brand-gold, 0.4),
@@ -281,7 +282,7 @@ $whatsapp-green-dark: #20bd5a;
   justify-content: center;
   border-radius: 8px;
   background: rgba($brand-gold, 0.2);
-  color: darken($brand-gold, 18%);
+  color: color.adjust($brand-gold, $lightness: -18%);
   font-size: 0.85rem;
 
   &.next-step-icon-success {
@@ -335,12 +336,12 @@ $whatsapp-green-dark: #20bd5a;
 }
 
 .btn-primary {
-  background: linear-gradient(145deg, $brand-gold 0%, darken($brand-gold, 8%) 100%);
+  background: linear-gradient(145deg, $brand-gold 0%, color.adjust($brand-gold, $lightness: -8%) 100%);
   color: $brand-dark;
   box-shadow: 0 4px 14px rgba($brand-gold, 0.35);
 
   &:hover {
-    background: linear-gradient(145deg, lighten($brand-gold, 2%) 0%, darken($brand-gold, 12%) 100%);
+    background: linear-gradient(145deg, color.adjust($brand-gold, $lightness: 2%) 0%, color.adjust($brand-gold, $lightness: -12%) 100%);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba($brand-gold, 0.4);
   }

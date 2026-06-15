@@ -251,7 +251,7 @@ export class EmailService {
         paymentStatus: { $in: ['authorized', 'captured'] }
       },
       { $set: { confirmationEmailSentAt: new Date() } },
-      { new: false }
+      { returnDocument: 'before' }
     )
       .select(ORDER_API_DETAIL_SELECT)
       .lean();

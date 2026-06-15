@@ -64,6 +64,7 @@ const express_1 = __importDefault(require("express"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
+const morgan_1 = __importDefault(require("morgan"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const express_mongo_sanitize_1 = __importDefault(require("express-mongo-sanitize"));
 const database_1 = require("./config/database");
@@ -162,6 +163,16 @@ app.use((0, helmet_1.default)({
     },
     crossOriginEmbedderPolicy: false
 }));
+// HTTP request logging (uses stdout directly so logs remain visible in production)
+app.use((0, morgan_1.default)('[HTTP] :method :url - :status - :response-time ms'));
+// Lightweight health check for uptime monitors — no DB, no rate limit
+app.get('/api/health', (_req, res) => {
+    res.status(200).json({
+        success: true,
+        status: 'UP',
+        timestamp: new Date()
+    });
+});
 // General API rate limit: 100 requests per 15 minutes per IP (DDoS / abuse protection)
 const generalApiLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
@@ -178,17 +189,6 @@ app.use((0, cookie_parser_1.default)());
 // Strip MongoDB operators ($-prefixed keys) from req.body, req.params, req.query
 // to prevent NoSQL injection (defense-in-depth alongside Mongoose schema validation)
 app.use((0, express_mongo_sanitize_1.default)());
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development',
-        version: '1.0.0',
-        service: 'Megadim Catering API'
-    });
-});
 // Test Route
 app.get('/', (req, res) => {
     res.send('✅ API is running on Port ' + PORT);

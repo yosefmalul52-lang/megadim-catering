@@ -113,8 +113,7 @@ const MenuItemSchema = new Schema<IMenuItem>({
   category: {
     type: String,
     required: true,
-    trim: true,
-    index: true
+    trim: true
   },
   description: {
     type: String,

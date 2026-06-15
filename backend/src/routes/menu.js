@@ -134,7 +134,7 @@ router.put('/:id', require('../middleware/auth').authenticate, async (req, res) 
     const updatedItem = await MenuItem.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     
     if (!updatedItem) {

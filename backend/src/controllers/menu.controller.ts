@@ -610,7 +610,7 @@ export class MenuController {
     const updatedMenuItem = await MenuItem.findByIdAndUpdate(
       id,
       { $set: updatedData },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedMenuItem) {

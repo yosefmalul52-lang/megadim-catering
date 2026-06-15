@@ -41,8 +41,7 @@ const OrderSchema = new mongoose_1.Schema({
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'User',
         required: false, // Optional - allows guest orders
-        default: null,
-        index: true
+        default: null
     },
     orderNumber: {
         type: String,
@@ -95,8 +94,7 @@ const OrderSchema = new mongoose_1.Schema({
     orderType: {
         type: String,
         enum: ['shabbat', 'catering'],
-        required: false,
-        index: true
+        required: false
     },
     numberOfPortions: { type: mongoose_1.Schema.Types.Mixed, required: false },
     mealTime: { type: String, required: false },

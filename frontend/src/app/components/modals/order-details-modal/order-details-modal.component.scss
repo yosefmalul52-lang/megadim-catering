@@ -1,3 +1,5 @@
+@use "sass:color";
+
 /* ============================================
    Variables (Luxury Gold/Black/White Theme)
    ============================================ */
@@ -184,7 +186,7 @@ $shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
 
   &:hover {
-    background: darken($color-gray-light, 2%);
+    background: color.adjust($color-gray-light, $lightness: -2%);
     transform: translateX(-2px);
   }
 }

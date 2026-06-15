@@ -232,7 +232,7 @@ export async function updateCityOverride(req: Request, res: Response): Promise<v
     }
     if (typeof overridePrice === 'number' && overridePrice >= 0) update.overridePrice = overridePrice;
     if (typeof isActive === 'boolean') update.isActive = isActive;
-    const doc = await DeliveryCityOverride.findByIdAndUpdate(id, update, { new: true }).lean();
+    const doc = await DeliveryCityOverride.findByIdAndUpdate(id, update, { returnDocument: 'after' }).lean();
     if (!doc) {
       res.status(404).json({ error: 'City override not found' });
       return;

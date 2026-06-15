@@ -77,7 +77,7 @@ export class EmployeeService {
       const employee = await Employee.findByIdAndUpdate(
         employeeId,
         updateData,
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
       
       if (!employee) {

@@ -328,7 +328,7 @@ export class OrderService {
       const order = await Order.findByIdAndUpdate(
         orderId,
         { $set: updateData },
-        { new: true }
+        { returnDocument: 'after' }
       )
         .select(ORDER_API_DETAIL_SELECT)
         .lean();
@@ -356,7 +356,7 @@ export class OrderService {
         isDeleted: { $ne: true }
       },
       { $set: { status } },
-      { new: true }
+      { returnDocument: 'after' }
     )
       .select(ORDER_API_DETAIL_SELECT)
       .lean();
@@ -398,7 +398,7 @@ export class OrderService {
       set.assignedDriverName = String(driver.fullName || driver.username || '').trim();
       set.assignedAt = new Date();
     }
-    const updated = await Order.findByIdAndUpdate(orderId, { $set: set }, { new: true })
+    const updated = await Order.findByIdAndUpdate(orderId, { $set: set }, { returnDocument: 'after' })
       .select(ORDER_API_DETAIL_SELECT)
       .lean();
     return updated as IOrder | null;
@@ -801,7 +801,7 @@ export class OrderService {
       const order = await Order.findByIdAndUpdate(
         orderId,
         { $set: { isDeleted: true } },
-        { new: true }
+        { returnDocument: 'after' }
       )
         .select(ORDER_API_DETAIL_SELECT)
         .lean();
@@ -818,7 +818,7 @@ export class OrderService {
       const order = await Order.findByIdAndUpdate(
         orderId,
         { $set: { isDeleted: false, status: 'pending' } },
-        { new: true }
+        { returnDocument: 'after' }
       )
         .select(ORDER_API_DETAIL_SELECT)
         .lean();

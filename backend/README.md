@@ -218,14 +218,38 @@ curl http://localhost:4000/api/health
 Response:
 ```json
 {
-  "status": "OK",
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "uptime": 1234.567,
-  "environment": "development",
-  "version": "1.0.0",
-  "service": "Megadim Catering API"
+  "success": true,
+  "status": "UP",
+  "timestamp": "2024-01-15T10:30:00.000Z"
 }
 ```
+
+This endpoint is intentionally lightweight (no MongoDB calls) so external uptime monitors can ping it without consuming database connection pools.
+
+## UptimeRobot Setup (Render Keep-Alive)
+
+Use [UptimeRobot](https://uptimerobot.com/) to prevent the Render free-tier service from sleeping and to monitor API availability.
+
+1. Sign in to the UptimeRobot dashboard and click **Add New Monitor**.
+2. **Monitor Type:** HTTP(s).
+3. **Friendly Name:** e.g. `Megadim API Health`.
+4. **URL:** your production API health endpoint, for example:
+   ```
+   https://your-render-service.onrender.com/api/health
+   ```
+5. **Monitoring Interval:** 5 minutes (recommended for Render keep-alive without excessive traffic).
+6. **Monitor Timeout:** 30 seconds (default is fine).
+7. **HTTP Method:** GET (default).
+8. **Expected status:** 200 — UptimeRobot should receive `{ "success": true, "status": "UP", ... }`.
+9. Save the monitor. Optional: add an alert contact (email/SMS) for downtime notifications.
+
+Verify locally before deploying:
+
+```bash
+curl -s https://your-render-service.onrender.com/api/health
+```
+
+You should see `success: true` and `status: "UP"` in the JSON response.
 
 ## Error Handling
 

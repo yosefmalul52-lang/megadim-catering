@@ -327,7 +327,7 @@ class OrderService {
                     updateData.deliveryDate = updates.deliveryDate;
                 if (updates.notes !== undefined)
                     updateData['customerDetails.notes'] = updates.notes;
-                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: updateData }, { new: true })
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: updateData }, { returnDocument: 'after' })
                     .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                     .lean();
                 return order;
@@ -348,7 +348,7 @@ class OrderService {
                 _id: orderId,
                 assignedDriverId: driverUserId,
                 isDeleted: { $ne: true }
-            }, { $set: { status } }, { new: true })
+            }, { $set: { status } }, { returnDocument: 'after' })
                 .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                 .lean();
             return updated;
@@ -388,7 +388,7 @@ class OrderService {
                 set.assignedDriverName = String(driver.fullName || driver.username || '').trim();
                 set.assignedAt = new Date();
             }
-            const updated = yield Order_1.default.findByIdAndUpdate(orderId, { $set: set }, { new: true })
+            const updated = yield Order_1.default.findByIdAndUpdate(orderId, { $set: set }, { returnDocument: 'after' })
                 .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                 .lean();
             return updated;
@@ -755,7 +755,7 @@ class OrderService {
     deleteOrder(orderId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: true } }, { new: true })
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: true } }, { returnDocument: 'after' })
                     .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                     .lean();
                 return order;
@@ -770,7 +770,7 @@ class OrderService {
     restoreOrder(orderId) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: false, status: 'pending' } }, { new: true })
+                const order = yield Order_1.default.findByIdAndUpdate(orderId, { $set: { isDeleted: false, status: 'pending' } }, { returnDocument: 'after' })
                     .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                     .lean();
                 return order;

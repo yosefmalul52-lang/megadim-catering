@@ -24,6 +24,7 @@
     "src/**/*.ts"
   ],
   "exclude": [
+    "src/environments/environment.prod.ts",
     "src/**/*.spec.ts",
     "src/admin-main.ts",
     "src/app/admin-app.component.ts",

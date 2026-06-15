@@ -217,7 +217,7 @@ class EmailService {
                 _id: orderId,
                 confirmationEmailSentAt: null,
                 paymentStatus: { $in: ['authorized', 'captured'] }
-            }, { $set: { confirmationEmailSentAt: new Date() } }, { new: false })
+            }, { $set: { confirmationEmailSentAt: new Date() } }, { returnDocument: 'before' })
                 .select(order_projection_util_1.ORDER_API_DETAIL_SELECT)
                 .lean();
             if (!claimed) {

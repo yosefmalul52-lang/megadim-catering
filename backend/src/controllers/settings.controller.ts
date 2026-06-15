@@ -214,7 +214,7 @@ export class SettingsController {
       const result = await SiteSettings.findOneAndUpdate(
         {},
         { $set: updateData },
-        { upsert: true, new: true, runValidators: false, strict: false }
+        { upsert: true, returnDocument: 'after', runValidators: false, strict: false }
       );
 
       if (!result) {
@@ -299,7 +299,7 @@ export class SettingsController {
       if (Number.isNaN(n) || n < 0) throw createValidationError('pricePerKm must be a non-negative number');
       update.pricePerKm = n;
     }
-    const doc = await Setting.findOneAndUpdate({}, update, { new: true, upsert: true, setDefaultsOnInsert: true });
+    const doc = await Setting.findOneAndUpdate({}, update, { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true });
     res.status(200).json({
       success: true,
       data: {
@@ -424,7 +424,7 @@ export class SettingsController {
       let savedDoc: any;
       await session.withTransaction(async () => {
         savedDoc = await (StoreSettings as any).findOneAndUpdate({}, update, {
-          new: true,
+          returnDocument: 'after',
           upsert: true,
           setDefaultsOnInsert: true,
           session

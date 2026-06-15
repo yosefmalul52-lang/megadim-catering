@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, of } from 'rxjs';
+import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { map, catchError, tap } from 'rxjs/operators';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 import { VideoSource } from '../utils/video.utils';
 
@@ -46,7 +47,15 @@ export interface UpdateVideoRequest {
 })
 export class VideoService {
   private http = inject(HttpClient);
+  private snackBar = inject(MatSnackBar);
   private apiUrl = `${environment.apiUrl}/videos`;
+
+  private static readonly LOAD_ERROR_MESSAGE = 'אירעה שגיאה בטעינת הנתונים, אנא רעננו את העמוד';
+
+  private handleDataLoadError(error: unknown): Observable<never> {
+    this.snackBar.open(VideoService.LOAD_ERROR_MESSAGE, 'סגור', { duration: 6000 });
+    return throwError(() => error);
+  }
 
   private videosSubject = new BehaviorSubject<Video[]>([]);
   public videos$ = this.videosSubject.asObservable();
@@ -70,7 +79,7 @@ export class VideoService {
       }),
       catchError((error) => {
         console.error('Error fetching videos:', error);
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }

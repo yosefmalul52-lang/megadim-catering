@@ -71,6 +71,16 @@ $gray-bg: #eeeff0;
     display: flex;
     justify-content: center;
     margin: 24px 0 28px;
+
+    a {
+      display: inline-block;
+      line-height: 0;
+      transition: opacity 0.2s ease;
+
+      &:hover {
+        opacity: 0.85;
+      }
+    }
   }
 
   .kosher-logo {

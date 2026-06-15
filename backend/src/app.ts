@@ -75,12 +75,8 @@ app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging middleware
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
+// HTTP request logging (before routes so all API hits appear in logs)
+app.use(morgan('[HTTP] :method :url - :status - :response-time ms'));
 
 // Rate limiting (relaxed in development to avoid blocking local page loads)
 const limiter = rateLimit({
@@ -92,6 +88,15 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false
+});
+
+// Lightweight health check for uptime monitors — no DB, bypasses rate limit
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.status(200).json({
+    success: true,
+    status: 'UP',
+    timestamp: new Date()
+  });
 });
 
 app.use('/api/', limiter);
@@ -108,18 +113,6 @@ const strictLimiter = rateLimit({
 
 app.use('/api/contact', strictLimiter);
 // Only checkout endpoint is rate-limited, admin routes are not limited
-
-// Health check endpoint
-app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
-    service: 'Megadim Catering API'
-  });
-});
 
 // API routes
 app.use('/api/menu', menuRoutes);

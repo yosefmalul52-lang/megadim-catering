@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 import { CartItem } from './cart.service';
 
@@ -164,6 +165,14 @@ export interface BulkOrderResult {
 })
 export class OrderService {
   private http = inject(HttpClient);
+  private snackBar = inject(MatSnackBar);
+
+  private static readonly LOAD_ERROR_MESSAGE = 'אירעה שגיאה בטעינת הנתונים';
+
+  private handleDataLoadError(error: unknown): Observable<never> {
+    this.snackBar.open(OrderService.LOAD_ERROR_MESSAGE, 'סגור', { duration: 6000 });
+    return throwError(() => error);
+  }
 
   submitOrder(orderRequest: OrderRequest): Observable<OrderResponse> {
     return this.http.post<{success: boolean, data: OrderResponse}>(`${environment.apiUrl}/order/checkout`, orderRequest).pipe(
@@ -217,7 +226,7 @@ export class OrderService {
         map((res) => res.data),
         catchError((err) => {
           console.error('Error fetching dashboard stats:', err);
-          return of({ pendingCount: 0, eventsTodayCount: 0, monthlyRevenue: 0 });
+          return this.handleDataLoadError(err);
         })
       );
   }
@@ -242,7 +251,7 @@ export class OrderService {
       }),
       catchError((error: any) => {
         console.error('Error fetching orders:', error);
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }
@@ -288,7 +297,7 @@ export class OrderService {
       })),
       catchError((error: any) => {
         console.error('Error fetching order:', error);
-        return of(null);
+        return this.handleDataLoadError(error);
       })
     );
   }
@@ -317,7 +326,7 @@ export class OrderService {
         map((res) => (res?.data || []).map((order) => ({ ...order, id: order._id || order.id }))),
         catchError((err) => {
           console.error('Error fetching driver orders:', err);
-          return of([]);
+          return this.handleDataLoadError(err);
         })
       );
   }
@@ -407,7 +416,7 @@ export class OrderService {
       }),
       catchError((error: any) => {
         console.error('Error fetching my orders:', error);
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }
@@ -458,7 +467,7 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
       map(response => response.data),
       catchError(error => {
         console.error('Error fetching revenue stats:', error);
-        return of([]);
+        return this.handleDataLoadError(error);
       })
     );
   }
@@ -483,7 +492,7 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
         map((res) => res.data || []),
         catchError((error) => {
           console.error('Error fetching revenue by source:', error);
-          return of([]);
+          return this.handleDataLoadError(error);
         })
       );
   }
@@ -508,7 +517,7 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
         map((res) => res.data || []),
         catchError((error) => {
           console.error('Error fetching monthly revenue analytics:', error);
-          return of([]);
+          return this.handleDataLoadError(error);
         })
       );
   }

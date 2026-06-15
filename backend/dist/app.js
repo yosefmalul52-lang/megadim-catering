@@ -69,13 +69,8 @@ app.use((0, compression_1.default)());
 // Request parsing middleware
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
-// Logging middleware
-if (process.env.NODE_ENV === 'development') {
-    app.use((0, morgan_1.default)('dev'));
-}
-else {
-    app.use((0, morgan_1.default)('combined'));
-}
+// HTTP request logging (before routes so all API hits appear in logs)
+app.use((0, morgan_1.default)('[HTTP] :method :url - :status - :response-time ms'));
 // Rate limiting (relaxed in development to avoid blocking local page loads)
 const limiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -86,6 +81,14 @@ const limiter = (0, express_rate_limit_1.default)({
     },
     standardHeaders: true,
     legacyHeaders: false
+});
+// Lightweight health check for uptime monitors — no DB, bypasses rate limit
+app.get('/api/health', (_req, res) => {
+    res.status(200).json({
+        success: true,
+        status: 'UP',
+        timestamp: new Date()
+    });
 });
 app.use('/api/', limiter);
 // More restrictive rate limiting for contact and order checkout endpoints
@@ -99,17 +102,6 @@ const strictLimiter = (0, express_rate_limit_1.default)({
 });
 app.use('/api/contact', strictLimiter);
 // Only checkout endpoint is rate-limited, admin routes are not limited
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        environment: process.env.NODE_ENV || 'development',
-        version: '1.0.0',
-        service: 'Megadim Catering API'
-    });
-});
 // API routes
 app.use('/api/menu', menu_routes_1.default);
 app.use('/api/contact', contact_routes_1.default);

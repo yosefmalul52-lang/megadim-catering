@@ -118,8 +118,7 @@ const MenuItemSchema = new mongoose_1.Schema({
     category: {
         type: String,
         required: true,
-        trim: true,
-        index: true
+        trim: true
     },
     description: {
         type: String,

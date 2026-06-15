@@ -3,6 +3,7 @@ import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { SiteSettingsService } from '../../../services/site-settings.service';
+import { KOSHAROT_RECOMMENDATION_URL } from '../../../constants/contact.constants';
 
 @Component({
   selector: 'app-kosher-certificate',
@@ -14,6 +15,7 @@ import { SiteSettingsService } from '../../../services/site-settings.service';
 export class KosherCertificateComponent implements OnInit {
   private settingsService = inject(SiteSettingsService);
 
+  readonly kosharotUrl = KOSHAROT_RECOMMENDATION_URL;
   certificateImageUrl = 'assets/images/Kosher-certificate.jpg';
 
   ngOnInit(): void {

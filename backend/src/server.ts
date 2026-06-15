@@ -54,6 +54,7 @@ import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import { connectDatabase } from './config/database';
@@ -163,6 +164,18 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// HTTP request logging (uses stdout directly so logs remain visible in production)
+app.use(morgan('[HTTP] :method :url - :status - :response-time ms'));
+
+// Lightweight health check for uptime monitors — no DB, no rate limit
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    status: 'UP',
+    timestamp: new Date()
+  });
+});
+
 // General API rate limit: 100 requests per 15 minutes per IP (DDoS / abuse protection)
 const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -181,18 +194,6 @@ app.use(cookieParser());
 // Strip MongoDB operators ($-prefixed keys) from req.body, req.params, req.query
 // to prevent NoSQL injection (defense-in-depth alongside Mongoose schema validation)
 app.use(mongoSanitize());
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
-    service: 'Megadim Catering API'
-  });
-});
 
 // Test Route
 app.get('/', (req, res) => {

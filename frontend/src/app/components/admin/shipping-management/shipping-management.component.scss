@@ -1,3 +1,5 @@
+@use "sass:color";
+
 $brand-gold: #e0c075;
 $brand-dark: #0E1A24;
 $slate: #475569;
@@ -216,7 +218,7 @@ $border: #e2e8f0;
   transition: background 0.2s;
 
   &:hover:not(:disabled) {
-    background: darken($brand-dark, 6%);
+    background: color.adjust($brand-dark, $lightness: -6%);
   }
 
   &:disabled {
@@ -355,7 +357,7 @@ $border: #e2e8f0;
 
   &.save {
     background: rgba($brand-gold, 0.15);
-    color: darken($brand-gold, 15%);
+    color: color.adjust($brand-gold, $lightness: -15%);
 
     &:hover:not(:disabled) {
       background: rgba($brand-gold, 0.25);
@@ -369,7 +371,7 @@ $border: #e2e8f0;
 
   &.edit {
     background: rgba($brand-gold, 0.15);
-    color: darken($brand-gold, 15%);
+    color: color.adjust($brand-gold, $lightness: -15%);
 
     &:hover {
       background: rgba($brand-gold, 0.25);
@@ -503,7 +505,7 @@ $border: #e2e8f0;
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: darken($brand-dark, 6%);
+    background: color.adjust($brand-dark, $lightness: -6%);
   }
 
   &:disabled {
@@ -548,7 +550,7 @@ $border: #e2e8f0;
   min-width: 240px;
 
   &:hover:not(:disabled) {
-    background: darken($brand-gold, 8%);
+    background: color.adjust($brand-gold, $lightness: -8%);
     transform: translateY(-1px);
   }
 

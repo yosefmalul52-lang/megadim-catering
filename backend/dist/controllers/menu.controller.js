@@ -570,7 +570,7 @@ class MenuController {
             }
             // Update menu item in MongoDB
             // Use $set to ensure partial updates don't overwrite other fields
-            const updatedMenuItem = yield menuItem_1.default.findByIdAndUpdate(id, { $set: updatedData }, { new: true, runValidators: true });
+            const updatedMenuItem = yield menuItem_1.default.findByIdAndUpdate(id, { $set: updatedData }, { returnDocument: 'after', runValidators: true });
             if (!updatedMenuItem) {
                 throw (0, errorHandler_1.createNotFoundError)('Menu item');
             }
