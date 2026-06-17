@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { emptyShabbatOrder, type ShabbatOrder } from '../utils/menu-structure';
 
 export interface IInstitutionOrderDay {
   dayOfWeek: number;
@@ -7,25 +8,49 @@ export interface IInstitutionOrderDay {
   notes: string;
 }
 
-export interface IInstitutionOrder extends Document {
-  institutionId: mongoose.Types.ObjectId;
-  /** Canonical Sunday of the week — YYYY-MM-DD (timezone-agnostic). */
-  weekStartDate: string;
-  isLocked: boolean;
-  days: IInstitutionOrderDay[];
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+export type IShabbatOrder = ShabbatOrder;
 
 const InstitutionOrderDaySchema = new Schema<IInstitutionOrderDay>(
   {
-    dayOfWeek: { type: Number, required: true, min: 0, max: 6 },
+    /** Sunday=0 … Thursday=4 — Friday/Saturday are covered by shabbatOrder. */
+    dayOfWeek: { type: Number, required: true, min: 0, max: 4 },
     regularCount: { type: Number, default: 0, min: 0 },
     vegetarianCount: { type: Number, default: 0, min: 0 },
     notes: { type: String, trim: true, default: '' }
   },
   { _id: false }
 );
+
+const ShabbatOrderExtrasSchema = new Schema(
+  {
+    challahs: { type: Number, default: 0, min: 0 },
+    rolls: { type: Number, default: 0, min: 0 },
+    grapeJuice: { type: Number, default: 0, min: 0 }
+  },
+  { _id: false }
+);
+
+const ShabbatOrderSchema = new Schema<IShabbatOrder>(
+  {
+    regularCount: { type: Number, default: 0, min: 0 },
+    vegetarianCount: { type: Number, default: 0, min: 0 },
+    wantsSeudaShlishit: { type: Boolean, default: false },
+    extras: { type: ShabbatOrderExtrasSchema, default: () => emptyShabbatOrder().extras }
+  },
+  { _id: false }
+);
+
+export interface IInstitutionOrder extends Document {
+  institutionId: mongoose.Types.ObjectId;
+  /** Canonical Sunday of the week — YYYY-MM-DD (timezone-agnostic). */
+  weekStartDate: string;
+  isLocked: boolean;
+  /** Sunday–Thursday portion counts. */
+  days: IInstitutionOrderDay[];
+  shabbatOrder: IShabbatOrder;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 const InstitutionOrderSchema = new Schema<IInstitutionOrder>(
   {
@@ -45,6 +70,10 @@ const InstitutionOrderSchema = new Schema<IInstitutionOrder>(
     days: {
       type: [InstitutionOrderDaySchema],
       default: []
+    },
+    shabbatOrder: {
+      type: ShabbatOrderSchema,
+      default: () => emptyShabbatOrder()
     }
   },
   {

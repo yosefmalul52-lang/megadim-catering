@@ -1,6 +1,6 @@
 /** Shared week key logic — mirrors backend portal-week.ts (UTC Sunday YYYY-MM-DD). */
 
-import { isMenuWeekPublished, type MenuWeek } from './menu-structure';
+import { isMenuWeekPublished, type InstitutionMenuContent } from './menu-structure';
 
 const WEEK_KEY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -161,16 +161,6 @@ export function isSundayDateInput(value: string): boolean {
   return weekKeyToUtcDate(key).getUTCDay() === 0;
 }
 
-export const MENU_DAY_FIELDS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday'
-] as const;
-
 export function isMenuPublished(menu: Record<string, unknown> | null | undefined): boolean {
-  return isMenuWeekPublished(menu as Partial<MenuWeek>);
+  return isMenuWeekPublished(menu as Partial<InstitutionMenuContent>);
 }

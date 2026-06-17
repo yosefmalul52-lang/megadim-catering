@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -8,6 +8,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
   InstitutionAdminService,
   InstitutionUser,
@@ -21,11 +22,19 @@ import {
 } from '../../../services/institution-admin.service';
 import {
   MENU_CATEGORIES,
-  MENU_DAY_FORM_FIELDS,
+  MENU_WEEKDAY_FORM_FIELDS,
+  FRIDAY_NIGHT_MENU_FIELDS,
+  SHABBAT_DAY_MENU_FIELDS,
+  SEUDA_SHLISHIT_MENU_FIELDS,
+  SHABBAT_SALAD_SLOTS,
   emptyMenuDayItems,
+  emptyShabbatPackage,
+  emptyShabbatOrder,
   isMenuWeekPublished,
   type MenuCategoryKey,
-  type MenuWeek
+  type InstitutionMenuContent,
+  type ShabbatOrder,
+  type MenuWeekdayField
 } from '../../../utils/menu-structure';
 import { shiftWeekStartKey, getWeekRangeString, getWeekRangeReportString, getWeekRangePackingReportString, formatWeekDateHe, getWeekEndKey, getWeekOffsetFromCurrent, getWeekOffsetLabel } from '../../../utils/portal-week';
 import { datetimeLocalToIso, isoToDatetimeLocal } from '../../../utils/datetime-local.utils';
@@ -38,9 +47,25 @@ import {
   type B2BDictionaryCategory
 } from '../../../utils/b2b-dictionary';
 import {
+  buildAggregatedShabbatKitchenLines,
+  buildPackingShabbatLines,
+  aggregateShabbatExtras,
+  aggregateShabbatKitchenTotals,
+  formatShabbatExtrasSummary,
+  type ShabbatExtrasTotals
+} from '../../../utils/shabbat-logistics';
+
+export interface PastWeekCopyOption {
+  value: string;
+  label: string;
+}
+
+const PAST_WEEKS_COPY_COUNT = 12;
+import {
   buildCategoryLogisticsLine,
   formatLogisticsBrief,
-  type CategoryLogisticsDisplayLine
+  type CategoryLogisticsDisplayLine,
+  type DishLogisticsLookup
 } from '../../../utils/kitchen-logistics';
 
 @Component({
@@ -56,7 +81,8 @@ import {
     MatTabsModule,
     MatTableModule,
     MatSelectModule,
-    MatFormFieldModule
+    MatFormFieldModule,
+    MatCheckboxModule
   ],
   templateUrl: './admin-institutions.component.html',
   styleUrls: ['./admin-institutions.component.scss']
@@ -95,6 +121,8 @@ export class AdminInstitutionsComponent implements OnInit {
   isCopyingMenu = false;
   menuError = '';
   menuPublished = false;
+  pastWeeksToCopy: PastWeekCopyOption[] = [];
+  selectedPastWeekToCopy = new FormControl<string | null>(null);
 
   reports: InstitutionWeekReports | null = null;
   isLoadingReports = false;
@@ -110,8 +138,12 @@ export class AdminInstitutionsComponent implements OnInit {
   dictionaryForm!: FormGroup;
 
   readonly institutionId = institutionId;
-  readonly menuDayFields = MENU_DAY_FORM_FIELDS;
+  readonly menuDayFields = MENU_WEEKDAY_FORM_FIELDS;
   readonly menuCategories = MENU_CATEGORIES;
+  readonly fridayNightFields = FRIDAY_NIGHT_MENU_FIELDS;
+  readonly shabbatDayFields = SHABBAT_DAY_MENU_FIELDS;
+  readonly seudaShlishitFields = SEUDA_SHLISHIT_MENU_FIELDS;
+  readonly shabbatSaladSlots = SHABBAT_SALAD_SLOTS;
   readonly dictionaryCategories = B2B_DICTIONARY_CATEGORIES;
   readonly dictionaryCategoryLabel = dictionaryCategoryLabel;
 
@@ -150,7 +182,10 @@ export class AdminInstitutionsComponent implements OnInit {
     this.buildAccountForm();
     this.buildMenuForm();
     this.buildDictionaryForm();
-    this.orderForm = this.fb.group({ days: this.fb.array([]) });
+    this.orderForm = this.fb.group({
+      days: this.fb.array([]),
+      shabbatOrder: this.buildShabbatOrderGroup()
+    });
     this.loadDictionary();
     this.refreshAllTabs();
   }
@@ -172,9 +207,85 @@ export class AdminInstitutionsComponent implements OnInit {
 
   /** Refresh data for all tabs from the global week selector */
   refreshAllTabs(): void {
+    this.refreshPastWeeksToCopyList();
     this.loadInstitutions();
     this.loadWeekMenu();
     this.loadReports();
+  }
+
+  /** Last N Sundays before the currently selected week — for copy-menu dropdown. */
+  private refreshPastWeeksToCopyList(): void {
+    const current = normalizeWeekInput(this.selectedWeekStart);
+    if (!current) {
+      this.pastWeeksToCopy = [];
+      this.selectedPastWeekToCopy.setValue(null);
+      return;
+    }
+
+    const options: PastWeekCopyOption[] = [];
+    let key = getPreviousWeekStartKey(current);
+    for (let i = 0; i < PAST_WEEKS_COPY_COUNT; i++) {
+      const end = getWeekEndKey(key);
+      options.push({
+        value: key,
+        label: `מ- ${formatWeekDateHe(key)} עד ${formatWeekDateHe(end)}`
+      });
+      key = getPreviousWeekStartKey(key);
+    }
+
+    this.pastWeeksToCopy = options;
+    const selected = this.selectedPastWeekToCopy.value;
+    if (selected && !options.some((o) => o.value === selected)) {
+      this.selectedPastWeekToCopy.setValue(null);
+    }
+  }
+
+  get orderShabbatGroup(): FormGroup {
+    return this.orderForm.get('shabbatOrder') as FormGroup;
+  }
+
+  get menuShabbatGroup(): FormGroup {
+    return this.menuForm.get('shabbatPackage') as FormGroup;
+  }
+
+  get menuShabbatSaladsArray(): FormArray {
+    return this.menuShabbatGroup.get('shabbatSalads') as FormArray;
+  }
+
+  private buildMealGroup(keys: readonly { key: string }[]) {
+    const group: Record<string, ReturnType<FormBuilder['control']>> = {};
+    for (const field of keys) {
+      group[field.key] = this.fb.control('');
+    }
+    return this.fb.group(group);
+  }
+
+  private buildShabbatSaladsArray(values?: string[]) {
+    const slots = Array.from({ length: SHABBAT_SALAD_SLOTS }, (_, i) => values?.[i] ?? '');
+    return this.fb.array(slots.map((v) => this.fb.control(v)));
+  }
+
+  private buildShabbatPackageGroup(pkg = emptyShabbatPackage()) {
+    return this.fb.group({
+      hasShabbat: [pkg.hasShabbat !== false],
+      fridayNight: this.buildMealGroup(FRIDAY_NIGHT_MENU_FIELDS),
+      shabbatDay: this.buildMealGroup(SHABBAT_DAY_MENU_FIELDS),
+      seudaShlishit: this.buildMealGroup(SEUDA_SHLISHIT_MENU_FIELDS),
+      shabbatSalads: this.buildShabbatSaladsArray(pkg.shabbatSalads)
+    });
+  }
+
+  private buildShabbatOrderGroup(order = emptyShabbatOrder()) {
+    return this.fb.group({
+      regularCount: [order.regularCount ?? 0, [Validators.min(0)]],
+      vegetarianCount: [order.vegetarianCount ?? 0, [Validators.min(0)]],
+      wantsSeudaShlishit: [order.wantsSeudaShlishit === true],
+      extras: this.fb.group({
+        challahs: [order.extras?.challahs ?? 0, [Validators.min(0)]],
+        rolls: [order.extras?.rolls ?? 0, [Validators.min(0)]],
+        grapeJuice: [order.extras?.grapeJuice ?? 0, [Validators.min(0)]]
+      })
+    });
   }
 
   private buildMenuDayGroup() {
@@ -190,12 +301,13 @@ export class AdminInstitutionsComponent implements OnInit {
 
   private buildMenuForm(): void {
     const dayGroups: Record<string, FormGroup> = {};
-    for (const day of MENU_DAY_FORM_FIELDS) {
+    for (const day of MENU_WEEKDAY_FORM_FIELDS) {
       dayGroups[day.key] = this.buildMenuDayGroup();
     }
     this.menuForm = this.fb.group({
       orderDeadline: ['', Validators.required],
-      ...dayGroups
+      ...dayGroups,
+      shabbatPackage: this.buildShabbatPackageGroup()
     });
   }
 
@@ -324,8 +436,14 @@ export class AdminInstitutionsComponent implements OnInit {
   }
 
   menuSelectOptions(menuCategoryKey: MenuCategoryKey, currentValue?: string | null): { value: string; label: string }[] {
-    const dictCat = dictionaryCategoryForMenuKey(menuCategoryKey);
-    const items = this.dictionaryItems.filter((i) => i.category === dictCat && i.isActive !== false);
+    return this.dictionarySelectOptions(dictionaryCategoryForMenuKey(menuCategoryKey), currentValue);
+  }
+
+  dictionarySelectOptions(
+    dictCategory: B2BDictionaryCategory,
+    currentValue?: string | null
+  ): { value: string; label: string }[] {
+    const items = this.dictionaryItems.filter((i) => i.category === dictCategory && i.isActive !== false);
     const options: { value: string; label: string }[] = [{ value: '', label: '— ללא —' }];
     for (const item of items) {
       const suffix =
@@ -341,11 +459,26 @@ export class AdminInstitutionsComponent implements OnInit {
     return options;
   }
 
+  shabbatFieldDictCategory(fieldKey: string): B2BDictionaryCategory {
+    return dictionaryCategoryForMenuKey(fieldKey as MenuCategoryKey | 'fish' | 'carb' | 'protein');
+  }
+
   lookupDictionaryItem(dishName: string, menuCategoryKey: MenuCategoryKey): B2BMenuItem | undefined {
+    return this.lookupDictionaryByCategory(dishName, dictionaryCategoryForMenuKey(menuCategoryKey));
+  }
+
+  lookupDictionaryByCategory(dishName: string, dictCategory: B2BDictionaryCategory): B2BMenuItem | undefined {
     const trimmed = dishName.trim();
     if (!trimmed) return undefined;
-    const dictCat = dictionaryCategoryForMenuKey(menuCategoryKey);
-    return this.dictionaryItems.find((i) => i.name === trimmed && i.category === dictCat);
+    return this.dictionaryItems.find((i) => i.name === trimmed && i.category === dictCategory);
+  }
+
+  shabbatLogisticsLookup(dishName: string, fieldKey: string): DishLogisticsLookup {
+    const item = this.lookupDictionaryByCategory(dishName, this.shabbatFieldDictCategory(fieldKey));
+    if (fieldKey === 'mainMeat') {
+      return { gramsPerPortion: item?.gramsPerPortion };
+    }
+    return { portionsPerGastronorm: item?.portionsPerGastronorm };
   }
 
   /** Report math: dictionary hit, else safe defaults (40 GN / 200g meat). */
@@ -392,7 +525,7 @@ export class AdminInstitutionsComponent implements OnInit {
     totalVegetarian: number;
     grandTotal: number;
   }): CategoryLogisticsDisplayLine[] {
-    const dayField = MENU_DAY_FORM_FIELDS.find((d) => d.dayOfWeek === row.dayOfWeek);
+    const dayField = MENU_WEEKDAY_FORM_FIELDS.find((d) => d.dayOfWeek === row.dayOfWeek);
     if (!dayField || !this.reports?.menu) return [];
     const dayMenu = this.reports.menu[dayField.key];
     return MENU_CATEGORIES.map((c) => {
@@ -407,6 +540,33 @@ export class AdminInstitutionsComponent implements OnInit {
         this.logisticsForDish(dish, c.key)
       );
     }).filter((line): line is CategoryLogisticsDisplayLine => line !== null);
+  }
+
+  get shabbatKitchenLines(): CategoryLogisticsDisplayLine[] {
+    if (!this.reports?.menu?.shabbatPackage?.hasShabbat) return [];
+    return buildAggregatedShabbatKitchenLines(this.reports.menu, this.reports.orders || [], (dish, fieldKey) =>
+      this.shabbatLogisticsLookup(dish, fieldKey)
+    );
+  }
+
+  get shabbatKitchenTotals() {
+    return aggregateShabbatKitchenTotals(this.reports?.orders || []);
+  }
+
+  get shabbatExtrasTotals(): ShabbatExtrasTotals {
+    return aggregateShabbatExtras(this.reports?.orders || []);
+  }
+
+  get shabbatExtrasSummary(): string {
+    return formatShabbatExtrasSummary(this.shabbatExtrasTotals);
+  }
+
+  packingShabbatLineItems(order: InstitutionWeekReports['orders'][number]): CategoryLogisticsDisplayLine[] {
+    const pkg = this.reports?.menu?.shabbatPackage;
+    if (!pkg?.hasShabbat || !order.shabbatOrder) return [];
+    return buildPackingShabbatLines(pkg, order.shabbatOrder, (dish, fieldKey) =>
+      this.shabbatLogisticsLookup(dish, fieldKey)
+    );
   }
 
   packingCategoryLineItems(day: PackingOrderDay): CategoryLogisticsDisplayLine[] {
@@ -480,15 +640,84 @@ export class AdminInstitutionsComponent implements OnInit {
     });
   }
 
+  private patchMenuContentOnly(menu: InstitutionMenuContent): void {
+    const pkg = menu.shabbatPackage || emptyShabbatPackage();
+    const weekdayPatch = MENU_WEEKDAY_FORM_FIELDS.reduce(
+      (acc, d) => {
+        acc[d.key] = { ...emptyMenuDayItems(), ...(menu[d.key] || {}) };
+        return acc;
+      },
+      {} as Record<MenuWeekdayField, ReturnType<typeof emptyMenuDayItems>>
+    );
+
+    this.menuForm.patchValue({
+      ...weekdayPatch,
+      shabbatPackage: {
+        hasShabbat: pkg.hasShabbat !== false,
+        fridayNight: { ...emptyShabbatPackage().fridayNight, ...pkg.fridayNight },
+        shabbatDay: { ...emptyShabbatPackage().shabbatDay, ...pkg.shabbatDay },
+        seudaShlishit: { ...emptyShabbatPackage().seudaShlishit, ...pkg.seudaShlishit }
+      }
+    });
+
+    const saladsArray = this.menuShabbatSaladsArray;
+    saladsArray.clear();
+    const salads = pkg.shabbatSalads?.length ? pkg.shabbatSalads : emptyShabbatPackage().shabbatSalads;
+    for (let i = 0; i < SHABBAT_SALAD_SLOTS; i++) {
+      saladsArray.push(this.fb.control(salads[i] || ''));
+    }
+  }
+
+  private patchMenuFormFromContent(menu: InstitutionMenuContent, orderDeadline?: string | null): void {
+    const pkg = menu.shabbatPackage || emptyShabbatPackage();
+    this.menuForm.patchValue({
+      ...menu,
+      orderDeadline: orderDeadline ? isoToDatetimeLocal(orderDeadline) : '',
+      shabbatPackage: {
+        hasShabbat: pkg.hasShabbat !== false,
+        fridayNight: pkg.fridayNight,
+        shabbatDay: pkg.shabbatDay,
+        seudaShlishit: pkg.seudaShlishit
+      }
+    });
+    const saladsArray = this.menuShabbatSaladsArray;
+    saladsArray.clear();
+    const salads = pkg.shabbatSalads?.length ? pkg.shabbatSalads : emptyShabbatPackage().shabbatSalads;
+    for (let i = 0; i < SHABBAT_SALAD_SLOTS; i++) {
+      saladsArray.push(this.fb.control(salads[i] || ''));
+    }
+  }
+
+  private menuContentFromForm(): InstitutionMenuContent {
+    const v = this.menuForm.value;
+    const weekdays = MENU_WEEKDAY_FORM_FIELDS.reduce(
+      (acc, d) => {
+        acc[d.key] = { ...emptyMenuDayItems(), ...(v[d.key] || {}) };
+        return acc;
+      },
+      {} as Record<MenuWeekdayField, ReturnType<typeof emptyMenuDayItems>>
+    );
+    const pkg = v.shabbatPackage || {};
+    const salads = (this.menuShabbatSaladsArray.value as string[]).map((s) => String(s || '').trim());
+    while (salads.length < SHABBAT_SALAD_SLOTS) salads.push('');
+    return {
+      ...weekdays,
+      shabbatPackage: {
+        hasShabbat: pkg.hasShabbat !== false,
+        fridayNight: { ...emptyShabbatPackage().fridayNight, ...(pkg.fridayNight || {}) },
+        shabbatDay: { ...emptyShabbatPackage().shabbatDay, ...(pkg.shabbatDay || {}) },
+        seudaShlishit: { ...emptyShabbatPackage().seudaShlishit, ...(pkg.seudaShlishit || {}) },
+        shabbatSalads: salads.slice(0, SHABBAT_SALAD_SLOTS)
+      }
+    };
+  }
+
   loadWeekMenu(): void {
     this.isLoadingMenu = true;
     this.menuError = '';
     this.institutionService.getWeekMenu(this.selectedWeekStart).subscribe({
       next: (data) => {
-        this.menuForm.patchValue({
-          ...data.menu,
-          orderDeadline: data.orderDeadline ? isoToDatetimeLocal(data.orderDeadline) : ''
-        });
+        this.patchMenuFormFromContent(data.menu, data.orderDeadline);
         this.menuPublished = data.menuPublished ?? isMenuWeekPublished(data.menu);
         this.isLoadingMenu = false;
       },
@@ -515,10 +744,7 @@ export class AdminInstitutionsComponent implements OnInit {
     }
     const v = this.menuForm.value;
     const orderDeadlineIso = datetimeLocalToIso(String(v.orderDeadline));
-    const menu = MENU_DAY_FORM_FIELDS.reduce((acc, d) => {
-      acc[d.key] = { ...emptyMenuDayItems(), ...(v[d.key] || {}) };
-      return acc;
-    }, {} as MenuWeek);
+    const menu = this.menuContentFromForm();
 
     this.isSavingMenu = true;
     this.menuError = '';
@@ -530,10 +756,7 @@ export class AdminInstitutionsComponent implements OnInit {
       .subscribe({
         next: (data) => {
           this.isSavingMenu = false;
-          this.menuForm.patchValue({
-            ...data.menu,
-            orderDeadline: data.orderDeadline ? isoToDatetimeLocal(data.orderDeadline) : ''
-          });
+          this.patchMenuFormFromContent(data.menu, data.orderDeadline);
           this.menuPublished = data.menuPublished ?? isMenuWeekPublished(data.menu);
           this.snackBar.open('תפריט שבועי נשמר בהצלחה', 'סגור', { duration: 4000 });
           if (this.reportsLoaded) this.loadReports();
@@ -559,7 +782,7 @@ export class AdminInstitutionsComponent implements OnInit {
         this.isClearingMenu = false;
         this.menuForm.reset({
           orderDeadline: '',
-          ...MENU_DAY_FORM_FIELDS.reduce(
+          ...MENU_WEEKDAY_FORM_FIELDS.reduce(
             (acc, d) => {
               acc[d.key] = emptyMenuDayItems();
               return acc;
@@ -567,6 +790,7 @@ export class AdminInstitutionsComponent implements OnInit {
             {} as Record<string, ReturnType<typeof emptyMenuDayItems>>
           )
         });
+        this.menuForm.setControl('shabbatPackage', this.buildShabbatPackageGroup());
         this.menuPublished = false;
         this.snackBar.open('תפריט השבוע נמחק', 'סגור', { duration: 4000 });
         if (this.reportsLoaded) this.loadReports();
@@ -579,28 +803,40 @@ export class AdminInstitutionsComponent implements OnInit {
     });
   }
 
-  copyMenuFromPreviousWeek(): void {
-    const week = normalizeWeekInput(this.selectedWeekStart);
-    if (!week) return;
-    const prevWeek = getPreviousWeekStartKey(week);
+  copyFromSelectedWeek(): void {
+    const sourceWeek = this.selectedPastWeekToCopy.value;
+    if (!sourceWeek) {
+      this.snackBar.open('נא לבחור שבוע להעתקה', 'סגור', { duration: 4000 });
+      return;
+    }
+
+    const currentWeek = normalizeWeekInput(this.selectedWeekStart);
+    if (!currentWeek) {
+      this.snackBar.open('תאריך שבוע לא תקין', 'סגור', { duration: 4000 });
+      return;
+    }
+
+    if (sourceWeek === currentWeek) {
+      this.snackBar.open('לא ניתן להעתיק מאותו שבוע', 'סגור', { duration: 4000 });
+      return;
+    }
 
     this.isCopyingMenu = true;
-    this.institutionService.getWeekMenu(prevWeek).subscribe({
+    this.institutionService.getWeekMenu(sourceWeek).subscribe({
       next: (data) => {
         this.isCopyingMenu = false;
-        if (!isMenuWeekPublished(data.menu)) {
-          this.snackBar.open('אין תפריט בשבוע הקודם להעתקה', 'סגור', { duration: 5000 });
+        if (!data?.menu || !isMenuWeekPublished(data.menu)) {
+          this.snackBar.open('לא נמצא תפריט לשבוע שנבחר', 'סגור', { duration: 5000 });
           return;
         }
-        this.menuForm.patchValue({
-          ...data.menu,
-          orderDeadline: data.orderDeadline ? isoToDatetimeLocal(data.orderDeadline) : ''
-        });
-        this.snackBar.open(`תפריט הועתק משבוע ${prevWeek} — לחץ שמור לשמירה`, 'סגור', { duration: 5000 });
+        this.patchMenuContentOnly(data.menu);
+        this.menuForm.patchValue({ orderDeadline: '' });
+        this.menuForm.get('orderDeadline')?.markAsUntouched();
+        this.snackBar.open('התפריט הועתק בהצלחה — הגדר דדליין ולחץ שמור', 'סגור', { duration: 5000 });
       },
-      error: (err) => {
+      error: () => {
         this.isCopyingMenu = false;
-        this.snackBar.open(err?.error?.message || 'שגיאה בטעינת תפריט קודם', 'סגור', { duration: 5000 });
+        this.snackBar.open('לא נמצא תפריט לשבוע שנבחר', 'סגור', { duration: 5000 });
       }
     });
   }
@@ -883,8 +1119,21 @@ export class AdminInstitutionsComponent implements OnInit {
     return `הוזמנו ${wo.weeklyTotalPortions} מנות`;
   }
 
-  packingDayRows(order: InstitutionWeekReports['orders'][number]) {
-    return order.days || [];
+  packingDayRows(order: InstitutionWeekReports['orders'][number]): PackingOrderDay[] {
+    const rows = [...(order.days || [])];
+    const pkg = this.reports?.menu?.shabbatPackage;
+    if (pkg?.hasShabbat && order.shabbatOrder) {
+      rows.push({
+        dayOfWeek: -1,
+        dayLabel: 'חבילת שבת',
+        regularCount: order.shabbatOrder.regularCount || 0,
+        vegetarianCount: order.shabbatOrder.vegetarianCount || 0,
+        notes: order.shabbatOrder.wantsSeudaShlishit ? 'כולל סעודה שלישית' : '',
+        menuItems: emptyMenuDayItems(),
+        isShabbat: true
+      });
+    }
+    return rows;
   }
 
   openOrderEditModal(institutionIdValue: string, institutionName: string, weekStartDate: string): void {
@@ -901,12 +1150,13 @@ export class AdminInstitutionsComponent implements OnInit {
     this.institutionService.getInstitutionOrder(institutionIdValue, week).subscribe({
       next: (data) => {
         this.buildOrderDaysForm(data.days);
+        this.orderForm.setControl('shabbatOrder', this.buildShabbatOrderGroup(data.shabbatOrder || emptyShabbatOrder()));
         this.isLoadingOrder = false;
       },
       error: (err) => {
         console.error('[AdminInstitutions] getInstitutionOrder failed:', err);
         this.buildOrderDaysForm(
-          MENU_DAY_FORM_FIELDS.map((d) => ({
+          MENU_WEEKDAY_FORM_FIELDS.map((d) => ({
             dayOfWeek: d.dayOfWeek,
             dayLabel: d.label,
             regularCount: 0,
@@ -915,6 +1165,7 @@ export class AdminInstitutionsComponent implements OnInit {
             menuItems: emptyMenuDayItems()
           }))
         );
+        this.orderForm.setControl('shabbatOrder', this.buildShabbatOrderGroup());
         this.isLoadingOrder = false;
         this.orderError = err?.error?.message || 'לא נמצאה הזמנה — ניתן ליצור הזמנה חדשה';
       }
@@ -953,7 +1204,7 @@ export class AdminInstitutionsComponent implements OnInit {
     this.orderDaysArray.clear();
     const sorted = [...days].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
     for (const day of sorted) {
-      const label = MENU_DAY_FORM_FIELDS.find((d) => d.dayOfWeek === day.dayOfWeek)?.label || day.dayLabel;
+      const label = MENU_WEEKDAY_FORM_FIELDS.find((d) => d.dayOfWeek === day.dayOfWeek)?.label || day.dayLabel;
       this.orderDaysArray.push(
         this.fb.group({
           dayOfWeek: [day.dayOfWeek],
@@ -974,7 +1225,22 @@ export class AdminInstitutionsComponent implements OnInit {
 
   get orderEditWeeklyTotal(): number {
     const days: PackingOrderDay[] = this.orderDaysArray.controls.map((ctrl) => this.mapOrderDayCtrl(ctrl));
-    return sumOrderDays(days);
+    return sumOrderDays(days, this.mapShabbatOrderFromForm());
+  }
+
+  private mapShabbatOrderFromForm(): ShabbatOrder {
+    const v = this.orderShabbatGroup.value;
+    const extras = v.extras || {};
+    return {
+      regularCount: Math.max(0, Math.trunc(Number(v.regularCount) || 0)),
+      vegetarianCount: Math.max(0, Math.trunc(Number(v.vegetarianCount) || 0)),
+      wantsSeudaShlishit: v.wantsSeudaShlishit === true,
+      extras: {
+        challahs: Math.max(0, Math.trunc(Number(extras.challahs) || 0)),
+        rolls: Math.max(0, Math.trunc(Number(extras.rolls) || 0)),
+        grapeJuice: Math.max(0, Math.trunc(Number(extras.grapeJuice) || 0))
+      }
+    };
   }
 
   private mapOrderDayCtrl(ctrl: { value: Record<string, unknown> }): PackingOrderDay {
@@ -1004,8 +1270,12 @@ export class AdminInstitutionsComponent implements OnInit {
       };
     });
 
+    const shabbatOrder = this.mapShabbatOrderFromForm();
+
     this.isSavingOrder = true;
-    this.institutionService.updateInstitutionOrder(this.orderEditInstitutionId, this.orderEditWeek, days).subscribe({
+    this.institutionService
+      .updateInstitutionOrder(this.orderEditInstitutionId, this.orderEditWeek, days, shabbatOrder)
+      .subscribe({
       next: () => {
         this.isSavingOrder = false;
         this.snackBar.open('הזמנת המוסד עודכנה בהצלחה (עדכון מנהל)', 'סגור', { duration: 4000 });

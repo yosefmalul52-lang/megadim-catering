@@ -1,6 +1,13 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export const B2B_DICTIONARY_CATEGORIES = ['mainMeat', 'vegetarianMain', 'carb', 'side', 'saladFruit'] as const;
+export const B2B_DICTIONARY_CATEGORIES = [
+  'mainMeat',
+  'vegetarianMain',
+  'carb',
+  'side',
+  'saladFruit',
+  'fish'
+] as const;
 export type B2BDictionaryCategory = (typeof B2B_DICTIONARY_CATEGORIES)[number];
 
 export interface IB2BMenuItem extends Document {

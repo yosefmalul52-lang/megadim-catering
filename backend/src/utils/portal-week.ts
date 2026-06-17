@@ -1,7 +1,17 @@
-/** Sunday–Saturday institutional ordering week (dayOfWeek 0–6). */
-import { MENU_CATEGORIES, normalizeCategoryNotes } from './menu-structure';
+/** Sunday–Thursday institutional ordering week (dayOfWeek 0–4). Shabbat is shabbatOrder. */
+import {
+  MENU_CATEGORIES,
+  MENU_DAY_FIELDS,
+  emptyShabbatOrder,
+  normalizeCategoryNotes,
+  normalizeShabbatOrder,
+  type MenuDayField,
+  type ShabbatOrder
+} from './menu-structure';
 
-export const PORTAL_WORK_DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+export { MENU_DAY_FIELDS, type MenuDayField };
+
+export const PORTAL_WORK_DAYS = [0, 1, 2, 3, 4] as const;
 
 const WEEK_KEY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -131,22 +141,10 @@ export const DAY_LABELS_HE = [
   'יום שני',
   'יום שלישי',
   'יום רביעי',
-  'יום חמישי',
-  'יום שישי',
-  'שבת'
+  'יום חמישי'
 ] as const;
 
-export const MENU_DAY_FIELDS = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday'
-] as const;
-
-export type MenuDayField = (typeof MENU_DAY_FIELDS)[number];
+export const SHABBAT_ORDER_LABEL = 'חבילת שבת';
 
 export function parseDeadlineTime(time: string): { hours: number; minutes: number } {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(time || '').trim());
@@ -212,13 +210,24 @@ export function defaultOrderDays() {
   }));
 }
 
-export function sumOrderPortions(days: Array<{ regularCount?: number; vegetarianCount?: number }> | undefined): number {
-  if (!Array.isArray(days)) return 0;
-  return days.reduce((sum, d) => sum + (Number(d.regularCount) || 0) + (Number(d.vegetarianCount) || 0), 0);
+export function sumOrderPortions(
+  days: Array<{ regularCount?: number; vegetarianCount?: number }> | undefined,
+  shabbatOrder?: { regularCount?: number; vegetarianCount?: number } | null
+): number {
+  const weekdayTotal = !Array.isArray(days)
+    ? 0
+    : days.reduce((sum, d) => sum + (Number(d.regularCount) || 0) + (Number(d.vegetarianCount) || 0), 0);
+  const shabbatTotal = shabbatOrder
+    ? (Number(shabbatOrder.regularCount) || 0) + (Number(shabbatOrder.vegetarianCount) || 0)
+    : 0;
+  return weekdayTotal + shabbatTotal;
 }
 
-export function hasMeaningfulOrder(days: Array<{ regularCount?: number; vegetarianCount?: number }> | undefined): boolean {
-  return sumOrderPortions(days) > 0;
+export function hasMeaningfulOrder(
+  days: Array<{ regularCount?: number; vegetarianCount?: number }> | undefined,
+  shabbatOrder?: { regularCount?: number; vegetarianCount?: number } | null
+): boolean {
+  return sumOrderPortions(days, shabbatOrder) > 0;
 }
 
 export function isMenuPublished(_menu: Record<string, unknown> | null | undefined): boolean {
@@ -343,6 +352,50 @@ export function validateOrderDaysPayload(raw: unknown):
   }
 
   return { ok: true, days: normalizeOrderDays(raw) };
+}
+
+const SHABBAT_EXTRA_LABELS: Record<string, string> = {
+  challahs: 'חלות',
+  rolls: 'לחמניות',
+  grapeJuice: 'מיץ ענבים'
+};
+
+/** Validate Shabbat weekend order block before save — rejects negatives and decimals. */
+export function validateShabbatOrderPayload(raw: unknown):
+  | { ok: true; shabbatOrder: ShabbatOrder }
+  | { ok: false; message: string } {
+  if (raw === undefined || raw === null) {
+    return { ok: true, shabbatOrder: emptyShabbatOrder() };
+  }
+
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, message: 'מבנה הזמנת שבת לא תקין' };
+  }
+
+  const row = raw as Record<string, unknown>;
+
+  for (const field of ['regularCount', 'vegetarianCount'] as const) {
+    const parsed = parseStrictNonNegativeInteger(row[field], COUNT_FIELD_LABELS[field]);
+    if (parsed.ok === false) {
+      return { ok: false, message: parsed.message };
+    }
+  }
+
+  const extrasRaw = row.extras;
+  if (extrasRaw !== undefined && extrasRaw !== null) {
+    if (typeof extrasRaw !== 'object' || Array.isArray(extrasRaw)) {
+      return { ok: false, message: 'מבנה תוספות שבת לא תקין' };
+    }
+    const extras = extrasRaw as Record<string, unknown>;
+    for (const field of ['challahs', 'rolls', 'grapeJuice'] as const) {
+      const parsed = parseStrictNonNegativeInteger(extras[field], SHABBAT_EXTRA_LABELS[field]);
+      if (parsed.ok === false) {
+        return { ok: false, message: parsed.message };
+      }
+    }
+  }
+
+  return { ok: true, shabbatOrder: normalizeShabbatOrder(raw) };
 }
 
 /** Date-range for legacy BSON Date weekStartDate documents (bypasses Mongoose string cast). */

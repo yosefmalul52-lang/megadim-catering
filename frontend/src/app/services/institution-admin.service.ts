@@ -16,12 +16,14 @@ import {
 } from '../utils/portal-week';
 import {
   MenuDayItems,
-  MenuWeek,
-  MENU_DAY_FORM_FIELDS
+  InstitutionMenuContent,
+  ShabbatOrder,
+  MENU_WEEKDAY_FORM_FIELDS,
+  emptyShabbatOrder
 } from '../utils/menu-structure';
 
 export { getCurrentWeekStart, getDefaultMenuWeekStart, getDefaultReportsWeekStart, getNextWeekStartKey, getPreviousWeekStartKey, normalizeWeekInput, getWeekRangeString, getWeekRangeReportString };
-export { MENU_DAY_FORM_FIELDS, MenuDayItems, MenuWeek };
+export { MENU_WEEKDAY_FORM_FIELDS as MENU_DAY_FORM_FIELDS, MenuDayItems, InstitutionMenuContent, ShabbatOrder };
 
 export interface PortalSettings {
   customMessage: string;
@@ -123,7 +125,7 @@ export class InstitutionAdminService {
 
   saveWeekMenu(
     weekStartDate: string,
-    payload: MenuWeek & { orderDeadline?: string | null }
+    payload: InstitutionMenuContent & { orderDeadline?: string | null }
   ): Observable<InstitutionWeekMenu> {
     const normalizedWeek = normalizeWeekInput(weekStartDate);
     if (!normalizedWeek) {
@@ -149,13 +151,14 @@ export class InstitutionAdminService {
   updateInstitutionOrder(
     institutionId: string,
     weekStartDate: string,
-    days: PackingOrderDay[]
+    days: PackingOrderDay[],
+    shabbatOrder?: ShabbatOrder
   ): Observable<AdminInstitutionOrder> {
     const week = normalizeWeekInput(weekStartDate) || weekStartDate;
     return this.http
       .put<{ success: boolean; data: AdminInstitutionOrder; message?: string }>(
         `${this.baseUrl}/order/${institutionId}`,
-        { weekStartDate: week, days }
+        { weekStartDate: week, days, shabbatOrder: shabbatOrder ?? emptyShabbatOrder() }
       )
       .pipe(map((res) => res.data));
   }
@@ -179,11 +182,11 @@ export interface InstitutionWeekMenu {
   weekStartDateLabel: string;
   menuPublished?: boolean;
   orderDeadline?: string | null;
-  menu: MenuWeek;
+  menu: InstitutionMenuContent;
 }
 
 export interface KitchenReportRow {
-  dayOfWeek: number;
+  dayOfWeek?: number;
   dayLabel: string;
   menuItem: string;
   totalRegular: number;
@@ -198,6 +201,7 @@ export interface PackingOrderDay {
   vegetarianCount: number;
   notes: string;
   menuItems: MenuDayItems;
+  isShabbat?: boolean;
 }
 
 export interface PackingOrderRow {
@@ -209,6 +213,7 @@ export interface PackingOrderRow {
   weeklyGrandTotal: number;
   hasOrder: boolean;
   days: PackingOrderDay[];
+  shabbatOrder?: ShabbatOrder;
 }
 
 export interface AdminInstitutionOrder {
@@ -217,6 +222,7 @@ export interface AdminInstitutionOrder {
   institutionName: string;
   weekStartDate: string;
   days: PackingOrderDay[];
+  shabbatOrder?: ShabbatOrder;
   weeklyGrandTotal: number;
 }
 
@@ -225,11 +231,19 @@ export interface InstitutionWeekReports {
   weekStartDateLabel: string;
   menuPublished?: boolean;
   orderDeadline?: string | null;
-  menu: MenuWeek;
+  menu: InstitutionMenuContent;
   orders: PackingOrderRow[];
   kitchenReport: KitchenReportRow[];
+  shabbatKitchenRow?: KitchenReportRow;
 }
 
-export function sumOrderDays(days: PackingOrderDay[]): number {
-  return (days || []).reduce((sum, d) => sum + (Number(d.regularCount) || 0) + (Number(d.vegetarianCount) || 0), 0);
+export function sumOrderDays(days: PackingOrderDay[], shabbatOrder?: ShabbatOrder | null): number {
+  const weekday = (days || []).reduce(
+    (sum, d) => sum + (Number(d.regularCount) || 0) + (Number(d.vegetarianCount) || 0),
+    0
+  );
+  const shabbat = shabbatOrder
+    ? (Number(shabbatOrder.regularCount) || 0) + (Number(shabbatOrder.vegetarianCount) || 0)
+    : 0;
+  return weekday + shabbat;
 }

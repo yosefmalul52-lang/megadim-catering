@@ -2,7 +2,6 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   AbstractControl,
-  FormArray,
   FormBuilder,
   FormGroup,
   ReactiveFormsModule,
@@ -11,6 +10,7 @@ import {
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
@@ -18,11 +18,11 @@ import {
   InstitutionOrderDay,
   PortalStatus,
   PORTAL_DAY_LABELS,
-  formatOrderDeadlineNotice
+  formatOrderDeadlineNotice,
+  emptyShabbatOrder
 } from '../../../services/institution-portal.service';
 import { getWeekRangeString, getCurrentWeekStart, getNextWeekStartKey } from '../../../utils/portal-week';
-import { formatMenuDaySummary, formatVegetarianMainLine } from '../../../utils/menu-structure';
-import type { MenuDayField } from '../../../utils/menu-structure';
+import type { ShabbatOrder } from '../../../utils/menu-structure';
 
 function nonNegativeIntegerValidator(control: AbstractControl): ValidationErrors | null {
   const raw = control.value;
@@ -44,6 +44,7 @@ export type PortalWeekView = 'current' | 'next';
     ReactiveFormsModule,
     MatButtonModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatIconModule,
     MatSnackBarModule
   ],
@@ -66,8 +67,36 @@ export class InstitutionDashboardComponent implements OnInit {
   selectedWeekView: PortalWeekView = 'current';
 
   ngOnInit(): void {
-    this.form = this.fb.group({ days: this.fb.array([]) });
+    this.form = this.fb.group({
+      days: this.fb.array([]),
+      shabbatOrder: this.buildShabbatOrderGroup()
+    });
     this.loadStatus();
+  }
+
+  get shabbatOrderGroup(): FormGroup {
+    return this.form.get('shabbatOrder') as FormGroup;
+  }
+
+  get shabbatExtrasGroup(): FormGroup {
+    return this.shabbatOrderGroup.get('extras') as FormGroup;
+  }
+
+  get hasShabbatMenu(): boolean {
+    return this.status?.menu?.shabbatPackage?.hasShabbat !== false;
+  }
+
+  private buildShabbatOrderGroup(order = emptyShabbatOrder()) {
+    return this.fb.group({
+      regularCount: [order.regularCount ?? 0, this.countValidators],
+      vegetarianCount: [order.vegetarianCount ?? 0, this.countValidators],
+      wantsSeudaShlishit: [order.wantsSeudaShlishit === true],
+      extras: this.fb.group({
+        challahs: [order.extras?.challahs ?? 0, this.countValidators],
+        rolls: [order.extras?.rolls ?? 0, this.countValidators],
+        grapeJuice: [order.extras?.grapeJuice ?? 0, this.countValidators]
+      })
+    });
   }
 
   weekStartDateForView(view: PortalWeekView): string {
@@ -85,8 +114,8 @@ export class InstitutionDashboardComponent implements OnInit {
     this.selectedWeekView = weekStartDate === nextWeek ? 'next' : 'current';
   }
 
-  get daysArray(): FormArray {
-    return this.form.get('days') as FormArray;
+  get daysArray() {
+    return this.form.get('days') as import('@angular/forms').FormArray;
   }
 
   get isLocked(): boolean {
@@ -109,21 +138,6 @@ export class InstitutionDashboardComponent implements OnInit {
     return this.status?.portalSettings?.customMessage?.trim() || '';
   }
 
-  menuDaySummary(dayOfWeek: number): string {
-    const row = this.dayLabels.find((d) => d.dayOfWeek === dayOfWeek);
-    if (!row || !this.status?.menu) return '—';
-    const dayMenu = this.status.menu[row.menuKey as MenuDayField];
-    const summary = formatMenuDaySummary(dayMenu);
-    return summary || 'טרם עודכן';
-  }
-
-  vegetarianMainLine(dayOfWeek: number): string {
-    const row = this.dayLabels.find((d) => d.dayOfWeek === dayOfWeek);
-    if (!row || !this.status?.menu) return '';
-    const dayMenu = this.status.menu[row.menuKey as MenuDayField];
-    return formatVegetarianMainLine(dayMenu);
-  }
-
   loadStatus(weekStartDate?: string): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -135,8 +149,10 @@ export class InstitutionDashboardComponent implements OnInit {
         }
         if (!data.noMenuPublished) {
           this.buildDaysForm(data.order.days);
+          this.form.setControl('shabbatOrder', this.buildShabbatOrderGroup(data.order.shabbatOrder || emptyShabbatOrder()));
         } else {
           this.daysArray.clear();
+          this.form.setControl('shabbatOrder', this.buildShabbatOrderGroup());
         }
         this.isLoading = false;
         if (data.isLocked || data.noMenuPublished) {
@@ -167,6 +183,21 @@ export class InstitutionDashboardComponent implements OnInit {
     }
   }
 
+  private mapShabbatOrderFromForm(): ShabbatOrder {
+    const v = this.shabbatOrderGroup.getRawValue();
+    const extras = v.extras || {};
+    return {
+      regularCount: Math.max(0, Math.trunc(Number(v.regularCount) || 0)),
+      vegetarianCount: Math.max(0, Math.trunc(Number(v.vegetarianCount) || 0)),
+      wantsSeudaShlishit: v.wantsSeudaShlishit === true,
+      extras: {
+        challahs: Math.max(0, Math.trunc(Number(extras.challahs) || 0)),
+        rolls: Math.max(0, Math.trunc(Number(extras.rolls) || 0)),
+        grapeJuice: Math.max(0, Math.trunc(Number(extras.grapeJuice) || 0))
+      }
+    };
+  }
+
   submitOrder(): void {
     if (this.noMenuPublished || this.isLocked || this.form.invalid) {
       this.form.markAllAsTouched();
@@ -183,6 +214,8 @@ export class InstitutionDashboardComponent implements OnInit {
       };
     });
 
+    const shabbatOrder = this.hasShabbatMenu ? this.mapShabbatOrderFromForm() : emptyShabbatOrder();
+
     this.isSaving = true;
     const weekStartDate = this.status?.weekStartDate;
     if (!weekStartDate) {
@@ -190,7 +223,7 @@ export class InstitutionDashboardComponent implements OnInit {
       return;
     }
 
-    this.portalService.submit(days, weekStartDate).subscribe({
+    this.portalService.submit(days, weekStartDate, shabbatOrder).subscribe({
       next: () => {
         this.isSaving = false;
         this.snackBar.open('ההזמנה נשמרה בהצלחה', 'סגור', { duration: 4000 });

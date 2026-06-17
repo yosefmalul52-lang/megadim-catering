@@ -45,63 +45,181 @@
       @if (noMenuPublished) {
         <div class="no-menu-published-banner">
           <mat-icon>restaurant_menu</mat-icon>
-          <p>התפריט לשבוע זה טרם פורסם. אנא חזרו מאוחר יותר.</p>
+          <p>ההזמנה לשבוע זה טרם נפתחה. אנא חזרו מאוחר יותר.</p>
         </div>
       } @else {
         <form [formGroup]="form" (ngSubmit)="submitOrder()" class="order-form">
-          <div class="days-grid" formArrayName="days">
-            @for (dayCtrl of daysArray.controls; track $index; let i = $index) {
-              <div class="day-card" [formGroupName]="i">
-                <div class="day-header">
-                  <h2>{{ dayLabels[i]?.label }}</h2>
-                </div>
+          <section class="order-section">
+            <div class="order-section-heading">
+              <mat-icon aria-hidden="true">calendar_today</mat-icon>
+              <div>
+                <h2 class="order-section-title">ימי חול</h2>
+                <p class="order-section-subtitle">ראשון עד חמישי — הזינו כמויות בלבד</p>
+              </div>
+            </div>
 
-                <div class="menu-summary-block">
-                  <span class="menu-summary-label">תפריט היום</span>
-                  <p class="menu-summary-text">{{ menuDaySummary(dayLabels[i].dayOfWeek) }}</p>
-                  @if (vegetarianMainLine(dayLabels[i].dayOfWeek)) {
-                    <p class="menu-vegetarian-main">{{ vegetarianMainLine(dayLabels[i].dayOfWeek) }}</p>
-                  }
-                </div>
-
-                <div class="counts-row">
-                  <div class="field">
-                    <label [for]="'regular-' + i">מנות רגילות</label>
-                    <input
-                      [id]="'regular-' + i"
-                      type="number"
-                      min="0"
-                      step="1"
-                      formControlName="regularCount"
-                      class="input"
-                    />
+            <div class="days-grid" formArrayName="days">
+              @for (dayCtrl of daysArray.controls; track $index; let i = $index) {
+                <div class="day-card" [formGroupName]="i">
+                  <div class="day-card-header">
+                    <span class="day-card-index">{{ i + 1 }}</span>
+                    <h3 class="day-card-title">{{ dayLabels[i]?.label }}</h3>
                   </div>
-                  <div class="field">
-                    <label [for]="'veg-' + i">מנות צמחוניות</label>
-                    <input
-                      [id]="'veg-' + i"
-                      type="number"
-                      min="0"
-                      step="1"
-                      formControlName="vegetarianCount"
-                      class="input"
-                    />
+
+                  <div class="day-card-body">
+                    <div class="qty-grid">
+                      <div class="qty-field">
+                        <label [for]="'regular-' + i">מנות רגילות</label>
+                        <input
+                          [id]="'regular-' + i"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="regularCount"
+                          class="input qty-input"
+                          inputmode="numeric"
+                        />
+                      </div>
+                      <div class="qty-field">
+                        <label [for]="'veg-' + i">מנות צמחוניות</label>
+                        <input
+                          [id]="'veg-' + i"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="vegetarianCount"
+                          class="input qty-input"
+                          inputmode="numeric"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="notes-field">
+                      <label [for]="'notes-' + i">הערות ליום זה</label>
+                      <textarea
+                        [id]="'notes-' + i"
+                        rows="2"
+                        class="input textarea"
+                        formControlName="notes"
+                        placeholder="אופציונלי..."
+                      ></textarea>
+                    </div>
                   </div>
                 </div>
+              }
+            </div>
+          </section>
 
-                <div class="field">
-                  <label [for]="'notes-' + i">הערות כלליות ליום זה</label>
-                  <textarea
-                    [id]="'notes-' + i"
-                    rows="2"
-                    class="input textarea"
-                    formControlName="notes"
-                    placeholder="לדוגמה: אלרגיות, העדפות מיוחדות..."
-                  ></textarea>
+          @if (hasShabbatMenu) {
+            <section class="order-section shabbat-order-panel" formGroupName="shabbatOrder">
+              <div class="shabbat-order-header">
+                <div class="shabbat-order-header-main">
+                  <div class="shabbat-order-icon" aria-hidden="true">
+                    <mat-icon>nightlight</mat-icon>
+                  </div>
+                  <div>
+                    <h2 class="order-section-title">הזמנה לשבת</h2>
+                  </div>
                 </div>
               </div>
-            }
-          </div>
+
+              <div class="shabbat-order-grid">
+                <div class="shabbat-block">
+                  <div class="shabbat-block-header">
+                    <mat-icon aria-hidden="true">restaurant</mat-icon>
+                    <h3>כמויות מנות</h3>
+                  </div>
+                  <div class="shabbat-block-body">
+                    <div class="qty-grid qty-grid--shabbat">
+                      <div class="qty-field">
+                        <label for="shabbat-regular">מנות רגילות</label>
+                        <input
+                          id="shabbat-regular"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="regularCount"
+                          class="input qty-input qty-input--lg"
+                          inputmode="numeric"
+                        />
+                      </div>
+                      <div class="qty-field">
+                        <label for="shabbat-veg">מנות צמחוניות</label>
+                        <input
+                          id="shabbat-veg"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="vegetarianCount"
+                          class="input qty-input qty-input--lg"
+                          inputmode="numeric"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="shabbat-block shabbat-block--seuda">
+                  <div class="shabbat-block-header">
+                    <mat-icon aria-hidden="true">brunch_dining</mat-icon>
+                    <h3>סעודה שלישית</h3>
+                  </div>
+                  <div class="shabbat-block-body shabbat-seuda-body">
+                    <mat-checkbox formControlName="wantsSeudaShlishit" class="shabbat-seuda-checkbox">
+                      מעוניינים בסעודה שלישית?
+                    </mat-checkbox>
+                  </div>
+                </div>
+
+                <div class="shabbat-block shabbat-block--extras" formGroupName="extras">
+                  <div class="shabbat-block-header">
+                    <mat-icon aria-hidden="true">add_shopping_cart</mat-icon>
+                    <h3>תוספות</h3>
+                  </div>
+                  <div class="shabbat-block-body">
+                    <div class="extras-grid">
+                      <div class="qty-field">
+                        <label for="extras-challahs">חלות</label>
+                        <input
+                          id="extras-challahs"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="challahs"
+                          class="input qty-input"
+                          inputmode="numeric"
+                        />
+                      </div>
+                      <div class="qty-field">
+                        <label for="extras-rolls">לחמניות</label>
+                        <input
+                          id="extras-rolls"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="rolls"
+                          class="input qty-input"
+                          inputmode="numeric"
+                        />
+                      </div>
+                      <div class="qty-field">
+                        <label for="extras-grape">מיץ ענבים</label>
+                        <input
+                          id="extras-grape"
+                          type="number"
+                          min="0"
+                          step="1"
+                          formControlName="grapeJuice"
+                          class="input qty-input"
+                          inputmode="numeric"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          }
 
           @if (!isLocked) {
             <div class="form-actions">

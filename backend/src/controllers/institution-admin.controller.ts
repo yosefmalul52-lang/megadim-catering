@@ -5,13 +5,16 @@ import InstitutionMenu from '../models/InstitutionMenu';
 import {
   formatMenuDaySummary,
   isMenuWeekPublished,
-  normalizeMenuWeek,
-  type MenuWeek
+  normalizeInstitutionMenuContent,
+  emptyInstitutionMenuContent,
+  normalizeShabbatOrder,
+  type InstitutionMenuContent
 } from '../utils/menu-structure';
 import {
   DAY_LABELS_HE,
   MENU_DAY_FIELDS,
   PORTAL_WORK_DAYS,
+  SHABBAT_ORDER_LABEL,
   computeIsLockedByDeadline,
   getWeekStartKey,
   hasMeaningfulOrder,
@@ -20,25 +23,26 @@ import {
   parseOrderDeadline,
   parseWeekStartKey,
   sumOrderPortions,
-  validateOrderDaysPayload
+  validateOrderDaysPayload,
+  validateShabbatOrderPayload
 } from '../utils/portal-week';
 import { ensureInstitutionMenuIndexes } from '../utils/ensure-institution-menu-indexes';
 
 const User = require('../models/User');
 
 function menuPayload(menu: unknown) {
-  const week = normalizeMenuWeek(menu as Record<string, unknown> | null | undefined);
+  const content = normalizeInstitutionMenuContent(menu as Record<string, unknown> | null | undefined);
   const raw = menu as Record<string, unknown> | null | undefined;
   const orderDeadline =
     raw?.orderDeadline != null && raw.orderDeadline !== ''
       ? new Date(raw.orderDeadline as string | Date).toISOString()
       : null;
-  return { ...week, orderDeadline };
+  return { ...content, orderDeadline };
 }
 
-function menuWeekOnly(payload: ReturnType<typeof menuPayload>): MenuWeek {
-  const { orderDeadline: _d, ...week } = payload;
-  return week as MenuWeek;
+function menuWeekOnly(payload: ReturnType<typeof menuPayload>): InstitutionMenuContent {
+  const { orderDeadline: _d, ...content } = payload;
+  return content;
 }
 
 function resolveWeekStartKey(req: Request, source: 'query' | 'body' = 'query'): string | null {
@@ -65,14 +69,14 @@ async function purgeLegacyMenuDocs(weekKey: string): Promise<void> {
   await purgeAllMenuDocsForWeek(weekKey);
 }
 
-interface MenuFieldUpdate extends MenuWeek {
+interface MenuFieldUpdate extends InstitutionMenuContent {
   orderDeadline: Date;
 }
 
-function parseMenuFieldsFromBody(body: Record<string, unknown>): MenuWeek & { orderDeadline: Date | null } {
-  const week = normalizeMenuWeek(body);
+function parseMenuFieldsFromBody(body: Record<string, unknown>): InstitutionMenuContent & { orderDeadline: Date | null } {
+  const content = normalizeInstitutionMenuContent(body);
   return {
-    ...week,
+    ...content,
     orderDeadline: parseOrderDeadline(body.orderDeadline)
   };
 }
@@ -96,8 +100,7 @@ async function upsertMenuForWeek(weekKey: string, fields: MenuFieldUpdate) {
     tuesday: fields.tuesday,
     wednesday: fields.wednesday,
     thursday: fields.thursday,
-    friday: fields.friday,
-    saturday: fields.saturday,
+    shabbatPackage: fields.shabbatPackage,
     orderDeadline: fields.orderDeadline
   };
 
@@ -135,7 +138,7 @@ export async function findMenuForWeek(weekKey: string) {
 
   const payload = {
     weekStartDate: weekKey,
-    ...normalizeMenuWeek(legacy as Record<string, unknown>),
+    ...normalizeInstitutionMenuContent(legacy as Record<string, unknown>),
     orderDeadline: legacy.orderDeadline ? new Date(legacy.orderDeadline) : null
   };
 
@@ -163,7 +166,8 @@ async function findOrdersForWeek(weekKey: string) {
         institutionId: legacy.institutionId,
         weekStartDate: weekKey,
         isLocked: !!legacy.isLocked,
-        days: legacy.days || []
+        days: normalizeOrderDays(legacy.days),
+        shabbatOrder: normalizeShabbatOrder(legacy.shabbatOrder)
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     ).lean();
@@ -192,7 +196,8 @@ async function findOrderForInstitutionWeek(institutionId: string, weekKey: strin
       institutionId: legacy.institutionId,
       weekStartDate: weekKey,
       isLocked: !!legacy.isLocked,
-      days: legacy.days || []
+      days: normalizeOrderDays(legacy.days),
+      shabbatOrder: normalizeShabbatOrder(legacy.shabbatOrder)
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ).lean();
@@ -201,7 +206,8 @@ async function findOrderForInstitutionWeek(institutionId: string, weekKey: strin
   return migrated;
 }
 
-function enrichOrderDays(menuWeek: MenuWeek, days: ReturnType<typeof normalizeOrderDays>) {
+function enrichOrderDays(menuContent: InstitutionMenuContent, days: ReturnType<typeof normalizeOrderDays>) {
+  const emptyDay = emptyInstitutionMenuContent().sunday;
   return days.map((d) => {
     const dayKey = MENU_DAY_FIELDS[d.dayOfWeek];
     return {
@@ -210,7 +216,7 @@ function enrichOrderDays(menuWeek: MenuWeek, days: ReturnType<typeof normalizeOr
       regularCount: d.regularCount,
       vegetarianCount: d.vegetarianCount,
       notes: d.notes || '',
-      menuItems: dayKey ? menuWeek[dayKey] : normalizeMenuWeek({})[MENU_DAY_FIELDS[0]],
+      menuItems: dayKey ? menuContent[dayKey] : emptyDay
     };
   });
 }
@@ -219,10 +225,11 @@ function mapPackingOrder(
   order: any,
   nameById: Map<string, string>,
   weekKey: string,
-  menuWeek: MenuWeek
+  menuContent: InstitutionMenuContent
 ) {
-  const days = enrichOrderDays(menuWeek, normalizeOrderDays(order.days));
-  const weeklyGrandTotal = sumOrderPortions(days);
+  const days = enrichOrderDays(menuContent, normalizeOrderDays(order.days));
+  const shabbatOrder = normalizeShabbatOrder(order.shabbatOrder);
+  const weeklyGrandTotal = sumOrderPortions(days, shabbatOrder);
   return {
     orderId: String(order._id),
     institutionId: String(order.institutionId),
@@ -230,8 +237,9 @@ function mapPackingOrder(
     weekStartDate: weekKey,
     isLocked: !!order.isLocked,
     weeklyGrandTotal,
-    hasOrder: hasMeaningfulOrder(days),
-    days
+    hasOrder: hasMeaningfulOrder(days, shabbatOrder),
+    days,
+    shabbatOrder
   };
 }
 
@@ -383,8 +391,9 @@ export async function getAdminInstitutionOrder(req: Request, res: Response): Pro
 
     const order = await findOrderForInstitutionWeek(institutionId, weekStartDate);
     const menuDoc = await findMenuForWeek(weekStartDate);
-    const menuWeek = menuWeekOnly(menuPayload(menuDoc));
-    const days = enrichOrderDays(menuWeek, normalizeOrderDays(order?.days));
+    const menuContent = menuWeekOnly(menuPayload(menuDoc));
+    const days = enrichOrderDays(menuContent, normalizeOrderDays(order?.days));
+    const shabbatOrder = normalizeShabbatOrder(order?.shabbatOrder);
 
     res.json({
       success: true,
@@ -394,7 +403,8 @@ export async function getAdminInstitutionOrder(req: Request, res: Response): Pro
         institutionName: user.fullName,
         weekStartDate,
         days,
-        weeklyGrandTotal: sumOrderPortions(days)
+        shabbatOrder,
+        weeklyGrandTotal: sumOrderPortions(days, shabbatOrder)
       }
     });
   } catch (err: any) {
@@ -426,6 +436,13 @@ export async function adminUpdateInstitutionOrder(req: Request, res: Response): 
     }
     const days = validation.days;
 
+    const shabbatValidation = validateShabbatOrderPayload(req.body?.shabbatOrder);
+    if (shabbatValidation.ok === false) {
+      res.status(400).json({ success: false, message: shabbatValidation.message });
+      return;
+    }
+    const shabbatOrder = shabbatValidation.shabbatOrder;
+
     const { start, end } = legacyWeekDateRange(weekStartDate);
     await InstitutionOrder.collection.deleteMany({
       institutionId: user._id,
@@ -438,15 +455,17 @@ export async function adminUpdateInstitutionOrder(req: Request, res: Response): 
         institutionId: user._id,
         weekStartDate,
         days,
+        shabbatOrder,
         isLocked: false
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
     ).lean();
 
     const normalizedDays = normalizeOrderDays(saved?.days);
+    const normalizedShabbat = normalizeShabbatOrder(saved?.shabbatOrder);
     const menuDoc = await findMenuForWeek(weekStartDate);
-    const menuWeek = menuWeekOnly(menuPayload(menuDoc));
-    const enrichedDays = enrichOrderDays(menuWeek, normalizedDays);
+    const menuContent = menuWeekOnly(menuPayload(menuDoc));
+    const enrichedDays = enrichOrderDays(menuContent, normalizedDays);
     res.json({
       success: true,
       message: 'הזמנת המוסד עודכנה בהצלחה (עדכון מנהל)',
@@ -456,7 +475,8 @@ export async function adminUpdateInstitutionOrder(req: Request, res: Response): 
         institutionName: user.fullName,
         weekStartDate,
         days: enrichedDays,
-        weeklyGrandTotal: sumOrderPortions(normalizedDays)
+        shabbatOrder: normalizedShabbat,
+        weeklyGrandTotal: sumOrderPortions(normalizedDays, normalizedShabbat)
       }
     });
   } catch (err: any) {
@@ -517,6 +537,21 @@ export async function getInstitutionWeekReports(req: Request, res: Response): Pr
       };
     });
 
+    let shabbatRegular = 0;
+    let shabbatVegetarian = 0;
+    for (const order of orders) {
+      const shabbat = normalizeShabbatOrder(order.shabbatOrder);
+      shabbatRegular += shabbat.regularCount;
+      shabbatVegetarian += shabbat.vegetarianCount;
+    }
+    const shabbatKitchenRow = {
+      dayLabel: SHABBAT_ORDER_LABEL,
+      menuItem: menu.shabbatPackage?.hasShabbat ? 'חבילת שבת' : 'ללא שבת השבוע',
+      totalRegular: shabbatRegular,
+      totalVegetarian: shabbatVegetarian,
+      grandTotal: shabbatRegular + shabbatVegetarian
+    };
+
     const menuPublished = isMenuWeekPublished(menu);
 
     res.json({
@@ -528,7 +563,8 @@ export async function getInstitutionWeekReports(req: Request, res: Response): Pr
         orderDeadline: menuFull.orderDeadline,
         menu,
         orders: packingOrders,
-        kitchenReport
+        kitchenReport,
+        shabbatKitchenRow
       }
     });
   } catch (err: any) {
@@ -546,9 +582,10 @@ export async function getOrderSummariesForWeek(weekKey: string) {
   const orders = await findOrdersForWeek(weekKey);
   const map = new Map<string, { hasOrder: boolean; weeklyTotalPortions: number }>();
   for (const order of orders) {
-    const total = sumOrderPortions(order.days);
+    const shabbatOrder = normalizeShabbatOrder(order.shabbatOrder);
+    const total = sumOrderPortions(order.days, shabbatOrder);
     map.set(String(order.institutionId), {
-      hasOrder: hasMeaningfulOrder(order.days),
+      hasOrder: hasMeaningfulOrder(order.days, shabbatOrder),
       weeklyTotalPortions: total
     });
   }

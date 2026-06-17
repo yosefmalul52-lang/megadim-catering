@@ -241,6 +241,29 @@
               <mat-icon>menu_book</mat-icon>
               ניהול מאגר מנות
             </button>
+
+            <div class="menu-copy-row">
+              <mat-form-field appearance="outline" class="menu-copy-select">
+                <mat-label>בחר שבוע להעתקה</mat-label>
+                <mat-select [formControl]="selectedPastWeekToCopy" [disabled]="isCopyingMenu">
+                  <mat-option [value]="null">— בחר שבוע —</mat-option>
+                  @for (week of pastWeeksToCopy; track week.value) {
+                    <mat-option [value]="week.value">{{ week.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button
+                type="button"
+                mat-stroked-button
+                color="primary"
+                class="menu-copy-btn"
+                (click)="copyFromSelectedWeek()"
+                [disabled]="isCopyingMenu || !selectedPastWeekToCopy.value"
+              >
+                <mat-icon>content_copy</mat-icon>
+                @if (isCopyingMenu) { מעתיק... } @else { העתק תפריט }
+              </button>
+            </div>
           </div>
 
           <div class="menu-form">
@@ -295,12 +318,142 @@
               }
             </div>
 
+            <div class="erp-card shabbat-menu-card" formGroupName="shabbatPackage">
+              <div class="shabbat-menu-header">
+                <div class="shabbat-menu-header-main">
+                  <div class="shabbat-menu-icon-wrap" aria-hidden="true">
+                    <mat-icon>calendar_month</mat-icon>
+                  </div>
+                  <div class="shabbat-menu-header-text">
+                    <h3 class="shabbat-menu-title">תפריט שבת</h3>
+                    <p class="shabbat-menu-subtitle">חבילת סוף שבוע — ערב שבת, בוקר, סעודה שלישית וסלטים</p>
+                  </div>
+                </div>
+                <div class="shabbat-toggle-wrap">
+                  <mat-checkbox formControlName="hasShabbat">חבילת שבת פעילה השבוע</mat-checkbox>
+                </div>
+              </div>
+
+              @if (menuShabbatGroup.get('hasShabbat')?.value !== false) {
+                <div class="shabbat-sections-grid">
+                  <section class="shabbat-meal-panel shabbat-meal-panel--friday" formGroupName="fridayNight">
+                    <header class="shabbat-meal-panel-header">
+                      <mat-icon aria-hidden="true">wb_twilight</mat-icon>
+                      <div class="shabbat-meal-panel-heading">
+                        <h4 class="shabbat-meal-panel-title">ערב שבת</h4>
+                        <span class="shabbat-meal-panel-meta">יום שישי · דג, עיקרית ותוספות</span>
+                      </div>
+                    </header>
+                    <div class="shabbat-meal-panel-body">
+                      <div class="shabbat-fields-grid">
+                        @for (field of fridayNightFields; track field.key) {
+                          <div class="field menu-select-field shabbat-field">
+                            <label class="menu-field-label">{{ field.label }}</label>
+                            <mat-form-field appearance="outline" class="menu-mat-field">
+                              <mat-select [formControlName]="field.key" [placeholder]="'בחר ' + field.label">
+                                @for (opt of dictionarySelectOptions(shabbatFieldDictCategory(field.key), menuShabbatGroup.get('fridayNight')?.get(field.key)?.value); track opt.value) {
+                                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                                }
+                              </mat-select>
+                            </mat-form-field>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="shabbat-meal-panel shabbat-meal-panel--day" formGroupName="shabbatDay">
+                    <header class="shabbat-meal-panel-header">
+                      <mat-icon aria-hidden="true">wb_sunny</mat-icon>
+                      <div class="shabbat-meal-panel-heading">
+                        <h4 class="shabbat-meal-panel-title">שבת בוקר</h4>
+                        <span class="shabbat-meal-panel-meta">ארוחת צהריים · עיקרית ותוספות</span>
+                      </div>
+                    </header>
+                    <div class="shabbat-meal-panel-body">
+                      <div class="shabbat-fields-grid">
+                        @for (field of shabbatDayFields; track field.key) {
+                          <div class="field menu-select-field shabbat-field">
+                            <label class="menu-field-label">{{ field.label }}</label>
+                            <mat-form-field appearance="outline" class="menu-mat-field">
+                              <mat-select [formControlName]="field.key" [placeholder]="'בחר ' + field.label">
+                                @for (opt of dictionarySelectOptions(shabbatFieldDictCategory(field.key), menuShabbatGroup.get('shabbatDay')?.get(field.key)?.value); track opt.value) {
+                                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                                }
+                              </mat-select>
+                            </mat-form-field>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="shabbat-meal-panel shabbat-meal-panel--seuda" formGroupName="seudaShlishit">
+                    <header class="shabbat-meal-panel-header">
+                      <mat-icon aria-hidden="true">restaurant</mat-icon>
+                      <div class="shabbat-meal-panel-heading">
+                        <h4 class="shabbat-meal-panel-title">סעודה שלישית</h4>
+                        <span class="shabbat-meal-panel-meta">אופציונלי · לפי בקשת מוסד</span>
+                      </div>
+                    </header>
+                    <div class="shabbat-meal-panel-body">
+                      <div class="shabbat-fields-grid shabbat-fields-grid--compact">
+                        @for (field of seudaShlishitFields; track field.key) {
+                          <div class="field menu-select-field shabbat-field">
+                            <label class="menu-field-label">{{ field.label }}</label>
+                            <mat-form-field appearance="outline" class="menu-mat-field">
+                              <mat-select [formControlName]="field.key" [placeholder]="'בחר ' + field.label">
+                                @for (opt of dictionarySelectOptions(shabbatFieldDictCategory(field.key), menuShabbatGroup.get('seudaShlishit')?.get(field.key)?.value); track opt.value) {
+                                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                                }
+                              </mat-select>
+                            </mat-form-field>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="shabbat-meal-panel shabbat-meal-panel--salads">
+                    <header class="shabbat-meal-panel-header">
+                      <mat-icon aria-hidden="true">eco</mat-icon>
+                      <div class="shabbat-meal-panel-heading">
+                        <h4 class="shabbat-meal-panel-title">סלטי שבת</h4>
+                        <span class="shabbat-meal-panel-meta">6 מנות סלט / פרי לכל השבת</span>
+                      </div>
+                    </header>
+                    <div class="shabbat-meal-panel-body" formArrayName="shabbatSalads">
+                      <div class="shabbat-salads-grid">
+                        @for (saladCtrl of menuShabbatSaladsArray.controls; track $index; let si = $index) {
+                          <div class="field menu-select-field shabbat-field shabbat-salad-slot">
+                            <label class="menu-field-label">
+                              <span class="shabbat-salad-index">{{ si + 1 }}</span>
+                              סלט {{ si + 1 }}
+                            </label>
+                            <mat-form-field appearance="outline" class="menu-mat-field">
+                              <mat-select [formControlName]="si" [placeholder]="'בחר סלט ' + (si + 1)">
+                                @for (opt of dictionarySelectOptions('saladFruit', saladCtrl.value); track opt.value) {
+                                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                                }
+                              </mat-select>
+                            </mat-form-field>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              } @else {
+                <div class="shabbat-disabled-notice">
+                  <mat-icon aria-hidden="true">info_outline</mat-icon>
+                  <p>חבילת השבת מושבתת לשבוע זה — המוסדות לא יראו הזמנת שבת בפורטל.</p>
+                </div>
+              }
+            </div>
+
             <div class="form-actions menu-actions">
               <button type="submit" class="btn-primary" [disabled]="isSavingMenu || menuForm.invalid">
                 @if (isSavingMenu) { שומר... } @else { שמור תפריט }
-              </button>
-              <button type="button" class="btn-secondary" (click)="copyMenuFromPreviousWeek()" [disabled]="isCopyingMenu">
-                @if (isCopyingMenu) { מעתיק... } @else { העתק משבוע קודם }
               </button>
               <button type="button" class="btn-secondary danger-outline" (click)="clearWeekMenu()" [disabled]="isClearingMenu">
                 @if (isClearingMenu) { מוחק... } @else { נקה תפריט }
@@ -377,6 +530,49 @@
                     <tr mat-row *matRowDef="let row; columns: kitchenColumns" class="erp-table-row"></tr>
                   </table>
                 </div>
+
+                @if (reports.menu.shabbatPackage?.hasShabbat) {
+                  <div class="report-section-divider shabbat-report-divider">
+                    <h4>חבילת שבת — ייצור</h4>
+                  </div>
+                  <div class="erp-card report-table-card shabbat-kitchen-card">
+                    <table class="report-table erp-table shabbat-kitchen-table">
+                      <thead>
+                        <tr>
+                          <th>חבילת שבת</th>
+                          <th>מנות ולוגיסטיקה</th>
+                          <th>סה"כ רגיל</th>
+                          <th>סה"כ צמחוני</th>
+                          <th>סה"כ מנות</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="erp-table-row">
+                          <td>חבילת שבת</td>
+                          <td class="kitchen-categories-cell">
+                            @if (shabbatKitchenLines.length === 0) {
+                              <span>—</span>
+                            } @else {
+                              <div class="report-menu-list">
+                                @for (item of shabbatKitchenLines; track item.displayText) {
+                                  <div class="item-row">{{ item.displayText }}</div>
+                                }
+                              </div>
+                            }
+                          </td>
+                          <td>{{ shabbatKitchenTotals.regular }}</td>
+                          <td>{{ shabbatKitchenTotals.vegetarian }}</td>
+                          <td><strong class="total-cell">{{ shabbatKitchenTotals.grandTotal }}</strong></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    @if (shabbatExtrasSummary) {
+                      <div class="shabbat-extras-footer">
+                        <strong>תוספות שבת (סיכום כל המוסדות):</strong> {{ shabbatExtrasSummary }}
+                      </div>
+                    }
+                  </div>
+                }
               </section>
 
               <section class="report-section packing-section">
@@ -420,21 +616,44 @@
                               <td>{{ day.regularCount }}</td>
                               <td>{{ day.vegetarianCount }}</td>
                               <td class="packing-categories-cell">
-                                @let packingLines = packingCategoryLineItems(day);
-                                @if (packingLines.length === 0) {
-                                  <span>—</span>
-                                } @else {
-                                  <div class="report-menu-list">
-                                    @for (item of packingLines; track item.categoryLabel) {
-                                      <div class="item-row">{{ item.displayText }}</div>
+                                @if (day.isShabbat) {
+                                  @let shabbatLines = packingShabbatLineItems(order);
+                                  @if (shabbatLines.length === 0) {
+                                    <span>—</span>
+                                  } @else {
+                                    <div class="report-menu-list">
+                                      @for (item of shabbatLines; track item.displayText) {
+                                        <div class="item-row">{{ item.displayText }}</div>
+                                      }
+                                    </div>
+                                  }
+                                  @if (order.shabbatOrder?.extras; as extras) {
+                                    @if (extras.challahs || extras.rolls || extras.grapeJuice) {
+                                      <div class="packing-day-note institution-notes">
+                                        תוספות:
+                                        @if (extras.challahs) { חלות {{ extras.challahs }} }
+                                        @if (extras.rolls) { · לחמניות {{ extras.rolls }} }
+                                        @if (extras.grapeJuice) { · מיץ ענבים {{ extras.grapeJuice }} }
+                                      </div>
                                     }
-                                  </div>
-                                }
-                                @if (packingDayNotes(day)) {
-                                  <div class="packing-day-note institution-notes">
-                                    <mat-icon class="packing-note-icon" aria-hidden="true">comment</mat-icon>
-                                    <span class="packing-note-text">{{ packingDayNotes(day) }}</span>
-                                  </div>
+                                  }
+                                } @else {
+                                  @let packingLines = packingCategoryLineItems(day);
+                                  @if (packingLines.length === 0) {
+                                    <span>—</span>
+                                  } @else {
+                                    <div class="report-menu-list">
+                                      @for (item of packingLines; track item.categoryLabel) {
+                                        <div class="item-row">{{ item.displayText }}</div>
+                                      }
+                                    </div>
+                                  }
+                                  @if (packingDayNotes(day)) {
+                                    <div class="packing-day-note institution-notes">
+                                      <mat-icon class="packing-note-icon" aria-hidden="true">comment</mat-icon>
+                                      <span class="packing-note-text">{{ packingDayNotes(day) }}</span>
+                                    </div>
+                                  }
                                 }
                               </td>
                             </tr>
@@ -556,6 +775,37 @@
               </div>
             </div>
           }
+        </div>
+
+        <div class="order-shabbat-section" formGroupName="shabbatOrder">
+          <h4 class="day-title">חבילת שבת</h4>
+          <div class="form-row">
+            <div class="field">
+              <label for="ord-shabbat-reg">מנות רגילות (שבת)</label>
+              <input id="ord-shabbat-reg" type="number" min="0" step="1" class="input" formControlName="regularCount" />
+            </div>
+            <div class="field">
+              <label for="ord-shabbat-veg">מנות צמחוניות (שבת)</label>
+              <input id="ord-shabbat-veg" type="number" min="0" step="1" class="input" formControlName="vegetarianCount" />
+            </div>
+          </div>
+          <div class="field shabbat-checkbox-field">
+            <mat-checkbox formControlName="wantsSeudaShlishit">מעוניינים בסעודה שלישית?</mat-checkbox>
+          </div>
+          <div formGroupName="extras" class="shabbat-extras-row">
+            <div class="field">
+              <label for="ord-challahs">חלות</label>
+              <input id="ord-challahs" type="number" min="0" step="1" class="input" formControlName="challahs" />
+            </div>
+            <div class="field">
+              <label for="ord-rolls">לחמניות</label>
+              <input id="ord-rolls" type="number" min="0" step="1" class="input" formControlName="rolls" />
+            </div>
+            <div class="field">
+              <label for="ord-grape">מיץ ענבים</label>
+              <input id="ord-grape" type="number" min="0" step="1" class="input" formControlName="grapeJuice" />
+            </div>
+          </div>
         </div>
 
         <div class="weekly-total-preview">

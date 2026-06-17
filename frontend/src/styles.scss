@@ -116,25 +116,26 @@ body {
 /* Force Scrollbar Right */
 html {
   direction: ltr !important;
-  overflow-y: auto; /* Single page scroll; avoid permanent gutter + horizontal bleed */
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body { 
   margin: 0; 
   padding: 0; 
-  overflow-x: hidden; 
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
-// Prevent hairline gaps between header and page content
+/* Prevent site-wide horizontal bleed from layout shells */
+.app-container,
 .mat-sidenav-container,
-.mat-drawer-container {
-  background-color: transparent !important;
-}
-
 .mat-sidenav-content,
-.mat-drawer-content {
-  background-color: transparent !important;
-  overflow: visible !important;
+.mat-drawer-content,
+main.main-content {
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 app-search-bar {
@@ -150,13 +151,23 @@ app-search-bar {
   border: none;
 }
 
+// Prevent hairline gaps between header and page content
+.mat-sidenav-container,
+.mat-drawer-container {
+  background-color: transparent !important;
+}
+
+.mat-sidenav-content,
+.mat-drawer-content {
+  background-color: transparent !important;
+}
+
 main.main-content {
   margin-top: 0 !important;
   padding-top: 0 !important;
   background: transparent !important;
   position: relative;
   z-index: 1;
-  overflow: visible !important;
 }
 
 main.main-content > * {
@@ -177,7 +188,11 @@ html:has(.admin-layout) {
 
 html:has(.admin-layout)::-webkit-scrollbar {
   width: 10px;
-  height: 10px;
+}
+
+html:has(.admin-layout)::-webkit-scrollbar:horizontal {
+  display: none;
+  height: 0;
 }
 
 html:has(.admin-layout)::-webkit-scrollbar-track {
@@ -204,6 +219,14 @@ html:has(.admin-layout)::-webkit-scrollbar-thumb:hover {
 
 html:has(.admin-layout)::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Material tabs — contain width so tab panels don't widen the page */
+.mat-mdc-tab-group,
+.mat-mdc-tab-body-wrapper,
+.mat-mdc-tab-body-content {
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 /* The App Container handles the actual layout direction */

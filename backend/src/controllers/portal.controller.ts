@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import InstitutionOrder from '../models/InstitutionOrder';
-import { isMenuWeekPublished } from '../utils/menu-structure';
+import { isMenuWeekPublished, normalizeShabbatOrder } from '../utils/menu-structure';
 import {
   computeIsLockedByDeadline,
   defaultOrderDays,
@@ -12,6 +12,7 @@ import {
   parseWeekStartKey,
   resolvePortalWeekStartKey,
   validateOrderDaysPayload,
+  validateShabbatOrderPayload,
   type WeekStartKey
 } from '../utils/portal-week';
 import { findMenuForWeek, loadMenuForWeek } from '../controllers/institution-admin.controller';
@@ -36,7 +37,8 @@ async function findInstitutionOrder(institutionId: unknown, weekKey: string) {
       institutionId: legacy.institutionId,
       weekStartDate: weekKey,
       isLocked: !!legacy.isLocked,
-      days: legacy.days || []
+      days: normalizeOrderDays(legacy.days),
+      shabbatOrder: normalizeShabbatOrder(legacy.shabbatOrder)
     },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ).lean();
@@ -60,9 +62,11 @@ async function buildPortalWeekPayload(institutionId: unknown, weekStartDate: Wee
 
   const order = await findInstitutionOrder(institutionId, weekStartDate);
   let orderDays: ReturnType<typeof normalizeOrderDays> = defaultOrderDays();
+  let shabbatOrder = normalizeShabbatOrder(null);
 
   if (order) {
     orderDays = normalizeOrderDays(order.days);
+    shabbatOrder = normalizeShabbatOrder(order.shabbatOrder);
     if (order.isLocked !== isLocked) {
       await InstitutionOrder.updateOne({ _id: order._id }, { $set: { isLocked } });
     }
@@ -78,7 +82,8 @@ async function buildPortalWeekPayload(institutionId: unknown, weekStartDate: Wee
     order: {
       weekStartDate,
       isLocked,
-      days: orderDays
+      days: orderDays,
+      shabbatOrder
     }
   };
 }
@@ -173,6 +178,13 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
     }
     const days = validation.days;
 
+    const shabbatValidation = validateShabbatOrderPayload(req.body?.shabbatOrder);
+    if (shabbatValidation.ok === false) {
+      res.status(400).json({ success: false, message: shabbatValidation.message });
+      return;
+    }
+    const shabbatOrder = shabbatValidation.shabbatOrder;
+
     const existing = await findInstitutionOrder(user._id, weekStartDate);
     if (existing && String(existing.weekStartDate) !== weekStartDate) {
       await InstitutionOrder.deleteOne({ _id: existing._id });
@@ -184,7 +196,8 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
         institutionId: user._id,
         weekStartDate,
         isLocked: false,
-        days
+        days,
+        shabbatOrder
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
     ).lean();
@@ -195,7 +208,8 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
       data: {
         weekStartDate,
         isLocked: false,
-        days: normalizeOrderDays(saved?.days)
+        days: normalizeOrderDays(saved?.days),
+        shabbatOrder: normalizeShabbatOrder(saved?.shabbatOrder)
       }
     });
   } catch (err: any) {

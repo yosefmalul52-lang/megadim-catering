@@ -1,4 +1,22 @@
-import { MENU_DAY_FIELDS, type MenuDayField } from './portal-week';
+/** Shared B2B institution menu structure (weekdays + Shabbat package). */
+
+export const MENU_WEEKDAY_FIELDS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday'
+] as const;
+
+export type MenuWeekdayField = (typeof MENU_WEEKDAY_FIELDS)[number];
+
+/** @deprecated Use MENU_WEEKDAY_FIELDS — Sunday–Thursday only; Fri/Sat are shabbatPackage. */
+export const MENU_DAY_FIELDS = MENU_WEEKDAY_FIELDS;
+
+/** @deprecated Use MenuWeekdayField */
+export type MenuDayField = MenuWeekdayField;
+
+export const SHABBAT_SALAD_SLOTS = 6;
 
 export const MENU_CATEGORIES = [
   { key: 'mainMeat', label: 'עיקרית בשרית', noteKey: 'mainMeatNote' },
@@ -30,10 +48,90 @@ export interface CategoryNotes {
   saladFruitNote: string;
 }
 
-export type MenuWeek = Record<MenuDayField, MenuDayItems>;
+/** Sunday–Thursday daily menu blocks. */
+export type MenuWeek = Record<MenuWeekdayField, MenuDayItems>;
+
+export interface FridayNightMeals {
+  fish: string;
+  mainMeat: string;
+  vegetarianMain: string;
+  carb1: string;
+  carb2: string;
+  side: string;
+}
+
+export interface ShabbatDayMeals {
+  mainMeat: string;
+  vegetarianMain: string;
+  carb1: string;
+  carb2: string;
+  side: string;
+}
+
+export interface SeudaShlishitMeals {
+  carb: string;
+  protein: string;
+}
+
+export interface ShabbatPackage {
+  hasShabbat: boolean;
+  fridayNight: FridayNightMeals;
+  shabbatDay: ShabbatDayMeals;
+  seudaShlishit: SeudaShlishitMeals;
+  /** Six saladFruit dictionary selections for the weekend. */
+  shabbatSalads: string[];
+}
+
+/** Full institution menu content stored per week (weekdays + Shabbat package). */
+export interface InstitutionMenuContent extends MenuWeek {
+  shabbatPackage: ShabbatPackage;
+}
+
+export interface ShabbatOrderExtras {
+  challahs: number;
+  rolls: number;
+  grapeJuice: number;
+}
+
+export interface ShabbatOrder {
+  regularCount: number;
+  vegetarianCount: number;
+  wantsSeudaShlishit: boolean;
+  extras: ShabbatOrderExtras;
+}
+
+function trimString(value: unknown): string {
+  return String(value ?? '').trim();
+}
 
 export function emptyMenuDayItems(): MenuDayItems {
   return { mainMeat: '', vegetarianMain: '', carb1: '', carb2: '', side: '', saladFruit: '' };
+}
+
+export function emptyFridayNightMeals(): FridayNightMeals {
+  return { fish: '', mainMeat: '', vegetarianMain: '', carb1: '', carb2: '', side: '' };
+}
+
+export function emptyShabbatDayMeals(): ShabbatDayMeals {
+  return { mainMeat: '', vegetarianMain: '', carb1: '', carb2: '', side: '' };
+}
+
+export function emptySeudaShlishitMeals(): SeudaShlishitMeals {
+  return { carb: '', protein: '' };
+}
+
+export function emptyShabbatSalads(): string[] {
+  return Array.from({ length: SHABBAT_SALAD_SLOTS }, () => '');
+}
+
+export function emptyShabbatPackage(): ShabbatPackage {
+  return {
+    hasShabbat: true,
+    fridayNight: emptyFridayNightMeals(),
+    shabbatDay: emptyShabbatDayMeals(),
+    seudaShlishit: emptySeudaShlishitMeals(),
+    shabbatSalads: emptyShabbatSalads()
+  };
 }
 
 export function emptyCategoryNotes(): CategoryNotes {
@@ -48,10 +146,26 @@ export function emptyCategoryNotes(): CategoryNotes {
 }
 
 export function emptyMenuWeek(): MenuWeek {
-  return MENU_DAY_FIELDS.reduce((acc, key) => {
+  return MENU_WEEKDAY_FIELDS.reduce((acc, key) => {
     acc[key] = emptyMenuDayItems();
     return acc;
   }, {} as MenuWeek);
+}
+
+export function emptyInstitutionMenuContent(): InstitutionMenuContent {
+  return {
+    ...emptyMenuWeek(),
+    shabbatPackage: emptyShabbatPackage()
+  };
+}
+
+export function emptyShabbatOrder(): ShabbatOrder {
+  return {
+    regularCount: 0,
+    vegetarianCount: 0,
+    wantsSeudaShlishit: false,
+    extras: { challahs: 0, rolls: 0, grapeJuice: 0 }
+  };
 }
 
 /** Normalize a single day's menu — supports legacy plain string. */
@@ -65,12 +179,99 @@ export function normalizeMenuDayItems(raw: unknown): MenuDayItems {
   }
   const row = raw as Record<string, unknown>;
   return {
-    mainMeat: String(row.mainMeat ?? '').trim(),
-    vegetarianMain: String(row.vegetarianMain ?? '').trim(),
-    carb1: String(row.carb1 ?? '').trim(),
-    carb2: String(row.carb2 ?? '').trim(),
-    side: String(row.side ?? '').trim(),
-    saladFruit: String(row.saladFruit ?? '').trim()
+    mainMeat: trimString(row.mainMeat),
+    vegetarianMain: trimString(row.vegetarianMain),
+    carb1: trimString(row.carb1),
+    carb2: trimString(row.carb2),
+    side: trimString(row.side),
+    saladFruit: trimString(row.saladFruit)
+  };
+}
+
+function normalizeMealStrings<T extends object>(
+  raw: unknown,
+  keys: readonly string[],
+  empty: () => T
+): T {
+  const base = empty();
+  if (!raw || typeof raw !== 'object') {
+    return base;
+  }
+  const row = raw as Record<string, unknown>;
+  const out: Record<string, string> = { ...(base as Record<string, string>) };
+  for (const key of keys) {
+    out[key] = trimString(row[key]);
+  }
+  return out as T;
+}
+
+export function normalizeFridayNightMeals(raw: unknown): FridayNightMeals {
+  return normalizeMealStrings(
+    raw,
+    ['fish', 'mainMeat', 'vegetarianMain', 'carb1', 'carb2', 'side'],
+    emptyFridayNightMeals
+  );
+}
+
+export function normalizeShabbatDayMeals(raw: unknown): ShabbatDayMeals {
+  return normalizeMealStrings(
+    raw,
+    ['mainMeat', 'vegetarianMain', 'carb1', 'carb2', 'side'],
+    emptyShabbatDayMeals
+  );
+}
+
+export function normalizeSeudaShlishitMeals(raw: unknown): SeudaShlishitMeals {
+  return normalizeMealStrings(raw, ['carb', 'protein'], emptySeudaShlishitMeals);
+}
+
+export function normalizeShabbatSalads(raw: unknown): string[] {
+  const slots = emptyShabbatSalads();
+  if (!Array.isArray(raw)) {
+    return slots;
+  }
+  for (let i = 0; i < SHABBAT_SALAD_SLOTS; i++) {
+    slots[i] = trimString(raw[i]);
+  }
+  return slots;
+}
+
+export function normalizeShabbatPackage(raw: unknown): ShabbatPackage {
+  if (!raw || typeof raw !== 'object') {
+    return emptyShabbatPackage();
+  }
+  const row = raw as Record<string, unknown>;
+  return {
+    hasShabbat: row.hasShabbat !== false,
+    fridayNight: normalizeFridayNightMeals(row.fridayNight),
+    shabbatDay: normalizeShabbatDayMeals(row.shabbatDay),
+    seudaShlishit: normalizeSeudaShlishitMeals(row.seudaShlishit),
+    shabbatSalads: normalizeShabbatSalads(row.shabbatSalads)
+  };
+}
+
+export function normalizeShabbatOrderExtras(raw: unknown): ShabbatOrderExtras {
+  if (!raw || typeof raw !== 'object') {
+    return { challahs: 0, rolls: 0, grapeJuice: 0 };
+  }
+  const row = raw as Record<string, unknown>;
+  return {
+    challahs: Math.max(0, Number(row.challahs) || 0),
+    rolls: Math.max(0, Number(row.rolls) || 0),
+    grapeJuice: Math.max(0, Number(row.grapeJuice) || 0)
+  };
+}
+
+export function normalizeShabbatOrder(raw: unknown): ShabbatOrder {
+  if (!raw || typeof raw !== 'object') {
+    return emptyShabbatOrder();
+  }
+  const row = raw as Record<string, unknown>;
+  return {
+    regularCount: Math.max(0, Number(row.regularCount) || 0),
+    vegetarianCount: Math.max(0, Number(row.vegetarianCount) || 0),
+    wantsSeudaShlishit: row.wantsSeudaShlishit === true,
+    extras: normalizeShabbatOrderExtras(row.extras)
   };
 }
 
@@ -79,15 +280,15 @@ export function normalizeCategoryNotes(raw: unknown, legacyNotes?: string): Cate
   if (raw && typeof raw === 'object') {
     const row = raw as Record<string, unknown>;
     return {
-      mainMeatNote: String(row.mainMeatNote ?? '').trim(),
-      vegetarianMainNote: String(row.vegetarianMainNote ?? '').trim(),
-      carb1Note: String(row.carb1Note ?? '').trim(),
-      carb2Note: String(row.carb2Note ?? '').trim(),
-      sideNote: String(row.sideNote ?? '').trim(),
-      saladFruitNote: String(row.saladFruitNote ?? '').trim()
+      mainMeatNote: trimString(row.mainMeatNote),
+      vegetarianMainNote: trimString(row.vegetarianMainNote),
+      carb1Note: trimString(row.carb1Note),
+      carb2Note: trimString(row.carb2Note),
+      sideNote: trimString(row.sideNote),
+      saladFruitNote: trimString(row.saladFruitNote)
     };
   }
-  const legacy = String(legacyNotes ?? raw ?? '').trim();
+  const legacy = trimString(legacyNotes ?? raw);
   return legacy ? { ...emptyCategoryNotes(), mainMeatNote: legacy } : emptyCategoryNotes();
 }
 
@@ -97,7 +298,7 @@ export function normalizeMenuWeek(raw: unknown): MenuWeek {
     return base;
   }
   const source = raw as Record<string, unknown>;
-  for (const dayKey of MENU_DAY_FIELDS) {
+  for (const dayKey of MENU_WEEKDAY_FIELDS) {
     if (dayKey in source) {
       base[dayKey] = normalizeMenuDayItems(source[dayKey]);
     }
@@ -105,13 +306,69 @@ export function normalizeMenuWeek(raw: unknown): MenuWeek {
   return base;
 }
 
+export function normalizeInstitutionMenuContent(raw: unknown): InstitutionMenuContent {
+  const weekdays = normalizeMenuWeek(raw);
+  let shabbatPackage = emptyShabbatPackage();
+
+  if (raw && typeof raw === 'object') {
+    const source = raw as Record<string, unknown>;
+    if ('shabbatPackage' in source) {
+      shabbatPackage = normalizeShabbatPackage(source.shabbatPackage);
+    } else if (source.friday || source.saturday) {
+      const friday = normalizeMenuDayItems(source.friday);
+      const saturday = normalizeMenuDayItems(source.saturday);
+      const salads = emptyShabbatSalads();
+      if (friday.saladFruit) salads[0] = friday.saladFruit;
+      if (saturday.saladFruit) salads[1] = saturday.saladFruit;
+      shabbatPackage = normalizeShabbatPackage({
+        hasShabbat: true,
+        fridayNight: {
+          fish: '',
+          mainMeat: friday.mainMeat,
+          vegetarianMain: friday.vegetarianMain,
+          carb1: friday.carb1,
+          carb2: friday.carb2,
+          side: friday.side
+        },
+        shabbatDay: {
+          mainMeat: saturday.mainMeat,
+          vegetarianMain: saturday.vegetarianMain,
+          carb1: saturday.carb1,
+          carb2: saturday.carb2,
+          side: saturday.side
+        },
+        seudaShlishit: emptySeudaShlishitMeals(),
+        shabbatSalads: salads
+      });
+    }
+  }
+
+  return { ...weekdays, shabbatPackage };
+}
+
+function mealBlockHasContent(values: object): boolean {
+  return Object.values(values as Record<string, string>).some((v) => String(v ?? '').trim().length > 0);
+}
+
+export function isShabbatPackagePublished(pkg: ShabbatPackage): boolean {
+  if (!pkg.hasShabbat) return false;
+  if (mealBlockHasContent(pkg.fridayNight)) return true;
+  if (mealBlockHasContent(pkg.shabbatDay)) return true;
+  if (mealBlockHasContent(pkg.seudaShlishit)) return true;
+  return pkg.shabbatSalads.some((s) => s.trim().length > 0);
+}
+
 export function isMenuDayPublished(day: MenuDayItems): boolean {
   return MENU_CATEGORIES.some((c) => day[c.key].length > 0);
 }
 
-export function isMenuWeekPublished(menu: Partial<MenuWeek> | null | undefined): boolean {
+export function isMenuWeekPublished(menu: Partial<InstitutionMenuContent> | null | undefined): boolean {
   if (!menu) return false;
-  return MENU_DAY_FIELDS.some((key) => isMenuDayPublished(normalizeMenuDayItems(menu[key])));
+  const normalized = normalizeInstitutionMenuContent(menu);
+  const weekdaysPublished = MENU_WEEKDAY_FIELDS.some((key) =>
+    isMenuDayPublished(normalizeMenuDayItems(normalized[key]))
+  );
+  return weekdaysPublished || isShabbatPackagePublished(normalized.shabbatPackage);
 }
 
 /** Compact summary for kitchen report row (excludes vegetarian main — use formatVegetarianMainLine). */

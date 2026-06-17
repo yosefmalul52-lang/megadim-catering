@@ -5,10 +5,12 @@ import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import {
   MenuDayItems,
-  MenuWeek,
+  InstitutionMenuContent,
+  ShabbatOrder,
   MENU_CATEGORIES,
-  MENU_DAY_FORM_FIELDS,
+  MENU_WEEKDAY_FORM_FIELDS,
   emptyMenuDayItems,
+  emptyShabbatOrder,
   isMenuWeekPublished
 } from '../utils/menu-structure';
 
@@ -33,21 +35,22 @@ export interface PortalStatus {
   noMenuPublished: boolean;
   orderDeadline: string | null;
   portalSettings: InstitutionPortalSettings;
-  menu: MenuWeek;
+  menu: InstitutionMenuContent;
   order: {
     weekStartDate: string;
     isLocked: boolean;
     days: InstitutionOrderDay[];
+    shabbatOrder: ShabbatOrder;
   };
 }
 
-export const PORTAL_DAY_LABELS = MENU_DAY_FORM_FIELDS.map((d) => ({
+export const PORTAL_DAY_LABELS = MENU_WEEKDAY_FORM_FIELDS.map((d) => ({
   dayOfWeek: d.dayOfWeek,
   label: d.label,
   menuKey: d.key
 }));
 
-export { MENU_CATEGORIES, MenuDayItems, emptyMenuDayItems, isMenuWeekPublished };
+export { MENU_CATEGORIES, MenuDayItems, emptyMenuDayItems, emptyShabbatOrder, isMenuWeekPublished };
 
 export function formatOrderDeadlineNotice(orderDeadline: string | null | undefined): string {
   if (!orderDeadline) {
@@ -82,11 +85,11 @@ export class InstitutionPortalService {
       .pipe(map((res) => res.data));
   }
 
-  submit(days: InstitutionOrderDay[], weekStartDate: string): Observable<void> {
+  submit(days: InstitutionOrderDay[], weekStartDate: string, shabbatOrder?: ShabbatOrder): Observable<void> {
     return this.http
       .post<{ success: boolean; message?: string }>(
         `${this.baseUrl}/submit`,
-        { weekStartDate, days },
+        { weekStartDate, days, shabbatOrder: shabbatOrder ?? emptyShabbatOrder() },
         { withCredentials: true }
       )
       .pipe(map(() => undefined));
