@@ -1,9 +1,13 @@
 import { Routes } from '@angular/router';
 
+const retailBlock = () =>
+  import('./guards/institution-retail-redirect.guard').then((m) => m.institutionRetailRedirectGuard);
+
 export const routes: Routes = [
   // Public Pages
   {
     path: '',
+    canActivate: [retailBlock],
     loadComponent: () => import('./components/pages/home/home.component').then(m => m.HomeComponent)
   },
   {
@@ -60,10 +64,12 @@ export const routes: Routes = [
   },
   {
     path: 'cart',
+    canActivate: [retailBlock],
     loadComponent: () => import('./components/pages/cart-page/cart-page.component').then(m => m.CartPageComponent)
   },
   {
     path: 'checkout',
+    canActivate: [retailBlock],
     loadComponent: () => import('./components/pages/checkout-page/checkout-page.component').then(m => m.CheckoutPageComponent)
   },
   {
@@ -72,13 +78,19 @@ export const routes: Routes = [
   },
   {
     path: 'my-orders',
-    loadComponent: () => import('./components/pages/my-orders/my-orders.component').then(m => m.MyOrdersComponent),
-    canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
+    canActivate: [
+      retailBlock,
+      () => import('./guards/auth.guard').then(m => m.authGuard)
+    ],
+    loadComponent: () => import('./components/pages/my-orders/my-orders.component').then(m => m.MyOrdersComponent)
   },
   {
     path: 'my-account',
-    loadComponent: () => import('@app/components/pages/user-profile/user-profile.component').then(m => m.UserProfileComponent),
-    canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
+    canActivate: [
+      retailBlock,
+      () => import('./guards/auth.guard').then(m => m.authGuard)
+    ],
+    loadComponent: () => import('@app/components/pages/user-profile/user-profile.component').then(m => m.UserProfileComponent)
   },
   {
     path: 'profile',
@@ -127,6 +139,12 @@ export const routes: Routes = [
     loadComponent: () => import('./components/pages/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
   },
   
+  // Institution B2B Portal (isolated from admin shell)
+  {
+    path: 'portal',
+    loadChildren: () => import('./components/portal/portal.routes').then((m) => m.portalRoutes)
+  },
+
   // Admin Dashboard (Protected with AuthGuard)
   {
     path: 'admin',

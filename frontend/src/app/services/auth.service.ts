@@ -17,15 +17,24 @@ export interface LoginResponse {
   user: User;
 }
 
+export type UserRole = 'admin' | 'user' | 'driver' | 'institution';
+
+export interface PortalSettings {
+  deadlineDay: number;
+  deadlineTime: string;
+  customMessage: string;
+}
+
 export interface User {
   id: string;
   username: string;
-  role: string;
+  role: UserRole | string;
   name?: string;
   fullName?: string;
   phone?: string;
   firstName?: string;
   lastName?: string;
+  portalSettings?: PortalSettings;
 }
 
 export interface RegisterCredentials {

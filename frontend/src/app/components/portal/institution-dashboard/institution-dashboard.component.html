@@ -1,0 +1,121 @@
+@if (errorMessage) {
+  <div class="alert alert-error">{{ errorMessage }}</div>
+} @else {
+  <div class="dashboard">
+    <div class="welcome-row">
+      <h1>שלום@if (status) {, {{ status.institutionName }}}</h1>
+    </div>
+
+    <div class="week-toggle-row">
+      <mat-button-toggle-group
+        class="week-toggle-group"
+        [value]="selectedWeekView"
+        (change)="onWeekViewChange($event.value)"
+        [disabled]="isLoading"
+      >
+        <mat-button-toggle value="current">שבוע נוכחי</mat-button-toggle>
+        <mat-button-toggle value="next">שבוע הבא</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
+    @if (isLoading) {
+      <p class="loading-text">טוען את פורטל ההזמנות...</p>
+    } @else if (status) {
+      <div class="announcement-bar" [class.locked]="isLocked">
+        <div class="announcement-main">
+          <p class="week-range-banner">{{ weekRangeLabel }}</p>
+          @if (customMessage) {
+            <p class="custom-message">{{ customMessage }}</p>
+          }
+          @if (!noMenuPublished) {
+            <p class="deadline-notice">
+              <mat-icon>schedule</mat-icon>
+              {{ deadlineNotice }}
+            </p>
+          }
+        </div>
+        @if (isLocked && !noMenuPublished) {
+          <div class="locked-badge">
+            <mat-icon>lock</mat-icon>
+            ההזמנה נעולה – לא ניתן לערוך
+          </div>
+        }
+      </div>
+
+      @if (noMenuPublished) {
+        <div class="no-menu-published-banner">
+          <mat-icon>restaurant_menu</mat-icon>
+          <p>התפריט לשבוע זה טרם פורסם. אנא חזרו מאוחר יותר.</p>
+        </div>
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="submitOrder()" class="order-form">
+          <div class="days-grid" formArrayName="days">
+            @for (dayCtrl of daysArray.controls; track $index; let i = $index) {
+              <div class="day-card" [formGroupName]="i">
+                <div class="day-header">
+                  <h2>{{ dayLabels[i]?.label }}</h2>
+                </div>
+
+                <div class="menu-summary-block">
+                  <span class="menu-summary-label">תפריט היום</span>
+                  <p class="menu-summary-text">{{ menuDaySummary(dayLabels[i].dayOfWeek) }}</p>
+                  @if (vegetarianMainLine(dayLabels[i].dayOfWeek)) {
+                    <p class="menu-vegetarian-main">{{ vegetarianMainLine(dayLabels[i].dayOfWeek) }}</p>
+                  }
+                </div>
+
+                <div class="counts-row">
+                  <div class="field">
+                    <label [for]="'regular-' + i">מנות רגילות</label>
+                    <input
+                      [id]="'regular-' + i"
+                      type="number"
+                      min="0"
+                      step="1"
+                      formControlName="regularCount"
+                      class="input"
+                    />
+                  </div>
+                  <div class="field">
+                    <label [for]="'veg-' + i">מנות צמחוניות</label>
+                    <input
+                      [id]="'veg-' + i"
+                      type="number"
+                      min="0"
+                      step="1"
+                      formControlName="vegetarianCount"
+                      class="input"
+                    />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label [for]="'notes-' + i">הערות כלליות ליום זה</label>
+                  <textarea
+                    [id]="'notes-' + i"
+                    rows="2"
+                    class="input textarea"
+                    formControlName="notes"
+                    placeholder="לדוגמה: אלרגיות, העדפות מיוחדות..."
+                  ></textarea>
+                </div>
+              </div>
+            }
+          </div>
+
+          @if (!isLocked) {
+            <div class="form-actions">
+              <button type="submit" class="btn-save" [disabled]="isSaving || form.invalid">
+                @if (isSaving) {
+                  שומר...
+                } @else {
+                  שמור הזמנה שבועית
+                }
+              </button>
+            </div>
+          }
+        </form>
+      }
+    }
+  </div>
+}

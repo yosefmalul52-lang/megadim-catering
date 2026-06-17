@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../services/auth.service';
+import { navigateAfterLogin } from '../../../../utils/auth-redirect';
 
 @Component({
   selector: 'app-login',
@@ -190,13 +191,7 @@ export class LoginComponent {
       next: (result) => {
         if (result.success) {
           const role = String(result.user?.role || '').toLowerCase();
-          if (role === 'admin') {
-            this.router.navigate(['/admin']);
-          } else if (role === 'driver') {
-            this.router.navigate(['/admin/delivery']);
-          } else {
-            this.router.navigate(['/']);
-          }
+          navigateAfterLogin(this.router, role);
         } else {
           this.errorMessage = result.message || 'שגיאה בהתחברות. נסה שוב.';
         }

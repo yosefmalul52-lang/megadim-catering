@@ -20,7 +20,7 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'user', 'driver'],
+    enum: ['admin', 'user', 'driver', 'institution'],
     default: 'user',
     index: true
   },
@@ -48,6 +48,29 @@ const UserSchema = new mongoose.Schema({
   dietaryInfo: {
     type: String,
     default: ''
+  },
+  deletedAt: {
+    type: Date,
+    default: null,
+    index: true
+  },
+  portalSettings: {
+    deadlineDay: {
+      type: Number,
+      min: 0,
+      max: 6,
+      default: 4
+    },
+    deadlineTime: {
+      type: String,
+      trim: true,
+      default: '12:00'
+    },
+    customMessage: {
+      type: String,
+      trim: true,
+      default: ''
+    }
   }
 }, {
   timestamps: true,

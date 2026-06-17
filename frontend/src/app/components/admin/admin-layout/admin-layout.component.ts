@@ -401,6 +401,7 @@ export class AdminLayoutComponent implements OnInit {
     '/admin/delivery-pricing': 'תמחור משלוחים',
     '/admin/shopping': 'רשימת קניות',
     '/admin/gallery': 'ניהול גלריה',
+    '/admin/institutions': 'ניהול מוסדות',
     '/admin/settings': 'הגדרות אתר'
   };
 

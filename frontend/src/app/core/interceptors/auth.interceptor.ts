@@ -8,7 +8,7 @@ const SESSION_EXPIRED_MESSAGE = 'החיבור שלך פג תוקף, אנא הת�
 
 /**
  * HTTP Interceptor: sends cookies with requests (withCredentials: true).
- * On 401/403: logs out, shows toast, and rethrows.
+ * On 401/403: logs out, shows toast, and rethrows — except portal business 403s (deadline/lock).
  */
 export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
@@ -23,7 +23,8 @@ export const authInterceptor: HttpInterceptorFn = (
     catchError((err: unknown) => {
       if (err instanceof HttpErrorResponse && (err.status === 401 || err.status === 403)) {
         const isSessionCheck = req.url.includes('/auth/me');
-        if (!isSessionCheck) {
+        const isPortalBusiness403 = err.status === 403 && req.url.includes('/api/portal');
+        if (!isSessionCheck && !isPortalBusiness403) {
           authService.logout();
           toastService.warning(SESSION_EXPIRED_MESSAGE);
         }

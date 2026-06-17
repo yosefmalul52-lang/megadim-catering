@@ -2,7 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { filter, take } from 'rxjs/operators';
 import { AuthService, LoginCredentials, RegisterCredentials } from '../../services/auth.service';
+import { navigateAfterLogin } from '../../utils/auth-redirect';
 
 @Component({
   selector: 'app-login',
@@ -170,6 +172,14 @@ export class LoginComponent implements OnInit {
       this.currentUser = user;
       console.log('🔍 Login Component - currentUser changed:', user);
     });
+
+    this.authService.sessionInitDone$
+      .pipe(filter((done) => done), take(1))
+      .subscribe(() => {
+        if (this.authService.currentUser?.role === 'institution') {
+          this.router.navigate(['/portal']);
+        }
+      });
   }
 
   switchToLogin(): void {
@@ -235,18 +245,8 @@ export class LoginComponent implements OnInit {
           this.successMessage = 'התחברות בוצעה בהצלחה!';
           console.log('✅ Login successful, user:', response.user);
           
-          // Smart redirection based on user role
-          const user = response.user;
-          setTimeout(() => {
-            if (user?.role === 'admin') {
-              this.router.navigate(['/admin']);
-            } else if (user?.role === 'driver') {
-              this.router.navigate(['/admin/delivery']);
-            } else {
-              // Regular user - go to home or my-orders
-              this.router.navigate(['/']);
-            }
-          }, 1000);
+          // Smart redirection based on user role (immediate — no retail flash for institutions)
+          navigateAfterLogin(this.router, response.user?.role);
         } else {
           this.errorMessage = response.message || 'שגיאה בהתחברות';
         }

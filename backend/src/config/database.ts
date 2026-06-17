@@ -65,6 +65,9 @@ export const connectDatabase = async (): Promise<void> => {
     // Fix legacy videos.videoId_1 unique index (non-sparse) that blocks multiple Cloudinary uploads
     const { ensureVideoIndexes } = await import('../utils/ensure-video-indexes');
     await ensureVideoIndexes();
+
+    const { ensureInstitutionMenuIndexes } = await import('../utils/ensure-institution-menu-indexes');
+    await ensureInstitutionMenuIndexes();
     
     // Handle connection events
     mongoose.connection.on('error', (err) => {

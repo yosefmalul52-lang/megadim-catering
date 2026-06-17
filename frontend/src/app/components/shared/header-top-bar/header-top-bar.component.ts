@@ -11,6 +11,7 @@ import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
 import { ToastService } from '../../../services/toast.service';
+import { navigateAfterLogin, institutionProfileLink } from '../../../utils/auth-redirect';
 
 @Component({
   selector: 'app-header-top-bar',
@@ -153,14 +154,21 @@ import { ToastService } from '../../../services/toast.service';
                   } @else {
                     <div class="dropdown-logged-in">
                       <p class="dropdown-greeting">שלום, {{ currentUser?.fullName || currentUser?.name || currentUser?.username || 'משתמש' }}</p>
-                      <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
-                        <i class="fas fa-user" aria-hidden="true"></i>
-                        הפרופיל שלי
-                      </a>
-                      <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
-                        <i class="fas fa-shopping-bag" aria-hidden="true"></i>
-                        ההזמנות שלי
-                      </a>
+                      @if (isInstitutionUser) {
+                        <a routerLink="/portal" class="dropdown-item" (click)="closeUserMenu()">
+                          <i class="fas fa-building" aria-hidden="true"></i>
+                          פורטל הזמנות
+                        </a>
+                      } @else {
+                        <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
+                          <i class="fas fa-user" aria-hidden="true"></i>
+                          הפרופיל שלי
+                        </a>
+                        <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
+                          <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+                          ההזמנות שלי
+                        </a>
+                      }
                       <a routerLink="/admin" class="dropdown-item" *ngIf="currentUser?.role === 'admin'" (click)="closeUserMenu()">
                         <i class="fas fa-cog" aria-hidden="true"></i>
                         לוח בקרה
@@ -214,7 +222,11 @@ export class HeaderTopBarComponent implements OnInit {
   }
 
   get profileLink(): string {
-    return this.currentUser?.role === 'admin' ? '/admin' : '/profile';
+    return institutionProfileLink(this.currentUser?.role);
+  }
+
+  get isInstitutionUser(): boolean {
+    return this.currentUser?.role === 'institution';
   }
 
   ngOnInit(): void {
@@ -253,6 +265,7 @@ export class HeaderTopBarComponent implements OnInit {
           this.toastService.success(`ברוך הבא ${name}`);
           this.loginForm.reset();
           this.isUserMenuOpen = false;
+          navigateAfterLogin(this.router, res.user?.role);
         } else {
           this.loginError = res.message || 'שגיאה בהתחברות';
         }

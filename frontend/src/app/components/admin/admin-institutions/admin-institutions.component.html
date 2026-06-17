@@ -1,0 +1,669 @@
+<div class="admin-institutions-page">
+  <div class="container">
+    <div class="page-header no-print">
+      <div class="header-content">
+        <h1 class="page-title">ניהול מוסדות (B2B)</h1>
+        <p class="page-description">חשבונות מוסדות, תפריט שבועי ודוחות ייצור</p>
+      </div>
+    </div>
+
+    <!-- Global week control panel + order deadline (menu form) -->
+    <form [formGroup]="menuForm" (ngSubmit)="saveWeekMenu()" class="institutions-menu-form no-print">
+      <div class="erp-card global-week-nav">
+        <div class="global-week-layout">
+          <section class="week-nav-section">
+            <div class="week-nav-header">
+              <span class="week-panel-label">ניווט שבוע</span>
+              <span class="week-offset-chip" [class.is-current]="selectedWeekOffset === 0">
+                {{ selectedWeekOffsetLabel }}
+              </span>
+            </div>
+
+            <div class="week-nav-toolbar">
+              <button
+                type="button"
+                class="week-nav-arrow"
+                (click)="goToPreviousWeek()"
+                aria-label="שבוע קודם"
+                title="שבוע קודם"
+              >
+                <mat-icon>chevron_right</mat-icon>
+              </button>
+
+              <button
+                type="button"
+                class="week-nav-today"
+                (click)="goToCurrentWeek()"
+                [class.is-active]="selectedWeekOffset === 0"
+                title="חזרה לשבוע הנוכחי"
+              >
+                <mat-icon>today</mat-icon>
+                <span>שבוע נוכחי</span>
+              </button>
+
+              <button
+                type="button"
+                class="week-nav-arrow"
+                (click)="goToNextWeek()"
+                aria-label="שבוע הבא"
+                title="שבוע הבא"
+              >
+                <mat-icon>chevron_left</mat-icon>
+              </button>
+            </div>
+
+            <div class="week-jump-row">
+              <label for="globalWeek" class="week-jump-label">קפיצה ליום ראשון</label>
+              <div class="week-jump-input-wrap">
+                <mat-icon aria-hidden="true">event</mat-icon>
+                <input
+                  id="globalWeek"
+                  type="date"
+                  class="input week-date-input week-jump-input"
+                  [(ngModel)]="selectedWeekStart"
+                  [ngModelOptions]="{ standalone: true }"
+                  (change)="onGlobalWeekDateChange()"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section class="week-range-section">
+            <span class="week-panel-label">הזמנה לשבוע</span>
+            <div class="week-range-display">
+              <mat-icon class="week-range-icon">date_range</mat-icon>
+              <strong class="week-range-dates">{{ selectedWeekDatesOnly }}</strong>
+            </div>
+          </section>
+
+          <section class="week-deadline-section">
+            <span class="week-panel-label">סגירת הזמנות</span>
+            <div class="week-deadline-control">
+              <mat-icon class="week-deadline-icon">schedule</mat-icon>
+              <div class="field week-deadline-field">
+                <label for="menuOrderDeadline" class="week-picker-label">תאריך ושעת נעילה <span class="required-mark">*</span></label>
+                <input
+                  id="menuOrderDeadline"
+                  type="datetime-local"
+                  class="input week-date-input"
+                  [class.input-invalid]="menuForm.get('orderDeadline')?.invalid && menuForm.get('orderDeadline')?.touched"
+                  formControlName="orderDeadline"
+                  required
+                />
+                @if (menuForm.get('orderDeadline')?.invalid && menuForm.get('orderDeadline')?.touched) {
+                  <span class="field-error">שדה חובה — יש להגדיר מתי ההזמנות ננעלות</span>
+                }
+              </div>
+            </div>
+            <p class="week-deadline-hint">חובה לפני שמירת תפריט — חל על כל המוסדות לשבוע הנבחר; לאחר מכן הפורטל ננעל</p>
+          </section>
+        </div>
+      </div>
+
+    <mat-tab-group class="institutions-tabs" animationDuration="200ms">
+      <!-- Tab 1: Account Management -->
+      <mat-tab label="ניהול לקוחות">
+        <div class="tab-panel accounts-tab-panel">
+          <div class="erp-card accounts-panel-card">
+            <div class="accounts-panel-header">
+              <div class="accounts-header-text">
+                <div class="accounts-action-bar-title">
+                  <span class="accounts-title-icon-wrap">
+                    <mat-icon>business</mat-icon>
+                  </span>
+                  <div>
+                    <span class="accounts-title-main">ניהול מוסדות</span>
+                    <span class="accounts-title-sub">חשבונות, הרשאות והזמנות שבועיות</span>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="btn-primary accounts-add-btn" (click)="openCreateModal()">
+                <mat-icon>add</mat-icon>
+                מוסד חדש
+              </button>
+            </div>
+
+            @if (!isLoadingAccounts && institutions.length > 0) {
+              <div class="accounts-stats-row">
+                <div class="accounts-stat-chip">
+                  <span class="accounts-stat-value">{{ institutions.length }}</span>
+                  <span class="accounts-stat-label">סה״כ מוסדות</span>
+                </div>
+              </div>
+            }
+
+            @if (accountsError) {
+              <div class="alert alert-error accounts-alert">{{ accountsError }}</div>
+            }
+
+            @if (isLoadingAccounts) {
+              <div class="accounts-loading-state">
+                <div class="accounts-loading-spinner"></div>
+                <p class="loading-text">טוען מוסדות...</p>
+              </div>
+            } @else if (institutions.length === 0) {
+              <div class="accounts-empty-state">
+                <div class="accounts-empty-icon-wrap">
+                  <mat-icon>domain_add</mat-icon>
+                </div>
+                <h3 class="accounts-empty-title">אין מוסדות רשומים</h3>
+                <p class="accounts-empty-desc">הוסיפו מוסד ראשון כדי לאפשר הזמנות שבועיות דרך הפורטל</p>
+                <button type="button" class="btn-primary" (click)="openCreateModal()">
+                  <mat-icon>add</mat-icon>
+                  הוסף מוסד ראשון
+                </button>
+              </div>
+            } @else {
+              <div class="accounts-table-shell">
+                <div class="accounts-table-toolbar">
+                  <span class="accounts-table-toolbar-label">
+                    <mat-icon>table_rows</mat-icon>
+                    רשימת מוסדות
+                  </span>
+                  <span class="accounts-table-count">{{ institutions.length }} רשומות</span>
+                </div>
+                <div class="table-card accounts-table-card">
+                  <table class="institutions-table erp-table accounts-erp-table" mat-table [dataSource]="institutions">
+                    <ng-container matColumnDef="fullName">
+                      <th mat-header-cell *matHeaderCellDef>שם מוסד</th>
+                      <td mat-cell *matCellDef="let row">
+                        <div class="institution-name-cell">
+                          <span class="institution-avatar" aria-hidden="true">{{ row.fullName?.charAt(0) || '?' }}</span>
+                          <span class="institution-name-text">{{ row.fullName }}</span>
+                        </div>
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="username">
+                      <th mat-header-cell *matHeaderCellDef>אימייל (התחברות)</th>
+                      <td mat-cell *matCellDef="let row">
+                        <span class="institution-email" dir="ltr">{{ row.username }}</span>
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="weekOrder">
+                      <th mat-header-cell *matHeaderCellDef class="week-order-header">הזמנה לשבוע</th>
+                      <td mat-cell *matCellDef="let row">
+                        <span class="order-pill" [class.order-pill-active]="row.weekOrder?.hasOrder">
+                          {{ weekOrderLabel(row) }}
+                        </span>
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="status">
+                      <th mat-header-cell *matHeaderCellDef>סטטוס</th>
+                      <td mat-cell *matCellDef="let row">
+                        <span class="status-badge status-pill" [class.inactive]="row.isActive === false">
+                          <span class="status-dot" [class.inactive]="row.isActive === false"></span>
+                          {{ row.isActive === false ? 'מושבת' : 'פעיל' }}
+                        </span>
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="actions">
+                      <th mat-header-cell *matHeaderCellDef class="actions-header">פעולות</th>
+                      <td mat-cell *matCellDef="let row" class="actions-cell">
+                        <div class="actions-toolbar">
+                          <button type="button" mat-icon-button class="action-btn" title="ערוך הזמנה" (click)="openOrderEditFromAccount(row)">
+                            <mat-icon>edit_note</mat-icon>
+                          </button>
+                          <button type="button" mat-icon-button class="action-btn" title="עריכת מוסד" (click)="openEditModal(row)">
+                            <mat-icon>edit</mat-icon>
+                          </button>
+                          <button
+                            type="button"
+                            mat-icon-button
+                            class="action-btn"
+                            [title]="row.isActive === false ? 'הפעל' : 'השהה'"
+                            (click)="toggleInstitutionActive(row)"
+                          >
+                            <mat-icon>{{ row.isActive === false ? 'play_circle' : 'pause_circle' }}</mat-icon>
+                          </button>
+                          <span class="actions-divider" aria-hidden="true"></span>
+                          <button type="button" mat-icon-button color="warn" class="action-btn action-btn-danger" title="מחק" (click)="deleteInstitution(row)">
+                            <mat-icon>delete</mat-icon>
+                          </button>
+                        </div>
+                      </td>
+                    </ng-container>
+
+                    <tr mat-header-row *matHeaderRowDef="accountColumns" class="accounts-header-row"></tr>
+                    <tr mat-row *matRowDef="let row; columns: accountColumns" class="erp-table-row accounts-data-row"></tr>
+                  </table>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Tab 2: Weekly Menu -->
+      <mat-tab label="תפריט שבועי">
+        <div class="tab-panel menu-tab-panel">
+          <div class="menu-toolbar no-print">
+            <button type="button" class="btn-secondary" (click)="openDictionaryModal()">
+              <mat-icon>menu_book</mat-icon>
+              ניהול מאגר מנות
+            </button>
+          </div>
+
+          <div class="menu-form">
+            <div class="erp-card menu-meta-card">
+              <div class="menu-status-row">
+                @if (menuPublished) {
+                  <span class="status-badge published">תפריט פורסם לשבוע זה</span>
+                } @else {
+                  <span class="status-badge draft">טרם פורסם תפריט לשבוע זה</span>
+                }
+              </div>
+
+              @if (menuError) {
+                <div class="alert alert-error">{{ menuError }}</div>
+              }
+              @if (menuForm.get('orderDeadline')?.invalid && (menuForm.get('orderDeadline')?.touched || menuForm.get('orderDeadline')?.dirty)) {
+                <div class="alert alert-error">יש להגדיר תאריך ושעת סגירת הזמנות בפאנל העליון לפני שמירת התפריט</div>
+              }
+              @if (isLoadingMenu) {
+                <p class="loading-text">טוען תפריט...</p>
+              }
+            </div>
+
+            <div class="menu-days-grid">
+              @for (day of menuDayFields; track day.key) {
+                <div class="erp-card menu-day-card" [formGroupName]="day.key">
+                  <div class="menu-day-card-header">
+                    <mat-icon>calendar_today</mat-icon>
+                    <h4 class="menu-day-title">{{ day.label }}</h4>
+                  </div>
+                  <div class="menu-day-card-content">
+                    <div class="menu-categories-grid">
+                      @for (cat of menuCategories; track cat.key) {
+                        <div class="field menu-select-field">
+                          <label [for]="'menu-' + day.key + '-' + cat.key" class="menu-field-label">{{ cat.label }}</label>
+                          <mat-form-field appearance="outline" class="menu-mat-field">
+                            <mat-select
+                              [id]="'menu-' + day.key + '-' + cat.key"
+                              [formControlName]="cat.key"
+                              [placeholder]="'בחר ' + cat.label"
+                            >
+                              @for (opt of menuSelectOptions(cat.key, menuDayGroup(day.key).get(cat.key)?.value); track opt.value) {
+                                <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </mat-form-field>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="form-actions menu-actions">
+              <button type="submit" class="btn-primary" [disabled]="isSavingMenu || menuForm.invalid">
+                @if (isSavingMenu) { שומר... } @else { שמור תפריט }
+              </button>
+              <button type="button" class="btn-secondary" (click)="copyMenuFromPreviousWeek()" [disabled]="isCopyingMenu">
+                @if (isCopyingMenu) { מעתיק... } @else { העתק משבוע קודם }
+              </button>
+              <button type="button" class="btn-secondary danger-outline" (click)="clearWeekMenu()" [disabled]="isClearingMenu">
+                @if (isClearingMenu) { מוחק... } @else { נקה תפריט }
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Tab 3: Reports -->
+      <mat-tab label="דוחות ועריכת הזמנות">
+        <div class="tab-panel reports-panel">
+          <div class="reports-toolbar no-print">
+            <button type="button" class="btn-primary" (click)="printReports()" [disabled]="!reports">
+              <mat-icon>print</mat-icon>
+              הדפס דוח
+            </button>
+          </div>
+
+          @if (reportsError) {
+            <div class="alert alert-error no-print">{{ reportsError }}</div>
+          }
+          @if (isLoadingReports) {
+            <p class="loading-text no-print">טוען דוחות...</p>
+          }
+
+          @if (reports) {
+            <div id="print-section" class="printable-reports report-container">
+              <div class="print-header">
+                <h2>דוחות מוסדות</h2>
+                @if (!reports.menuPublished) {
+                  <p class="menu-unpublished-note">שים לב: תפריט לשבוע זה טרם פורסם</p>
+                }
+              </div>
+
+              <section class="report-section kitchen-report-section">
+                <div class="report-section-divider">
+                  <h3>{{ reportsWeekRangeTitle }}</h3>
+                </div>
+                <div class="erp-card report-table-card">
+                  <table mat-table [dataSource]="reports.kitchenReport" class="report-table erp-table">
+                    <ng-container matColumnDef="dayLabel">
+                      <th mat-header-cell *matHeaderCellDef>יום</th>
+                      <td mat-cell *matCellDef="let row">{{ row.dayLabel }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="menuItem">
+                      <th mat-header-cell *matHeaderCellDef>מנות ולוגיסטיקה</th>
+                      <td mat-cell *matCellDef="let row" class="kitchen-categories-cell">
+                        @let kitchenLines = kitchenCategoryLineItems(row);
+                        @if (kitchenLines.length === 0) {
+                          <span>—</span>
+                        } @else {
+                          <div class="report-menu-list">
+                            @for (item of kitchenLines; track item.categoryLabel) {
+                              <div class="item-row">{{ item.displayText }}</div>
+                            }
+                          </div>
+                        }
+                      </td>
+                    </ng-container>
+                    <ng-container matColumnDef="totalRegular">
+                      <th mat-header-cell *matHeaderCellDef>סה"כ רגיל</th>
+                      <td mat-cell *matCellDef="let row">{{ row.totalRegular }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="totalVegetarian">
+                      <th mat-header-cell *matHeaderCellDef>סה"כ צמחוני</th>
+                      <td mat-cell *matCellDef="let row">{{ row.totalVegetarian }}</td>
+                    </ng-container>
+                    <ng-container matColumnDef="grandTotal">
+                      <th mat-header-cell *matHeaderCellDef>סה"כ מנות</th>
+                      <td mat-cell *matCellDef="let row"><strong class="total-cell">{{ row.grandTotal }}</strong></td>
+                    </ng-container>
+                    <tr mat-header-row *matHeaderRowDef="kitchenColumns"></tr>
+                    <tr mat-row *matRowDef="let row; columns: kitchenColumns" class="erp-table-row"></tr>
+                  </table>
+                </div>
+              </section>
+
+              <section class="report-section packing-section">
+                <div class="report-section-divider">
+                  <h3>{{ reportsPackingRangeTitle }}</h3>
+                </div>
+                @if (reports.orders.length === 0) {
+                  <p class="empty-report">אין הזמנות לשבוע זה</p>
+                } @else {
+                  @for (order of reports.orders; track order.institutionId) {
+                    <div class="erp-card packing-institution day-packing-card">
+                      <div class="packing-institution-header">
+                        <h4>{{ order.institutionName }}</h4>
+                        <div class="packing-header-actions no-print">
+                          <span class="weekly-total-badge">
+                            סה"כ מנות לשבוע זה: <strong>{{ order.weeklyGrandTotal }}</strong>
+                          </span>
+                          <button type="button" class="btn-secondary btn-sm" (click)="openOrderEditFromPacking(order)">
+                            <mat-icon>edit_note</mat-icon>
+                            ערוך הזמנה
+                          </button>
+                          <button type="button" class="btn-secondary btn-sm danger-outline" (click)="deleteOrderFromPacking(order)">
+                            <mat-icon>delete</mat-icon>
+                            מחק הזמנה
+                          </button>
+                        </div>
+                      </div>
+                      <table class="packing-table erp-table">
+                        <thead>
+                          <tr>
+                            <th>יום</th>
+                            <th>רגיל</th>
+                            <th>צמחוני</th>
+                            <th>תפריט ולוגיסטיקה</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (day of packingDayRows(order); track day.dayOfWeek) {
+                            <tr class="erp-table-row">
+                              <td>{{ day.dayLabel }}</td>
+                              <td>{{ day.regularCount }}</td>
+                              <td>{{ day.vegetarianCount }}</td>
+                              <td class="packing-categories-cell">
+                                @let packingLines = packingCategoryLineItems(day);
+                                @if (packingLines.length === 0) {
+                                  <span>—</span>
+                                } @else {
+                                  <div class="report-menu-list">
+                                    @for (item of packingLines; track item.categoryLabel) {
+                                      <div class="item-row">{{ item.displayText }}</div>
+                                    }
+                                  </div>
+                                }
+                                @if (packingDayNotes(day)) {
+                                  <div class="packing-day-note institution-notes">
+                                    <mat-icon class="packing-note-icon" aria-hidden="true">comment</mat-icon>
+                                    <span class="packing-note-text">{{ packingDayNotes(day) }}</span>
+                                  </div>
+                                }
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                }
+              </section>
+            </div>
+          }
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+    </form>
+  </div>
+</div>
+
+@if (showModal) {
+  <div class="modal-backdrop no-print" (click)="closeModal()"></div>
+  <div class="modal-panel erp-card no-print" role="dialog" aria-modal="true" [attr.aria-label]="accountModalTitle">
+    <div class="modal-header">
+      <h2>{{ accountModalTitle }}</h2>
+      <button type="button" mat-icon-button (click)="closeModal()" aria-label="סגור">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <form [formGroup]="accountForm" (ngSubmit)="submitAccountForm()" class="modal-form">
+      <div class="form-row">
+        <div class="field">
+          <label for="fullName">שם המוסד</label>
+          <input id="fullName" type="text" formControlName="fullName" class="input" />
+        </div>
+        <div class="field">
+          <label for="username">אימייל להתחברות</label>
+          <input id="username" type="email" formControlName="username" class="input" dir="ltr" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="password">{{ editingId ? 'סיסמה חדשה (אופציונלי)' : 'סיסמה ראשונית' }}</label>
+          <input id="password" type="password" formControlName="password" class="input" dir="ltr" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label for="phone">טלפון (אופציונלי)</label>
+          <input id="phone" type="tel" formControlName="phone" class="input" />
+        </div>
+      </div>
+
+      <h3 class="section-title">הגדרות פורטל</h3>
+
+      <div class="field">
+        <label for="customMessage">הודעה מותאמת לפורטל</label>
+        <textarea id="customMessage" formControlName="customMessage" class="input textarea" rows="3"></textarea>
+      </div>
+
+      @if (editingId) {
+        <label class="checkbox-row">
+          <input type="checkbox" formControlName="isActive" />
+          <span>חשבון פעיל</span>
+        </label>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" (click)="closeModal()" [disabled]="isSavingAccount">ביטול</button>
+        <button type="submit" class="btn-primary" [disabled]="isSavingAccount || accountForm.invalid">
+          @if (isSavingAccount) { שומר... } @else if (editingId) { שמור שינויים } @else { צור מוסד }
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+@if (showOrderModal) {
+  <div class="modal-backdrop no-print" (click)="closeOrderModal()"></div>
+  <div class="modal-panel erp-card modal-panel-wide no-print" role="dialog" aria-modal="true" aria-label="עריכת הזמנת מוסד">
+    <div class="modal-header">
+      <h2>ערוך הזמנה — {{ orderEditInstitutionName }}</h2>
+      <button type="button" mat-icon-button (click)="closeOrderModal()" aria-label="סגור">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <p class="admin-override-note">עדכון מנהל — ללא הגבלת דדליין פורטל</p>
+
+    @if (orderError) {
+      <div class="alert alert-info">{{ orderError }}</div>
+    }
+    @if (isLoadingOrder) {
+      <p class="loading-text">טוען הזמנה...</p>
+    } @else {
+      <form [formGroup]="orderForm" (ngSubmit)="saveOrderOverride()" class="modal-form">
+        <div formArrayName="days" class="order-days-edit">
+          @for (dayCtrl of orderDaysArray.controls; track $index; let i = $index) {
+            <div class="order-day-row" [formGroupName]="i">
+              <h4 class="day-title">{{ dayCtrl.get('dayLabel')?.value }}</h4>
+              <div class="form-row">
+                <div class="field">
+                  <label [for]="'ord-reg-' + i">מנות רגילות</label>
+                  <input [id]="'ord-reg-' + i" type="number" min="0" step="1" class="input" formControlName="regularCount" />
+                </div>
+                <div class="field">
+                  <label [for]="'ord-veg-' + i">מנות צמחוניות</label>
+                  <input [id]="'ord-veg-' + i" type="number" min="0" step="1" class="input" formControlName="vegetarianCount" />
+                </div>
+              </div>
+              <div class="field">
+                <label [for]="'ord-notes-' + i">הערות כלליות ליום</label>
+                <textarea
+                  [id]="'ord-notes-' + i"
+                  rows="2"
+                  class="input textarea"
+                  formControlName="notes"
+                  placeholder="הערות המוסד ליום זה"
+                ></textarea>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="weekly-total-preview">
+          סה"כ מנות לשבוע זה: <strong>{{ orderEditWeeklyTotal }}</strong>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" (click)="closeOrderModal()" [disabled]="isSavingOrder">ביטול</button>
+          <button type="submit" class="btn-primary" [disabled]="isSavingOrder || orderForm.invalid">
+            @if (isSavingOrder) { שומר... } @else { שמור הזמנה (מנהל) }
+          </button>
+        </div>
+      </form>
+    }
+  </div>
+}
+
+@if (showDictionaryModal) {
+  <div class="modal-backdrop no-print" (click)="closeDictionaryModal()"></div>
+  <div class="modal-panel erp-card modal-panel-wide no-print" role="dialog" aria-modal="true" aria-label="ניהול מאגר מנות">
+    <div class="modal-header">
+      <h2>ניהול מאגר מנות</h2>
+      <button type="button" mat-icon-button (click)="closeDictionaryModal()" aria-label="סגור">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    @if (dictionaryError) {
+      <div class="alert alert-error">{{ dictionaryError }}</div>
+    }
+
+    <form [formGroup]="dictionaryForm" (ngSubmit)="submitDictionaryForm()" class="modal-form dictionary-form">
+      <h3 class="section-title">{{ editingDictionaryId ? 'עריכת מנה' : 'הוספת מנה למאגר' }}</h3>
+      <div class="form-row">
+        <div class="field">
+          <label for="dictName">שם מנה</label>
+          <input id="dictName" type="text" class="input" formControlName="name" />
+        </div>
+        <div class="field">
+          <label for="dictCategory">קטגוריה</label>
+          <mat-form-field appearance="outline" class="menu-mat-field">
+            <mat-select id="dictCategory" formControlName="category">
+              @for (cat of dictionaryCategories; track cat.value) {
+                <mat-option [value]="cat.value">{{ cat.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+        @if (dictionaryFormCategory === 'mainMeat') {
+          <div class="field">
+            <label for="dictGrams">גרם למנה</label>
+            <input id="dictGrams" type="number" min="1" class="input" formControlName="gramsPerPortion" />
+            <p class="field-hint">משמש לחישוב ק"ג בדוחות ייצור</p>
+          </div>
+        } @else {
+          <div class="field">
+            <label for="dictGnPortions">מספר מנות לגסטרונום</label>
+            <input id="dictGnPortions" type="number" min="1" class="input" formControlName="portionsPerGastronorm" />
+            <p class="field-hint">כמה מנות נכנסות בגסטרונום אחד (ברירת מחדל: 40)</p>
+          </div>
+        }
+      </div>
+      <div class="dictionary-form-actions">
+        @if (editingDictionaryId) {
+          <button type="button" class="btn-secondary" (click)="cancelDictionaryEdit()">ביטול עריכה</button>
+        }
+        <button type="submit" class="btn-primary" [disabled]="isSavingDictionary || dictionaryForm.invalid">
+          @if (isSavingDictionary) { שומר... } @else if (editingDictionaryId) { עדכן מנה } @else { הוסף למאגר }
+        </button>
+      </div>
+    </form>
+
+    @if (isLoadingDictionary) {
+      <p class="loading-text">טוען מאגר...</p>
+    } @else {
+      <div class="dictionary-lists">
+        @for (cat of dictionaryCategories; track cat.value) {
+          <section class="dictionary-category-block">
+            <h3>{{ cat.label }}</h3>
+            @if (dictionaryItemsByCategory(cat.value).length === 0) {
+              <p class="empty-dictionary">אין מנות בקטגוריה זו</p>
+            } @else {
+              <ul class="dictionary-item-list">
+                @for (item of dictionaryItemsByCategory(cat.value); track item.id) {
+                  <li class="dictionary-item-row" [class.editing]="editingDictionaryId === item.id">
+                    <span class="dictionary-item-name">
+                      {{ item.name }}
+                      @if (item.category === 'mainMeat') {
+                        <span class="grams-badge">{{ item.gramsPerPortion }} ג' למנה</span>
+                      } @else {
+                        <span class="gn-badge">{{ item.portionsPerGastronorm || 40 }} מנות/גסטרונום</span>
+                      }
+                    </span>
+                    <span class="dictionary-item-actions">
+                      <button type="button" mat-icon-button title="ערוך" (click)="editDictionaryItem(item)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button type="button" mat-icon-button color="warn" title="מחק" (click)="deleteDictionaryItem(item)">
+                        <mat-icon>delete</mat-icon>
+                      </button>
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+      </div>
+    }
+  </div>
+}

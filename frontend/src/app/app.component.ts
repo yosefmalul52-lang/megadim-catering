@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, RouterModule } from '@angular/router';
-import { filter } from 'rxjs/operators';
+import { filter, take } from 'rxjs/operators';
 import { MatSidenavModule, MatSidenavContainer, MatSidenav } from '@angular/material/sidenav';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslateModule } from '@ngx-translate/core';
@@ -17,7 +17,9 @@ import { LanguageService } from './services/language.service';
 import { MarketingService } from './services/marketing.service';
 import { AnalyticsService } from './services/analytics.service';
 import { MetaPixelService } from './services/meta-pixel.service';
+import { AuthService } from './services/auth.service';
 import { MAIN_NAV_LINKS } from './nav-links';
+import { isInstitutionAllowedPath } from './utils/auth-redirect';
 
 @Component({
   selector: 'app-root',
@@ -45,25 +47,25 @@ import { MAIN_NAV_LINKS } from './nav-links';
         </div>
       </mat-sidenav>
       
-      <!-- Header (hidden only on admin / time-clock / employee / my-zone) -->
-      <app-header *ngIf="!isLoginOrAdminPage" [sidenav]="sidenav"></app-header><!--
-      --><main class="main-content" [class.full-screen]="isLoginOrAdminPage">
+      <!-- Header (hidden on admin, portal, kiosk, employee) -->
+      <app-header *ngIf="!isLoginOrAdminPage && !isPortalRoute" [sidenav]="sidenav"></app-header><!--
+      --><main class="main-content" [class.full-screen]="isLoginOrAdminPage || isPortalRoute">
         <router-outlet></router-outlet>
       </main><!--
-      --><app-footer *ngIf="!isLoginOrAdminPage"></app-footer>
+      --><app-footer *ngIf="!isLoginOrAdminPage && !isPortalRoute"></app-footer>
 
       <!-- Search overlay (fixed; placed after layout flow to avoid header/content gap) -->
-      <app-search-bar *ngIf="!isLoginOrAdminPage"></app-search-bar>
+      <app-search-bar *ngIf="!isLoginOrAdminPage && !isPortalRoute"></app-search-bar>
       
       <!-- Cart Modal -->
-      <app-cart-modal *ngIf="!isLoginOrAdminPage"></app-cart-modal>
+      <app-cart-modal *ngIf="!isLoginOrAdminPage && !isPortalRoute"></app-cart-modal>
       
       <!-- Toast Notifications (available on all pages) -->
       <app-toast></app-toast>
     </mat-sidenav-container>
 
     <!-- Cookie Consent Banner (GDPR / Israeli Privacy Law compliant) -->
-    <div class="cookie-banner" *ngIf="showCookieBanner" role="dialog" aria-label="העדפות עוגיות">
+    <div class="cookie-banner" *ngIf="showCookieBanner && !isPortalRoute" role="dialog" aria-label="העדפות עוגיות">
       <p class="cookie-text">
         אתר זה עושה שימוש בעוגיות (Cookies) כדי להבטיח לך את חווית הגלישה הטובה ביותר, לאבטח את החיבור שלך ולשמור את סל הקניות. למידע נוסף, קרא את
         <a routerLink="/privacy-policy" class="cookie-link">מדיניות הפרטיות</a>
@@ -76,7 +78,7 @@ import { MAIN_NAV_LINKS } from './nav-links';
     </div>
 
     <app-whatsapp-cta
-      *ngIf="!isLoginOrAdminPage"
+      *ngIf="!isLoginOrAdminPage && !isPortalRoute"
       variant="fab"
       ctaLocation="global_fab"
     ></app-whatsapp-cta>
@@ -90,10 +92,12 @@ export class AppComponent implements OnInit {
   private platformId = inject(PLATFORM_ID);
   private analyticsService = inject(AnalyticsService);
   private metaPixelService = inject(MetaPixelService);
+  private authService = inject(AuthService);
 
   // Content direction property (NOT document direction)
   textDir: 'rtl' | 'ltr' = 'rtl';
   isLoginOrAdminPage = false;
+  isPortalRoute = false;
   showCookieBanner = false;
   navLinks = MAIN_NAV_LINKS;
 
@@ -128,13 +132,31 @@ export class AppComponent implements OnInit {
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
         this.updatePageVisibility();
+        this.enforceInstitutionPortalOnly();
       });
+
+    this.authService.sessionInitDone$
+      .pipe(filter((done) => done), take(1))
+      .subscribe(() => this.enforceInstitutionPortalOnly());
+  }
+
+  private enforceInstitutionPortalOnly(): void {
+    const user = this.authService.currentUser;
+    if (user?.role !== 'institution') return;
+    const url = this.router.url;
+    if (isInstitutionAllowedPath(url)) return;
+    this.router.navigate(['/portal']);
   }
 
   private updatePageVisibility(): void {
-    const url = this.router.url;
-    // Hide header/footer only on admin and special app pages; show on login and register
-    this.isLoginOrAdminPage = url.startsWith('/admin') || url.startsWith('/time-clock') || url.startsWith('/employee-login') || url.startsWith('/my-zone');
+    const url = this.router.url.split('?')[0];
+    this.isPortalRoute = url.startsWith('/portal');
+    // Hide header/footer on admin, portal, and special app pages; show on login and register
+    this.isLoginOrAdminPage =
+      url.startsWith('/admin') ||
+      url.startsWith('/time-clock') ||
+      url.startsWith('/employee-login') ||
+      url.startsWith('/my-zone');
   }
 
   acceptAll(): void {

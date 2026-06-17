@@ -9,6 +9,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
 import { AuthService, LoginCredentials } from '../../../services/auth.service';
 import { AuthModalService } from '../../../services/auth-modal.service';
 import { ToastService } from '../../../services/toast.service';
+import { navigateAfterLogin } from '../../../utils/auth-redirect';
 
 @Component({
   selector: 'app-auth-modal',
@@ -243,20 +244,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
           // Clear form and close modal after short delay
           this.loginForm.reset();
           this.errorMessage = '';
-          
-          setTimeout(() => {
-            this.closeModal();
-            const role = String(response.user?.role || '').toLowerCase();
-            if (role === 'admin') {
-              this.router.navigate(['/admin']);
-            } else if (role === 'driver') {
-              this.router.navigate(['/admin/delivery']);
-            } else {
-              this.router.navigate(['/']);
-            }
-          }, 500);
+          this.closeModal();
+          navigateAfterLogin(this.router, response.user?.role);
+          this.isLoading = false;
         } else {
-          // Show error but keep modal open
           this.errorMessage = response.message || 'שגיאה בהתחברות';
           this.isLoading = false;
         }

@@ -94,3 +94,29 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     serverSeesRole: user.role
   });
 }
+
+/** Only authenticated site users with role `institution`. */
+export function requireInstitution(req: Request, res: Response, next: NextFunction): void {
+  const user = (req as any).user;
+  if (!user) {
+    res.status(401).json({ success: false, message: 'Authentication required' });
+    return;
+  }
+  if (!isSiteUserStaff(user)) {
+    res.status(403).json({
+      success: false,
+      message: 'Forbidden',
+      serverSeesRole: user.role || 'employee'
+    });
+    return;
+  }
+  if (user.role === 'institution') {
+    next();
+    return;
+  }
+  res.status(403).json({
+    success: false,
+    message: 'Forbidden: Institution access required',
+    serverSeesRole: user.role
+  });
+}

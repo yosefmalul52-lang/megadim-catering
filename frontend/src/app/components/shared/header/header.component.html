@@ -56,7 +56,7 @@
             <a
               [routerLink]="(isLoggedIn$ | async) ? profileLink : '/login'"
               class="header-action-icon user-icon-trigger"
-              [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'לוח בקרה' : 'הפרופיל שלי') : 'התחבר'"
+              [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'לוח בקרה' : isInstitutionUser ? 'פורטל מוסד' : 'הפרופיל שלי') : 'התחבר'"
             >
               <mat-icon [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''">person</mat-icon>
             </a>
@@ -91,14 +91,21 @@
               <ng-template #loggedInDropdown>
                 <div class="dropdown-logged-in">
                   <p class="dropdown-greeting">שלום, {{ currentUser?.fullName || currentUser?.name || currentUser?.username || 'משתמש' }}</p>
-                  <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
-                    <mat-icon>person</mat-icon>
-                    הפרופיל שלי
-                  </a>
-                  <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
-                    <mat-icon>shopping_bag</mat-icon>
-                    ההזמנות שלי
-                  </a>
+                  @if (isInstitutionUser) {
+                    <a routerLink="/portal" class="dropdown-item" (click)="closeUserMenu()">
+                      <mat-icon>business</mat-icon>
+                      פורטל הזמנות
+                    </a>
+                  } @else {
+                    <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
+                      <mat-icon>person</mat-icon>
+                      הפרופיל שלי
+                    </a>
+                    <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
+                      <mat-icon>shopping_bag</mat-icon>
+                      ההזמנות שלי
+                    </a>
+                  }
                   <a routerLink="/admin" class="dropdown-item" *ngIf="currentUser?.role === 'admin'" (click)="closeUserMenu()">
                     <mat-icon>settings</mat-icon>
                     לוח בקרה

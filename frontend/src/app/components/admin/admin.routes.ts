@@ -14,7 +14,7 @@ export const adminRoutes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'delivery',
+        redirectTo: 'dashboard',
         pathMatch: 'full'
       },
       {
@@ -89,6 +89,13 @@ export const adminRoutes: Routes = [
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },
         loadComponent: () => import('./unified-gallery/unified-gallery.component').then(m => m.UnifiedGalleryComponent)
+      },
+      {
+        path: 'institutions',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () =>
+          import('./admin-institutions/admin-institutions.component').then(m => m.AdminInstitutionsComponent)
       },
       {
         path: 'settings',

@@ -20,6 +20,7 @@ import { ToastService } from '../../../services/toast.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { MAIN_NAV_LINKS } from '../../../nav-links';
 import { CONTACT_TEL_HREF, KOSHAROT_RECOMMENDATION_URL } from '../../../constants/contact.constants';
+import { navigateAfterLogin, institutionProfileLink } from '../../../utils/auth-redirect';
 
 @Component({
   selector: 'app-header',
@@ -71,7 +72,11 @@ export class HeaderComponent implements OnInit {
   }
 
   get profileLink(): string {
-    return this.currentUser?.role === 'admin' ? '/admin' : '/profile';
+    return institutionProfileLink(this.currentUser?.role);
+  }
+
+  get isInstitutionUser(): boolean {
+    return this.currentUser?.role === 'institution';
   }
 
   ngOnInit(): void {
@@ -148,6 +153,7 @@ export class HeaderComponent implements OnInit {
           this.toastService.success(`ברוך הבא ${name}`);
           this.loginForm.reset();
           this.isUserMenuOpen = false;
+          navigateAfterLogin(this.router, res.user?.role);
         } else {
           this.loginError = res.message || 'שגיאה בהתחברות';
         }
