@@ -2,6 +2,11 @@ import { Request, Response } from 'express';
 import { asyncHandler, createValidationError } from '../middleware/errorHandler';
 import { emailService } from '../services/email.service';
 import Order from '../models/Order';
+import {
+  normalizeCateringLineItems,
+  pushCateringOrderItems,
+  resolveMealCourseLines
+} from '../utils/catering-lines';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -131,6 +136,21 @@ export class CateringController {
       throw createValidationError('deliveryType must be pickup or delivery');
     }
 
+    const firstCourses = resolveMealCourseLines(
+      body,
+      mealTime,
+      'firstCoursesEvening',
+      'firstCoursesMorning',
+      'firstCourses'
+    );
+    const mainCourses = resolveMealCourseLines(
+      body,
+      mealTime,
+      'mainCoursesEvening',
+      'mainCoursesMorning',
+      'mainCourses'
+    );
+
     const payload = {
       fullName: (body.fullName as string).trim(),
       phone: (body.phone as string).trim(),
@@ -138,11 +158,14 @@ export class CateringController {
       numberOfPortions: String(body.numberOfPortions ?? '').trim(),
       eventDate: (body.eventDate as string).trim(),
       mealTime: mealTime as 'evening' | 'morning' | 'both',
-      salads: Array.isArray(body.salads) ? (body.salads as unknown[]).filter((s) => s != null && String(s).trim()).map((s) => String(s).trim()) : [],
-      firstCourses: Array.isArray(body.firstCourses) ? (body.firstCourses as unknown[]).filter((s) => s != null && String(s).trim()).map((s) => String(s).trim()) : [],
-      mainCourses: Array.isArray(body.mainCourses) ? (body.mainCourses as unknown[]).filter((s) => s != null && String(s).trim()).map((s) => String(s).trim()) : [],
-      sidesEvening: Array.isArray(body.sidesEvening) ? (body.sidesEvening as unknown[]).filter((s) => s != null && String(s).trim()).map((s) => String(s).trim()) : [],
-      sidesMorning: Array.isArray(body.sidesMorning) ? (body.sidesMorning as unknown[]).filter((s) => s != null && String(s).trim()).map((s) => String(s).trim()) : [],
+      salads: normalizeCateringLineItems(body.salads),
+      firstCoursesEvening: firstCourses.evening,
+      firstCoursesMorning: firstCourses.morning,
+      mainCoursesEvening: mainCourses.evening,
+      mainCoursesMorning: mainCourses.morning,
+      sidesEvening: normalizeCateringLineItems(body.sidesEvening),
+      sidesMorning: normalizeCateringLineItems(body.sidesMorning),
+      miscItems: normalizeCateringLineItems(body.miscItems),
       seudaShlishit: body.seudaShlishit === 'yes' ? 'yes' : 'no',
       deliveryType: deliveryType as 'pickup' | 'delivery',
       address: typeof body.address === 'string' ? body.address.trim() : '',
@@ -151,16 +174,22 @@ export class CateringController {
 
     const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
 
-    // Persist catering order first — never block success on email delivery.
-    // Build items from catering selections so they are visible in the dashboard and print view.
-    // Catering items have no individual price — pricing is per portions count (totalPrice stays 0 until admin updates it).
     const buildCateringItems = () => {
-      const list: { name: string; price: number; quantity: number; category: string }[] = [];
-      payload.salads.forEach((s) => list.push({ name: s, price: 0, quantity: 1, category: 'סלטים' }));
-      payload.firstCourses.forEach((s) => list.push({ name: s, price: 0, quantity: 1, category: 'מנות ראשונות' }));
-      payload.mainCourses.forEach((s) => list.push({ name: s, price: 0, quantity: 1, category: 'מנות עיקריות' }));
-      payload.sidesEvening.forEach((s) => list.push({ name: s, price: 0, quantity: 1, category: 'תוספות ערב' }));
-      payload.sidesMorning.forEach((s) => list.push({ name: s, price: 0, quantity: 1, category: 'תוספות בוקר' }));
+      const list: {
+        name: string;
+        price: number;
+        quantity: number;
+        category: string;
+        description?: string;
+      }[] = [];
+      pushCateringOrderItems(list, payload.salads, 'סלטים');
+      pushCateringOrderItems(list, payload.firstCoursesEvening, 'מנות ראשונות — ערב');
+      pushCateringOrderItems(list, payload.firstCoursesMorning, 'מנות ראשונות — בוקר');
+      pushCateringOrderItems(list, payload.mainCoursesEvening, 'מנות עיקריות — ערב');
+      pushCateringOrderItems(list, payload.mainCoursesMorning, 'מנות עיקריות — בוקר');
+      pushCateringOrderItems(list, payload.sidesEvening, 'תוספות ערב');
+      pushCateringOrderItems(list, payload.sidesMorning, 'תוספות בוקר');
+      pushCateringOrderItems(list, payload.miscItems, 'שונות');
       return list;
     };
 

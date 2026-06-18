@@ -270,6 +270,9 @@
                         <div class="order-action-menu">
                           <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
                           <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
+                          @if (supportsKitchenPrepSheet(order)) {
+                            <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
+                          }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
                           @if (!order.isDeleted) {
                             <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
@@ -377,6 +380,9 @@
                         <div class="order-action-menu">
                           <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
                           <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
+                          @if (supportsKitchenPrepSheet(order)) {
+                            <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
+                          }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
                           @if (!order.isDeleted) {
                             <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
@@ -487,6 +493,9 @@
                         <div class="order-action-menu">
                           <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
                           <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
+                          @if (supportsKitchenPrepSheet(order)) {
+                            <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
+                          }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
                           @if (!order.isDeleted) {
                             <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
@@ -824,7 +833,12 @@
                         @for (item of group.items; track $index) {
                           <div class="catering-view-item">
                             <i class="fas fa-check catering-check-icon"></i>
-                            <span>{{ item.name }}</span>
+                            <div class="catering-view-item-text">
+                              <span>{{ item.name }}</span>
+                              @if (item.kitchenNotes) {
+                                <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
+                              }
+                            </div>
                           </div>
                         }
                       </div>
@@ -852,6 +866,65 @@
                 }
               }
             </div>
+
+            @if (supportsKitchenPrepSheet(selectedOrder) && !isEditingItems) {
+              <div class="details-section kitchen-prep-section">
+                <div class="kitchen-prep-header">
+                  <h3>דף הכנה למטבח</h3>
+                  <p class="kitchen-prep-hint">הערות להכנה — לא נשלחות ללקוח. מלאו לפני הדפסה לצוות המטבח.</p>
+                </div>
+                @if (kitchenPrepLines.length === 0) {
+                  <p class="kitchen-prep-empty">אין פריטים להצגה</p>
+                } @else {
+                  <div class="kitchen-prep-table-wrap">
+                    <table class="kitchen-prep-table">
+                      <thead>
+                        <tr>
+                          <th>קטגוריה</th>
+                          <th>פריט</th>
+                          <th>הערות למטבח</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (line of kitchenPrepLines; track $index) {
+                          <tr>
+                            <td>{{ line.category }}</td>
+                            <td>{{ line.name }}</td>
+                            <td>
+                              <input
+                                type="text"
+                                class="kitchen-prep-input"
+                                [(ngModel)]="kitchenPrepLines[$index].kitchenNotes"
+                                [name]="'kitchenPrep' + $index"
+                                placeholder="כמויות, הוראות הכנה, הבהרות..."
+                              />
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="kitchen-prep-actions">
+                    <button
+                      type="button"
+                      class="btn-kitchen-save"
+                      (click)="saveKitchenPrepNotes()"
+                      [disabled]="isSavingKitchenPrep"
+                    >
+                      @if (isSavingKitchenPrep) {
+                        <i class="fas fa-spinner fa-spin"></i> שומר...
+                      } @else {
+                        שמור הערות מטבח
+                      }
+                    </button>
+                    <button type="button" class="btn-kitchen-print" (click)="printKitchenSheet(selectedOrder)">
+                      <i class="fas fa-print"></i> הדפס למטבח
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+
             <div class="details-section">
               <div class="order-summary">
                 <div class="summary-row" *ngIf="(selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) != null">

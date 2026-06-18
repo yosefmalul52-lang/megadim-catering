@@ -2,6 +2,11 @@ import nodemailer from 'nodemailer';
 import Order, { IOrder } from '../models/Order';
 import { generateAdminEmailHtml, generateCustomerEmailHtml, generateCateringCustomerEmailHtml, OrderTemplateData } from './email-templates';
 import { ORDER_API_DETAIL_SELECT } from '../utils/order-projection.util';
+import {
+  normalizeCateringLineItems,
+  pushCateringEmailItems,
+  resolveMealCourseLines
+} from '../utils/catering-lines';
 
 /** Single source of truth: EMAIL_HOST, EMAIL_PORT (default 587), EMAIL_USER, EMAIL_PASS */
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
@@ -459,11 +464,18 @@ export class EmailService {
       numberOfPortions: string;
       eventDate: string;
       mealTime: string;
-      salads: string[];
-      firstCourses: string[];
-      mainCourses: string[];
-      sidesEvening: string[];
-      sidesMorning: string[];
+      salads: unknown;
+      firstCoursesEvening?: unknown;
+      firstCoursesMorning?: unknown;
+      mainCoursesEvening?: unknown;
+      mainCoursesMorning?: unknown;
+      /** @deprecated legacy flat arrays */
+      firstCourses?: unknown;
+      /** @deprecated legacy flat arrays */
+      mainCourses?: unknown;
+      sidesEvening: unknown;
+      sidesMorning: unknown;
+      miscItems?: unknown;
       seudaShlishit: string;
       deliveryType: 'pickup' | 'delivery';
       address: string;
@@ -478,20 +490,32 @@ export class EmailService {
         : data.mealTime === 'morning'
           ? 'שבת בבוקר'
           : 'שתי ארוחות שבת';
-    const notesParts = [
-      `קייטרינג שבת וחג. מספר מנות: ${data.numberOfPortions}`,
-      `סוג ארוחה: ${mealTimeLabel}`,
-      `סעודה שלישית: ${data.seudaShlishit === 'yes' ? 'כן' : 'לא'}`
-    ];
-    if (data.remarks && data.remarks.trim()) notesParts.push(`הערות: ${data.remarks.trim()}`);
-    const notes = notesParts.join(' | ');
+
+    const bodyLike = data as Record<string, unknown>;
+    const firstCourses = resolveMealCourseLines(
+      bodyLike,
+      data.mealTime,
+      'firstCoursesEvening',
+      'firstCoursesMorning',
+      'firstCourses'
+    );
+    const mainCourses = resolveMealCourseLines(
+      bodyLike,
+      data.mealTime,
+      'mainCoursesEvening',
+      'mainCoursesMorning',
+      'mainCourses'
+    );
 
     const items: Array<{ id: string; name: string; quantity: number; price: number; category: string }> = [];
-    (data.salads || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'סלטים' }));
-    (data.firstCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'מנות ראשונות' }));
-    (data.mainCourses || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'מנות עיקריות' }));
-    (data.sidesEvening || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'תוספות ערב' }));
-    (data.sidesMorning || []).filter((s) => s && String(s).trim()).forEach((s) => items.push({ id: '', name: String(s).trim(), quantity: 1, price: 0, category: 'תוספות בוקר' }));
+    pushCateringEmailItems(items, normalizeCateringLineItems(data.salads), 'סלטים');
+    pushCateringEmailItems(items, firstCourses.evening, 'מנות ראשונות — ערב');
+    pushCateringEmailItems(items, firstCourses.morning, 'מנות ראשונות — בוקר');
+    pushCateringEmailItems(items, mainCourses.evening, 'מנות עיקריות — ערב');
+    pushCateringEmailItems(items, mainCourses.morning, 'מנות עיקריות — בוקר');
+    pushCateringEmailItems(items, normalizeCateringLineItems(data.sidesEvening), 'תוספות ערב');
+    pushCateringEmailItems(items, normalizeCateringLineItems(data.sidesMorning), 'תוספות בוקר');
+    pushCateringEmailItems(items, normalizeCateringLineItems(data.miscItems), 'שונות');
 
     const cateringExtraInfo: Array<{ label: string; value: string }> = [
       { label: 'מספר מנות', value: String(data.numberOfPortions) },

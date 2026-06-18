@@ -370,6 +370,9 @@ export class OrderService {
       id?: string;
       name?: string;
       quantity: number;
+      category?: string;
+      price?: number;
+      description?: string;
       selectedOption?: { label: string; amount?: string; price?: number };
     }>
   ): Observable<Order> {

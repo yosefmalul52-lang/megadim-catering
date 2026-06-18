@@ -23,7 +23,14 @@ type EditableOrderItem = {
   quantity: number;
   category?: string;
   unitPrice?: number;
+  kitchenNotes?: string;
   selectedOption?: SelectedOptionPayload;
+};
+
+type KitchenPrepLine = {
+  name: string;
+  category: string;
+  kitchenNotes: string;
 };
 
 type SearchResultItem = {
@@ -79,6 +86,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   dateUpdatingId: string | null = null;
   isEditingItems = false;
   editableItems: EditableOrderItem[] = [];
+  kitchenPrepLines: KitchenPrepLine[] = [];
+  isSavingKitchenPrep = false;
   /** True while a capture request is in flight. */
   isCapturing = false;
   /** True while a void request is in flight. */
@@ -90,7 +99,18 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   authorizedAmountMismatchWarning = false;
 
   /** Ordered list of catering categories used in view and edit modes. */
-  readonly CATERING_CATEGORY_ORDER = ['סלטים', 'מנות ראשונות', 'מנות עיקריות', 'תוספות ערב', 'תוספות בוקר'];
+  readonly CATERING_CATEGORY_ORDER = [
+    'סלטים',
+    'מנות ראשונות — ערב',
+    'מנות ראשונות — בוקר',
+    'מנות עיקריות — ערב',
+    'מנות עיקריות — בוקר',
+    'מנות ראשונות',
+    'מנות עיקריות',
+    'תוספות ערב',
+    'תוספות בוקר',
+    'שונות'
+  ];
   readonly EVENTS_CATERING_CATEGORY_ORDER = [
     'תפריט בסיס',
     'שדרוגים',
@@ -369,8 +389,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   /** True if order is from the Shabbat/holiday catering form (cateringKind:'shabbat' or old orders without cateringKind). */
-  private isShabbatCateringOrder(order: Order): boolean {
+  isShabbatCateringOrder(order: Order | null): boolean {
+    if (!order) return false;
     return this.isCateringOrder(order) && !this.isEventCateringOrder(order);
+  }
+
+  /** Shabbat/holiday or events catering — kitchen prep sheet applies to both. */
+  supportsKitchenPrepSheet(order: Order | null): boolean {
+    return !!order && this.isCateringOrder(order);
   }
 
   /** Orders from cart/checkout (Ready for Shabbat). */
@@ -817,6 +843,165 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Save kitchen prep notes (stored on each order item's description field). */
+  saveKitchenPrepNotes(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.supportsKitchenPrepSheet(order)) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId) return;
+
+    const sourceItems = order.items || [];
+    if (!sourceItems.length) return;
+
+    const payloadItems = sourceItems.map((item, index) => ({
+      productId: String((item as { productId?: string }).productId || ''),
+      name: String(item.name || ''),
+      quantity: Number(item.quantity || 1),
+      category: String((item as { category?: string }).category || ''),
+      price: Number((item as { price?: number }).price || 0),
+      description: (this.kitchenPrepLines[index]?.kitchenNotes || '').trim() || undefined
+    }));
+
+    this.isSavingKitchenPrep = true;
+    this.orderService.updateOrderItems(orderId, payloadItems).subscribe({
+      next: (updated) => {
+        this.isSavingKitchenPrep = false;
+        const normalized: Order = { ...updated, id: (updated._id || updated.id || '').toString() };
+        this.selectedOrder = normalized;
+        const replaceInList = (list: Order[]) => {
+          const idx = list.findIndex((o) => (o._id || o.id || '').toString() === orderId);
+          if (idx > -1) list[idx] = normalized;
+        };
+        replaceInList(this.orders);
+        replaceInList(this.failedOrders);
+        replaceInList(this.archiveOrders);
+        this.refreshKitchenPrepLines();
+        this.successMessage = 'הערות המטבח נשמרו';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: () => {
+        this.isSavingKitchenPrep = false;
+        this.errorMessage = 'שגיאה בשמירת הערות המטבח';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
+  /** Kitchen print sheet — includes editable prep notes column (admin only). */
+  printKitchenSheet(order: Order): void {
+    if (!this.supportsKitchenPrepSheet(order)) {
+      this.printOrder(order);
+      return;
+    }
+
+    const orderCode = order.orderNumber || (order._id || order.id)?.toString().slice(-8) || '';
+    const cd: Record<string, unknown> = order.customerDetails || {};
+    const isEvents = this.isEventCateringOrder(order);
+    const portions = isEvents
+      ? (order as { guestCount?: string | number }).guestCount
+      : (order as { numberOfPortions?: string | number }).numberOfPortions;
+    const mealLabel = isEvents ? '' : this.getMealTypesLabel(order);
+    const eventType = isEvents ? String((order as { eventType?: string }).eventType || '') : '';
+    const venue = isEvents ? String((order as { venue?: string }).venue || '') : '';
+
+    const prepByKey = new Map<string, string>();
+    const sameOrder =
+      this.selectedOrder &&
+      (this.selectedOrder._id || this.selectedOrder.id)?.toString() === (order._id || order.id)?.toString();
+    if (sameOrder) {
+      this.kitchenPrepLines.forEach((line) => {
+        prepByKey.set(`${line.category}::${line.name}`, line.kitchenNotes);
+      });
+    }
+
+    const byCategory: Record<string, Array<{ name: string; notes: string }>> = {};
+    (order.items || []).forEach((item) => {
+      const cat = String((item as { category?: string }).category || 'כללי');
+      const name = String(item.name || '');
+      const key = `${cat}::${name}`;
+      const notes =
+        prepByKey.get(key) ||
+        String((item as { description?: string }).description || '').trim();
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push({ name, notes });
+    });
+
+    const categoryOrder = this.getCateringCategoryOrder(order);
+    const sortedCategories = [
+      ...categoryOrder.filter((c) => byCategory[c]),
+      ...Object.keys(byCategory).filter((c) => !categoryOrder.includes(c))
+    ];
+
+    let rowIndex = 0;
+    const rowsHtml = sortedCategories
+      .map((cat) => {
+        const header = `<tr class="cat-header"><td colspan="3"><strong>${cat}</strong></td></tr>`;
+        const itemRows = byCategory[cat]
+          .map((row) => {
+            rowIndex += 1;
+            const inputId = `kitchen-note-${rowIndex}`;
+            const escapedNotes = row.notes
+              .replace(/&/g, '&amp;')
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;');
+            return `<tr>
+              <td>${row.name}</td>
+              <td class="check-col">✓</td>
+              <td><input type="text" class="kitchen-note-input" id="${inputId}" value="${escapedNotes}" placeholder="כמויות, הוראות הכנה, הבהרות..." /></td>
+            </tr>`;
+          })
+          .join('');
+        return header + itemRows;
+      })
+      .join('');
+
+    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>דף מטבח ${orderCode}</title>
+      <style>
+        body{font-family:Heebo,Arial,sans-serif;padding:16px;max-width:900px;margin:0 auto;color:#111}
+        h1{margin:0 0 6px;font-size:1.5rem}
+        .meta{margin-bottom:14px;font-size:14px;line-height:1.6}
+        .toolbar{margin:12px 0 16px;display:flex;gap:8px}
+        .toolbar button{padding:8px 14px;border:1px solid #111;background:#fff;cursor:pointer;font-family:inherit}
+        table{width:100%;border-collapse:collapse}
+        th,td{border:1px solid #111;padding:8px;text-align:right;vertical-align:middle}
+        th{background:#f4f4f4;font-weight:700}
+        tr.cat-header td{background:#f8f8f8;font-weight:700}
+        .check-col{width:48px;text-align:center}
+        .kitchen-note-input{width:100%;border:1px solid #bbb;padding:6px 8px;font-family:inherit;font-size:14px;box-sizing:border-box}
+        @media print{
+          .toolbar{display:none !important}
+          .kitchen-note-input{border:none !important;padding:0 !important}
+          body{padding:8mm}
+        }
+      </style></head><body>
+        <h1>דף הכנה למטבח — הזמנה #${orderCode}</h1>
+        <div class="meta">
+          <div><strong>לקוח:</strong> ${String(cd['fullName'] || 'לא צוין')}</div>
+          <div><strong>טלפון:</strong> ${String(cd['phone'] || 'לא צוין')}</div>
+          <div><strong>תאריך אירוע:</strong> ${String(cd['eventDate'] || 'לא צוין')}</div>
+          ${eventType ? `<div><strong>סוג אירוע:</strong> ${eventType}</div>` : ''}
+          ${venue ? `<div><strong>מיקום:</strong> ${venue}</div>` : ''}
+          ${portions ? `<div><strong>${isEvents ? 'מספר אורחים' : 'מספר מנות'}:</strong> ${portions}</div>` : ''}
+          ${mealLabel ? `<div><strong>סוג ארוחה:</strong> ${mealLabel}</div>` : ''}
+        </div>
+        <div class="toolbar no-print">
+          <button type="button" onclick="window.print()">הדפס</button>
+          <button type="button" onclick="window.close()">סגור</button>
+        </div>
+        <table>
+          <thead><tr><th>פריט</th><th>נבחר</th><th>הערות למטבח</th></tr></thead>
+          <tbody>${rowsHtml || '<tr><td colspan="3">אין פריטים</td></tr>'}</tbody>
+        </table>
+      </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+    }
+  }
+
   isPending(status: string): boolean {
     return status === 'pending' || status === 'new';
   }
@@ -888,6 +1073,19 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   viewOrderDetails(order: Order): void {
     this.selectedOrder = order;
+    this.refreshKitchenPrepLines();
+  }
+
+  private refreshKitchenPrepLines(): void {
+    if (!this.selectedOrder || !this.supportsKitchenPrepSheet(this.selectedOrder)) {
+      this.kitchenPrepLines = [];
+      return;
+    }
+    this.kitchenPrepLines = (this.selectedOrder.items || []).map((item) => ({
+      name: String(item.name || ''),
+      category: String((item as { category?: string }).category || 'כללי'),
+      kitchenNotes: String((item as { description?: string }).description || '').trim()
+    }));
   }
 
   closeModal(): void {
@@ -895,6 +1093,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.isEditingEventDate = false;
     this.isEditingItems = false;
     this.editableItems = [];
+    this.kitchenPrepLines = [];
     this.searchTerm = '';
   }
 
@@ -909,6 +1108,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       quantity: Number(item.quantity || 1),
       category: String((item as any).category || ''),
       unitPrice: Number((item as any).price || 0),
+      kitchenNotes: String((item as any).description || '').trim(),
       selectedOption: (item as any).selectedOption
         ? {
             label: String((item as any).selectedOption.label || '').trim(),
@@ -985,16 +1185,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   /**
    * Returns selectedOrder.items grouped by category for the VIEW (read-only) mode.
    */
-  getCateringViewItemsByCategory(): { category: string; items: { name: string }[] }[] {
+  getCateringViewItemsByCategory(): { category: string; items: { name: string; kitchenNotes?: string }[] }[] {
     if (!this.selectedOrder) return [];
     const categoryOrder = this.getCateringCategoryOrder(this.selectedOrder);
-    const grouped: Record<string, { name: string }[]> = {};
+    const grouped: Record<string, { name: string; kitchenNotes?: string }[]> = {};
     (this.selectedOrder.items || []).forEach((item) => {
       const cat = (item as any).category || 'כללי';
       if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push({ name: item.name });
+      const kitchenNotes = String((item as any).description || '').trim();
+      grouped[cat].push({
+        name: item.name,
+        kitchenNotes: kitchenNotes || undefined
+      });
     });
-    const result: { category: string; items: { name: string }[] }[] = [];
+    const result: { category: string; items: { name: string; kitchenNotes?: string }[] }[] = [];
     categoryOrder.forEach((cat) => {
       if (grouped[cat]) result.push({ category: cat, items: grouped[cat] });
     });
@@ -1148,7 +1352,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             name: item.name.trim(),
             quantity: Number(item.quantity),
             category: item.category || '',
-            price: 0
+            price: 0,
+            description: (item.kitchenNotes || '').trim() || undefined
           }))
       : this.editableItems
           .map((item) => ({
