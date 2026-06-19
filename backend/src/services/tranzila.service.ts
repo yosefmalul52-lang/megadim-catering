@@ -56,8 +56,8 @@ export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): T
 
   for (const item of order.items || []) {
     const name = String(item.name || 'פריט').trim() || 'פריט';
-    const unitPrice = roundMoney(item.price);
     const units = Math.max(1, Math.round(Number(item.quantity) || 1));
+    const unitPrice = roundMoney(Number(item.price) * units);
     lines.push({ name, type: 'I', unit_price: unitPrice, units_number: units });
   }
 
@@ -75,7 +75,7 @@ export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): T
   }
 
   const lineTotal = roundMoney(
-    lines.reduce((sum, line) => sum + line.unit_price * line.units_number, 0)
+    lines.reduce((sum, line) => sum + line.unit_price, 0)
   );
   const targetTotal = roundMoney(order.totalPrice);
   const discountAmount = roundMoney(Math.max(0, lineTotal - targetTotal));
@@ -334,8 +334,6 @@ export class TranzilaService {
       expire_month:         expMonth,
       expire_year:          expYear,
       response_language:    'hebrew',
-      imaindoc:             '1',
-      email_recp:           '1',
       items:                invoiceItems,
       ...(Object.keys(client).length ? { client } : {}),
       ...(client.email ? { email: client.email } : {})
