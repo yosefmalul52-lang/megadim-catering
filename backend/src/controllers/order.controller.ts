@@ -576,6 +576,36 @@ export class OrderController {
     });
   });
 
+  /** PATCH /api/order/:id/shipping-cost – update delivery fee and recalculate total (Admin, retail only). */
+  updateOrderShippingCost = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const shippingCost = Number(req.body?.shippingCost);
+
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+    if (typeof shippingCost !== 'number' || !Number.isFinite(shippingCost) || shippingCost < 0) {
+      throw createValidationError('shippingCost must be a non-negative number');
+    }
+
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.updateOrderShippingCost(id, shippingCost);
+    } catch (err: any) {
+      throw createValidationError(err?.message || 'Failed to update shipping cost');
+    }
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Shipping cost updated and order total recalculated',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
   getDashboardStats = asyncHandler(async (req: Request, res: Response) => {
     const stats = await this.orderService.getDashboardStats();

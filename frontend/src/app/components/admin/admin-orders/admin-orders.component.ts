@@ -88,6 +88,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   editableItems: EditableOrderItem[] = [];
   kitchenPrepLines: KitchenPrepLine[] = [];
   isSavingKitchenPrep = false;
+  isEditingShippingCost = false;
+  editingShippingCostValue = 0;
+  isSavingShippingCost = false;
   /** True while a capture request is in flight. */
   isCapturing = false;
   /** True while a void request is in flight. */
@@ -381,6 +384,78 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     if (order.numberOfPortions !== undefined && order.numberOfPortions !== null && order.numberOfPortions !== '') return true;
     if (order.mealTime != null && String(order.mealTime).trim() !== '') return true;
     return false;
+  }
+
+  /** Retail (cart/checkout) orders support manual shipping cost edits. */
+  canEditShippingCost(order: Order | null): boolean {
+    return !!order && !this.isCateringOrder(order);
+  }
+
+  getShippingCost(order: Order | null): number {
+    if (!order) return 0;
+    const fee = order.deliveryFee ?? order.customerDetails?.deliveryFee;
+    return fee != null && Number.isFinite(Number(fee)) ? Number(fee) : 0;
+  }
+
+  startEditingShippingCost(): void {
+    if (!this.selectedOrder || !this.canEditShippingCost(this.selectedOrder)) return;
+    this.editingShippingCostValue = this.getShippingCost(this.selectedOrder);
+    this.isEditingShippingCost = true;
+  }
+
+  cancelEditingShippingCost(): void {
+    this.isEditingShippingCost = false;
+  }
+
+  saveShippingCost(): void {
+    if (!this.selectedOrder || this.isSavingShippingCost) return;
+    const orderId = (this.selectedOrder._id || this.selectedOrder.id)?.toString();
+    if (!orderId) return;
+
+    const newCost = Number(this.editingShippingCostValue);
+    if (!Number.isFinite(newCost) || newCost < 0) {
+      this.errorMessage = 'דמי משלוח חייבים להיות מספר חיובי';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+
+    this.isSavingShippingCost = true;
+    this.orderService.updateShippingCost(orderId, newCost).subscribe({
+      next: (updated) => {
+        this.isSavingShippingCost = false;
+        this.isEditingShippingCost = false;
+
+        const normalized: Order = {
+          ...updated,
+          id: (updated._id || updated.id)?.toString(),
+          customerDetails: {
+            ...(updated.customerDetails || {}),
+            deliveryFee: updated.deliveryFee ?? updated.customerDetails?.deliveryFee,
+            subtotal: updated.subtotal ?? updated.customerDetails?.subtotal
+          }
+        };
+
+        this.selectedOrder = normalized;
+        this._patchOrderInLists(orderId, {
+          deliveryFee: normalized.deliveryFee,
+          subtotal: normalized.subtotal,
+          totalPrice: normalized.totalPrice,
+          customerDetails: normalized.customerDetails
+        });
+
+        if (normalized.paymentStatus === 'authorized') {
+          this.authorizedAmountMismatchWarning = true;
+        }
+
+        this.successMessage = 'דמי המשלוח עודכנו והסכום חושב מחדש';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.isSavingShippingCost = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון דמי המשלוח';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
   }
 
   /** True if order is specifically from the events catering form (cateringKind:'events'). */
@@ -1092,6 +1167,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.selectedOrder = null;
     this.isEditingEventDate = false;
     this.isEditingItems = false;
+    this.isEditingShippingCost = false;
+    this.isSavingShippingCost = false;
     this.editableItems = [];
     this.kitchenPrepLines = [];
     this.searchTerm = '';

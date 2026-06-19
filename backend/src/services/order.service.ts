@@ -630,9 +630,19 @@ export class OrderService {
       })
     );
 
-    const recalculatedTotalPrice = normalizedItems.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    const existingDiscount = Math.max(
+      0,
+      (Number(order.subtotal || 0) + (order.deliveryFee || 0)) - Number(order.totalPrice || 0)
+    );
+    const newSubtotal = Math.round(
+      normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
+    ) / 100;
+    const newTotalPrice = Math.max(
+      0,
+      Math.round((newSubtotal + (order.deliveryFee || 0) - existingDiscount) * 100) / 100
     );
 
     const updateResult = await Order.updateOne(
@@ -640,7 +650,70 @@ export class OrderService {
       {
         $set: {
           items: normalizedItems,
-          totalPrice: Math.round(recalculatedTotalPrice * 100) / 100
+          subtotal: newSubtotal,
+          totalPrice: newTotalPrice
+        }
+      }
+    );
+    if (updateResult.matchedCount === 0) return null;
+
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return updated as IOrder | null;
+  }
+
+  /**
+   * Admin: update retail order shipping (deliveryFee) and recalculate totalPrice.
+   * totalPrice = itemsSubtotal + shippingCost - implicitDiscount (coupon / prior adjustment).
+   */
+  async updateOrderShippingCost(orderId: string, shippingCost: number): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    if (
+      (order as any).orderType === 'catering' ||
+      (order as any).numberOfPortions ||
+      (order as any).mealTime
+    ) {
+      throw new Error('Shipping cost cannot be updated for catering orders');
+    }
+
+    const items = Array.isArray(order.items) ? order.items : [];
+    const itemsSubtotal = items.reduce((sum, item) => {
+      const price = Number((item as any).price) || 0;
+      const qty = Number((item as any).quantity) || 0;
+      return sum + price * qty;
+    }, 0);
+    const roundedSubtotal = Math.round(itemsSubtotal * 100) / 100;
+
+    const cd = (order.customerDetails || {}) as Record<string, unknown>;
+    const previousSubtotal = Number(order.subtotal ?? cd.subtotal ?? roundedSubtotal);
+    const previousDelivery = Number(order.deliveryFee ?? cd.deliveryFee ?? 0);
+    const previousTotal = Number(order.totalPrice) || 0;
+    const discountAmount = Math.max(
+      0,
+      Math.round((previousSubtotal + previousDelivery - previousTotal) * 100) / 100
+    );
+
+    const newShipping = Math.round(shippingCost * 100) / 100;
+    const newTotal = Math.max(
+      0,
+      Math.round((roundedSubtotal + newShipping - discountAmount) * 100) / 100
+    );
+
+    const customerDetails = {
+      ...cd,
+      deliveryFee: newShipping,
+      subtotal: roundedSubtotal
+    };
+
+    const updateResult = await Order.updateOne(
+      { _id: orderId },
+      {
+        $set: {
+          deliveryFee: newShipping,
+          subtotal: roundedSubtotal,
+          totalPrice: newTotal,
+          customerDetails
         }
       }
     );

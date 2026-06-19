@@ -133,6 +133,7 @@ router.patch('/:id/status', authenticate, requireCapability(CAP.DELIVERIES_MY_UP
 router.patch('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
 router.put('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
 router.put('/admin/:id/items', authenticate, requireAdmin, orderController.updateOrderItems);
+router.patch('/:id/shipping-cost', authenticate, requireAdmin, orderController.updateOrderShippingCost);
 router.delete('/:id', authenticate, requireAdmin, orderController.deleteOrder);
 
 export default router;

@@ -21,7 +21,7 @@
 import crypto from 'crypto';
 import { Request, Response } from 'express';
 import Order from '../models/Order';
-import { TranzilaService } from '../services/tranzila.service';
+import { TranzilaService, TranzilaCaptureOrderContext } from '../services/tranzila.service';
 import { upsertCustomerFromOrder, normalizePhone } from '../services/customer.service';
 import { emailService } from '../services/email.service';
 import { ORDER_PAYMENT_OPERATION_SELECT } from '../utils/order-projection.util';
@@ -33,6 +33,10 @@ import {
 } from '../middleware/errorHandler';
 
 const tranzilaService = new TranzilaService();
+
+function roundMoney(value: number): number {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
 
 function userCanAccessOrderPaymentStatus(order: Record<string, unknown>, user: Record<string, unknown>): boolean {
   if (String(user?.role || '') === 'admin') return true;
@@ -380,7 +384,10 @@ export class PaymentController {
     const { orderId } = req.params;
     if (!orderId) throw createValidationError('orderId is required');
 
-    const order = await Order.findById(orderId).select(ORDER_PAYMENT_OPERATION_SELECT);
+    const order = await Order.findById(orderId)
+      .select(`${ORDER_PAYMENT_OPERATION_SELECT} items totalPrice deliveryFee subtotal customerDetails userId paymentStatus transactionId`)
+      .populate('userId', 'fullName username')
+      .lean();
     if (!order) throw createNotFoundError('Order');
 
     if (order.paymentStatus !== 'authorized') {
@@ -412,15 +419,32 @@ export class PaymentController {
     }
 
     // ── Real capture ───────────────────────────────────────────────────────────
+    const linkedUser =
+      (order as { userId?: { fullName?: string; username?: string } | string | null }).userId &&
+      typeof (order as { userId?: unknown }).userId === 'object'
+        ? ((order as { userId: { fullName?: string; username?: string } }).userId)
+        : null;
+    const captureAmount = roundMoney(Number(order.totalPrice ?? 0));
+    const captureContext: TranzilaCaptureOrderContext = {
+      items: order.items || [],
+      totalPrice: captureAmount,
+      deliveryFee: order.deliveryFee,
+      subtotal: order.subtotal,
+      customerDetails: order.customerDetails,
+      userName: linkedUser?.fullName,
+      userEmail: linkedUser?.username
+    };
+
     let result;
     try {
       result = await tranzilaService.capturePayment(
-        order.transactionId,
-        order.totalPrice,
-        order.authCode,
-        order.cardToken,
-        order.expireMonth,
-        order.expireYear
+        String(order.transactionId || ''),
+        captureAmount,
+        (order as { authCode?: string }).authCode,
+        (order as { cardToken?: string }).cardToken,
+        (order as { expireMonth?: number }).expireMonth,
+        (order as { expireYear?: number }).expireYear,
+        captureContext
       );
     } catch (err: any) {
       console.error('[payment:capture] TranzilaService error:', err.message);

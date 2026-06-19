@@ -931,10 +931,65 @@
                   <span class="summary-label">סכום ביניים:</span>
                   <span class="summary-value">₪{{ (selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) | number:'1.2-2' }}</span>
                 </div>
-                <div class="summary-row" *ngIf="(selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) != null">
-                  <span class="summary-label">דמי משלוח:</span>
-                  <span class="summary-value">₪{{ (selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) | number:'1.2-2' }}</span>
-                </div>
+                @if (canEditShippingCost(selectedOrder)) {
+                  <div class="summary-row shipping-cost-row">
+                    <span class="summary-label">דמי משלוח:</span>
+                    @if (!isEditingShippingCost) {
+                      <span class="summary-value shipping-cost-display">
+                        <span>₪{{ getShippingCost(selectedOrder) | number:'1.2-2' }}</span>
+                        <button
+                          type="button"
+                          class="btn-inline-edit"
+                          (click)="startEditingShippingCost()"
+                          title="ערוך דמי משלוח"
+                          aria-label="ערוך דמי משלוח"
+                        >
+                          <i class="fas fa-pencil-alt"></i>
+                        </button>
+                      </span>
+                    } @else {
+                      <span class="summary-value shipping-cost-edit">
+                        <input
+                          type="number"
+                          class="shipping-cost-input"
+                          [(ngModel)]="editingShippingCostValue"
+                          name="editingShippingCost"
+                          min="0"
+                          step="0.01"
+                        />
+                        <button
+                          type="button"
+                          class="btn-inline-action btn-inline-save"
+                          (click)="saveShippingCost()"
+                          [disabled]="isSavingShippingCost"
+                          title="שמור"
+                          aria-label="שמור דמי משלוח"
+                        >
+                          @if (isSavingShippingCost) {
+                            <i class="fas fa-spinner fa-spin"></i>
+                          } @else {
+                            <i class="fas fa-check"></i>
+                          }
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-inline-action btn-inline-cancel"
+                          (click)="cancelEditingShippingCost()"
+                          [disabled]="isSavingShippingCost"
+                          title="ביטול"
+                          aria-label="ביטול עריכת דמי משלוח"
+                        >
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </span>
+                    }
+                  </div>
+                } @else if ((selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) != null) {
+                  <div class="summary-row">
+                    <span class="summary-label">דמי משלוח:</span>
+                    <span class="summary-value">₪{{ (selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) | number:'1.2-2' }}</span>
+                  </div>
+                }
                 <div class="summary-row">
                   <span class="summary-label">סה"כ הזמנה:</span>
                   <span class="summary-value">₪{{ selectedOrder.totalPrice | number:'1.2-2' }}</span>

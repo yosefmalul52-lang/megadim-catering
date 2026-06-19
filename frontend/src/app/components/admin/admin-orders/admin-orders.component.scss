@@ -1344,6 +1344,57 @@ $border: #e2e8f0;
   font-weight: 600;
 }
 
+.shipping-cost-display,
+.shipping-cost-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shipping-cost-input {
+  width: 5.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  direction: ltr;
+}
+
+.btn-inline-edit,
+.btn-inline-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid #ced4da;
+  border-radius: 0.25rem;
+  background: #fff;
+  color: #495057;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.btn-inline-edit:hover,
+.btn-inline-save:hover {
+  border-color: #0d6efd;
+  color: #0d6efd;
+}
+
+.btn-inline-cancel:hover {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.btn-inline-action:disabled,
+.btn-inline-edit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .modal-status .modal-content {
   max-width: 420px;
 }

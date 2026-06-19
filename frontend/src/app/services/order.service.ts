@@ -362,6 +362,26 @@ export class OrderService {
     );
   }
 
+  /** Admin: update retail order shipping cost; backend recalculates totalPrice. */
+  updateShippingCost(orderId: string, shippingCost: number): Observable<Order> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/${id}/shipping-cost`,
+        { shippingCost }
+      )
+      .pipe(
+        map((response) => ({
+          ...response.data,
+          id: response.data._id || response.data.id
+        })),
+        catchError((error: any) => {
+          console.error('Error updating shipping cost:', error);
+          throw error;
+        })
+      );
+  }
+
   /** Admin: replace items of an existing order and let backend recalculate totalPrice from DB prices. */
   updateOrderItems(
     orderId: string,
