@@ -21,7 +21,7 @@
 import crypto from 'crypto';
 import { Request, Response } from 'express';
 import Order from '../models/Order';
-import { TranzilaService, TranzilaCaptureOrderContext } from '../services/tranzila.service';
+import { TranzilaService } from '../services/tranzila.service';
 import { upsertCustomerFromOrder, normalizePhone } from '../services/customer.service';
 import { emailService } from '../services/email.service';
 import { ORDER_PAYMENT_OPERATION_SELECT } from '../utils/order-projection.util';
@@ -385,8 +385,7 @@ export class PaymentController {
     if (!orderId) throw createValidationError('orderId is required');
 
     const order = await Order.findById(orderId)
-      .select(`${ORDER_PAYMENT_OPERATION_SELECT} items totalPrice deliveryFee subtotal customerDetails userId paymentStatus transactionId`)
-      .populate('userId', 'fullName username')
+      .select(`${ORDER_PAYMENT_OPERATION_SELECT} totalPrice paymentStatus transactionId`)
       .lean();
     if (!order) throw createNotFoundError('Order');
 
@@ -419,21 +418,7 @@ export class PaymentController {
     }
 
     // ── Real capture ───────────────────────────────────────────────────────────
-    const linkedUser =
-      (order as { userId?: { fullName?: string; username?: string } | string | null }).userId &&
-      typeof (order as { userId?: unknown }).userId === 'object'
-        ? ((order as { userId: { fullName?: string; username?: string } }).userId)
-        : null;
     const captureAmount = roundMoney(Number(order.totalPrice ?? 0));
-    const captureContext: TranzilaCaptureOrderContext = {
-      items: order.items || [],
-      totalPrice: captureAmount,
-      deliveryFee: order.deliveryFee,
-      subtotal: order.subtotal,
-      customerDetails: order.customerDetails,
-      userName: linkedUser?.fullName,
-      userEmail: linkedUser?.username
-    };
 
     let result;
     try {
@@ -443,8 +428,7 @@ export class PaymentController {
         (order as { authCode?: string }).authCode,
         (order as { cardToken?: string }).cardToken,
         (order as { expireMonth?: number }).expireMonth,
-        (order as { expireYear?: number }).expireYear,
-        captureContext
+        (order as { expireYear?: number }).expireYear
       );
     } catch (err: any) {
       console.error('[payment:capture] TranzilaService error:', err.message);

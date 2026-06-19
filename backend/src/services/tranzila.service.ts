@@ -26,110 +26,8 @@ export type TranzilaCaptureResult = {
   parsed?: Record<string, string>;
 };
 
-export type TranzilaInvoiceItem = {
-  name: string;
-  type: 'I' | 'S' | 'C';
-  unit_price: number;
-  units_number: number;
-};
-
-export type TranzilaCaptureOrderContext = {
-  items?: Array<{ name?: string; price?: number; quantity?: number }>;
-  totalPrice: number;
-  deliveryFee?: number | null;
-  subtotal?: number | null;
-  customerDetails?: { fullName?: string; email?: string; deliveryFee?: number; subtotal?: number };
-  userName?: string;
-  userEmail?: string;
-};
-
 function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
-}
-
-/**
- * Build itemized invoice lines for Tranzila V1 capture.
- * Maps legacy cname{i}/cprice{i}/cqty{i} CGI fields to V1 `items[]`.
- */
-export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): TranzilaInvoiceItem[] {
-  const lines: TranzilaInvoiceItem[] = [];
-
-  for (const item of order.items || []) {
-    const name = String(item.name || 'פריט').trim() || 'פריט';
-    const units = Math.max(1, Math.round(Number(item.quantity) || 1));
-    const unitPrice = roundMoney(Number(item.price) * units);
-    lines.push({ name, type: 'I', unit_price: unitPrice, units_number: units });
-  }
-
-  const cd = order.customerDetails || {};
-  const shippingCost = roundMoney(
-    order.deliveryFee ?? cd.deliveryFee ?? 0
-  );
-  if (shippingCost > 0) {
-    lines.push({
-      name: 'דמי משלוח',
-      type: 'S',
-      unit_price: shippingCost,
-      units_number: 1
-    });
-  }
-
-  const lineTotal = roundMoney(
-    lines.reduce((sum, line) => sum + line.unit_price, 0)
-  );
-  const targetTotal = roundMoney(order.totalPrice);
-  const discountAmount = roundMoney(Math.max(0, lineTotal - targetTotal));
-
-  if (discountAmount > 0) {
-    lines.push({
-      name: 'הנחה',
-      type: 'C',
-      unit_price: -discountAmount,
-      units_number: 1
-    });
-  }
-
-  if (lines.length === 0) {
-    lines.push({
-      name: 'הזמנה',
-      type: 'I',
-      unit_price: targetTotal,
-      units_number: 1
-    });
-  }
-
-  return lines;
-}
-
-/** Resolve customer name/email for Tranzila invoice (client block + root email). */
-export function resolveTranzilaCaptureClient(
-  order: TranzilaCaptureOrderContext
-): { name?: string; email?: string } {
-  const cd = order.customerDetails || {};
-  const name = String(cd.fullName || order.userName || '').trim();
-  const rawEmail = String(cd.email || order.userEmail || '').trim().toLowerCase();
-  const email = rawEmail.includes('@') ? rawEmail : '';
-  const client: { name?: string; email?: string } = {};
-  if (name) client.name = name;
-  if (email) client.email = email;
-  return client;
-}
-
-/**
- * Legacy CGI-style cname/cprice/cqty map (application/x-www-form-urlencoded).
- * V1 REST capture uses `items[]` JSON instead; kept for parity with Tranzila docs.
- */
-export function buildTranzilaFormEncodedInvoiceFields(
-  order: TranzilaCaptureOrderContext
-): Record<string, string> {
-  const fields: Record<string, string> = {};
-  buildTranzilaInvoiceItems(order).forEach((line, index) => {
-    const i = index + 1;
-    fields[`cname${i}`] = line.name;
-    fields[`cprice${i}`] = String(line.unit_price);
-    fields[`cqty${i}`] = String(line.units_number);
-  });
-  return fields;
 }
 
 // ─── Auth Header Helper ───────────────────────────────────────────────────────
@@ -286,8 +184,7 @@ export class TranzilaService {
     authCode?: string,
     cardToken?: string,
     expireMonth?: number,
-    expireYear?: number,
-    orderContext?: TranzilaCaptureOrderContext
+    expireYear?: number
   ): Promise<TranzilaCaptureResult> {
     const terminal  = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
     const appKey    = (process.env.TRANZILA_APP_KEY       || '').trim();
@@ -313,17 +210,6 @@ export class TranzilaService {
     const roundedAmount = roundMoney(amount);
     const refTxnId      = Number(transactionId.trim());
 
-    const invoiceItems = orderContext
-      ? buildTranzilaInvoiceItems({ ...orderContext, totalPrice: roundedAmount })
-      : [{
-          name:         'הזמנה',
-          type:         'I' as const,
-          unit_price:   roundedAmount,
-          units_number: 1
-        }];
-
-    const client = orderContext ? resolveTranzilaCaptureClient(orderContext) : {};
-
     const body: Record<string, unknown> = {
       terminal_name:        terminal,
       txn_type:             'force',
@@ -333,25 +219,12 @@ export class TranzilaService {
       card_number:          cardTokenStr,
       expire_month:         expMonth,
       expire_year:          expYear,
-      response_language:    'hebrew',
-      items:                invoiceItems,
-      ...(Object.keys(client).length ? { client } : {}),
-      ...(client.email ? { email: client.email } : {})
+      sum:                  roundedAmount
     };
 
-    // Redact card_number (token) from logs — do not mutate the actual payload
-    const logBody = {
-      ...body,
-      card_number: '***',
-      items: invoiceItems.map((line) => ({
-        name: line.name,
-        type: line.type,
-        unit_price: line.unit_price,
-        units_number: line.units_number
-      }))
-    };
+    const logBody = { ...body, card_number: '***' };
     console.log(
-      `[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | items=${invoiceItems.length} | client=${JSON.stringify(client)} | body=${JSON.stringify(logBody)}`
+      `[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | body=${JSON.stringify(logBody)}`
     );
 
     try {
