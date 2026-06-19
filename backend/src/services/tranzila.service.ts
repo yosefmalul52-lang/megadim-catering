@@ -101,13 +101,14 @@ export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): T
   return lines;
 }
 
-/** Resolve customer name/email for Tranzila invoice (client block). */
+/** Resolve customer name/email for Tranzila invoice (client block + root email). */
 export function resolveTranzilaCaptureClient(
   order: TranzilaCaptureOrderContext
 ): { name?: string; email?: string } {
   const cd = order.customerDetails || {};
   const name = String(cd.fullName || order.userName || '').trim();
-  const email = String(cd.email || order.userEmail || '').trim();
+  const rawEmail = String(cd.email || order.userEmail || '').trim().toLowerCase();
+  const email = rawEmail.includes('@') ? rawEmail : '';
   const client: { name?: string; email?: string } = {};
   if (name) client.name = name;
   if (email) client.email = email;
@@ -333,8 +334,11 @@ export class TranzilaService {
       expire_month:         expMonth,
       expire_year:          expYear,
       response_language:    'hebrew',
+      imaindoc:             '1',
+      email_recp:           '1',
       items:                invoiceItems,
-      ...(Object.keys(client).length ? { client } : {})
+      ...(Object.keys(client).length ? { client } : {}),
+      ...(client.email ? { email: client.email } : {})
     };
 
     // Redact card_number (token) from logs — do not mutate the actual payload
