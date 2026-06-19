@@ -26,8 +26,86 @@ export type TranzilaCaptureResult = {
   parsed?: Record<string, string>;
 };
 
+export type TranzilaInvoiceItem = {
+  name: string;
+  type: 'I' | 'S' | 'C';
+  unit_price: number;
+  units_number: number;
+};
+
+export type TranzilaCaptureOrderContext = {
+  items?: Array<{ name?: string; price?: number; quantity?: number }>;
+  totalPrice: number;
+  deliveryFee?: number | null;
+  subtotal?: number | null;
+  customerDetails?: { fullName?: string; email?: string; deliveryFee?: number; subtotal?: number };
+  userName?: string;
+  userEmail?: string;
+};
+
 function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+/** Build itemized invoice lines for Tranzila V1 force capture. */
+export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): TranzilaInvoiceItem[] {
+  const lines: TranzilaInvoiceItem[] = (order.items || []).map((item) => ({
+    name: String(item.name || 'פריט').trim() || 'פריט',
+    type: 'I' as const,
+    unit_price: roundMoney(Number(item.price) || 0),
+    units_number: Math.max(1, Math.round(Number(item.quantity) || 1))
+  }));
+
+  const cd = order.customerDetails || {};
+  const shippingCost = roundMoney(order.deliveryFee ?? cd.deliveryFee ?? 0);
+  if (shippingCost > 0) {
+    lines.push({
+      name: 'דמי משלוח',
+      type: 'S',
+      unit_price: shippingCost,
+      units_number: 1
+    });
+  }
+
+  const lineTotal = roundMoney(
+    lines.reduce((sum, line) => sum + line.unit_price * line.units_number, 0)
+  );
+  const targetTotal = roundMoney(order.totalPrice);
+  const discountAmount = roundMoney(Math.max(0, lineTotal - targetTotal));
+
+  if (discountAmount > 0) {
+    lines.push({
+      name: 'הנחה',
+      type: 'C',
+      unit_price: -discountAmount,
+      units_number: 1
+    });
+  }
+
+  if (lines.length === 0) {
+    lines.push({
+      name: 'הזמנה',
+      type: 'I',
+      unit_price: targetTotal,
+      units_number: 1
+    });
+  }
+
+  return lines;
+}
+
+/** Resolve customer name/email for Tranzila invoice client block. */
+export function resolveTranzilaCaptureClient(
+  order: TranzilaCaptureOrderContext
+): { name?: string; email?: string } {
+  const cd = order.customerDetails || {};
+  const name = String(cd.fullName || order.userName || '').trim();
+  const rawEmail = String(cd.email || order.userEmail || '').trim().toLowerCase();
+  const email = rawEmail.includes('@') ? rawEmail : '';
+  const client: { name?: string; email?: string } = {};
+  if (name) client.name = name;
+  if (email) client.email = email;
+  return client;
 }
 
 // ─── Auth Header Helper ───────────────────────────────────────────────────────
@@ -184,7 +262,8 @@ export class TranzilaService {
     authCode?: string,
     cardToken?: string,
     expireMonth?: number,
-    expireYear?: number
+    expireYear?: number,
+    orderContext?: TranzilaCaptureOrderContext
   ): Promise<TranzilaCaptureResult> {
     const terminal  = (process.env.TRANZILA_TERMINAL_NAME || '').trim();
     const appKey    = (process.env.TRANZILA_APP_KEY       || '').trim();
@@ -210,6 +289,17 @@ export class TranzilaService {
     const roundedAmount = roundMoney(amount);
     const refTxnId      = Number(transactionId.trim());
 
+    const invoiceItems = orderContext
+      ? buildTranzilaInvoiceItems({ ...orderContext, totalPrice: roundedAmount })
+      : [{
+          name:         'הזמנה',
+          type:         'I' as const,
+          unit_price:   roundedAmount,
+          units_number: 1
+        }];
+
+    const client = orderContext ? resolveTranzilaCaptureClient(orderContext) : {};
+
     const body: Record<string, unknown> = {
       terminal_name:        terminal,
       txn_type:             'force',
@@ -219,12 +309,23 @@ export class TranzilaService {
       card_number:          cardTokenStr,
       expire_month:         expMonth,
       expire_year:          expYear,
-      sum:                  roundedAmount
+      response_language:    'hebrew',
+      items:                invoiceItems,
+      ...(Object.keys(client).length ? { client } : {})
     };
 
-    const logBody = { ...body, card_number: '***' };
+    const logBody = {
+      ...body,
+      card_number: '***',
+      items: invoiceItems.map((line) => ({
+        name: line.name,
+        type: line.type,
+        unit_price: line.unit_price,
+        units_number: line.units_number
+      }))
+    };
     console.log(
-      `[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | body=${JSON.stringify(logBody)}`
+      `[tranzila:v1] capture → force | terminal=${terminal} | ref=${refTxnId} | amount=${roundedAmount} | items=${invoiceItems.length} | client=${JSON.stringify(client)} | body=${JSON.stringify(logBody)}`
     );
 
     try {
