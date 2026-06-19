@@ -9,8 +9,11 @@ node_modules/
 # IDE
 .vscode/
 
-# Build (uncomment if you no longer commit dist for deployment)
-# dist/
+# Build output
+dist/
+/dist
+build/
+/build
 
 # Logs & debug
 *.log
