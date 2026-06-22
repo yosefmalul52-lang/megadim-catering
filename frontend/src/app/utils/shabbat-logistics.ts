@@ -9,9 +9,9 @@ import type {
 import {
   buildCategoryLogisticsLine,
   type CategoryLogisticsDisplayLine,
-  type DishLogisticsLookup
+  type DishLogisticsLookup,
+  type LogisticsCategoryKey
 } from './kitchen-logistics';
-import type { MenuCategoryKey } from './menu-structure';
 
 export type ShabbatPortionRule = 'regular' | 'vegetarian' | 'both' | 'saladDouble';
 
@@ -77,7 +77,7 @@ export function aggregateShabbatKitchenTotals(
   return { regular, vegetarian, grandTotal: regular + vegetarian };
 }
 
-function logisticsKeyForShabbatField(fieldKey: string): MenuCategoryKey | 'fish' {
+function logisticsKeyForShabbatField(fieldKey: string): LogisticsCategoryKey {
   if (fieldKey === 'fish') return 'fish';
   if (fieldKey === 'mainMeat') return 'mainMeat';
   if (fieldKey === 'vegetarianMain') return 'vegetarianMain';
@@ -101,7 +101,7 @@ function buildLine(
     `${sectionLabel} — ${dishLabel}`,
     dish,
     portions,
-    key === 'fish' ? 'side' : key,
+    key,
     logistics
   );
   return line;

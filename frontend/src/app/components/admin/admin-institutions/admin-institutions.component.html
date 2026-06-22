@@ -860,11 +860,15 @@
             <input id="dictGrams" type="number" min="1" class="input" formControlName="gramsPerPortion" />
             <p class="field-hint">משמש לחישוב ק"ג בדוחות ייצור</p>
           </div>
-        } @else {
+        } @else if (isGastronormCategory(dictionaryFormCategory)) {
           <div class="field">
             <label for="dictGnPortions">מספר מנות לגסטרונום</label>
             <input id="dictGnPortions" type="number" min="1" class="input" formControlName="portionsPerGastronorm" />
             <p class="field-hint">כמה מנות נכנסות בגסטרונום אחד (ברירת מחדל: 40)</p>
+          </div>
+        } @else {
+          <div class="field field-hint-only">
+            <p class="field-hint">מנה זו נמדדת בדוחות ייצור לפי כמות יחידות (לא גסטרונומים)</p>
           </div>
         }
       </div>
@@ -895,6 +899,8 @@
                       {{ item.name }}
                       @if (item.category === 'mainMeat') {
                         <span class="grams-badge">{{ item.gramsPerPortion }} ג' למנה</span>
+                      } @else if (isUnitCountCategory(item.category)) {
+                        <span class="units-badge">נמדד ביחידות</span>
                       } @else {
                         <span class="gn-badge">{{ item.portionsPerGastronorm || 40 }} מנות/גסטרונום</span>
                       }

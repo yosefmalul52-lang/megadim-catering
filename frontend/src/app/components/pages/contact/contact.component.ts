@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ContactService } from '../../../services/contact.service';
 import { SeoService } from '../../../services/seo.service';
 import { MarketingService } from '../../../services/marketing.service';
+import { buildWhatsAppHref, WHATSAPP_DEFAULT_MESSAGE } from '../../../constants/contact.constants';
 
 @Component({
   selector: 'app-contact',
@@ -26,12 +27,26 @@ export class ContactComponent implements OnInit {
   isSubmitting = false;
   successMessage = '';
   errorMessage = '';
-  contactInfo: { phone: string; email: string } = { phone: '', email: '' };
+  contactInfo: { phone: string; email: string; whatsapp: string; businessHours: string } = {
+    phone: '',
+    email: '',
+    whatsapp: '',
+    businessHours: ''
+  };
 
   ngOnInit(): void {
     this.seoService.updatePage('contact');
     const info = this.contactService.getContactInfo();
-    this.contactInfo = { phone: info.phone, email: info.email };
+    this.contactInfo = {
+      phone: info.phone,
+      email: info.email,
+      whatsapp: info.whatsapp,
+      businessHours: info.businessHours
+    };
+  }
+
+  get whatsappHref(): string {
+    return buildWhatsAppHref(this.contactInfo.whatsapp, WHATSAPP_DEFAULT_MESSAGE);
   }
 
   get displayPhone(): string {

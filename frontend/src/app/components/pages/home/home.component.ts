@@ -5,17 +5,18 @@ import { MatIconModule } from '@angular/material/icon';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { SeoService } from '../../../services/seo.service';
 import { FeaturedMenuComponent } from '../../featured-menu/featured-menu.component';
-import { AboutComponent } from '../../about/about.component';
 import { VideoSectionComponent } from '../../video-section/video-section.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 
-interface HomeServiceCard {
+interface HomeServicePath {
   route: string;
   image: string;
   alt: string;
-  lineWhite: string;
-  lineGold: string;
+  title: string;
+  text: string;
+  cta: string;
   imagePosition: string;
+  featured?: boolean;
 }
 
 interface HomeTestimonial {
@@ -33,7 +34,6 @@ interface HomeTestimonial {
     MatIconModule,
     NgOptimizedImage,
     FeaturedMenuComponent,
-    AboutComponent,
     VideoSectionComponent,
     PagePopupComponent,
   ],
@@ -44,45 +44,54 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly settingsService = inject(SiteSettingsService);
   private readonly seoService = inject(SeoService);
 
+  @ViewChild('heroTitleMeasure') heroTitleMeasure?: ElementRef<HTMLElement>;
+
   settings: SiteSettings | null = null;
   showPopup = false;
 
   featuredReviewIndex = 0;
-  reviewsAccentVisible = false;
   private featuredReviewTimer?: ReturnType<typeof setInterval>;
-  private reviewsAccentObserver?: IntersectionObserver;
+  private heroTypingTimer?: ReturnType<typeof setTimeout>;
 
-  @ViewChild('reviewsTitleWrap') reviewsTitleWrap?: ElementRef<HTMLElement>;
+  readonly heroTitleFull = 'קייטרינג בשרי כשר למהדרין לאירועים, שבתות וחגים.';
+  heroTitleLines: string[] = [this.heroTitleFull];
+  heroTitleTypedLines: string[] = [''];
+  heroTitleDone = false;
 
-  readonly heroTitleFull = 'קייטרינג ברמה אחרת';
-  heroTitleDisplayed = '';
-  heroTitleComplete = false;
-  private heroTitleStartTimer?: ReturnType<typeof setTimeout>;
-  private heroTitleTimer?: ReturnType<typeof setInterval>;
+  readonly heroTrustItems = [
+    '5.0 בגוגל',
+    'מאות לקוחות מרוצים',
+    'כשרות מהדרין',
+    'משלוחים עד הבית',
+  ];
 
-  readonly serviceCards: HomeServiceCard[] = [
+  readonly servicePaths: HomeServicePath[] = [
     {
       route: '/ready-for-shabbat',
       image: 'v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg',
       alt: 'אוכל מוכן לשבת וחג – מנות ביתיות ובשר כשר למהדרין | קייטרינג מגדים',
-      lineWhite: 'הזמנה נוחה עד הבית',
-      lineGold: 'אוכל מוכן לשבת וחג',
+      title: 'אוכל מוכן לשבת וחג',
+      text: 'מנות עשירות ומוכנות להגשה לשולחן שבת, חג או אירוח משפחתי.',
+      cta: 'לתפריט שבת וחג',
       imagePosition: 'center',
     },
     {
       route: '/catering',
       image: 'v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg',
-      alt: 'קייטרינג לאירועים – תפריט בשרי כשר למהדרין ושולחן חגיגי | קייטרינג מגדים',
-      lineWhite: 'לכל אירוע מיוחד',
-      lineGold: 'קייטרינג לאירועים',
+      alt: 'קייטרינג לאירועים – תפריט בשרי כשר למהדרין | קייטרינג מגדים',
+      title: 'קייטרינג לאירועים',
+      text: 'תפריט בשרי מלא לאירועים משפחתיים, עסקיים ומוסדיים.',
+      cta: 'לקבלת הצעה לאירוע',
       imagePosition: 'top center',
+      featured: true,
     },
     {
       route: '/shabbat-events',
       image: 'v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg',
-      alt: 'קייטרינג לשבת חתן ואירועי שבת וחג – מנות חמות וכשרות למהדרין | קייטרינג מגדים',
-      lineWhite: 'שבת חתן וחגים',
-      lineGold: 'קייטרינג לשבת וחג',
+      alt: 'קייטרינג לשבת וחג – כשר למהדרין | קייטרינג מגדים',
+      title: 'קייטרינג לשבת וחג',
+      text: 'קייטרינג מלא לשבתות, חגים ואירועי שבת וחג עם תפריט מותאם.',
+      cta: 'לקבלת הצעה לשבת וחג',
       imagePosition: 'center',
     },
   ];
@@ -135,87 +144,144 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.featuredReviewTimer = setInterval(() => {
       this.featuredReviewIndex = (this.featuredReviewIndex + 1) % this.testimonials.length;
     }, 6500);
-
-    this.startHeroTitleTyping();
   }
 
   ngAfterViewInit(): void {
-    this.setupReviewsAccentObserver();
+    requestAnimationFrame(() => {
+      this.heroTitleLines = this.splitTitleIntoLines();
+
+      if (
+        typeof window === 'undefined' ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        this.heroTitleTypedLines = [...this.heroTitleLines];
+        this.heroTitleDone = true;
+        return;
+      }
+
+      this.heroTitleTypedLines = [''];
+      this.heroTitleDone = false;
+      this.startHeroTyping();
+    });
   }
 
   ngOnDestroy(): void {
-    this.reviewsAccentObserver?.disconnect();
+    if (this.heroTypingTimer) {
+      clearTimeout(this.heroTypingTimer);
+    }
 
     if (this.featuredReviewTimer) {
       clearInterval(this.featuredReviewTimer);
     }
-    if (this.heroTitleStartTimer) {
-      clearTimeout(this.heroTitleStartTimer);
-    }
-    if (this.heroTitleTimer) {
-      clearInterval(this.heroTitleTimer);
-    }
-  }
-
-  private startHeroTitleTyping(): void {
-    const prefersReducedMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (prefersReducedMotion) {
-      this.heroTitleDisplayed = this.heroTitleFull;
-      this.heroTitleComplete = true;
-      return;
-    }
-
-    let index = 0;
-    const typeDelayMs = 80;
-    const startDelayMs = 350;
-
-    this.heroTitleStartTimer = setTimeout(() => {
-      this.heroTitleTimer = setInterval(() => {
-        if (index < this.heroTitleFull.length) {
-          this.heroTitleDisplayed += this.heroTitleFull[index];
-          index += 1;
-          return;
-        }
-
-        this.heroTitleComplete = true;
-        if (this.heroTitleTimer) {
-          clearInterval(this.heroTitleTimer);
-        }
-      }, typeDelayMs);
-    }, startDelayMs);
   }
 
   setFeaturedReview(index: number): void {
     this.featuredReviewIndex = index;
   }
 
-  private setupReviewsAccentObserver(): void {
-    const el = this.reviewsTitleWrap?.nativeElement;
-    if (!el || typeof IntersectionObserver === 'undefined') {
-      this.reviewsAccentVisible = true;
-      return;
+  splitReviewParagraphs(text: string): [string, string] {
+    const trimmed = text.trim();
+    const allSentences =
+      trimmed.match(/[^.!?]+[.!?]+/g)?.map((s) => s.trim()).filter(Boolean) ?? [];
+    const sentences = allSentences.length ? allSentences.slice(0, 4) : [trimmed];
+
+    if (sentences.length >= 2) {
+      const mid = Math.ceil(sentences.length / 2);
+      return [sentences.slice(0, mid).join(' '), sentences.slice(mid).join(' ')];
     }
 
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) {
-      this.reviewsAccentVisible = true;
-      return;
+    const midpoint = Math.floor(trimmed.length / 2);
+    const splitAt = trimmed.lastIndexOf(' ', midpoint);
+    if (splitAt > 0) {
+      return [trimmed.slice(0, splitAt).trim(), trimmed.slice(splitAt).trim()];
     }
 
-    this.reviewsAccentObserver = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          this.reviewsAccentVisible = true;
-          this.reviewsAccentObserver?.disconnect();
-        }
-      },
-      { threshold: 0.35, rootMargin: '0px 0px -8% 0px' }
-    );
+    return [trimmed, ''];
+  }
 
-    this.reviewsAccentObserver.observe(el);
+  private splitTitleIntoLines(): string[] {
+    const el = this.heroTitleMeasure?.nativeElement;
+    if (!el || typeof document === 'undefined') {
+      return [this.heroTitleFull];
+    }
+
+    const text = this.heroTitleFull;
+    const textNode = el.firstChild;
+
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE || text.length === 0) {
+      return [text];
+    }
+
+    const range = document.createRange();
+    const lines: string[] = [];
+    let lineStart = 0;
+    let previousTop: number | null = null;
+
+    for (let i = 0; i < text.length; i += 1) {
+      range.setStart(textNode, i);
+      range.setEnd(textNode, i + 1);
+      const rect = range.getClientRects()[0];
+      if (!rect) {
+        continue;
+      }
+
+      if (previousTop !== null && Math.abs(rect.top - previousTop) > 4) {
+        lines.push(text.slice(lineStart, i));
+        lineStart = i;
+      }
+
+      previousTop = rect.top;
+    }
+
+    lines.push(text.slice(lineStart));
+    return lines.length > 0 ? lines : [text];
+  }
+
+  private buildTypedLines(activeLineIndex: number, activeCharIndex: number): string[] {
+    return this.heroTitleLines.slice(0, activeLineIndex + 1).map((line, index) => {
+      if (index < activeLineIndex) {
+        return line;
+      }
+      return line.slice(0, activeCharIndex);
+    });
+  }
+
+  private startHeroTyping(): void {
+    let lineIndex = 0;
+    let charIndex = 0;
+
+    const typeNext = (): void => {
+      if (lineIndex >= this.heroTitleLines.length) {
+        this.heroTitleDone = true;
+        this.heroTitleTypedLines = [...this.heroTitleLines];
+        return;
+      }
+
+      const currentLine = this.heroTitleLines[lineIndex];
+
+      if (charIndex < currentLine.length) {
+        charIndex += 1;
+        this.heroTitleTypedLines = this.buildTypedLines(lineIndex, charIndex);
+        const char = currentLine[charIndex - 1];
+        const delay = char === ',' ? 120 : char === ' ' ? 45 : 38;
+        this.heroTypingTimer = setTimeout(typeNext, delay);
+        return;
+      }
+
+      lineIndex += 1;
+      charIndex = 0;
+
+      if (lineIndex < this.heroTitleLines.length) {
+        this.heroTitleTypedLines = this.buildTypedLines(lineIndex, 0);
+        this.heroTypingTimer = setTimeout(typeNext, 90);
+        return;
+      }
+
+      this.heroTitleDone = true;
+      this.heroTitleTypedLines = [...this.heroTitleLines];
+    };
+
+    this.heroTypingTimer = setTimeout(typeNext, 450);
   }
 
   closePopup(): void {

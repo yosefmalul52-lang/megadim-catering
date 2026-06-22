@@ -1,128 +1,169 @@
 <div class="contact-page" dir="rtl">
-  <header class="page-header">
-    <div class="page-title-wrapper">
-      <span class="decorative-line right-line" aria-hidden="true"></span>
-      <h1 class="page-title">צור קשר</h1>
-      <span class="decorative-line left-line" aria-hidden="true"></span>
+  <header class="contact-hero">
+    <div class="contact-hero__inner">
+      <h1 class="contact-hero__title">בואו נבנה תפריט שמתאים בדיוק לאירוע שלכם!</h1>
+      <p class="contact-hero__lead">
+        השאירו פרטים או שלחו הודעה, ונחזור אליכם עם התאמה אישית לפי כמות האורחים, סוג האירוע ורמת הכשרות.
+      </p>
+      <p class="contact-hero__trust" aria-label="יתרונות מגדים">
+        <span class="contact-hero__trust-item">כשר למהדרין</span>
+        <span class="contact-hero__trust-item">בהנהלת השף ינון אנקרי</span>
+        <span class="contact-hero__trust-item">משלוחים עד הבית</span>
+        <span class="contact-hero__trust-item">התאמה אישית לאירועים</span>
+      </p>
     </div>
   </header>
 
+  <a
+    class="contact-mobile-wa"
+    [href]="whatsappHref"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <i class="fab fa-whatsapp" aria-hidden="true"></i>
+    שלחו הודעה בוואטסאפ
+  </a>
+
   <div class="contact-wrapper">
-    <div class="contact-grid">
-      <!-- Right in RTL: Contact Info -->
-      <aside class="contact-info-panel">
-        <h2 class="contact-info-title">פרטי התקשרות</h2>
-        <p class="contact-info-intro">
-          נשמח לעמוד לרשותכם. צרו איתנו קשר בטלפון, במייל או דרך האתר – ונחזור אליכם בהקדם.
-        </p>
-        <ul class="contact-info-list">
-          <li>
-            <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-phone"></i></span>
-            <a [href]="'tel:' + contactInfo.phone">{{ displayPhone }}</a>
-          </li>
-          <li>
-            <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
-            <a [href]="'mailto:' + contactInfo.email">{{ contactInfo.email }}</a>
-          </li>
-          <li>
-            <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-map-marker-alt"></i></span>
-            <span>אזור שירות: כל הארץ</span>
-          </li>
-        </ul>
-      </aside>
+    <div class="contact-card">
+      <div class="contact-grid">
+        <!-- Right in RTL: Contact details -->
+        <aside class="contact-info-panel">
+          <div class="contact-panel-column">
+            <h2 class="contact-panel-title">דברו איתנו ישירות!</h2>
+            <div class="contact-panel-body contact-info-body">
+              <p class="contact-panel-intro">
+                נשמח לעמוד לרשותכם, להבין את הצורך ולחזור אליכם בהקדם.
+              </p>
 
-      <!-- Left in RTL: Form -->
-      <div class="contact-form-panel">
-        <h2 class="contact-form-title">נשמח לשמוע מכם</h2>
-        <form (ngSubmit)="onSubmit(contactForm)" #contactForm="ngForm" class="contact-form">
-          <div class="form-group">
-            <input
-              type="text"
-              id="contact-name"
-              name="name"
-              class="form-input"
-              [(ngModel)]="form.name"
-              #nameField="ngModel"
-              required
-              placeholder=" "
-            />
-            <label for="contact-name" class="form-label-float">שם מלא</label>
-            @if (nameField.invalid && nameField.touched) {
-              <span class="form-error">שדה חובה</span>
-            }
-          </div>
-          <div class="form-group">
-            <input
-              type="tel"
-              id="contact-phone"
-              name="phone"
-              class="form-input"
-              [(ngModel)]="form.phone"
-              #phoneField="ngModel"
-              required
-              placeholder=" "
-            />
-            <label for="contact-phone" class="form-label-float">טלפון</label>
-            @if (phoneField.invalid && phoneField.touched) {
-              <span class="form-error">שדה חובה</span>
-            }
-          </div>
-          <div class="form-group">
-            <input
-              type="email"
-              id="contact-email"
-              name="email"
-              class="form-input"
-              [(ngModel)]="form.email"
-              #emailField="ngModel"
-              required
-              email
-              placeholder=" "
-            />
-            <label for="contact-email" class="form-label-float">אימייל</label>
-            @if (emailField.invalid && emailField.touched) {
-              <span class="form-error">{{ emailField.errors?.['email'] ? 'כתובת אימייל לא תקינה' : 'שדה חובה' }}</span>
-            }
-          </div>
-          <div class="form-group">
-            <textarea
-              id="contact-message"
-              name="message"
-              class="form-input form-textarea"
-              [(ngModel)]="form.message"
-              #messageField="ngModel"
-              required
-              rows="4"
-              placeholder=" "
-            ></textarea>
-            <label for="contact-message" class="form-label-float">הודעה</label>
-            @if (messageField.invalid && messageField.touched) {
-              <span class="form-error">שדה חובה</span>
-            }
-          </div>
+              <ul class="contact-info-list">
+                <li>
+                  <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-phone"></i></span>
+                  <div class="contact-info-text">
+                    <span class="contact-info-label">טלפון</span>
+                    <a [href]="'tel:' + contactInfo.phone">{{ displayPhone }}</a>
+                  </div>
+                </li>
+                <li class="contact-info-list__wa">
+                  <span class="contact-info-icon" aria-hidden="true"><i class="fab fa-whatsapp"></i></span>
+                  <div class="contact-info-text">
+                    <span class="contact-info-label">וואטסאפ</span>
+                    <a [href]="whatsappHref" target="_blank" rel="noopener noreferrer">שלחו הודעה בוואטסאפ</a>
+                  </div>
+                </li>
+                <li>
+                  <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
+                  <div class="contact-info-text">
+                    <span class="contact-info-label">אימייל</span>
+                    <a [href]="'mailto:' + contactInfo.email">{{ contactInfo.email }}</a>
+                  </div>
+                </li>
+              </ul>
 
-          @if (successMessage) {
-            <p class="form-message form-success">
-              <i class="fas fa-check-circle" aria-hidden="true"></i>
-              {{ successMessage }}
-            </p>
-          }
-          @if (errorMessage) {
-            <p class="form-message form-error-msg">
-              <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-              {{ errorMessage }}
-            </p>
-          }
+              <a class="contact-wa-btn" [href]="whatsappHref" target="_blank" rel="noopener noreferrer">
+                <i class="fab fa-whatsapp" aria-hidden="true"></i>
+                שלחו הודעה בוואטסאפ
+              </a>
+            </div>
+          </div>
+        </aside>
 
-          <button type="submit" class="submit-btn" [disabled]="contactForm.invalid || isSubmitting">
-            @if (isSubmitting) {
-              <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-              <span>שולח...</span>
-            } @else {
-              <span>שליחת הודעה</span>
+        <!-- Left in RTL: Form -->
+        <div class="contact-form-panel">
+          <div class="contact-panel-column">
+            <h2 class="contact-panel-title">נשמח לשמוע מכם!</h2>
+            <form (ngSubmit)="onSubmit(contactForm)" #contactForm="ngForm" class="contact-panel-body contact-form">
+            <div class="form-group">
+              <input
+                type="text"
+                id="contact-name"
+                name="name"
+                class="form-input"
+                [(ngModel)]="form.name"
+                #nameField="ngModel"
+                required
+                placeholder=" "
+              />
+              <label for="contact-name" class="form-label-float">שם מלא</label>
+              @if (nameField.invalid && nameField.touched) {
+                <span class="form-error">שדה חובה</span>
+              }
+            </div>
+            <div class="form-group">
+              <input
+                type="tel"
+                id="contact-phone"
+                name="phone"
+                class="form-input"
+                [(ngModel)]="form.phone"
+                #phoneField="ngModel"
+                required
+                placeholder=" "
+              />
+              <label for="contact-phone" class="form-label-float">טלפון</label>
+              @if (phoneField.invalid && phoneField.touched) {
+                <span class="form-error">שדה חובה</span>
+              }
+            </div>
+            <div class="form-group">
+              <input
+                type="email"
+                id="contact-email"
+                name="email"
+                class="form-input"
+                [(ngModel)]="form.email"
+                #emailField="ngModel"
+                required
+                email
+                placeholder=" "
+              />
+              <label for="contact-email" class="form-label-float">אימייל</label>
+              @if (emailField.invalid && emailField.touched) {
+                <span class="form-error">{{ emailField.errors?.['email'] ? 'כתובת אימייל לא תקינה' : 'שדה חובה' }}</span>
+              }
+            </div>
+            <div class="form-group">
+              <textarea
+                id="contact-message"
+                name="message"
+                class="form-input form-textarea"
+                [(ngModel)]="form.message"
+                #messageField="ngModel"
+                required
+                rows="4"
+                placeholder=" "
+              ></textarea>
+              <label for="contact-message" class="form-label-float">הודעה</label>
+              @if (messageField.invalid && messageField.touched) {
+                <span class="form-error">שדה חובה</span>
+              }
+            </div>
+
+            @if (successMessage) {
+              <p class="form-message form-success">
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+                {{ successMessage }}
+              </p>
             }
-          </button>
-        </form>
+            @if (errorMessage) {
+              <p class="form-message form-error-msg">
+                <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                {{ errorMessage }}
+              </p>
+            }
+
+            <button type="submit" class="submit-btn" [disabled]="contactForm.invalid || isSubmitting">
+              @if (isSubmitting) {
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                <span>שולח...</span>
+              } @else {
+                <span>שליחת הודעה</span>
+              }
+            </button>
+            <p class="form-footer-note">נחזור אליכם בהקדם לתיאום תפריט והצעת מחיר.</p>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   </div>

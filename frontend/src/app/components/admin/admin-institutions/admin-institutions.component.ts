@@ -43,6 +43,9 @@ import {
   B2B_DICTIONARY_CATEGORIES,
   dictionaryCategoryForMenuKey,
   dictionaryCategoryLabel,
+  isGastronormCategory,
+  isMeatKgCategory,
+  isUnitCountCategory,
   type B2BMenuItem,
   type B2BDictionaryCategory
 } from '../../../utils/b2b-dictionary';
@@ -324,6 +327,10 @@ export class AdminInstitutionsComponent implements OnInit {
     });
   }
 
+  readonly isMeatKgCategory = isMeatKgCategory;
+  readonly isUnitCountCategory = isUnitCountCategory;
+  readonly isGastronormCategory = isGastronormCategory;
+
   get dictionaryFormCategory(): B2BDictionaryCategory {
     return this.dictionaryForm.get('category')?.value || 'mainMeat';
   }
@@ -389,8 +396,10 @@ export class AdminInstitutionsComponent implements OnInit {
     const payload = {
       name: String(v.name).trim(),
       category: v.category as B2BDictionaryCategory,
-      gramsPerPortion: v.category === 'mainMeat' ? Number(v.gramsPerPortion) || 200 : undefined,
-      portionsPerGastronorm: v.category === 'mainMeat' ? undefined : Number(v.portionsPerGastronorm) || 40
+      gramsPerPortion: isMeatKgCategory(v.category) ? Number(v.gramsPerPortion) || 200 : undefined,
+      portionsPerGastronorm: isGastronormCategory(v.category)
+        ? Number(v.portionsPerGastronorm) || 40
+        : undefined
     };
 
     this.isSavingDictionary = true;
@@ -446,9 +455,10 @@ export class AdminInstitutionsComponent implements OnInit {
     const items = this.dictionaryItems.filter((i) => i.category === dictCategory && i.isActive !== false);
     const options: { value: string; label: string }[] = [{ value: '', label: '— ללא —' }];
     for (const item of items) {
-      const suffix =
-        item.category === 'mainMeat'
-          ? ` (${item.gramsPerPortion} ג' למנה)`
+      const suffix = isMeatKgCategory(item.category)
+        ? ` (${item.gramsPerPortion} ג' למנה)`
+        : isUnitCountCategory(item.category)
+          ? ' (לפי יחידות)'
           : ` (${item.portionsPerGastronorm || 40} מנות/גסטרונום)`;
       options.push({ value: item.name, label: `${item.name}${suffix}` });
     }
@@ -474,9 +484,13 @@ export class AdminInstitutionsComponent implements OnInit {
   }
 
   shabbatLogisticsLookup(dishName: string, fieldKey: string): DishLogisticsLookup {
-    const item = this.lookupDictionaryByCategory(dishName, this.shabbatFieldDictCategory(fieldKey));
-    if (fieldKey === 'mainMeat') {
+    const dictCategory = this.shabbatFieldDictCategory(fieldKey);
+    const item = this.lookupDictionaryByCategory(dishName, dictCategory);
+    if (isMeatKgCategory(dictCategory)) {
       return { gramsPerPortion: item?.gramsPerPortion };
+    }
+    if (isUnitCountCategory(dictCategory)) {
+      return {};
     }
     return { portionsPerGastronorm: item?.portionsPerGastronorm };
   }
@@ -486,6 +500,9 @@ export class AdminInstitutionsComponent implements OnInit {
     const item = this.lookupDictionaryItem(dishName, menuCategoryKey);
     if (menuCategoryKey === 'mainMeat') {
       return { gramsPerPortion: item?.gramsPerPortion };
+    }
+    if (menuCategoryKey === 'vegetarianMain') {
+      return {};
     }
     return { portionsPerGastronorm: item?.portionsPerGastronorm };
   }

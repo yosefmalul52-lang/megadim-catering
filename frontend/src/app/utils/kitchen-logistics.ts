@@ -1,11 +1,25 @@
 import type { MenuCategoryKey } from './menu-structure';
 
+export type LogisticsCategoryKey = MenuCategoryKey | 'fish';
+
 export const DEFAULT_PORTIONS_PER_GN = 40;
 export const DEFAULT_MEAT_GRAMS_PER_PORTION = 200;
 
 export interface DishLogisticsLookup {
   gramsPerPortion?: number;
   portionsPerGastronorm?: number;
+}
+
+export function logisticsCategoryUsesUnits(category: LogisticsCategoryKey): boolean {
+  return category === 'fish' || category === 'vegetarianMain';
+}
+
+export function logisticsCategoryUsesGastronorms(category: LogisticsCategoryKey): boolean {
+  return category !== 'mainMeat' && !logisticsCategoryUsesUnits(category);
+}
+
+export function logisticsQuantityLabel(category: LogisticsCategoryKey): 'יחידות' | 'מנות' {
+  return logisticsCategoryUsesUnits(category) ? 'יחידות' : 'מנות';
 }
 
 export function roundLogistics(value: number): number {
@@ -61,7 +75,7 @@ export function formatMeatKgLabel(portions: unknown, gramsPerPortion?: unknown):
 
 export function formatLogisticsSuffix(
   portions: unknown,
-  menuCategoryKey: MenuCategoryKey,
+  menuCategoryKey: LogisticsCategoryKey,
   logistics: DishLogisticsLookup = {}
 ): string {
   const metric = formatLogisticsMetric(portions, menuCategoryKey, logistics);
@@ -72,7 +86,7 @@ export function formatLogisticsSuffix(
 /** Compact metric for UI badges, e.g. `22.5 ק"ג` or `3.8 גסטרונומים`. Null when invalid. */
 export function formatLogisticsMetric(
   portions: unknown,
-  menuCategoryKey: MenuCategoryKey,
+  menuCategoryKey: LogisticsCategoryKey,
   logistics: DishLogisticsLookup = {}
 ): string | null {
   const safeCount = safePortions(portions);
@@ -84,7 +98,10 @@ export function formatLogisticsMetric(
     return `${formatLogisticsNumber(kg)} ק"ג`;
   }
 
-  // vegetarianMain, carbs, sides, salads — gastronorm math
+  if (logisticsCategoryUsesUnits(menuCategoryKey)) {
+    return null;
+  }
+
   const gn = computeGastronorms(safeCount, logistics.portionsPerGastronorm);
   if (!Number.isFinite(gn) || gn <= 0) return null;
   const unit = gn === 1 ? 'גסטרונום' : 'גסטרונומים';
@@ -101,14 +118,16 @@ export interface CategoryLogisticsDisplayLine {
   note?: string;
 }
 
-/** e.g. חזה עוף על האש - 11 מנות (2.7 ק"ג) */
+/** e.g. חזה עוף על האש - 11 מנות (2.7 ק"ג) | דג - 12 יחידות */
 export function formatCategoryLogisticsDisplayText(
   dish: string,
   portions: number,
-  logisticsMetric: string | null
+  logisticsMetric: string | null,
+  menuCategoryKey: LogisticsCategoryKey = 'side'
 ): string {
   const metricPart = logisticsMetric ? ` (${logisticsMetric})` : '';
-  return `${dish} - ${portions} מנות${metricPart}`;
+  const quantityLabel = logisticsQuantityLabel(menuCategoryKey);
+  return `${dish} - ${portions} ${quantityLabel}${metricPart}`;
 }
 
 /** Structured kitchen/packing row for template binding with optional logistics badge. */
@@ -116,7 +135,7 @@ export function buildCategoryLogisticsLine(
   label: string,
   dish: string,
   portions: unknown,
-  menuCategoryKey: MenuCategoryKey,
+  menuCategoryKey: LogisticsCategoryKey,
   logistics: DishLogisticsLookup = {},
   note = ''
 ): CategoryLogisticsDisplayLine | null {
@@ -126,7 +145,12 @@ export function buildCategoryLogisticsLine(
   const safeCount = safePortions(portions);
   const logisticsMetric = formatLogisticsMetric(safeCount, menuCategoryKey, logistics);
   const noteTrim = (note || '').trim();
-  const displayText = formatCategoryLogisticsDisplayText(trimmed, safeCount, logisticsMetric);
+  const displayText = formatCategoryLogisticsDisplayText(
+    trimmed,
+    safeCount,
+    logisticsMetric,
+    menuCategoryKey
+  );
 
   return {
     categoryLabel: label,
@@ -143,7 +167,7 @@ export function formatCategoryLogisticsLine(
   label: string,
   dish: string,
   portions: unknown,
-  menuCategoryKey: MenuCategoryKey,
+  menuCategoryKey: LogisticsCategoryKey,
   logistics: DishLogisticsLookup = {},
   note = ''
 ): string {
@@ -152,13 +176,18 @@ export function formatCategoryLogisticsLine(
 
   const metricPart = line.logisticsMetric ? ` (${line.logisticsMetric})` : '';
   const notePart = line.note ? ` | הערת לקוח: ${line.note}` : '';
-  return `${line.dish} - ${line.portions} מנות${metricPart}${notePart}`;
+  const quantityLabel = logisticsQuantityLabel(menuCategoryKey);
+  return `${line.dish} - ${line.portions} ${quantityLabel}${metricPart}${notePart}`;
 }
 
 export function formatLogisticsBrief(lines: CategoryLogisticsDisplayLine[]): string {
   return lines
-    .filter((line) => line.logisticsMetric)
-    .map((line) => `${line.categoryLabel} - ${line.logisticsMetric}`)
+    .filter((line) => line.logisticsMetric || line.displayText.includes('יחידות'))
+    .map((line) =>
+      line.logisticsMetric
+        ? `${line.categoryLabel} - ${line.logisticsMetric}`
+        : `${line.categoryLabel} - ${line.portions} יחידות`
+    )
     .join(', ');
 }
 

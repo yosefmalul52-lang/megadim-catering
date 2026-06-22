@@ -1,0 +1,26 @@
+/// Gold section title underline — thin at the edges, thicker in the center.
+@mixin home-title-divider(
+  $color: #e0c075,
+  $align: center,
+  $width: 14rem,
+  $height: 5px,
+  $gap: 0.95rem
+) {
+  &::after {
+    content: '';
+    display: block;
+    width: min(100%, $width);
+    height: $height;
+    margin-top: $gap;
+    background: $color;
+    border-radius: 50% / 100%;
+    box-shadow: 0 0 14px rgba($color, 0.35);
+
+    @if $align == center {
+      margin-inline: auto;
+    } @else {
+      margin-inline-start: 0;
+      margin-inline-end: auto;
+    }
+  }
+}

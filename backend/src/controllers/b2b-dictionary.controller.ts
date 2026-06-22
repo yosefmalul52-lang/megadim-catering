@@ -47,6 +47,17 @@ function buildItemFields(name: string, category: B2BDictionaryCategory, body: Re
       isActive: true
     };
   }
+
+  if (category === 'fish' || category === 'vegetarianMain') {
+    return {
+      name,
+      category,
+      gramsPerPortion: DEFAULT_GRAMS_PER_PORTION,
+      portionsPerGastronorm: DEFAULT_PORTIONS_PER_GN,
+      isActive: true
+    };
+  }
+
   return {
     name,
     category,

@@ -7,12 +7,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { LanguageService } from '../../../../services/language.service';
-import { WhatsappCtaComponent } from '../../../shared/whatsapp-cta/whatsapp-cta.component';
 
 @Component({
   selector: 'app-main-dishes',
   standalone: true,
-  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule, WhatsappCtaComponent],
+  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule],
   template: `
     <div class="main-dishes-page">
       <div class="category-header-actions">
@@ -102,12 +101,10 @@ import { WhatsappCtaComponent } from '../../../shared/whatsapp-cta/whatsapp-cta.
         </div>
       </div>
     </div>
-
-    <app-whatsapp-cta variant="sticky" ctaLocation="menu_sticky"></app-whatsapp-cta>
   `,
   styles: [`
     .main-dishes-page {
-      padding: 2rem 0 calc(5rem + env(safe-area-inset-bottom));
+      padding: 2rem 0;
       min-height: 70vh;
     }
 

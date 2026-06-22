@@ -434,30 +434,31 @@ $white: #FFFFFF;
   
   // Mobile Adjustment
   @media (max-width: 800px) {
-    height: 110px; // הגדלנו גם במובייל
-    
+    height: 110px;
+
     .container {
-      padding: 0 20px;
-    }
-    
-    .logo-container .main-logo {
-      max-height: 100px;
-      margin: 0 10px;
-      image-rendering: high-quality;
+      padding: 0 1rem;
     }
 
     .left-section {
-      gap: 15px;
-      
+      gap: 8px;
+
       .separator {
         height: 35px;
       }
-      
+
+      .header-action-icon {
+        min-width: 44px;
+        min-height: 44px;
+        width: 44px;
+        height: 44px;
+      }
+
       .header-action-icon mat-icon {
-        font-size: 1.6875rem;
-        width: 1.6875rem;
-        height: 1.6875rem;
-        line-height: 1.6875rem;
+        font-size: 1.5rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        line-height: 1.5rem;
       }
     }
   }
@@ -532,13 +533,33 @@ $white: #FFFFFF;
   }
   
   .brand-bar {
-    height: 110px; // הגדלנו גם כאן
-    padding: 0 2rem;
-    
-    .logo-container .main-logo {
-      max-height: 105px;
-      margin: 0 10px;
-      image-rendering: high-quality;
+    height: 110px;
+    padding: 0 1rem;
+
+    .container {
+      position: relative;
+      justify-content: flex-end;
+
+      .logo-container {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 0;
+        min-height: 0;
+        padding: 0;
+
+        .main-logo {
+          max-height: 105px;
+          margin: 0;
+          image-rendering: high-quality;
+        }
+      }
+
+      .left-section {
+        position: relative;
+        z-index: 1;
+      }
     }
 
     .utils-container {
@@ -554,7 +575,7 @@ $white: #FFFFFF;
   }
   
   .nav-bar {
-    justify-content: flex-end;
+    justify-content: center;
     padding-left: 20px;
     padding-right: 20px;
     
@@ -563,7 +584,9 @@ $white: #FFFFFF;
     }
     
     .mobile-menu-btn {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 }
@@ -576,13 +599,23 @@ $white: #FFFFFF;
   }
   
   .brand-bar {
-    height: 95px; // הגדלנו מעט גם במסכים קטנים
-    padding: 0 1rem;
-    
-    .logo-container .main-logo {
-      max-height: 95px;
-      margin: 0 8px;
+    height: 92px;
+    padding: 0 0.75rem;
+
+    .container .logo-container .main-logo {
+      max-height: 88px;
       image-rendering: high-quality;
+    }
+
+    .left-section {
+      gap: 4px;
+
+      .header-action-icon {
+        min-width: 40px;
+        min-height: 40px;
+        width: 40px;
+        height: 40px;
+      }
     }
 
     .utils-container {

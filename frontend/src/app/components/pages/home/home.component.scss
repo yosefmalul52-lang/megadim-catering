@@ -1,3 +1,5 @@
+@use '../../../../assets/styles/home-title-divider' as divider;
+
 $gold: #e0c075;
 $gold-dark: #c9a85c;
 $navy: #1f3540;
@@ -6,6 +8,7 @@ $cream: #faf8f5;
 $white: #ffffff;
 $text-muted: #5c6b73;
 $border: rgba(31, 53, 64, 0.1);
+$radius: 4px;
 
 :host {
   display: block;
@@ -19,66 +22,24 @@ $border: rgba(31, 53, 64, 0.1);
   padding: 0;
   background: $white;
   overflow: visible;
-}
-
-// ─── Shared section header ─────────────────────────────────────
-.section-head {
-  text-align: center;
-  max-width: 680px;
-  margin: 0 auto 2.75rem;
-
-  &__eyebrow {
-    font-family: 'Heebo', sans-serif;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: $gold;
-    margin: 0 0 0.75rem;
-  }
-
-  &__title {
-    font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.75rem, 4vw, 2.4rem);
-    font-weight: 400;
-    color: $navy;
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  &--ruled {
-    position: relative;
-    padding-bottom: 1.25rem;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 56px;
-      height: 3px;
-      background: $gold;
-    }
-  }
-
-  &--light {
-    .section-head__title {
-      color: $white;
-    }
-  }
+  direction: rtl;
 }
 
 @keyframes hero-cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
   50% {
     opacity: 0;
   }
 }
 
-// ─── Hero (reference style) ─────────────────────────────────────
+// ─── Hero ─────────────────────────────────────────────────────
 .hero {
   position: relative;
-  min-height: clamp(420px, 72vh, 640px);
+  min-height: clamp(520px, 82vh, 720px);
   margin: 0;
   background-color: $navy-deep;
   display: flex;
@@ -90,177 +51,267 @@ $border: rgba(31, 53, 64, 0.1);
 
   &__media {
     position: absolute;
-    top: -4px;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    inset: 0;
     z-index: 0;
 
     img {
       width: 100%;
-      height: calc(100% + 4px);
+      height: 100%;
       object-fit: cover;
+      object-position: center 42%;
       display: block;
     }
   }
 
   &__scrim {
     position: absolute;
-    top: -4px;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    inset: 0;
     z-index: 1;
-    background: rgba($navy-deep, 0.44);
+    background:
+      linear-gradient(180deg, rgba($navy-deep, 0.78) 0%, rgba($navy-deep, 0.52) 42%, rgba($navy-deep, 0.82) 100%),
+      radial-gradient(ellipse 90% 70% at 50% 45%, rgba($navy-deep, 0.15) 0%, rgba($navy-deep, 0.55) 100%);
   }
 
   &__inner {
     position: relative;
     z-index: 2;
-    max-width: 720px;
-    padding: 4rem 1.5rem 5rem;
+    width: 100%;
+    max-width: 680px;
+    padding: clamp(3.25rem, 7vw, 4.75rem) 1.5rem 3.75rem;
+  }
+
+  &__tag {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.45rem 0.55rem;
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(0.82rem, 1.2vw, 0.88rem);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba($gold, 0.95);
+    margin: 0 0 1rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid rgba($gold, 0.35);
+    background: rgba($navy-deep, 0.28);
+    border-radius: $radius;
+  }
+
+  &__tag-sep {
+    color: rgba($gold, 0.55);
+    font-weight: 400;
   }
 
   &__title {
-    font-family: 'Heebo', sans-serif;
-    font-size: clamp(2.2rem, 5.5vw, 3.75rem);
-    font-weight: 700;
+    position: relative;
+    font-family: 'Secular One', sans-serif;
+    font-size: clamp(1.85rem, 4.8vw, 3.15rem);
+    font-weight: 400;
     color: $white;
-    line-height: 1.15;
-    margin: 0 0 1.1rem;
-    letter-spacing: -0.02em;
-    min-height: 1.2em;
+    line-height: 1.2;
+    margin: 0 0 1.65rem;
+    letter-spacing: -0.015em;
+    text-wrap: pretty;
+  }
+
+  &__title-measure {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    width: 100%;
+    visibility: hidden;
+    pointer-events: none;
+    text-align: center;
+    user-select: none;
+  }
+
+  &__title-stack {
+    display: block;
+    position: relative;
+    width: 100%;
+  }
+
+  &__title-line {
+    display: block;
+  }
+
+  &__title-ghost {
+    display: block;
+    visibility: hidden;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  &__title-live {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    text-align: center;
   }
 
   &__title-cursor {
     display: inline-block;
-    width: 3px;
+    width: 2px;
     height: 0.82em;
-    margin-inline-start: 3px;
+    margin-inline-start: 2px;
+    vertical-align: text-bottom;
     background: $gold;
-    vertical-align: -0.08em;
     animation: hero-cursor-blink 0.85s step-end infinite;
+  }
 
-    &--hidden {
-      opacity: 0;
+  @media (prefers-reduced-motion: reduce) {
+    &__title-cursor {
       animation: none;
     }
   }
 
-  &__lead {
-    font-family: 'Heebo', sans-serif;
-    font-size: clamp(1rem, 2vw, 1.15rem);
-    font-weight: 500;
-    line-height: 1.7;
-    color: rgba($white, 0.95);
-    margin: 0 auto 1.5rem;
-    max-width: 560px;
-  }
-
-  &__cta-block {
+  &__actions {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 0.7rem;
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
   }
 
-  &__kosher {
+  &__cta-primary {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: center;
+    width: 100%;
+    min-height: 50px;
+    padding: 0.82rem 1.5rem;
     font-family: 'Heebo', sans-serif;
-    font-size: 0.88rem;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    color: $cream;
-    margin: 0;
-    padding: 0.45rem 0.95rem;
-    border: 1px solid rgba($gold, 0.7);
-    background: rgba($navy-deep, 0.4);
-
-    mat-icon {
-      font-size: 1rem;
-      width: 1rem;
-      height: 1rem;
-      color: $gold;
-    }
-  }
-
-  &__cta-ghost {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-family: 'Heebo', sans-serif;
-    font-size: 1rem;
-    font-weight: 600;
-    color: $navy;
+    font-size: clamp(0.92rem, 1.5vw, 0.98rem);
+    font-weight: 700;
     text-decoration: none;
-    padding: 0.75rem 2rem;
+    border-radius: $radius;
     border: 2px solid $gold;
     background: $gold;
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    color: $navy;
+    transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 
     &:hover {
       background: $gold-dark;
       border-color: $gold-dark;
+      transform: translateY(-1px);
     }
   }
 
-  &__cta-arrows {
-    font-size: 1.1rem;
-    letter-spacing: -0.05em;
-    color: $navy;
+  &__proof {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem 0.15rem;
+    margin: 1.35rem auto 0;
+    max-width: 620px;
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(0.84rem, 1.5vw, 0.94rem);
+    font-weight: 500;
+    line-height: 1.5;
+    color: rgba($white, 0.85);
   }
 
-  &__zigzag {
+  &__proof-sep {
+    margin: 0 0.45rem;
+    color: rgba($gold, 0.45);
+  }
+
+  &__fade {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 3;
-    height: 36px;
-    line-height: 0;
-
-    svg {
-      display: block;
-      width: 100%;
-      height: 36px;
-    }
+    height: 56px;
+    background: linear-gradient(to bottom, transparent, $white);
+    pointer-events: none;
   }
 }
 
-// ─── Category cards (reference layout) ───────────────────────────
-.categories {
-  background: $white;
-  padding: 3.5rem 1.5rem 4.5rem;
-  contain: content;
+// ─── 3 service paths (reference layout) ───────────────────────
+.home-paths {
+  background: linear-gradient(180deg, $white 0%, #faf9f7 100%);
+  padding: clamp(3.25rem, 6vw, 5rem) clamp(1rem, 4vw, 2rem) clamp(3.75rem, 7vw, 5.25rem);
 
-  &__question {
-    font-family: 'Heebo', sans-serif;
-    font-size: clamp(1.35rem, 3vw, 1.85rem);
-    font-weight: 600;
-    color: $navy;
+  &__container {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  &__head {
     text-align: center;
-    margin: 0 0 2.5rem;
-    line-height: 1.4;
+    margin: 0 auto 2.75rem;
+  }
+
+  &__title {
+    font-family: 'Secular One', sans-serif;
+    font-size: clamp(1.85rem, 3.8vw, 2.45rem);
+    font-weight: 400;
+    color: $navy;
+    margin: 0;
+    line-height: 1.18;
+
+    @include divider.home-title-divider($gold, center);
   }
 
   &__grid {
-    max-width: 1100px;
-    margin: 0 auto;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.25rem;
+    gap: clamp(0.85rem, 1.8vw, 1.15rem);
+    align-items: end;
   }
 }
 
-.category-card {
+.home-path {
   position: relative;
-  display: block;
-  height: clamp(340px, 42vw, 480px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: clamp(440px, 42vw, 540px);
   overflow: hidden;
   text-decoration: none;
-  background: $navy;
+  background: $navy-deep;
+  border: 3px solid $gold;
+  box-shadow: 0 10px 28px rgba($navy, 0.1);
+  box-sizing: border-box;
+  transition:
+    transform 0.32s ease,
+    box-shadow 0.32s ease,
+    border-color 0.32s ease;
+
+  &--featured {
+    min-height: clamp(540px, 48vw, 660px);
+    box-shadow: 0 18px 44px rgba($navy, 0.16);
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: $gold-dark;
+    box-shadow: 0 22px 48px rgba($navy, 0.18);
+
+    .home-path__img {
+      transform: scale(1.04);
+    }
+
+    .home-path__link {
+      color: $white;
+
+      &::after {
+        transform: translateX(-4px);
+      }
+    }
+  }
+
+  &--featured:hover {
+    transform: translateY(-6px);
+    border-color: $gold-dark;
+    box-shadow: 0 28px 56px rgba($navy, 0.22);
+  }
 
   &__img {
     position: absolute;
@@ -268,67 +319,504 @@ $border: rgba(31, 53, 64, 0.1);
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform 0.45s ease;
   }
 
   &__overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      to top,
-      rgba($navy-deep, 0.92) 0%,
-      rgba($navy, 0.55) 38%,
-      rgba($navy, 0.12) 68%,
-      transparent 100%
-    );
+    background:
+      linear-gradient(
+        to top,
+        rgba($navy-deep, 0.96) 0%,
+        rgba($navy-deep, 0.78) 24%,
+        rgba($navy, 0.28) 52%,
+        rgba($navy, 0.06) 100%
+      );
+  }
+
+  &__body {
+    position: relative;
     z-index: 1;
+    padding: 2.1rem 1.75rem 2rem;
+    text-align: right;
   }
 
-  &__text {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 2;
-    padding: 1.75rem 1.25rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  &__line-white {
+  &__name {
     font-family: 'Heebo', sans-serif;
-    font-size: clamp(0.9rem, 1.8vw, 1.05rem);
-    font-weight: 400;
+    font-size: clamp(1.28rem, 2.2vw, 1.55rem);
+    font-weight: 700;
     color: $white;
-    line-height: 1.35;
+    margin: 0 0 0.85rem;
+    line-height: 1.28;
   }
 
-  &__line-gold {
+  &__rule {
+    display: block;
+    width: min(100%, 9rem);
+    height: 2px;
+    margin: 0 0 1.15rem;
+    background: linear-gradient(
+      to left,
+      $gold,
+      rgba($gold, 0.35)
+    );
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem;
     font-family: 'Heebo', sans-serif;
-    font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+    font-size: clamp(0.96rem, 1.5vw, 1.02rem);
     font-weight: 700;
     color: $gold;
-    line-height: 1.3;
-  }
+    transition: color 0.25s ease;
 
-  &:hover &__img {
-    opacity: 0.92;
-  }
-
-  &__img {
-    transition: opacity 0.2s ease;
+    &::after {
+      content: '←';
+      font-size: 0.88rem;
+      line-height: 1;
+      opacity: 0.9;
+      transition: transform 0.25s ease;
+    }
   }
 }
 
-// ─── Reviews ───────────────────────────────────────────────────
+// ─── Chef ─────────────────────────────────────────────────────
+$chef-text: #f8f1e6;
+$chef-text-muted: #d8cec0;
+$chef-card-text: #e7ddcd;
+$chef-gold: #d6b45f;
+$chef-gold-border: rgba(214, 180, 95, 0.28);
+$chef-gold-divider: rgba(214, 180, 95, 0.22);
+$chef-surface: rgba(255, 255, 255, 0.06);
+$chef-panel-dark: rgba(0, 0, 0, 0.22);
+$featured-gray: #f3f3f3;
+
+.home-chef {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      168deg,
+      $navy 0%,
+      $navy-deep 38%,
+      #152528 72%,
+      $navy-deep 100%
+    );
+  padding: clamp(5rem, 10vw, 7.5rem) clamp(1.25rem, 4vw, 2.5rem)
+    clamp(4.5rem, 9vw, 6.5rem);
+
+  &__fade-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: clamp(56px, 10vw, 96px);
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(
+      to bottom,
+      $featured-gray 0%,
+      rgba($featured-gray, 0.72) 28%,
+      rgba($navy-deep, 0.55) 68%,
+      transparent 100%
+    );
+  }
+
+  &__fade-bottom {
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    bottom: 0;
+    height: 3px;
+    background: linear-gradient(
+      to left,
+      transparent 0%,
+      rgba($gold, 0.55) 12%,
+      $gold 50%,
+      rgba($gold, 0.55) 88%,
+      transparent 100%
+    );
+    box-shadow: 0 0 14px rgba($gold, 0.35);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  &__atmosphere {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &__texture {
+    position: absolute;
+    inset: 0;
+    opacity: 0.35;
+    background-image:
+      radial-gradient(circle at 14% 18%, rgba($chef-gold, 0.07) 0%, transparent 36%),
+      radial-gradient(circle at 88% 82%, rgba($white, 0.04) 0%, transparent 34%),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 4px,
+        rgba($white, 0.014) 4px,
+        rgba($white, 0.014) 5px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 6px,
+        rgba($white, 0.01) 6px,
+        rgba($white, 0.01) 7px
+      );
+  }
+
+  &__glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(48px);
+    pointer-events: none;
+
+    &--copy {
+      top: 18%;
+      right: 8%;
+      width: min(42vw, 460px);
+      height: min(42vw, 460px);
+      background: radial-gradient(
+        circle,
+        rgba($chef-gold, 0.11) 0%,
+        rgba($chef-gold, 0.03) 42%,
+        transparent 72%
+      );
+    }
+
+    &--portrait {
+      bottom: 8%;
+      left: 4%;
+      width: min(38vw, 400px);
+      height: min(38vw, 400px);
+      background: radial-gradient(
+        circle,
+        rgba(0, 0, 0, 0.28) 0%,
+        transparent 70%
+      );
+    }
+  }
+
+  &__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 1220px;
+    margin: 0 auto;
+  }
+
+  &__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1.05fr);
+    grid-template-areas: 'copy bridge portrait';
+    gap: clamp(2rem, 4.5vw, 3.75rem);
+    align-items: center;
+  }
+
+  &__content-panel {
+    grid-area: copy;
+    position: relative;
+    text-align: right;
+    padding: clamp(0.25rem, 1.5vw, 0.75rem) 0;
+  }
+
+  &__connector {
+    grid-area: bridge;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    min-height: 120px;
+  }
+
+  &__connector-line {
+    width: 1px;
+    height: min(72%, 440px);
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba($chef-gold, 0.2) 10%,
+      rgba($chef-gold, 0.78) 50%,
+      rgba($chef-gold, 0.2) 90%,
+      transparent 100%
+    );
+  }
+
+  &__media-col {
+    grid-area: portrait;
+    position: relative;
+  }
+
+  &__media-backdrop {
+    position: absolute;
+    inset: -8% -6% -6% -6%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(0, 0, 0, 0.34) 0%,
+      rgba(0, 0, 0, 0.08) 52%,
+      transparent 72%
+    );
+    filter: blur(18px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &__frame {
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba($chef-gold, 0.55);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+  }
+
+  &__photo-wrap {
+    position: relative;
+    overflow: hidden;
+    background: $navy-deep;
+  }
+
+  &__photo {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: center 8%;
+    display: block;
+    filter: grayscale(18%) contrast(1.08) brightness(0.94);
+    transition: filter 0.45s ease, transform 0.55s ease;
+  }
+
+  &__frame:hover &__photo {
+    filter: grayscale(0%) contrast(1.04) brightness(1);
+    transform: scale(1.018);
+  }
+
+  &__photo-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba($navy-deep, 0.82) 0%,
+      rgba($navy-deep, 0.28) 28%,
+      transparent 58%
+    );
+    pointer-events: none;
+  }
+
+  &__badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    z-index: 2;
+    max-width: min(72%, 220px);
+    padding: 1.15rem 1.1rem 1rem;
+    text-align: left;
+    border-top: 1px solid rgba($chef-gold, 0.32);
+    border-inline-end: 1px solid rgba($chef-gold, 0.18);
+  }
+
+  &__badge-name {
+    margin: 0;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: $chef-text;
+    line-height: 1.35;
+  }
+
+  &__badge-role {
+    margin: 0.22rem 0 0;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: $chef-gold;
+    letter-spacing: 0.03em;
+  }
+
+  &__head {
+    margin-bottom: 1.55rem;
+  }
+
+  &__eyebrow {
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: $chef-gold;
+    margin: 0 0 0.9rem;
+  }
+
+  &__title {
+    font-family: 'Secular One', sans-serif;
+    font-size: clamp(2rem, 3.8vw, 2.85rem);
+    font-weight: 400;
+    color: $chef-text;
+    margin: 0;
+    line-height: 1.14;
+    max-width: 13ch;
+
+    @include divider.home-title-divider($gold, start);
+  }
+
+  &__text {
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(1rem, 1.85vw, 1.08rem);
+    line-height: 1.88;
+    color: $chef-text-muted;
+    margin: 0 0 1.1rem;
+    max-width: 44ch;
+
+    &:last-of-type {
+      margin-bottom: 0;
+    }
+  }
+
+  &__menu-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    margin-top: 1.75rem;
+    width: 100%;
+    max-width: 100%;
+    padding: clamp(20px, 2.5vw, 28px) clamp(20px, 3vw, 32px);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(0, 0, 0, 0.08) 100%),
+      $chef-surface;
+    border: 1px solid $chef-gold-border;
+    border-radius: 14px;
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 8%;
+      left: 8%;
+      height: 1px;
+      background: linear-gradient(
+        to left,
+        transparent 0%,
+        rgba($chef-gold, 0.55) 50%,
+        transparent 100%
+      );
+      pointer-events: none;
+    }
+  }
+
+  &__menu-card-intro {
+    text-align: right;
+  }
+
+  &__menu-card-eyebrow {
+    margin: 0 0 0.45rem;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: $chef-gold;
+  }
+
+  &__menu-card-title {
+    margin: 0;
+    font-family: 'Secular One', sans-serif;
+    font-size: clamp(1.35rem, 2.5vw, 1.6rem);
+    font-weight: 400;
+    line-height: 1.22;
+    color: $chef-text;
+  }
+
+  &__menu-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.55rem;
+    min-height: 5.25rem;
+    padding: 0.85rem 0.7rem;
+    text-align: right;
+    background: rgba(0, 0, 0, 0.14);
+    border: 1px solid rgba($chef-gold, 0.14);
+    border-radius: 8px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.2);
+      border-color: rgba($chef-gold, 0.28);
+    }
+  }
+
+  &__menu-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    color: $chef-gold;
+    border: 1px solid rgba($chef-gold, 0.5);
+    border-radius: 50%;
+    background: rgba($chef-gold, 0.1);
+  }
+
+  &__menu-label {
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(0.92rem, 1.4vw, 1rem);
+    font-weight: 400;
+    line-height: 1.4;
+    color: $chef-card-text;
+  }
+
+  &__menu-card-footer {
+    margin: 0;
+    padding-top: 0.95rem;
+    border-top: 1px solid $chef-gold-divider;
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(1rem, 1.85vw, 1.02rem);
+    line-height: 1.6;
+    color: $chef-card-text;
+    text-align: right;
+  }
+}
+
+// ─── Reviews (closing conversion — part 1) ───────────────────
 .reviews {
   direction: rtl;
   position: relative;
+  scroll-margin-top: 5rem;
 
   &__spotlight {
     background: $gold;
-    padding: 2rem 1.25rem 1.65rem;
+    padding: clamp(2.5rem, 5vw, 3.5rem) 1.25rem clamp(4.5rem, 9vw, 6.5rem);
     position: relative;
     overflow: visible;
 
@@ -349,80 +837,75 @@ $border: rgba(31, 53, 64, 0.1);
   &__spotlight-inner {
     position: relative;
     z-index: 1;
-    max-width: 680px;
+    max-width: 920px;
     margin: 0 auto;
     text-align: center;
+  }
+
+  &__head {
+    margin: 0 auto 1.75rem;
+    max-width: 36rem;
+  }
+
+  &__spotlight-title {
+    font-family: 'Secular One', sans-serif;
+    font-size: clamp(1.45rem, 3vw, 1.95rem);
+    font-weight: 400;
+    color: $navy;
+    margin: 0;
+    line-height: 1.3;
+    position: relative;
+    z-index: 1;
+
+    @include divider.home-title-divider($navy, center, 10rem, 4px, 0.75rem);
+  }
+
+  &__card {
+    position: relative;
+    max-width: min(860px, 100%);
+    margin: 0 auto;
+    padding: clamp(1.75rem, 3.5vw, 2.5rem) clamp(1.5rem, 3vw, 2.25rem);
+    background: transparent;
+    border: 2px solid $navy;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba($navy, 0.1);
+    text-align: center;
+    overflow: hidden;
+  }
+
+  &__quote {
+    position: absolute;
+    font-family: 'Secular One', sans-serif;
+    font-size: clamp(3.5rem, 8vw, 5rem);
+    line-height: 1;
+    color: rgba($navy, 0.1);
+    pointer-events: none;
+    user-select: none;
+
+    &--open {
+      top: 0.35rem;
+      inset-inline-end: 1rem;
+    }
+
+    &--close {
+      bottom: 1rem;
+      inset-inline-start: 1rem;
+    }
   }
 
   &__spotlight-text-wrap {
     display: grid;
     grid-template-columns: 1fr;
+    min-height: 7.5rem;
+    margin: 0 auto;
     max-width: 34rem;
-    margin: 0 auto 1.25rem;
-  }
-
-  &__title-wrap {
-    margin: 0 auto 0.85rem;
-    max-width: 100%;
-  }
-
-  &__spotlight-title {
-    font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.5rem, 3vw, 2rem);
-    font-weight: 400;
-    color: #1f3540;
-    margin: 0;
-    line-height: 1.25;
     position: relative;
     z-index: 1;
   }
 
-  &__title-accent {
-    display: block;
-    width: min(11rem, 62%);
-    height: 0.65rem;
-    margin: 0.55rem auto 0;
-    overflow: visible;
-
-    svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-  }
-
-  &__title-accent-path {
-    fill: none;
-    stroke: $navy-deep;
-    stroke-width: 2.25;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-    transition: stroke-dashoffset 0.95s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  &__title-accent--visible &__title-accent-path {
-    stroke-dashoffset: 0;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    &__title-accent-path {
-      stroke-dashoffset: 0;
-      transition: none;
-    }
-  }
-
-  &__spotlight-text {
+  &__slide {
     grid-row: 1;
     grid-column: 1;
-    margin: 0;
-    padding: 0;
-    font-family: 'Heebo', sans-serif;
-    font-size: clamp(0.93rem, 1.6vw, 0.98rem);
-    line-height: 1.8;
-    color: #1f3540;
-    text-align: center;
     opacity: 0;
     transition: opacity 0.4s ease;
     pointer-events: none;
@@ -433,13 +916,53 @@ $border: rgba(31, 53, 64, 0.1);
     }
   }
 
+  &__spotlight-text {
+    margin: 0;
+    padding: 0;
+    font-family: 'Heebo', sans-serif;
+    font-size: clamp(0.95rem, 1.7vw, 1.05rem);
+    line-height: 1.7;
+    color: $navy;
+    text-align: center;
+    font-weight: 400;
+
+    &--second {
+      margin-top: 0.85rem;
+    }
+  }
+
+  &__author {
+    margin: 1.15rem 0 0;
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: rgba($navy, 0.78);
+    text-align: center;
+  }
+
+  &__author-name {
+    font-weight: 600;
+  }
+
+  &__author-sep {
+    margin: 0 0.35rem;
+    opacity: 0.65;
+  }
+
+  &__author-location {
+    font-weight: 400;
+    opacity: 0.9;
+  }
+
   &__dots {
     display: flex;
     justify-content: center;
-    gap: 0.35rem;
-    margin-top: 0.25rem;
+    gap: 0.4rem;
+    margin-top: 1.1rem;
     margin-bottom: 0;
-    padding-top: 0.25rem;
+    padding-top: 0;
+    position: relative;
+    z-index: 1;
   }
 
   &__dot {
@@ -461,82 +984,138 @@ $border: rgba(31, 53, 64, 0.1);
       background: rgba($navy, 0.5);
     }
   }
-
-  &__google-plus {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.1rem;
-    height: 1.1rem;
-    font-size: 1.15rem;
-    font-weight: 400;
-    line-height: 1;
-    color: $gold-dark;
-  }
 }
 
-// ─── Bottom CTA ────────────────────────────────────────────────
+// ─── Bottom CTA (closing conversion — part 2) ──────────────────
 .home-cta {
-  background: $cream;
-  padding: 3rem 1.5rem 4rem;
-  border-top: 1px solid $border;
+  position: relative;
+  z-index: 2;
+  margin-top: clamp(-3.25rem, -6vw, -4.75rem);
+  padding: 0 1.25rem clamp(3.5rem, 6vw, 4.5rem);
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba($cream, 0.55) 8%,
+    $cream 18%,
+    $cream 100%
+  );
+  border-top: none;
 
-  &__inner {
-    max-width: 640px;
+  &__panel {
+    max-width: 1120px;
     margin: 0 auto;
-    text-align: center;
+    padding: clamp(1.75rem, 3.5vw, 2.75rem) clamp(1.5rem, 3vw, 2.5rem);
+    background: #fdfaf5;
+    border: 1px solid rgba($gold, 0.38);
+    border-radius: 10px;
+    box-shadow: 0 14px 42px rgba($navy, 0.08);
+  }
+
+  &__layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 4vw, 3.25rem);
+    align-items: start;
+    text-align: right;
+  }
+
+  &__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
   &__title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.5rem, 3vw, 1.9rem);
+    font-size: clamp(1.45rem, 2.8vw, 1.85rem);
     color: $navy;
-    margin: 0 0 0.75rem;
-    line-height: 1.25;
+    margin: 0 0 0.85rem;
+    line-height: 1.28;
+
+    @include divider.home-title-divider($gold, right, 9rem, 4px, 0.7rem);
   }
 
   &__text {
     font-family: 'Heebo', sans-serif;
-    font-size: 1rem;
+    font-size: clamp(0.95rem, 1.6vw, 1.05rem);
     color: $text-muted;
-    margin: 0 0 1.35rem;
-    line-height: 1.65;
-    max-width: 520px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0 0 1.15rem;
+    line-height: 1.7;
+    max-width: 36ch;
   }
 
-  &__perks {
+  &__trust-line {
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: $navy;
+    margin: 0;
+    line-height: 1.55;
+    opacity: 0.88;
+
+    span {
+      margin: 0 0.4rem;
+      color: rgba($gold-dark, 0.75);
+      font-weight: 400;
+    }
+  }
+
+  &__steps-col {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.6rem 1.25rem;
+    flex-direction: column;
+    border-inline-start: 1px solid rgba($gold, 0.28);
+    padding-inline-start: clamp(1.25rem, 2.5vw, 2rem);
+  }
+
+  &__steps-title {
+    font-family: 'Secular One', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: $navy;
+    margin: 0 0 0.85rem;
+    line-height: 1.3;
+  }
+
+  &__steps {
     list-style: none;
-    margin: 0 0 1.65rem;
+    margin: 0 0 1.5rem;
     padding: 0;
   }
 
-  &__perk {
-    display: inline-flex;
+  &__step {
+    display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.85rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid rgba($navy, 0.1);
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+  }
+
+  &__step-num {
+    flex-shrink: 0;
     font-family: 'Heebo', sans-serif;
-    font-size: 0.88rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $gold-dark;
+    letter-spacing: 0.04em;
+    min-width: 1.75rem;
+  }
+
+  &__step-label {
+    font-family: 'Heebo', sans-serif;
+    font-size: 0.95rem;
     font-weight: 500;
     color: $navy;
-
-    mat-icon {
-      font-size: 1rem;
-      width: 1rem;
-      height: 1rem;
-      color: $gold-dark;
-    }
+    line-height: 1.4;
   }
 
   &__actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: 0.75rem;
   }
 }
@@ -577,68 +1156,212 @@ $border: rgba(31, 53, 64, 0.1);
 }
 
 // ─── Responsive ────────────────────────────────────────────────
-@media (max-width: 900px) {
-  .categories__grid {
+@media (max-width: 960px) {
+  .home-paths__grid {
     grid-template-columns: 1fr;
-    max-width: 400px;
+    max-width: 520px;
+    margin: 0 auto;
   }
 
-  .category-card {
-    height: 320px;
+  .home-path {
+    min-height: 400px;
+    box-shadow: 0 8px 22px rgba($navy, 0.1);
+
+    &--featured {
+      min-height: 440px;
+      order: -1;
+    }
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+
+  .home-chef {
+    padding: clamp(3.75rem, 9vw, 5.5rem) clamp(1rem, 4vw, 1.5rem)
+      clamp(3.5rem, 8vw, 5rem);
+  }
+
+  .home-chef__layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'copy'
+      'portrait';
+    gap: 2.25rem;
+  }
+
+  .home-chef__connector {
+    display: none;
+  }
+
+  .home-chef__content-panel {
+    padding: 0;
+  }
+
+  .home-chef__head {
+    padding-right: 0;
+  }
+
+  .home-chef__media-col {
+    max-width: 440px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .home-chef__photo {
+    aspect-ratio: 5 / 4;
+    max-height: 380px;
+  }
+
+  .home-chef__glow--copy {
+    top: 8%;
+    right: 50%;
+    transform: translateX(50%);
+    width: min(90vw, 360px);
+    height: min(90vw, 360px);
+  }
+
+  .home-chef__title {
+    max-width: none;
+  }
+
+  .home-chef__menu-card {
+    max-width: none;
+  }
+
+  .home-chef__menu-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .home-chef__menu-list {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
-  .hero__inner {
-    padding: 3.5rem 1.25rem 4.5rem;
+  .hero {
+    min-height: clamp(480px, 88svh, 620px);
+    align-items: center;
+    justify-content: center;
+
+    &__inner {
+      margin: 0 auto;
+      padding: 2rem 1.25rem 2.75rem;
+      text-align: center;
+    }
+
+    &__tag {
+      margin-inline: auto;
+    }
+
+    &__title {
+      font-size: clamp(1.45rem, 6.5vw, 1.75rem);
+      margin-inline: auto;
+    }
+
+    &__title-stack {
+      margin-inline: auto;
+    }
+
+    &__actions {
+      max-width: min(100%, 320px);
+      width: 100%;
+      margin-inline: auto;
+    }
+
+    &__proof {
+      justify-content: center;
+      text-align: center;
+      padding-inline: 0.25rem;
+    }
+
+    &__fade {
+      height: 40px;
+    }
   }
 
-  .categories {
-    padding: 2.5rem 1.25rem 3rem;
+  .home-paths {
+    padding-top: 2.5rem;
   }
 
   .reviews {
     &__spotlight {
-      padding: 1.75rem 1rem 1.5rem;
+      padding: 2.25rem 1rem clamp(3.5rem, 10vw, 4.5rem);
     }
 
-    &__title-wrap {
-      margin-bottom: 0.75rem;
+    &__head {
+      margin-bottom: 1.25rem;
     }
 
-    &__title-accent {
-      width: min(9.5rem, 68%);
-      height: 0.6rem;
-      margin-top: 0.45rem;
+    &__card {
+      padding: 1.5rem 1.15rem;
+    }
+
+    &__quote {
+      &--open {
+        inset-inline-end: 0.5rem;
+        font-size: 3rem;
+      }
+
+      &--close {
+        inset-inline-start: 0.5rem;
+        bottom: 2.25rem;
+        font-size: 3rem;
+      }
     }
 
     &__spotlight-text-wrap {
+      min-height: 6.5rem;
       max-width: 100%;
-      margin-bottom: 1rem;
     }
 
     &__dots {
-      margin-top: 0.35rem;
-      padding-top: 0.35rem;
+      margin-top: 0.9rem;
     }
-
   }
 
   .home-cta {
-    padding: 2.75rem 1.25rem 3.5rem;
+    margin-top: -2.25rem;
+    padding: 0 1rem 3.25rem;
 
-    &__perks {
+    &__panel {
+      padding: 1.5rem 1.15rem;
+    }
+
+    &__layout {
+      grid-template-columns: 1fr;
+      gap: 1.75rem;
+    }
+
+    &__steps-col {
+      border-inline-start: none;
+      padding-inline-start: 0;
+      border-top: 1px solid rgba($gold, 0.28);
+      padding-top: 1.5rem;
+    }
+
+    &__title {
+      @include divider.home-title-divider($gold, right, 8rem, 4px, 0.65rem);
+    }
+
+    &__text {
+      max-width: none;
+    }
+
+    &__actions {
       flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
+
+      .btn {
+        width: 100%;
+      }
     }
   }
+}
 
-  .home-cta__actions {
-    flex-direction: column;
-
-    .btn {
-      width: 100%;
-    }
+@media (prefers-reduced-motion: reduce) {
+  .home-path__img {
+    transition: none;
   }
 }

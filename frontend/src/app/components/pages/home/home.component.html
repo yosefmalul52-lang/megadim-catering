@@ -14,100 +14,211 @@
     <div class="hero__scrim" aria-hidden="true"></div>
 
     <div class="hero__inner">
-      <h1 class="hero__title" [attr.aria-label]="heroTitleFull">
-        <span class="hero__title-text">{{ heroTitleDisplayed }}</span><span
-          class="hero__title-cursor"
-          [class.hero__title-cursor--hidden]="heroTitleComplete"
-          aria-hidden="true"
-        ></span>
-      </h1>
-      <p class="hero__lead">
-        מגדים — קייטרינג בוטיק כשר למהדרין, עם טעמים ביתיים שמרגישים מוכרים מהרגע הראשון
-        ומוגשים ברמה שלא מתפשרת על טריות ואיכות.
+      <p class="hero__tag">
+        <span>כשר למהדרין</span>
+        <span class="hero__tag-sep" aria-hidden="true">|</span>
+        <span>בהנהלת השף ינון אנקרי</span>
       </p>
-      <div class="hero__cta-block">
-        <a class="hero__cta-ghost" routerLink="/ready-for-shabbat">
-          לצפייה בתפריט המלא לחצו
-          <span class="hero__cta-arrows" aria-hidden="true">&raquo;</span>
-        </a>
-        <p class="hero__kosher">
-          <mat-icon aria-hidden="true">verified</mat-icon>
-          כשר למהדרין
-        </p>
+
+      <h1 class="hero__title">
+        <span #heroTitleMeasure class="hero__title-measure" aria-hidden="true">{{ heroTitleFull }}</span>
+        <span class="hero__title-stack">
+          <span class="hero__title-ghost" aria-hidden="true">
+            @for (line of heroTitleLines; track $index) {
+              <span class="hero__title-line">{{ line }}</span>
+            }
+          </span>
+          <span class="hero__title-live">
+            @for (line of heroTitleTypedLines; track $index; let isLast = $last) {
+              <span class="hero__title-line">
+                {{ line }}@if (isLast && !heroTitleDone) {
+                  <span class="hero__title-cursor" aria-hidden="true"></span>
+                }
+              </span>
+            }
+          </span>
+        </span>
+      </h1>
+
+      <div class="hero__actions">
+        <a class="hero__cta-primary" routerLink="/ready-for-shabbat">לצפייה בתפריט</a>
       </div>
+
+      <p class="hero__proof">
+        @for (item of heroTrustItems; track item; let last = $last) {
+          <span class="hero__proof-item">{{ item }}</span>
+          @if (!last) {
+            <span class="hero__proof-sep" aria-hidden="true">|</span>
+          }
+        }
+      </p>
     </div>
 
-    <div class="hero__zigzag" aria-hidden="true">
-      <svg viewBox="0 0 1200 36" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <polygon fill="#e0c075" points="0,36 60,0 120,36 180,0 240,36 300,0 360,36 420,0 480,36 540,0 600,36 660,0 720,36 780,0 840,36 900,0 960,36 1020,0 1080,36 1140,0 1200,36 1200,36 0,36"/>
-        <polygon fill="#1f3540" points="30,36 90,0 150,36 210,0 270,36 330,0 390,36 450,0 510,36 570,0 630,36 690,0 750,36 810,0 870,36 930,0 990,36 1050,0 1110,36 1170,0 1200,18 1200,36 0,36"/>
-      </svg>
-    </div>
+    <div class="hero__fade" aria-hidden="true"></div>
   </section>
 
-  <!-- Category cards (reference layout) -->
-  <section class="categories" aria-labelledby="categories-heading">
-    <h2 id="categories-heading" class="categories__question">איזה שירות מתאים לכם היום?</h2>
+  <!-- Service paths — 3 cards -->
+  <section class="home-paths" aria-labelledby="paths-heading">
+    <div class="home-paths__container">
+      <header class="home-paths__head">
+        <h2 id="paths-heading" class="home-paths__title">מה תרצו להזמין?</h2>
+      </header>
 
-    <div class="categories__grid">
-      @for (card of serviceCards; track card.route) {
-        <a class="category-card" [routerLink]="card.route">
-          <img
-            [ngSrc]="card.image"
-            [alt]="card.alt"
-            width="600"
-            height="800"
-            class="category-card__img"
-            [style.object-position]="card.imagePosition"
-          />
-          <div class="category-card__overlay" aria-hidden="true"></div>
-          <div class="category-card__text">
-            <span class="category-card__line-white">{{ card.lineWhite }}</span>
-            <span class="category-card__line-gold">{{ card.lineGold }}</span>
-          </div>
-        </a>
-      }
+      <div class="home-paths__grid">
+        @for (path of servicePaths; track path.route) {
+          <a
+            class="home-path"
+            [class.home-path--featured]="path.featured"
+            [routerLink]="path.route"
+          >
+            <img
+              [ngSrc]="path.image"
+              [alt]="path.alt"
+              width="600"
+              height="800"
+              class="home-path__img"
+              [style.object-position]="path.imagePosition"
+            />
+            <div class="home-path__overlay" aria-hidden="true"></div>
+            <div class="home-path__body">
+              <h3 class="home-path__name">{{ path.title }}</h3>
+              <span class="home-path__rule" aria-hidden="true"></span>
+              <span class="home-path__link">{{ path.cta }}</span>
+            </div>
+          </a>
+        }
+      </div>
     </div>
   </section>
 
   <app-featured-menu></app-featured-menu>
 
-  <app-about></app-about>
+  <!-- Chef (replaces story section) -->
+  <section class="home-chef" aria-labelledby="chef-heading">
+    <div class="home-chef__fade-top" aria-hidden="true"></div>
+
+    <div class="home-chef__atmosphere" aria-hidden="true">
+      <span class="home-chef__texture"></span>
+      <span class="home-chef__glow home-chef__glow--copy"></span>
+      <span class="home-chef__glow home-chef__glow--portrait"></span>
+    </div>
+
+    <div class="home-chef__inner">
+      <div class="home-chef__layout">
+        <div class="home-chef__media-col">
+          <div class="home-chef__media-backdrop" aria-hidden="true"></div>
+          <div class="home-chef__frame">
+            <div class="home-chef__photo-wrap">
+              <img
+                ngSrc="v1782110262/magadim-catering/chef-yinon-ankari.jpg"
+                alt="השף ינון אנקרי קייטרינג מגדים"
+                width="576"
+                height="1024"
+                sizes="(max-width: 640px) 90vw, (max-width: 960px) 50vw, 35vw"
+                loading="lazy"
+                class="home-chef__photo"
+              />
+              <div class="home-chef__badge">
+                <p class="home-chef__badge-name">השף ינון אנקרי</p>
+                <p class="home-chef__badge-role">מוביל המטבח של מגדים</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="home-chef__connector" aria-hidden="true">
+          <span class="home-chef__connector-line"></span>
+        </div>
+
+        <div class="home-chef__content-panel">
+          <header class="home-chef__head">
+            <p class="home-chef__eyebrow">מאחורי המטבח</p>
+            <h2 id="chef-heading" class="home-chef__title">בהנהלת השף ינון אנקרי</h2>
+          </header>
+
+          <p class="home-chef__text">
+            מאחורי כל מנה של מגדים עומד מטבח שמחבר בין טעם ביתי, חומרי גלם איכותיים, כשרות מהדרין והגשה מוקפדת. השף ינון אנקרי מוביל את התפריטים מתוך הבנה שכל אירוע צריך להרגיש אישי, מדויק ומכובד.
+          </p>
+          <p class="home-chef__text">
+            מהתכנון הראשוני של התפריט ועד ההגשה בשטח, הצוות עובד בשיתוף פעולה מלא עם הלקוח — בבחירת מנות, בהתאמה לגודל האירוע ובשמירה על סטנדרט קבוע של טריות, סדר וכשרות מהודרת. כך כל הזמנה מקבלת את אותה תשומת לב, אותה אמינות ואותה רמה מקצועית, בין אם מדובר בשבת משפחתית, באירוע חג או בקייטרינג לאירוע גדול.
+          </p>
+
+          <div class="home-chef__menu-card">
+            <div class="home-chef__menu-card-intro">
+              <p class="home-chef__menu-card-eyebrow">מה חשוב לנו בכל תפריט</p>
+              <h3 class="home-chef__menu-card-title">כל תפריט נבנה סביב</h3>
+            </div>
+
+            <ul class="home-chef__menu-list">
+              <li class="home-chef__menu-item">
+                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+                <span class="home-chef__menu-label">כמות האורחים</span>
+              </li>
+              <li class="home-chef__menu-item">
+                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+                <span class="home-chef__menu-label">סגנון האירוע</span>
+              </li>
+              <li class="home-chef__menu-item">
+                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+                <span class="home-chef__menu-label">רמת הכשרות</span>
+              </li>
+              <li class="home-chef__menu-item">
+                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+                <span class="home-chef__menu-label">אופי ההגשה</span>
+              </li>
+            </ul>
+
+            <p class="home-chef__menu-card-footer">
+              ככה אנחנו בונים תפריט שמרגיש מדויק, מכובד ולא גנרי.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-chef__fade-bottom" aria-hidden="true"></div>
+  </section>
 
   <app-video-section></app-video-section>
 
-  <!-- Testimonials -->
-  <section class="reviews" aria-labelledby="reviews-heading">
+  <!-- Closing conversion: testimonials -->
+  <section id="home-reviews" class="reviews" aria-labelledby="reviews-heading">
     <div class="reviews__spotlight" aria-live="polite">
       <div class="reviews__spotlight-inner">
-        <div class="reviews__title-wrap" #reviewsTitleWrap>
-          <h2 id="reviews-heading" class="reviews__spotlight-title">לקוחות מספרים על מגדים</h2>
-          <span
-            class="reviews__title-accent"
-            [class.reviews__title-accent--visible]="reviewsAccentVisible"
-            aria-hidden="true"
-          >
-            <svg viewBox="0 0 140 10" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-              <path
-                class="reviews__title-accent-path"
-                pathLength="1"
-                d="M2,6 C16,1 30,9 44,5 S72,1 86,6 S108,9 122,4 S134,2 138,6"
-              />
-            </svg>
-          </span>
-        </div>
+        <header class="reviews__head">
+          <h2 id="reviews-heading" class="reviews__spotlight-title">מה אומרים על מגדים אחרי האירוע?</h2>
+        </header>
 
-        <div class="reviews__spotlight-text-wrap">
-          @for (review of testimonials; track review.name; let i = $index) {
-            <p
-              class="reviews__spotlight-text"
-              [class.reviews__spotlight-text--active]="i === featuredReviewIndex"
-              [attr.aria-hidden]="i !== featuredReviewIndex"
-            >
-              "{{ review.text }}"
-            </p>
-          }
-        </div>
+        <article class="reviews__card">
+          <span class="reviews__quote reviews__quote--open" aria-hidden="true">"</span>
+
+          <div class="reviews__spotlight-text-wrap">
+            @for (review of testimonials; track review.name; let i = $index) {
+              <div
+                class="reviews__slide"
+                [class.reviews__slide--active]="i === featuredReviewIndex"
+                [attr.aria-hidden]="i !== featuredReviewIndex"
+              >
+                @let paragraphs = splitReviewParagraphs(review.text);
+                @if (paragraphs[1]) {
+                  <p class="reviews__spotlight-text">"{{ paragraphs[0] }}</p>
+                  <p class="reviews__spotlight-text reviews__spotlight-text--second">{{ paragraphs[1] }}"</p>
+                } @else {
+                  <p class="reviews__spotlight-text">"{{ paragraphs[0] }}"</p>
+                }
+                <p class="reviews__author">
+                  <span class="reviews__author-name">{{ review.name }}</span>
+                  @if (review.location) {
+                    <span class="reviews__author-sep" aria-hidden="true">·</span>
+                    <span class="reviews__author-location">{{ review.location }}</span>
+                  }
+                </p>
+              </div>
+            }
+          </div>
+
+          <span class="reviews__quote reviews__quote--close" aria-hidden="true">"</span>
+        </article>
 
         <div class="reviews__dots" role="tablist" aria-label="בחירת המלצה">
           @for (review of testimonials; track review.name; let i = $index) {
@@ -127,29 +238,40 @@
   </section>
 
   <section class="home-cta" aria-label="הזמנה">
-    <div class="home-cta__inner">
-      <h2 class="home-cta__title">שבת נעימה מתחילה כאן</h2>
-      <p class="home-cta__text">
-        מזמינים ממגדים — ואנחנו מביאים אליכם הביתה אוכל טרי, ביתי וכשר למהדרין.
-        מתאים לשבתות קבועות, לחגים ולאירועים משפחתיים.
-      </p>
-      <ul class="home-cta__perks" aria-label="יתרונות ההזמנה">
-        <li class="home-cta__perk">
-          <mat-icon aria-hidden="true">home</mat-icon>
-          משלוח עד הבית
-        </li>
-        <li class="home-cta__perk">
-          <mat-icon aria-hidden="true">restaurant</mat-icon>
-          מנות מוכנות לשבת וחג
-        </li>
-        <li class="home-cta__perk">
-          <mat-icon aria-hidden="true">verified</mat-icon>
-          כשר למהדרין
-        </li>
-      </ul>
-      <div class="home-cta__actions">
-        <a class="btn btn--gold" routerLink="/ready-for-shabbat">לתפריט השבת</a>
-        <a class="btn btn--outline" routerLink="/contact">דברו איתנו</a>
+    <div class="home-cta__panel">
+      <div class="home-cta__layout">
+        <div class="home-cta__copy">
+          <h2 class="home-cta__title">שבת נעימה מתחילה כאן</h2>
+          <p class="home-cta__text">
+            מזמינים ממגדים אוכל ביתי, בשרי וכשר למהדרין, מוכן להגשה ולשולחן שבת.
+          </p>
+          <p class="home-cta__trust-line">
+            כשר למהדרין <span aria-hidden="true">|</span> בהנהלת השף ינון אנקרי
+            <span aria-hidden="true">|</span> משלוחים עד הבית
+          </p>
+        </div>
+
+        <div class="home-cta__steps-col">
+          <h3 class="home-cta__steps-title">איך זה עובד?</h3>
+          <ol class="home-cta__steps">
+            <li class="home-cta__step">
+              <span class="home-cta__step-num" aria-hidden="true">01</span>
+              <span class="home-cta__step-label">בוחרים מנות</span>
+            </li>
+            <li class="home-cta__step">
+              <span class="home-cta__step-num" aria-hidden="true">02</span>
+              <span class="home-cta__step-label">שולחים הזמנה</span>
+            </li>
+            <li class="home-cta__step">
+              <span class="home-cta__step-num" aria-hidden="true">03</span>
+              <span class="home-cta__step-label">מקבלים אוכל מוכן לשבת</span>
+            </li>
+          </ol>
+          <div class="home-cta__actions">
+            <a class="btn btn--gold" routerLink="/ready-for-shabbat">לתפריט השבת</a>
+            <a class="btn btn--outline" routerLink="/contact">דברו איתנו</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>

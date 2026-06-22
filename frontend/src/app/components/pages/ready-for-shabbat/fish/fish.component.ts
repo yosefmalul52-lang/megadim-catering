@@ -8,12 +8,11 @@ import { SiteSettingsService, SiteSettings } from '../../../../services/site-set
 import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
-import { WhatsappCtaComponent } from '../../../shared/whatsapp-cta/whatsapp-cta.component';
 
 @Component({
   selector: 'app-fish',
   standalone: true,
-  imports: [CommonModule, NgOptimizedImage, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent, WhatsappCtaComponent],
+  imports: [CommonModule, NgOptimizedImage, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './fish.component.html',
   styleUrls: ['./fish.component.scss']
 })

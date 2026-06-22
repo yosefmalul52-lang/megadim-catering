@@ -1,3 +1,5 @@
+@use '../../../assets/styles/home-title-divider' as divider;
+
 $navy: #1f3540;
 $gold: #e0c075;
 $gold-btn: #e8c547;
@@ -5,6 +7,12 @@ $white: #ffffff;
 $gray-bg: #f3f3f3;
 $text-muted: #6b7280;
 $oos-red: #c0392b;
+$category-gap: 1.5rem;
+$category-col-width: 178px;
+$category-visible-cols: 4;
+$category-viewport-width: calc(
+  #{$category-visible-cols} * #{$category-col-width} + (#{$category-visible-cols} - 1) * #{$category-gap}
+);
 
 .featured-menu-section {
   padding: 3.5rem 1.25rem 4rem;
@@ -23,6 +31,8 @@ $oos-red: #c0392b;
   font-weight: 700;
   color: $navy;
   margin: 0 0 2.25rem;
+
+  @include divider.home-title-divider($gold, center);
 }
 
 // ─── Category carousel ─────────────────────────────────────────
@@ -31,9 +41,28 @@ $oos-red: #c0392b;
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  margin: 0 auto 2.75rem;
-  max-width: 1100px;
+  position: relative;
+  margin: 0 auto 4.75rem;
+  max-width: calc(#{$category-viewport-width} + 7rem);
   padding: 0 0.25rem;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -2.375rem;
+    transform: translateX(-50%);
+    width: min(88%, 38rem);
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba($gold, 0.28) 18%,
+      rgba($gold, 0.28) 82%,
+      transparent 100%
+    );
+    pointer-events: none;
+  }
 }
 
 .carousel-nav {
@@ -73,11 +102,11 @@ $oos-red: #c0392b;
 .category-track {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
-  gap: clamp(1.25rem, 4vw, 2.5rem);
+  justify-content: flex-start;
+  gap: $category-gap;
   overflow-x: auto;
   scroll-behavior: smooth;
-  scroll-snap-type: x proximity;
+  scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding: 0.5rem 0.25rem 0.25rem;
@@ -88,7 +117,7 @@ $oos-red: #c0392b;
 }
 
 .category-chip {
-  flex: 0 0 auto;
+  flex: 0 0 $category-col-width;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -97,8 +126,8 @@ $oos-red: #c0392b;
   border: none;
   cursor: pointer;
   padding: 0.25rem 0.35rem 0;
-  width: 138px;
-  scroll-snap-align: center;
+  width: $category-col-width;
+  scroll-snap-align: start;
   text-decoration: none;
   color: inherit;
 
@@ -106,31 +135,31 @@ $oos-red: #c0392b;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
+    width: 100%;
+    max-width: 164px;
+    height: 140px;
     padding: 3px;
     background: transparent;
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    transition: box-shadow 0.15s ease;
   }
 
   &__circle {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
-    border: 2px solid #c5c5c5;
+    border: 1px solid rgba($navy, 0.32);
+    border-radius: 4px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: $white;
+    display: block;
+    background: transparent;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-    transition: border-color 0.15s ease;
+    box-sizing: border-box;
 
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: center;
+      display: block;
     }
   }
 
@@ -147,12 +176,7 @@ $oos-red: #c0392b;
 
   &:hover {
     .category-chip__ring {
-      background: $white;
       box-shadow: 0 0 0 2px $gold, 0 4px 14px rgba($navy, 0.1);
-    }
-
-    .category-chip__circle {
-      border-color: $navy;
     }
 
     .category-chip__label {
@@ -350,6 +374,24 @@ $oos-red: #c0392b;
 }
 
 // ─── Responsive ────────────────────────────────────────────────
+@media (min-width: 769px) {
+  .category-carousel__viewport {
+    flex: 0 0 $category-viewport-width;
+    width: $category-viewport-width;
+    max-width: 100%;
+  }
+
+  .category-chip {
+    flex: 0 0 calc((100% - (#{$category-visible-cols} - 1) * #{$category-gap}) / #{$category-visible-cols});
+    width: calc((100% - (#{$category-visible-cols} - 1) * #{$category-gap}) / #{$category-visible-cols});
+
+    &__ring {
+      width: 100%;
+      max-width: none;
+    }
+  }
+}
+
 @media (max-width: 1024px) {
   .products-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -372,17 +414,19 @@ $oos-red: #c0392b;
   }
 
   .category-track {
-    justify-content: flex-start;
-    gap: 1.5rem;
+    gap: 1.25rem;
     padding-inline: 0.5rem;
   }
 
   .category-chip {
-    width: 118px;
+    flex: 0 0 148px;
+    width: 148px;
+    scroll-snap-align: start;
 
     &__ring {
-      width: 100px;
-      height: 100px;
+      width: 100%;
+      max-width: none;
+      height: 112px;
     }
 
     &__label {

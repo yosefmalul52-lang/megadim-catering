@@ -11,6 +11,21 @@ export const B2B_DICTIONARY_CATEGORIES = [
 
 export type B2BDictionaryCategory = (typeof B2B_DICTIONARY_CATEGORIES)[number]['value'];
 
+/** Meat mains: kitchen reports show total kg from grams-per-portion. */
+export function isMeatKgCategory(category: B2BDictionaryCategory): boolean {
+  return category === 'mainMeat';
+}
+
+/** Fish and vegetarian mains: counted as discrete units, not gastronorms. */
+export function isUnitCountCategory(category: B2BDictionaryCategory): boolean {
+  return category === 'fish' || category === 'vegetarianMain';
+}
+
+/** Carbs, sides, salads: kitchen reports convert portions → gastronorms. */
+export function isGastronormCategory(category: B2BDictionaryCategory): boolean {
+  return !isMeatKgCategory(category) && !isUnitCountCategory(category);
+}
+
 export interface B2BMenuItem {
   id: string;
   name: string;

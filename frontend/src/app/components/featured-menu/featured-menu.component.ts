@@ -76,7 +76,13 @@ export class FeaturedMenuComponent implements OnInit {
   scrollCategories(direction: -1 | 1): void {
     const el = this.categoryTrack?.nativeElement;
     if (!el) return;
-    el.scrollBy({ left: direction * 220, behavior: 'smooth' });
+
+    const chip = el.querySelector<HTMLElement>('.category-chip');
+    const styles = getComputedStyle(el);
+    const gap = Number.parseFloat(styles.columnGap || styles.gap) || 24;
+    const step = chip ? chip.offsetWidth + gap : 220;
+
+    el.scrollBy({ left: direction * step, behavior: 'smooth' });
   }
 
   private loadFeaturedProducts(): void {
