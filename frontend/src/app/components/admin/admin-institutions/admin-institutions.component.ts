@@ -52,11 +52,18 @@ import {
   B2B_DICTIONARY_CATEGORIES,
   dictionaryCategoryForMenuKey,
   dictionaryCategoryLabel,
+  dictionaryLogisticsBadge,
   isGastronormCategory,
   isMeatKgCategory,
   isUnitCountCategory,
+  B2B_REPORT_UNIT_OPTIONS,
+  B2B_CALCULATION_METHOD_OPTIONS,
+  B2B_ROUNDING_OPTIONS,
   type B2BMenuItem,
-  type B2BDictionaryCategory
+  type B2BDictionaryCategory,
+  type B2BCalculationMethod,
+  type B2BReportUnit,
+  type B2BRoundingMode
 } from '../../../utils/b2b-dictionary';
 import {
   buildAggregatedShabbatKitchenLines,
@@ -163,6 +170,10 @@ export class AdminInstitutionsComponent implements OnInit {
   readonly seudaShlishitFields = SEUDA_SHLISHIT_MENU_FIELDS;
   readonly shabbatSaladSlots = SHABBAT_SALAD_SLOTS;
   readonly dictionaryCategories = B2B_DICTIONARY_CATEGORIES;
+  readonly reportUnitOptions = B2B_REPORT_UNIT_OPTIONS;
+  readonly calculationMethodOptions = B2B_CALCULATION_METHOD_OPTIONS;
+  readonly roundingOptions = B2B_ROUNDING_OPTIONS;
+  readonly dictionaryLogisticsBadge = dictionaryLogisticsBadge;
   readonly dictionaryCategoryLabel = dictionaryCategoryLabel;
 
   kitchenColumns = ['dayLabel', 'menuItem', 'totalRegular', 'totalVegetarian', 'grandTotal'];
@@ -360,8 +371,136 @@ export class AdminInstitutionsComponent implements OnInit {
       name: ['', [Validators.required, Validators.minLength(2)]],
       category: ['mainMeat' as B2BDictionaryCategory, Validators.required],
       gramsPerPortion: [200, [Validators.min(1)]],
-      portionsPerGastronorm: [40, [Validators.min(1)]]
+      portionsPerGastronorm: [40, [Validators.min(1)]],
+      calculationSettings: this.fb.group({
+        enabled: [false],
+        reportUnit: ['kg' as B2BReportUnit],
+        calculationMethod: ['per_portion' as B2BCalculationMethod],
+        quantityPerPortion: [null as number | null],
+        quantityPerOrder: [null as number | null],
+        quantityPerXPortions: [null as number | null],
+        xPortions: [null as number | null],
+        rounding: ['none' as B2BRoundingMode],
+        minimumQuantity: [null as number | null]
+      })
     });
+
+    const calcGroup = this.dictionaryForm.get('calculationSettings') as FormGroup;
+    calcGroup.get('enabled')?.valueChanges.subscribe(() => this.updateCalculationSettingsValidators());
+    calcGroup.get('calculationMethod')?.valueChanges.subscribe(() => this.updateCalculationSettingsValidators());
+  }
+
+  get calculationSettingsGroup(): FormGroup {
+    return this.dictionaryForm.get('calculationSettings') as FormGroup;
+  }
+
+  get calculationSettingsEnabled(): boolean {
+    return this.calculationSettingsGroup.get('enabled')?.value === true;
+  }
+
+  get dictionaryCalculationMethod(): B2BCalculationMethod {
+    return this.calculationSettingsGroup.get('calculationMethod')?.value || 'per_portion';
+  }
+
+  private defaultCalculationSettingsFormValue() {
+    return {
+      enabled: false,
+      reportUnit: 'kg' as B2BReportUnit,
+      calculationMethod: 'per_portion' as B2BCalculationMethod,
+      quantityPerPortion: null,
+      quantityPerOrder: null,
+      quantityPerXPortions: null,
+      xPortions: null,
+      rounding: 'none' as B2BRoundingMode,
+      minimumQuantity: null
+    };
+  }
+
+  private updateCalculationSettingsValidators(): void {
+    const group = this.calculationSettingsGroup;
+    const enabled = group.get('enabled')?.value === true;
+    const method = group.get('calculationMethod')?.value as B2BCalculationMethod;
+
+    const perPortion = group.get('quantityPerPortion');
+    const perOrder = group.get('quantityPerOrder');
+    const perXQty = group.get('quantityPerXPortions');
+    const xPortions = group.get('xPortions');
+    const minimum = group.get('minimumQuantity');
+
+    perPortion?.clearValidators();
+    perOrder?.clearValidators();
+    perXQty?.clearValidators();
+    xPortions?.clearValidators();
+    minimum?.clearValidators();
+
+    if (enabled) {
+      group.get('reportUnit')?.setValidators([Validators.required]);
+      group.get('calculationMethod')?.setValidators([Validators.required]);
+      if (method === 'per_portion') {
+        perPortion?.setValidators([Validators.required, Validators.min(0.0001)]);
+      } else if (method === 'fixed_per_order') {
+        perOrder?.setValidators([Validators.required, Validators.min(0.0001)]);
+      } else if (method === 'per_x_portions') {
+        perXQty?.setValidators([Validators.required, Validators.min(0.0001)]);
+        xPortions?.setValidators([Validators.required, Validators.min(0.0001)]);
+      }
+      minimum?.setValidators([Validators.min(0)]);
+    } else {
+      group.get('reportUnit')?.clearValidators();
+      group.get('calculationMethod')?.clearValidators();
+    }
+
+    group.get('reportUnit')?.updateValueAndValidity({ emitEvent: false });
+    group.get('calculationMethod')?.updateValueAndValidity({ emitEvent: false });
+    perPortion?.updateValueAndValidity({ emitEvent: false });
+    perOrder?.updateValueAndValidity({ emitEvent: false });
+    perXQty?.updateValueAndValidity({ emitEvent: false });
+    xPortions?.updateValueAndValidity({ emitEvent: false });
+    minimum?.updateValueAndValidity({ emitEvent: false });
+    this.dictionaryForm.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private buildCalculationSettingsPayload(): B2BMenuItem['calculationSettings'] | undefined {
+    const calc = this.calculationSettingsGroup.value;
+    if (!calc.enabled) return undefined;
+    const payload: NonNullable<B2BMenuItem['calculationSettings']> = {
+      enabled: true,
+      reportUnit: calc.reportUnit,
+      calculationMethod: calc.calculationMethod,
+      rounding: calc.rounding || 'none'
+    };
+    if (calc.minimumQuantity !== null && calc.minimumQuantity !== '' && calc.minimumQuantity !== undefined) {
+      payload.minimumQuantity = Number(calc.minimumQuantity);
+    }
+    if (calc.calculationMethod === 'per_portion') {
+      payload.quantityPerPortion = Number(calc.quantityPerPortion);
+    } else if (calc.calculationMethod === 'fixed_per_order') {
+      payload.quantityPerOrder = Number(calc.quantityPerOrder);
+    } else if (calc.calculationMethod === 'per_x_portions') {
+      payload.quantityPerXPortions = Number(calc.quantityPerXPortions);
+      payload.xPortions = Number(calc.xPortions);
+    }
+    return payload;
+  }
+
+  private patchCalculationSettingsForm(item?: B2BMenuItem): void {
+    const settings = item?.calculationSettings;
+    this.calculationSettingsGroup.patchValue(
+      settings?.enabled
+        ? {
+            enabled: true,
+            reportUnit: settings.reportUnit,
+            calculationMethod: settings.calculationMethod,
+            quantityPerPortion: settings.quantityPerPortion ?? null,
+            quantityPerOrder: settings.quantityPerOrder ?? null,
+            quantityPerXPortions: settings.quantityPerXPortions ?? null,
+            xPortions: settings.xPortions ?? null,
+            rounding: settings.rounding || 'none',
+            minimumQuantity: settings.minimumQuantity ?? null
+          }
+        : this.defaultCalculationSettingsFormValue()
+    );
+    this.updateCalculationSettingsValidators();
   }
 
   readonly isMeatKgCategory = isMeatKgCategory;
@@ -393,8 +532,10 @@ export class AdminInstitutionsComponent implements OnInit {
       name: '',
       category: 'mainMeat',
       gramsPerPortion: 200,
-      portionsPerGastronorm: 40
+      portionsPerGastronorm: 40,
+      calculationSettings: this.defaultCalculationSettingsFormValue()
     });
+    this.updateCalculationSettingsValidators();
     this.showDictionaryModal = true;
     if (!this.dictionaryItems.length) {
       this.loadDictionary();
@@ -415,6 +556,7 @@ export class AdminInstitutionsComponent implements OnInit {
       gramsPerPortion: item.gramsPerPortion || 200,
       portionsPerGastronorm: item.portionsPerGastronorm || 40
     });
+    this.patchCalculationSettingsForm(item);
   }
 
   cancelDictionaryEdit(): void {
@@ -423,8 +565,10 @@ export class AdminInstitutionsComponent implements OnInit {
       name: '',
       category: 'mainMeat',
       gramsPerPortion: 200,
-      portionsPerGastronorm: 40
+      portionsPerGastronorm: 40,
+      calculationSettings: this.defaultCalculationSettingsFormValue()
     });
+    this.updateCalculationSettingsValidators();
   }
 
   submitDictionaryForm(): void {
@@ -436,7 +580,8 @@ export class AdminInstitutionsComponent implements OnInit {
       gramsPerPortion: isMeatKgCategory(v.category) ? Number(v.gramsPerPortion) || 200 : undefined,
       portionsPerGastronorm: isGastronormCategory(v.category)
         ? Number(v.portionsPerGastronorm) || 40
-        : undefined
+        : undefined,
+      calculationSettings: this.buildCalculationSettingsPayload()
     };
 
     this.isSavingDictionary = true;
@@ -492,11 +637,7 @@ export class AdminInstitutionsComponent implements OnInit {
     const items = this.dictionaryItems.filter((i) => i.category === dictCategory && i.isActive !== false);
     const options: { value: string; label: string }[] = [{ value: '', label: '— ללא —' }];
     for (const item of items) {
-      const suffix = isMeatKgCategory(item.category)
-        ? ` (${item.gramsPerPortion} ג' למנה)`
-        : isUnitCountCategory(item.category)
-          ? ' (לפי יחידות)'
-          : ` (${item.portionsPerGastronorm || 40} מנות/גסטרונום)`;
+      const suffix = ` (${dictionaryLogisticsBadge(item)})`;
       options.push({ value: item.name, label: `${item.name}${suffix}` });
     }
     const current = String(currentValue ?? '').trim();
@@ -523,25 +664,32 @@ export class AdminInstitutionsComponent implements OnInit {
   shabbatLogisticsLookup(dishName: string, fieldKey: string): DishLogisticsLookup {
     const dictCategory = this.shabbatFieldDictCategory(fieldKey);
     const item = this.lookupDictionaryByCategory(dishName, dictCategory);
+    const lookup: DishLogisticsLookup = { dictCategory };
+    if (item?.calculationSettings?.enabled) {
+      lookup.calculationSettings = item.calculationSettings;
+    }
     if (isMeatKgCategory(dictCategory)) {
-      return { gramsPerPortion: item?.gramsPerPortion };
+      lookup.gramsPerPortion = item?.gramsPerPortion;
+    } else if (!isUnitCountCategory(dictCategory)) {
+      lookup.portionsPerGastronorm = item?.portionsPerGastronorm;
     }
-    if (isUnitCountCategory(dictCategory)) {
-      return {};
-    }
-    return { portionsPerGastronorm: item?.portionsPerGastronorm };
+    return lookup;
   }
 
   /** Report math: dictionary hit, else safe defaults (40 GN / 200g meat). */
-  logisticsForDish(dishName: string, menuCategoryKey: MenuCategoryKey) {
+  logisticsForDish(dishName: string, menuCategoryKey: MenuCategoryKey): DishLogisticsLookup {
     const item = this.lookupDictionaryItem(dishName, menuCategoryKey);
+    const dictCategory = item?.category ?? dictionaryCategoryForMenuKey(menuCategoryKey);
+    const lookup: DishLogisticsLookup = { dictCategory };
+    if (item?.calculationSettings?.enabled) {
+      lookup.calculationSettings = item.calculationSettings;
+    }
     if (menuCategoryKey === 'mainMeat') {
-      return { gramsPerPortion: item?.gramsPerPortion };
+      lookup.gramsPerPortion = item?.gramsPerPortion;
+    } else if (menuCategoryKey !== 'vegetarianMain') {
+      lookup.portionsPerGastronorm = item?.portionsPerGastronorm;
     }
-    if (menuCategoryKey === 'vegetarianMain') {
-      return {};
-    }
-    return { portionsPerGastronorm: item?.portionsPerGastronorm };
+    return lookup;
   }
 
   /**

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import B2BMenuItem, { B2B_DICTIONARY_CATEGORIES, type B2BDictionaryCategory } from '../models/B2BMenuItem';
+import { parseCalculationSettings, serializeCalculationSettings } from '../utils/b2b-calculation-settings';
 
 const DEFAULT_GRAMS_PER_PORTION = 200;
 const DEFAULT_PORTIONS_PER_GN = 40;
@@ -10,14 +11,17 @@ function serializeItem(doc: {
   category: string;
   gramsPerPortion: number;
   portionsPerGastronorm: number;
+  calculationSettings?: ReturnType<typeof serializeCalculationSettings>;
   isActive?: boolean;
 }) {
+  const calculationSettings = serializeCalculationSettings(doc.calculationSettings);
   return {
     id: String(doc._id),
     name: doc.name,
     category: doc.category,
     gramsPerPortion: doc.gramsPerPortion ?? DEFAULT_GRAMS_PER_PORTION,
     portionsPerGastronorm: doc.portionsPerGastronorm ?? DEFAULT_PORTIONS_PER_GN,
+    ...(calculationSettings ? { calculationSettings } : {}),
     isActive: doc.isActive !== false
   };
 }
@@ -37,34 +41,51 @@ function parsePortionsPerGastronorm(value: unknown): number {
   return Math.max(1, Number(value) || DEFAULT_PORTIONS_PER_GN);
 }
 
+function parseCalculationSettingsFromBody(body: Record<string, unknown>) {
+  try {
+    return parseCalculationSettings(body.calculationSettings);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'הגדרות חישוב לא תקינות';
+    throw new Error(message);
+  }
+}
+
 function buildItemFields(name: string, category: B2BDictionaryCategory, body: Record<string, unknown>) {
+  let base: Record<string, unknown>;
+
   if (category === 'mainMeat') {
-    return {
+    base = {
       name,
       category,
       gramsPerPortion: parseGramsPerPortion(body.gramsPerPortion),
       portionsPerGastronorm: DEFAULT_PORTIONS_PER_GN,
       isActive: true
     };
-  }
-
-  if (category === 'fish' || category === 'vegetarianMain') {
-    return {
+  } else if (category === 'fish' || category === 'vegetarianMain') {
+    base = {
       name,
       category,
       gramsPerPortion: DEFAULT_GRAMS_PER_PORTION,
       portionsPerGastronorm: DEFAULT_PORTIONS_PER_GN,
       isActive: true
     };
+  } else {
+    base = {
+      name,
+      category,
+      gramsPerPortion: DEFAULT_GRAMS_PER_PORTION,
+      portionsPerGastronorm: parsePortionsPerGastronorm(body.portionsPerGastronorm),
+      isActive: true
+    };
   }
 
-  return {
-    name,
-    category,
-    gramsPerPortion: DEFAULT_GRAMS_PER_PORTION,
-    portionsPerGastronorm: parsePortionsPerGastronorm(body.portionsPerGastronorm),
-    isActive: true
-  };
+  const parsed = parseCalculationSettingsFromBody(body);
+  const calculationSettings = parsed?.enabled ? serializeCalculationSettings(parsed) : undefined;
+  if (calculationSettings) {
+    base.calculationSettings = calculationSettings;
+  }
+
+  return { fields: base, unsetCalculationSettings: !calculationSettings };
 }
 
 /** GET /api/admin/b2b-dictionary?includeInactive=true */
@@ -98,10 +119,14 @@ export async function createB2BMenuItem(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const fields = buildItemFields(name, category, (req.body || {}) as Record<string, unknown>);
+    const { fields } = buildItemFields(name, category, (req.body || {}) as Record<string, unknown>);
     const created = await B2BMenuItem.create(fields);
     res.status(201).json({ success: true, data: serializeItem(created), message: 'מנה נוספה למאגר' });
   } catch (err: any) {
+    if (err?.message && !err?.code) {
+      res.status(400).json({ success: false, message: err.message });
+      return;
+    }
     if (err?.code === 11000) {
       res.status(409).json({ success: false, message: 'מנה בשם זה כבר קיימת בקטגוריה' });
       return;
@@ -125,8 +150,16 @@ export async function updateB2BMenuItem(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const fields = buildItemFields(name, category, (req.body || {}) as Record<string, unknown>);
-    const updated = await B2BMenuItem.findByIdAndUpdate(req.params.id, fields, {
+    const { fields, unsetCalculationSettings } = buildItemFields(
+      name,
+      category,
+      (req.body || {}) as Record<string, unknown>
+    );
+    const update: Record<string, unknown> = { $set: fields };
+    if (unsetCalculationSettings) {
+      update.$unset = { calculationSettings: '' };
+    }
+    const updated = await B2BMenuItem.findByIdAndUpdate(req.params.id, update, {
       new: true,
       runValidators: true
     }).lean();
@@ -138,6 +171,10 @@ export async function updateB2BMenuItem(req: Request, res: Response): Promise<vo
 
     res.json({ success: true, data: serializeItem(updated), message: 'מנה עודכנה בהצלחה' });
   } catch (err: any) {
+    if (err?.message && !err?.code) {
+      res.status(400).json({ success: false, message: err.message });
+      return;
+    }
     if (err?.code === 11000) {
       res.status(409).json({ success: false, message: 'מנה בשם זה כבר קיימת בקטגוריה' });
       return;

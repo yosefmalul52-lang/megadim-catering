@@ -979,6 +979,76 @@
           </div>
         }
       </div>
+
+      <section class="calculation-settings-section" formGroupName="calculationSettings">
+        <h3 class="section-title">חישוב כמויות לדוחות</h3>
+        <div class="field checkbox-field">
+          <mat-checkbox formControlName="enabled">הפעל חישוב מותאם למנה זו</mat-checkbox>
+        </div>
+
+        @if (calculationSettingsEnabled) {
+          <div class="form-row calculation-settings-fields">
+            <div class="field">
+              <label for="dictReportUnit">יחידת מידה בדוחות</label>
+              <mat-form-field appearance="outline" class="menu-mat-field">
+                <mat-select id="dictReportUnit" formControlName="reportUnit">
+                  @for (opt of reportUnitOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <div class="field">
+              <label for="dictCalcMethod">שיטת חישוב</label>
+              <mat-form-field appearance="outline" class="menu-mat-field">
+                <mat-select id="dictCalcMethod" formControlName="calculationMethod">
+                  @for (opt of calculationMethodOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            @if (dictionaryCalculationMethod === 'per_portion') {
+              <div class="field">
+                <label for="dictQtyPerPortion">כמות לכל מנה</label>
+                <input id="dictQtyPerPortion" type="number" min="0.0001" step="any" class="input" formControlName="quantityPerPortion" />
+              </div>
+            } @else if (dictionaryCalculationMethod === 'fixed_per_order') {
+              <div class="field">
+                <label for="dictQtyPerOrder">כמות קבועה להזמנה</label>
+                <input id="dictQtyPerOrder" type="number" min="0.0001" step="any" class="input" formControlName="quantityPerOrder" />
+              </div>
+            } @else if (dictionaryCalculationMethod === 'per_x_portions') {
+              <div class="field">
+                <label for="dictQtyPerX">כמות</label>
+                <input id="dictQtyPerX" type="number" min="0.0001" step="any" class="input" formControlName="quantityPerXPortions" />
+              </div>
+              <div class="field">
+                <label for="dictXPortions">לכל כמה מנות</label>
+                <input id="dictXPortions" type="number" min="1" step="1" class="input" formControlName="xPortions" />
+              </div>
+            }
+
+            <div class="field">
+              <label for="dictRounding">עיגול</label>
+              <mat-form-field appearance="outline" class="menu-mat-field">
+                <mat-select id="dictRounding" formControlName="rounding">
+                  @for (opt of roundingOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <div class="field">
+              <label for="dictMinQty">כמות מינימום</label>
+              <input id="dictMinQty" type="number" min="0" step="any" class="input" formControlName="minimumQuantity" />
+              <p class="field-hint">אופציונלי</p>
+            </div>
+          </div>
+        }
+      </section>
+
       <div class="dictionary-form-actions">
         @if (editingDictionaryId) {
           <button type="button" class="btn-secondary" (click)="cancelDictionaryEdit()">ביטול עריכה</button>
@@ -1004,13 +1074,10 @@
                   <li class="dictionary-item-row" [class.editing]="editingDictionaryId === item.id">
                     <span class="dictionary-item-name">
                       {{ item.name }}
-                      @if (item.category === 'mainMeat') {
-                        <span class="grams-badge">{{ item.gramsPerPortion }} ג' למנה</span>
-                      } @else if (isUnitCountCategory(item.category)) {
-                        <span class="units-badge">נמדד ביחידות</span>
-                      } @else {
-                        <span class="gn-badge">{{ item.portionsPerGastronorm || 40 }} מנות/גסטרונום</span>
-                      }
+                      <span
+                        class="logistics-badge"
+                        [class.custom-badge]="item.calculationSettings?.enabled"
+                      >{{ dictionaryLogisticsBadge(item) }}</span>
                     </span>
                     <span class="dictionary-item-actions">
                       <button type="button" mat-icon-button title="ערוך" (click)="editDictionaryItem(item)">

@@ -1,4 +1,11 @@
 import type { MenuCategoryKey } from './menu-structure';
+import type {
+  B2BCalculationSettings,
+  B2BDictionaryCategory,
+  B2BReportUnit,
+  B2BRoundingMode
+} from './b2b-dictionary';
+import { reportUnitLabel, formatManualReportLabel } from './b2b-dictionary';
 
 export type LogisticsCategoryKey = MenuCategoryKey | 'fish';
 
@@ -8,6 +15,19 @@ export const DEFAULT_MEAT_GRAMS_PER_PORTION = 200;
 export interface DishLogisticsLookup {
   gramsPerPortion?: number;
   portionsPerGastronorm?: number;
+  calculationSettings?: B2BCalculationSettings;
+  dictCategory?: B2BDictionaryCategory;
+}
+
+export interface B2BReportQuantityContext {
+  orderCount?: number;
+}
+
+export interface B2BReportQuantityResult {
+  quantity: number | null;
+  unit: B2BReportUnit | string;
+  label: string;
+  isCustom: boolean;
 }
 
 export function logisticsCategoryUsesUnits(category: LogisticsCategoryKey): boolean {
@@ -62,6 +82,157 @@ export function formatLogisticsNumber(value: number): string {
   return rounded % 1 === 0 ? String(rounded) : rounded.toFixed(1);
 }
 
+function applyRounding(value: number, rounding: B2BRoundingMode = 'none'): number {
+  if (!Number.isFinite(value)) return 0;
+  switch (rounding) {
+    case 'ceil':
+      return Math.ceil(value);
+    case 'floor':
+      return Math.floor(value);
+    case 'round':
+      return Math.round(value);
+    default:
+      return value;
+  }
+}
+
+function applyMinimumQuantity(quantity: number, minimumQuantity?: number): number {
+  if (minimumQuantity === undefined || minimumQuantity === null) return quantity;
+  if (!Number.isFinite(minimumQuantity) || minimumQuantity < 0) return quantity;
+  return quantity < minimumQuantity ? minimumQuantity : quantity;
+}
+
+function buildCustomCalculationLabel(settings: B2BCalculationSettings): string {
+  const unit = reportUnitLabel(settings.reportUnit, 1);
+  if (settings.calculationMethod === 'manual') return formatManualReportLabel(settings.reportUnit);
+  if (settings.calculationMethod === 'per_portion' && settings.quantityPerPortion !== undefined) {
+    return `${settings.quantityPerPortion} ${unit} למנה`;
+  }
+  if (settings.calculationMethod === 'fixed_per_order' && settings.quantityPerOrder !== undefined) {
+    return `${settings.quantityPerOrder} ${unit} להזמנה`;
+  }
+  if (
+    settings.calculationMethod === 'per_x_portions' &&
+    settings.quantityPerXPortions !== undefined &&
+    settings.xPortions !== undefined
+  ) {
+    return `${settings.quantityPerXPortions} ${unit} לכל ${settings.xPortions} מנות`;
+  }
+  return '';
+}
+
+function computeCustomQuantity(
+  portions: number,
+  settings: B2BCalculationSettings
+): number | null {
+  if (settings.calculationMethod === 'manual') return null;
+
+  let raw = 0;
+  if (settings.calculationMethod === 'per_portion') {
+    raw = portions * (settings.quantityPerPortion || 0);
+  } else if (settings.calculationMethod === 'fixed_per_order') {
+    raw = settings.quantityPerOrder || 0;
+  } else if (settings.calculationMethod === 'per_x_portions') {
+    const x = settings.xPortions || 0;
+    const q = settings.quantityPerXPortions || 0;
+    if (x <= 0 || q <= 0) return 0;
+    raw = (portions / x) * q;
+  }
+
+  const rounded = applyRounding(raw, settings.rounding || 'none');
+  return applyMinimumQuantity(rounded, settings.minimumQuantity);
+}
+
+function computeLegacyReportQuantity(
+  portions: number,
+  menuCategoryKey: LogisticsCategoryKey,
+  logistics: DishLogisticsLookup = {}
+): B2BReportQuantityResult {
+  if (portions <= 0) {
+    return { quantity: 0, unit: 'portion', label: '', isCustom: false };
+  }
+
+  if (menuCategoryKey === 'mainMeat') {
+    const kg = computeMeatKg(portions, logistics.gramsPerPortion);
+    return { quantity: kg, unit: 'kg', label: `${formatLogisticsNumber(kg)} ק"ג`, isCustom: false };
+  }
+
+  if (logisticsCategoryUsesUnits(menuCategoryKey)) {
+    return {
+      quantity: portions,
+      unit: 'unit',
+      label: `${portions} יחידות`,
+      isCustom: false
+    };
+  }
+
+  const gn = computeGastronorms(portions, logistics.portionsPerGastronorm);
+  const unitLabel = gn === 1 ? 'גסטרונום' : 'גסטרונומים';
+  return {
+    quantity: gn,
+    unit: 'pan',
+    label: `${formatLogisticsNumber(gn)} ${unitLabel}`,
+    isCustom: false
+  };
+}
+
+export function formatB2BReportDisplay(result: B2BReportQuantityResult): string | null {
+  if (result.isCustom && result.quantity === null) {
+    return result.label || 'ידני';
+  }
+  if (result.quantity === null || result.quantity === undefined) {
+    return null;
+  }
+  if (!Number.isFinite(result.quantity) || result.quantity <= 0) {
+    return result.isCustom ? null : null;
+  }
+
+  const unit = result.unit as B2BReportUnit;
+  const unitText = reportUnitLabel(unit, result.quantity);
+  return `${formatLogisticsNumber(result.quantity)} ${unitText}`;
+}
+
+export function computeB2BReportQuantity(params: {
+  portions: unknown;
+  item?: { calculationSettings?: B2BCalculationSettings };
+  category?: LogisticsCategoryKey | B2BDictionaryCategory;
+  logistics?: DishLogisticsLookup;
+  context?: B2BReportQuantityContext;
+}): B2BReportQuantityResult {
+  const safeCount = safePortions(params.portions);
+  const settings =
+    params.item?.calculationSettings ?? params.logistics?.calculationSettings;
+  const menuCategoryKey = (params.category || 'side') as LogisticsCategoryKey;
+  const logistics = params.logistics || {};
+
+  if (settings?.enabled) {
+    const quantity = computeCustomQuantity(safeCount, settings);
+    const label = buildCustomCalculationLabel(settings);
+    if (settings.calculationMethod === 'manual') {
+      return {
+        quantity: null,
+        unit: settings.reportUnit,
+        label: formatManualReportLabel(settings.reportUnit),
+        isCustom: true
+      };
+    }
+    const display = quantity !== null ? formatB2BReportDisplay({
+      quantity,
+      unit: settings.reportUnit,
+      label,
+      isCustom: true
+    }) : null;
+    return {
+      quantity,
+      unit: settings.reportUnit,
+      label: display || label,
+      isCustom: true
+    };
+  }
+
+  return computeLegacyReportQuantity(safeCount, menuCategoryKey, logistics);
+}
+
 export function formatGastronormsLabel(
   portions: unknown,
   portionsPerGastronorm?: unknown
@@ -91,6 +262,15 @@ export function formatLogisticsMetric(
 ): string | null {
   const safeCount = safePortions(portions);
   if (safeCount <= 0) return null;
+
+  if (logistics.calculationSettings?.enabled) {
+    const result = computeB2BReportQuantity({
+      portions: safeCount,
+      category: menuCategoryKey,
+      logistics
+    });
+    return formatB2BReportDisplay(result);
+  }
 
   if (menuCategoryKey === 'mainMeat') {
     const kg = computeMeatKg(safeCount, logistics.gramsPerPortion);

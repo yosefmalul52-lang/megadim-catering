@@ -1827,13 +1827,36 @@ tr.erp-table-row,
 }
 
 .grams-badge,
+.units-badge,
 .gn-badge,
-.units-badge {
-  font-size: 0.75rem;
-  color: $slate;
-  background: #f1f5f9;
+.logistics-badge {
+  display: inline-block;
+  margin-inline-start: 0.35rem;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.logistics-badge.custom-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.calculation-settings-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid $border;
+}
+
+.calculation-settings-fields {
+  margin-top: 0.5rem;
+}
+
+.checkbox-field {
+  margin-bottom: 0.5rem;
 }
 
 .dictionary-item-actions {

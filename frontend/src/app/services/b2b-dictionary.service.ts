@@ -3,13 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import type { B2BDictionaryCategory, B2BMenuItem } from '../utils/b2b-dictionary';
+import type { B2BDictionaryCategory, B2BMenuItem, B2BCalculationSettings } from '../utils/b2b-dictionary';
 
 export interface CreateB2BMenuItemPayload {
   name: string;
   category: B2BDictionaryCategory;
   gramsPerPortion?: number;
   portionsPerGastronorm?: number;
+  calculationSettings?: B2BCalculationSettings;
 }
 
 export interface UpdateB2BMenuItemPayload extends CreateB2BMenuItemPayload {}
