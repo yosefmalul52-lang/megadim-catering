@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
 import { asyncHandler, createValidationError } from '../middleware/errorHandler';
 import { emailService } from '../services/email.service';
+import StoreSettings from '../models/store-settings.model';
 import Order from '../models/Order';
+import { normalizeOpenDates, normalizeOpenDateRules, assertEventDateOpen } from '../utils/open-date-rules';
 import {
   normalizeCateringLineItems,
   pushCateringOrderItems,
-  resolveMealCourseLines
+  resolveMealCourseLines,
 } from '../utils/catering-lines';
+import { validateShabbatCateringSelection, cateringLineNames } from '../utils/catering-validation';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -101,6 +104,61 @@ function mealTimeToLabel(mealTime: string): string {
   return map[mealTime] || mealTime;
 }
 
+function parsePositiveInteger(value: unknown): number | null {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const n = typeof value === 'number' ? value : parseInt(String(value).trim(), 10);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
+  return n;
+}
+
+function hasExplicitPortionField(body: Record<string, unknown>, key: 'portionsEvening' | 'portionsMorning'): boolean {
+  const v = body[key];
+  return v !== undefined && v !== null && String(v).trim() !== '';
+}
+
+type ResolvedPortions = {
+  portionsEvening?: number;
+  portionsMorning?: number;
+  numberOfPortions: number;
+};
+
+function resolveShabbatPortions(
+  body: Record<string, unknown>,
+  mealTime: 'evening' | 'morning' | 'both'
+): ResolvedPortions {
+  const usesNewFields =
+    hasExplicitPortionField(body, 'portionsEvening') || hasExplicitPortionField(body, 'portionsMorning');
+
+  if (usesNewFields) {
+    if (mealTime === 'evening') {
+      const evening = parsePositiveInteger(body.portionsEvening);
+      if (evening === null) throw createValidationError('portionsEvening must be a positive integer');
+      return { portionsEvening: evening, portionsMorning: 0, numberOfPortions: evening };
+    }
+    if (mealTime === 'morning') {
+      const morning = parsePositiveInteger(body.portionsMorning);
+      if (morning === null) throw createValidationError('portionsMorning must be a positive integer');
+      return { portionsEvening: 0, portionsMorning: morning, numberOfPortions: morning };
+    }
+    const evening = parsePositiveInteger(body.portionsEvening);
+    const morning = parsePositiveInteger(body.portionsMorning);
+    if (evening === null) throw createValidationError('portionsEvening must be a positive integer');
+    if (morning === null) throw createValidationError('portionsMorning must be a positive integer');
+    return { portionsEvening: evening, portionsMorning: morning, numberOfPortions: evening + morning };
+  }
+
+  const legacy = parsePositiveInteger(body.numberOfPortions);
+  if (legacy === null) throw createValidationError('numberOfPortions is required');
+
+  if (mealTime === 'evening') {
+    return { portionsEvening: legacy, portionsMorning: 0, numberOfPortions: legacy };
+  }
+  if (mealTime === 'morning') {
+    return { portionsEvening: 0, portionsMorning: legacy, numberOfPortions: legacy };
+  }
+  return { numberOfPortions: legacy };
+}
+
 export class CateringController {
   /**
    * POST /api/catering – submit Shabbat & Holiday Catering form.
@@ -121,20 +179,32 @@ export class CateringController {
     if (!isValidEmail((body.email as string).trim())) {
       throw createValidationError('email must be a valid email address');
     }
-    if (body.numberOfPortions === undefined || body.numberOfPortions === null || String(body.numberOfPortions).trim() === '') {
-      throw createValidationError('numberOfPortions is required');
-    }
     if (!body.eventDate || typeof body.eventDate !== 'string' || !body.eventDate.trim()) {
       throw createValidationError('eventDate is required');
+    }
+    const eventDateStr = (body.eventDate as string).trim();
+    const storeDoc = await StoreSettings.findOne().lean();
+    try {
+      assertEventDateOpen(eventDateStr, {
+        openDates: normalizeOpenDates((storeDoc as { openDates?: unknown })?.openDates),
+        openDateRules: normalizeOpenDateRules((storeDoc as { openDateRules?: unknown })?.openDateRules)
+      });
+    } catch (dateErr: unknown) {
+      const msg = dateErr instanceof Error ? dateErr.message : 'תאריך האירוע אינו פתוח להזמנות';
+      throw createValidationError(msg);
     }
     const mealTime = body.mealTime as string;
     if (!mealTime || !['evening', 'morning', 'both'].includes(mealTime)) {
       throw createValidationError('mealTime must be evening, morning, or both');
     }
+
+    const portions = resolveShabbatPortions(body, mealTime as 'evening' | 'morning' | 'both');
     const deliveryType = body.deliveryType as string;
     if (!deliveryType || !['pickup', 'delivery'].includes(deliveryType)) {
       throw createValidationError('deliveryType must be pickup or delivery');
     }
+
+    validateShabbatCateringSelection(body, mealTime as 'evening' | 'morning' | 'both');
 
     const firstCourses = resolveMealCourseLines(
       body,
@@ -155,7 +225,9 @@ export class CateringController {
       fullName: (body.fullName as string).trim(),
       phone: (body.phone as string).trim(),
       email: (body.email as string).trim(),
-      numberOfPortions: String(body.numberOfPortions ?? '').trim(),
+      numberOfPortions: String(portions.numberOfPortions),
+      portionsEvening: portions.portionsEvening,
+      portionsMorning: portions.portionsMorning,
       eventDate: (body.eventDate as string).trim(),
       mealTime: mealTime as 'evening' | 'morning' | 'both',
       salads: normalizeCateringLineItems(body.salads),
@@ -163,6 +235,8 @@ export class CateringController {
       firstCoursesMorning: firstCourses.morning,
       mainCoursesEvening: mainCourses.evening,
       mainCoursesMorning: mainCourses.morning,
+      firstCourses: firstCourses.legacy,
+      mainCourses: mainCourses.legacy,
       sidesEvening: normalizeCateringLineItems(body.sidesEvening),
       sidesMorning: normalizeCateringLineItems(body.sidesMorning),
       miscItems: normalizeCateringLineItems(body.miscItems),
@@ -183,10 +257,18 @@ export class CateringController {
         description?: string;
       }[] = [];
       pushCateringOrderItems(list, payload.salads, 'סלטים');
-      pushCateringOrderItems(list, payload.firstCoursesEvening, 'מנות ראשונות — ערב');
-      pushCateringOrderItems(list, payload.firstCoursesMorning, 'מנות ראשונות — בוקר');
-      pushCateringOrderItems(list, payload.mainCoursesEvening, 'מנות עיקריות — ערב');
-      pushCateringOrderItems(list, payload.mainCoursesMorning, 'מנות עיקריות — בוקר');
+      if (firstCourses.legacy.length) {
+        pushCateringOrderItems(list, firstCourses.legacy, 'מנות ראשונות');
+      } else {
+        pushCateringOrderItems(list, payload.firstCoursesEvening, 'מנות ראשונות — ערב');
+        pushCateringOrderItems(list, payload.firstCoursesMorning, 'מנות ראשונות — בוקר');
+      }
+      if (mainCourses.legacy.length) {
+        pushCateringOrderItems(list, mainCourses.legacy, 'מנות עיקריות');
+      } else {
+        pushCateringOrderItems(list, payload.mainCoursesEvening, 'מנות עיקריות — ערב');
+        pushCateringOrderItems(list, payload.mainCoursesMorning, 'מנות עיקריות — בוקר');
+      }
       pushCateringOrderItems(list, payload.sidesEvening, 'תוספות ערב');
       pushCateringOrderItems(list, payload.sidesMorning, 'תוספות בוקר');
       pushCateringOrderItems(list, payload.miscItems, 'שונות');
@@ -198,7 +280,7 @@ export class CateringController {
     if (payload.remarks) notesparts.push(payload.remarks);
     const combinedNotes = notesparts.join(' | ') || undefined;
 
-    const orderDoc = {
+    const orderDoc: Record<string, unknown> = {
       orderType: 'catering' as const,
       cateringKind: 'shabbat' as const,
       customerDetails: {
@@ -212,10 +294,25 @@ export class CateringController {
       items: buildCateringItems(),
       totalPrice: 0,
       status: 'pending',
-      numberOfPortions: payload.numberOfPortions,
+      numberOfPortions: portions.numberOfPortions,
       mealTime: payload.mealTime,
-      mealTypes: mealTimeToLabel(payload.mealTime)
+      mealTypes: mealTimeToLabel(payload.mealTime),
+      salads: cateringLineNames(payload.salads),
+      firstCourses: cateringLineNames(payload.firstCourses),
+      mainCourses: cateringLineNames(payload.mainCourses),
+      firstCoursesEvening: cateringLineNames(payload.firstCoursesEvening),
+      firstCoursesMorning: cateringLineNames(payload.firstCoursesMorning),
+      mainCoursesEvening: cateringLineNames(payload.mainCoursesEvening),
+      mainCoursesMorning: cateringLineNames(payload.mainCoursesMorning),
+      sidesEvening: cateringLineNames(payload.sidesEvening),
+      sidesMorning: cateringLineNames(payload.sidesMorning)
     };
+    if (portions.portionsEvening !== undefined) {
+      orderDoc.portionsEvening = portions.portionsEvening;
+    }
+    if (portions.portionsMorning !== undefined) {
+      orderDoc.portionsMorning = portions.portionsMorning;
+    }
 
     let created;
     try {
@@ -271,6 +368,17 @@ export class CateringController {
       throw createValidationError('email must be a valid email address');
     if (!body.eventDate || typeof body.eventDate !== 'string' || !body.eventDate.trim())
       throw createValidationError('eventDate is required');
+    const eventDateStr = (body.eventDate as string).trim();
+    const storeDoc = await StoreSettings.findOne().lean();
+    try {
+      assertEventDateOpen(eventDateStr, {
+        openDates: normalizeOpenDates((storeDoc as { openDates?: unknown })?.openDates),
+        openDateRules: normalizeOpenDateRules((storeDoc as { openDateRules?: unknown })?.openDateRules)
+      });
+    } catch (dateErr: unknown) {
+      const msg = dateErr instanceof Error ? dateErr.message : 'תאריך האירוע אינו פתוח להזמנות';
+      throw createValidationError(msg);
+    }
     if (!body.guestCount || Number(body.guestCount) <= 0)
       throw createValidationError('guestCount must be a positive number');
     if (!body.eventType || typeof body.eventType !== 'string' || !body.eventType.trim())

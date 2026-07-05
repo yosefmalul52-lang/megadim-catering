@@ -125,7 +125,11 @@ export class InstitutionAdminService {
 
   saveWeekMenu(
     weekStartDate: string,
-    payload: InstitutionMenuContent & { orderDeadline?: string | null }
+    payload: InstitutionMenuContent & {
+      orderDeadline?: string | null;
+      weekdayOrderDeadline?: string | null;
+      shabbatOrderDeadline?: string | null;
+    }
   ): Observable<InstitutionWeekMenu> {
     const normalizedWeek = normalizeWeekInput(weekStartDate);
     if (!normalizedWeek) {
@@ -152,13 +156,19 @@ export class InstitutionAdminService {
     institutionId: string,
     weekStartDate: string,
     days: PackingOrderDay[],
-    shabbatOrder?: ShabbatOrder
+    shabbatOrder?: ShabbatOrder,
+    adminNotes?: string
   ): Observable<AdminInstitutionOrder> {
     const week = normalizeWeekInput(weekStartDate) || weekStartDate;
     return this.http
       .put<{ success: boolean; data: AdminInstitutionOrder; message?: string }>(
         `${this.baseUrl}/order/${institutionId}`,
-        { weekStartDate: week, days, shabbatOrder: shabbatOrder ?? emptyShabbatOrder() }
+        {
+          weekStartDate: week,
+          days,
+          shabbatOrder: shabbatOrder ?? emptyShabbatOrder(),
+          adminNotes: adminNotes ?? ''
+        }
       )
       .pipe(map((res) => res.data));
   }
@@ -182,6 +192,8 @@ export interface InstitutionWeekMenu {
   weekStartDateLabel: string;
   menuPublished?: boolean;
   orderDeadline?: string | null;
+  weekdayOrderDeadline?: string | null;
+  shabbatOrderDeadline?: string | null;
   menu: InstitutionMenuContent;
 }
 
@@ -202,6 +214,7 @@ export interface PackingOrderDay {
   notes: string;
   menuItems: MenuDayItems;
   isShabbat?: boolean;
+  shabbatMeal?: 'fridayNight' | 'shabbatDay' | 'seudaShlishit' | 'legacy';
 }
 
 export interface PackingOrderRow {
@@ -214,6 +227,8 @@ export interface PackingOrderRow {
   hasOrder: boolean;
   days: PackingOrderDay[];
   shabbatOrder?: ShabbatOrder;
+  adminNotes?: string;
+  generalNotes?: string;
 }
 
 export interface AdminInstitutionOrder {
@@ -223,6 +238,8 @@ export interface AdminInstitutionOrder {
   weekStartDate: string;
   days: PackingOrderDay[];
   shabbatOrder?: ShabbatOrder;
+  adminNotes?: string;
+  generalNotes?: string;
   weeklyGrandTotal: number;
 }
 

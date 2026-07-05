@@ -102,6 +102,17 @@ export interface GroupedKitchenReport {
                 <span>הצג רק עכשיו להכנה</span>
               </label>
             </div>
+
+            <div class="filter-group prep-toggle-group">
+              <label class="toggle-inline">
+                <input
+                  type="checkbox"
+                  [checked]="includeCatering"
+                  (change)="onIncludeCateringChange($event)"
+                />
+                <span>הצג קייטרינג בדוח</span>
+              </label>
+            </div>
           </div>
 
           <div *ngIf="isLoading" class="loading-state">
@@ -691,6 +702,7 @@ export class KitchenReportModalComponent implements OnInit {
   selectedDate: string | null = null;
   selectedCategory: string = 'ALL';
   onlyNowPrep = false;
+  includeCatering = false;
   isExpanded = false;
   isLoading = true;
   loadError = false;
@@ -746,7 +758,7 @@ export class KitchenReportModalComponent implements OnInit {
     this.isLoading = true;
     this.loadError = false;
     const targetDate = date && date.trim() ? date.trim() : undefined;
-    this.orderService.getKitchenReport(targetDate).subscribe({
+    this.orderService.getKitchenReport(targetDate, this.includeCatering).subscribe({
       next: (response) => {
         this.reportItems = this.processData(response.items || []);
         this.reportMeta = response.meta || null;
@@ -784,6 +796,157 @@ export class KitchenReportModalComponent implements OnInit {
   onOnlyNowPrepChange(event: Event): void {
     this.onlyNowPrep = Boolean((event.target as HTMLInputElement | null)?.checked);
     this.rebuildVisibleReport();
+  }
+
+  onIncludeCateringChange(event: Event): void {
+    this.includeCatering = Boolean((event.target as HTMLInputElement | null)?.checked);
+    this.loadKitchenReport(this.selectedDate);
+  }
+
+  get deliveryDateLabel(): string {
+    if (this.hasDateFilter && this.selectedDate) {
+      return this.formatDateFromIso(this.selectedDate);
+    }
+    return 'כל התאריכים';
+  }
+
+  private formatDateFromIso(isoDate: string): string {
+    const parts = isoDate.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return isoDate;
+  }
+
+  private escapePrintHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private buildCategorySummary(): Array<{ category: string; itemCount: number; totalUnits: number }> {
+    return this.visibleGroups.map((group) => ({
+      category: group.category,
+      itemCount: group.items.length,
+      totalUnits: group.items.reduce((sum, item) => sum + Number(item.totalPackages || 0), 0)
+    }));
+  }
+
+  private buildPrintHtml(): string {
+    const printedAt = new Date().toLocaleString('he-IL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const categorySummary = this.buildCategorySummary();
+    const uniqueItems = this.totalItemsCount;
+    const totalUnits = this.totalUnitsCount;
+    const categoryCount = this.visibleGroups.length;
+
+    const groupsHtml = this.visibleGroups
+      .map((group) => {
+        const rows = group.items
+          .map(
+            (item, i) => `<tr>
+              <td class="done-col">☐</td>
+              <td class="num-col">${i + 1}</td>
+              <td>${this.escapePrintHtml(item.productName)}</td>
+              <td class="num-col">${item.totalPackages} יח'</td>
+              <td>${this.escapePrintHtml(item.prepWindowLabel || this.getPrepWindowLabel(item.prepWindow))}</td>
+              <td class="weight-col">${this.escapePrintHtml(item.displayWeight)}</td>
+            </tr>`
+          )
+          .join('');
+        return `<div class="category-block">
+          <h2>${this.escapePrintHtml(group.category)}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th class="done-col">בוצע</th>
+                <th class="num-col">#</th>
+                <th>שם הפריט</th>
+                <th class="num-col">יחידות</th>
+                <th>תזמון הכנה</th>
+                <th class="weight-col">משקל כולל</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      })
+      .join('');
+
+    const categorySummaryRows = categorySummary
+      .map(
+        (row) => `<tr>
+          <td>${this.escapePrintHtml(row.category)}</td>
+          <td class="num-col">${row.itemCount}</td>
+          <td class="num-col">${row.totalUnits}</td>
+        </tr>`
+      )
+      .join('');
+
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">
+      <title>דוח הכנות מרוכז — מגדים</title>
+      <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        body{font-family:Heebo,Arial,sans-serif;margin:0;padding:12mm;color:#111;background:#fff;direction:rtl;text-align:right}
+        h1{margin:0 0 8px;font-size:1.35rem;font-weight:800}
+        .meta{margin:0 0 14px;font-size:0.9rem;line-height:1.7}
+        .meta-line{margin:2px 0}
+        .filters{margin:0 0 16px;padding:8px 10px;border:1px solid #111;font-size:0.85rem}
+        .category-block{margin:16px 0;page-break-inside:avoid}
+        .category-block h2{margin:0 0 6px;font-size:1rem;font-weight:800;border-bottom:1px solid #111;padding-bottom:4px}
+        table{width:100%;border-collapse:collapse;margin-top:4px}
+        th,td{border:1px solid #111;padding:6px 8px;text-align:right;vertical-align:top;color:#000}
+        th{background:#f4f4f4;font-weight:700}
+        .done-col{width:36px;text-align:center}
+        .num-col{width:48px;text-align:center;white-space:nowrap}
+        .weight-col{white-space:nowrap}
+        .summary-block{margin-top:20px;padding:10px 12px;border:1px solid #111;page-break-inside:avoid}
+        .summary-title{font-weight:800;margin-bottom:8px}
+        .summary-table{margin-top:8px}
+      </style></head><body>
+        <h1>דוח הכנות מרוכז — מגדים</h1>
+        <div class="meta">
+          <div class="meta-line"><strong>תאריך אספקה:</strong> ${this.escapePrintHtml(this.deliveryDateLabel)}</div>
+          <div class="meta-line"><strong>הודפס:</strong> ${printedAt}</div>
+        </div>
+        <div class="filters">
+          <div><strong>קטגוריה:</strong> ${this.selectedCategory === 'ALL' ? 'כל הקטגוריות' : this.escapePrintHtml(this.selectedCategory)}</div>
+          <div><strong>תזמון:</strong> ${this.onlyNowPrep ? 'רק עכשיו להכנה' : 'כל רמות התזמון'}</div>
+          <div><strong>קייטרינג:</strong> ${this.includeCatering ? 'כלול' : 'לא כלול'}</div>
+          <div><strong>הזמנות פעילות:</strong> ${Number(this.reportMeta?.activeOrdersCount || 0)}</div>
+        </div>
+        ${groupsHtml}
+        <div class="summary-block">
+          <div class="summary-title">סיכום לפי קטגוריה</div>
+          <table class="summary-table">
+            <thead><tr><th>קטגוריה</th><th class="num-col">פריטים שונים</th><th class="num-col">סה"כ יחידות</th></tr></thead>
+            <tbody>${categorySummaryRows || '<tr><td colspan="3">—</td></tr>'}</tbody>
+          </table>
+        </div>
+        <div class="summary-block">
+          <div class="summary-title">סיכום כללי</div>
+          <div><strong>סה"כ פריטים שונים:</strong> ${uniqueItems}</div>
+          <div><strong>סה"כ יחידות להכנה:</strong> ${totalUnits}</div>
+          <div><strong>מספר קטגוריות:</strong> ${categoryCount}</div>
+        </div>
+      </body></html>`;
+  }
+
+  printReport(): void {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(this.buildPrintHtml());
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
   }
 
   getPrepWindowLabel(value: KitchenReportItem['prepWindow']): string {
@@ -927,74 +1090,6 @@ export class KitchenReportModalComponent implements OnInit {
 
   saveDoneChanges(): void {
     this.persistDoneMap();
-  }
-
-
-  printReport(): void {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>דוח הכנות למטבח - ${this.todayDate}</title>
-            <style>
-              body { font-family: 'Arial', sans-serif; direction: rtl; text-align: right; margin: 20px; }
-              h1 { color: #333; text-align: center; margin-bottom: 20px; }
-              .report-date { text-align: center; margin-bottom: 30px; font-size: 1.1em; color: #555; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
-              th { background-color: #1a2a3a; color: white; font-weight: bold; }
-              .weight { background-color: #f0f5ff; font-weight: bold; }
-              .no-print { display: none; }
-            </style>
-          </head>
-          <body>
-            <h1>דוח הכנות למטבח</h1>
-            <div class="report-date">תאריך: ${this.todayDate}</div>
-            <div class="report-date">מצב תצוגה: ${this.filterStatusLabel}</div>
-            <div class="report-date">קטגוריה: ${this.selectedCategory === 'ALL' ? 'כל הקטגוריות / המנות' : this.selectedCategory}</div>
-            <div class="report-date">פילטר הכנה: ${this.onlyNowPrep ? 'רק עכשיו להכנה' : 'כל רמות התזמון'}</div>
-            <div class="report-date">סה"כ פריטים: ${this.totalItemsCount} | סה"כ יחידות: ${this.totalUnitsCount}</div>
-            <div class="report-date">עכשיו להכנה: ${this.nowPrepCount}</div>
-            <div class="report-date">הזמנות פעילות: ${Number(this.reportMeta?.activeOrdersCount || 0)}</div>
-            <div class="report-date">נוצר: ${this.reportMeta?.generatedAt ? new Date(this.reportMeta.generatedAt).toLocaleString('he-IL') : this.todayDate}</div>
-                   ${this.visibleGroups.map(group => {
-                     return `
-                     <div class="category-group-print">
-                       <h3 class="category-header-print">${group.category}</h3>
-                       <table class="kitchen-report-table">
-                         <thead>
-                           <tr>
-                             <th>#</th>
-                             <th>שם הפריט</th>
-                             <th>יחידות</th>
-                             <th>תזמון הכנה</th>
-                             <th>משקל כולל להכנה</th>
-                           </tr>
-                         </thead>
-                         <tbody>
-                           ${group.items.map((item, i) => `
-                             <tr>
-                               <td>${i + 1}</td>
-                               <td>${item.productName}</td>
-                               <td>${item.totalPackages} יח'</td>
-                               <td>${item.prepWindowLabel || this.getPrepWindowLabel(item.prepWindow)}</td>
-                               <td class="weight">${item.displayWeight}</td>
-                             </tr>
-                           `).join('')}
-                         </tbody>
-                       </table>
-                     </div>
-                   `;
-                   }).join('')}
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }
   }
 
   close(): void {

@@ -7,16 +7,23 @@
 export interface OrderTemplateData {
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
   orderType: 'pickup' | 'delivery';
   eventDate?: string;
   address?: string;
   notes?: string;
+  /** Internal admin notes — use only in admin/owner templates, never in customer templates. */
+  adminNotes?: string;
   cartItems: Array<{ name: string; price: number; quantity: number; category?: string }>;
   subtotal?: number;
   deliveryFee?: number;
   totalPrice: number;
   /** Human-readable order number (e.g. MG-123456) shown in email subject and body. */
   orderNumber?: string;
+  /** Operational label for admin emails (e.g. הזמנה רגילה, קייטרינג שבת/חג). */
+  orderKindLabel?: string;
+  /** Link to admin orders dashboard (owner emails only). */
+  dashboardOrderUrl?: string;
   /**
    * When set, switches customer email to the catering-specific template:
    * no prices, items grouped by category, "representative will call" notice.
@@ -24,6 +31,121 @@ export interface OrderTemplateData {
   cateringKind?: 'shabbat' | 'events';
   /** Extra labelled rows shown in catering email (e.g. meal type, guest count, event type). */
   cateringExtraInfo?: Array<{ label: string; value: string }>;
+}
+
+export interface ShabbatMealsInfo {
+  portionsEvening?: number;
+  portionsMorning?: number;
+  numberOfPortions?: number | string;
+  mealTime?: string;
+  mealTypes?: string;
+  seudaShlishit?: boolean | string;
+}
+
+function mealTimeToLabel(mealTime?: string): string {
+  if (mealTime === 'evening') return 'ערב שבת';
+  if (mealTime === 'morning') return 'שבת בבוקר';
+  if (mealTime === 'both') return 'שתי ארוחות שבת';
+  return (mealTime || '').trim();
+}
+
+function seudaShlishitLabel(value: boolean | string | undefined): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  const yes =
+    value === true ||
+    value === 'yes' ||
+    value === 'כן' ||
+    String(value).toLowerCase() === 'true';
+  return yes ? 'כן' : 'לא';
+}
+
+/** Build labelled rows for Shabbat catering meal counts (evening/morning/total/fallback). */
+export function buildShabbatMealsExtraInfo(meals: ShabbatMealsInfo): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  const eveningDefined =
+    meals.portionsEvening !== undefined &&
+    meals.portionsEvening !== null &&
+    Number.isFinite(Number(meals.portionsEvening));
+  const morningDefined =
+    meals.portionsMorning !== undefined &&
+    meals.portionsMorning !== null &&
+    Number.isFinite(Number(meals.portionsMorning));
+  const eveningCount = eveningDefined ? Number(meals.portionsEvening) : 0;
+  const morningCount = morningDefined ? Number(meals.portionsMorning) : 0;
+  const showEvening = eveningDefined && eveningCount > 0;
+  const showMorning = morningDefined && morningCount > 0;
+
+  if (showEvening) {
+    rows.push({ label: 'סעודה ראשונה / ערב', value: `${eveningCount} מנות` });
+  }
+  if (showMorning) {
+    rows.push({ label: 'סעודה שנייה / בוקר', value: `${morningCount} מנות` });
+  }
+
+  const totalRaw = meals.numberOfPortions;
+  const totalStr = totalRaw !== undefined && totalRaw !== null ? String(totalRaw).trim() : '';
+  if (totalStr) {
+    rows.push({ label: 'סה״כ מנות', value: totalStr });
+  } else if (showEvening && showMorning) {
+    rows.push({
+      label: 'סה״כ מנות',
+      value: String(eveningCount + morningCount)
+    });
+  } else if (showEvening) {
+    rows.push({ label: 'סה״כ מנות', value: String(eveningCount) });
+  } else if (showMorning) {
+    rows.push({ label: 'סה״כ מנות', value: String(morningCount) });
+  }
+
+  const mealTypeLabel = (meals.mealTypes || mealTimeToLabel(meals.mealTime)).trim();
+  if (mealTypeLabel) {
+    rows.push({ label: 'סוג סעודה', value: mealTypeLabel });
+  }
+
+  if (meals.mealTime === 'both' && !showEvening && !showMorning) {
+    rows.push({ label: 'חלוקת ערב/בוקר', value: 'לא צוינה' });
+  }
+
+  const seuda = seudaShlishitLabel(meals.seudaShlishit);
+  if (seuda !== null) {
+    rows.push({ label: 'סעודה שלישית', value: seuda });
+  }
+
+  return rows.filter((r) => r.value && r.value.trim());
+}
+
+function buildAdminNotesBlock(adminNotes?: string): string {
+  const trimmed = (adminNotes || '').trim();
+  if (!trimmed) return '';
+  return `<div dir="rtl" style="margin-top:16px;padding:12px 14px;background:#f4f4f4;border-right:4px solid ${DARK};color:${DARK};font-family:${FONT};font-size:14px;"><strong>הערות מנהל (פנימי):</strong> <bdi>${escapeHtml(trimmed)}</bdi></div>`;
+}
+
+function buildCustomerNotesBlock(notes?: string): string {
+  const trimmed = (notes || '').trim();
+  if (!trimmed) return '';
+  return `<div dir="rtl" style="margin-top:16px;padding:12px 14px;background:#fcfaf5;border-right:4px solid ${GOLD};color:${DARK};font-family:${FONT};font-size:14px;"><strong>הערות:</strong> <bdi>${escapeHtml(trimmed)}</bdi></div>`;
+}
+
+function buildDashboardLinkBlock(url?: string, orderNumber?: string): string {
+  const trimmed = (url || '').trim();
+  if (!trimmed) return '';
+  const label = orderNumber ? `פתח הזמנה ${escapeHtml(orderNumber)} בדשבורד` : 'פתח דשבורד הזמנות';
+  return `<div dir="rtl" style="margin-top:16px;font-family:${FONT};font-size:14px;"><a href="${escapeHtml(trimmed)}" style="color:${DARK};font-weight:bold;">${label}</a></div>`;
+}
+
+function buildMealsSectionHtml(rows: Array<{ label: string; value: string }>, title = 'פרטי סעודות'): string {
+  if (!rows.length) return '';
+  const tableRows = rows
+    .map(
+      (row) =>
+        `<tr><td dir="rtl" style="padding:7px 0;width:160px;color:#666;font-family:${FONT};font-size:15px;">${escapeHtml(row.label)}:&rlm;</td>` +
+        `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(row.value)}</bdi>&rlm;</td></tr>`
+    )
+    .join('');
+  return (
+    `<h3 style="color:${DARK};border-bottom:2px solid ${GOLD};padding-bottom:8px;font-size:18px;font-family:${FONT};margin-top:20px;">${escapeHtml(title)}</h3>` +
+    `<table width="100%" style="border-collapse:collapse;font-size:15px;">${tableRows}</table>`
+  );
 }
 
 function escapeHtml(s: string): string {
@@ -188,15 +310,28 @@ export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
     )
     .join('');
 
-  const notesBlock =
-    orderData.notes && orderData.notes.trim() !== ''
-      ? `<div dir="rtl" style="margin-top:20px;padding:15px;background-color:#fcfaf5;border-right:4px solid ${GOLD};color:${DARK};border-radius:4px;font-family:${FONT};font-size:16px;text-align:right;"><strong style="color:${DARK};">הערות:&rlm;</strong> <bdi>${escapeHtml(orderData.notes)}</bdi>&rlm;</div>`
-      : '';
+  const notesBlock = buildCustomerNotesBlock(orderData.notes);
+
+  const adminNotesBlock = buildAdminNotesBlock(orderData.adminNotes);
+  const dashboardLink = buildDashboardLinkBlock(orderData.dashboardOrderUrl, orderData.orderNumber);
 
   const addressRow =
     orderData.address && orderData.orderType === 'delivery'
       ? `<tr><td dir="rtl" style="padding:8px 0;width:130px;color:#666;font-family:${FONT};font-size:16px;">כתובת:&rlm;</td><td dir="rtl" style="padding:8px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:16px;"><bdi>${escapeHtml(orderData.address)}</bdi>&rlm;</td></tr>`
       : '';
+
+  const orderNumberRow = orderData.orderNumber
+    ? `<tr><td dir="rtl" style="padding:8px 0;color:#666;font-family:${FONT};">מספר הזמנה:&rlm;</td><td dir="rtl" style="padding:8px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.orderNumber)}</bdi>&rlm;</td></tr>`
+    : '';
+
+  const emailRow =
+    orderData.customerEmail && orderData.customerEmail.trim()
+      ? `<tr><td dir="rtl" style="padding:8px 0;color:#666;font-family:${FONT};">אימייל:&rlm;</td><td dir="rtl" style="padding:8px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerEmail.trim())}</bdi>&rlm;</td></tr>`
+      : '';
+
+  const kindSubtitle = orderData.orderKindLabel
+    ? `<p style="margin:8px 0 0;color:${WHITE};font-size:14px;font-family:${FONT};">${escapeHtml(orderData.orderKindLabel)}</p>`
+    : '';
 
   return (
     '<!DOCTYPE html>' +
@@ -227,6 +362,7 @@ export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
     orderTypeLabel +
     (orderData.orderNumber ? ` | ${escapeHtml(orderData.orderNumber)}` : '') +
     '</h2>' +
+    kindSubtitle +
     '</td>' +
     '</tr>' +
     '<tr>' +
@@ -239,12 +375,16 @@ export function generateAdminEmailHtml(orderData: OrderTemplateData): string {
     FONT +
     ';">פרטי הלקוח</h3>' +
     '<table width="100%" style="border-collapse:collapse;font-size:16px;margin-top:15px;">' +
+    orderNumberRow +
     `<tr><td dir="rtl" style="padding:8px 0;width:130px;color:#666;font-family:${FONT};">שם:&rlm;</td><td dir="rtl" style="padding:8px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerName)}</bdi>&rlm;</td></tr>` +
     `<tr><td dir="rtl" style="padding:8px 0;color:#666;font-family:${FONT};">טלפון:&rlm;</td><td dir="rtl" style="padding:8px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerPhone)}</bdi>&rlm;</td></tr>` +
+    emailRow +
     `<tr><td dir="rtl" style="padding:8px 0;color:#666;font-family:${FONT};">תאריך הספקה:&rlm;</td><td dir="rtl" style="padding:8px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(formatToIsraeliDate(orderData.eventDate))}</bdi>&rlm;</td></tr>` +
     addressRow +
     '</table>' +
     notesBlock +
+    adminNotesBlock +
+    dashboardLink +
     '</td>' +
     '</tr>' +
     '<tr>' +
@@ -346,6 +486,10 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
   const dateBlock = orderData.eventDate
     ? `<p dir="rtl" style="margin:8px 0;font-size:16px;color:${DARK};font-family:${FONT};"><strong>תאריך הספקה:&rlm;</strong> <bdi>${escapeHtml(formatToIsraeliDate(orderData.eventDate))}</bdi>&rlm;</p>`
     : '';
+  const phoneBlock = orderData.customerPhone
+    ? `<p dir="rtl" style="margin:8px 0;font-size:16px;color:${DARK};font-family:${FONT};"><strong>טלפון:&rlm;</strong> <bdi>${escapeHtml(orderData.customerPhone)}</bdi>&rlm;</p>`
+    : '';
+  const notesBlock = buildCustomerNotesBlock(orderData.notes);
 
   return (
     '<!DOCTYPE html>' +
@@ -459,8 +603,10 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
     ';"><strong>סוג:&rlm;</strong> ' +
     orderTypeLabel +
     '</p>' +
+    phoneBlock +
     deliveryBlock +
     dateBlock +
+    notesBlock +
     '</td>' +
     '</tr>' +
     '<tr>' +
@@ -488,6 +634,10 @@ export function generateCateringAdminEmailHtml(orderData: OrderTemplateData): st
   const orderTypeLabel = orderData.orderType === 'delivery' ? 'משלוח' : 'איסוף עצמי';
   const itemsSection = buildCateringGroupedItemsHtml(orderData.cartItems, orderData.cateringKind);
   const extraInfoRows = buildCateringExtraInfoRows(orderData);
+  const shabbatMealsSection =
+    !isEvents && orderData.cateringExtraInfo?.length
+      ? buildMealsSectionHtml(orderData.cateringExtraInfo, 'פרטי סעודות')
+      : '';
 
   const dateRow = orderData.eventDate
     ? `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">תאריך האירוע:&rlm;</td>` +
@@ -500,10 +650,15 @@ export function generateCateringAdminEmailHtml(orderData: OrderTemplateData): st
         `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(orderData.address)}</bdi>&rlm;</td></tr>`
       : '';
 
-  const notesRow =
-    orderData.notes && orderData.notes.trim()
-      ? `<div dir="rtl" style="margin-top:16px;padding:12px 14px;background:#fcfaf5;border-right:4px solid ${GOLD};color:${DARK};font-family:${FONT};font-size:14px;"><strong>הערות:</strong> <bdi>${escapeHtml(orderData.notes)}</bdi></div>`
+  const emailRow =
+    orderData.customerEmail && orderData.customerEmail.trim()
+      ? `<tr><td dir="rtl" style="padding:7px 0;color:#666;font-family:${FONT};font-size:15px;">אימייל:&rlm;</td>` +
+        `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(orderData.customerEmail.trim())}</bdi>&rlm;</td></tr>`
       : '';
+
+  const notesRow = buildCustomerNotesBlock(orderData.notes);
+  const adminNotesRow = buildAdminNotesBlock(orderData.adminNotes);
+  const dashboardLink = buildDashboardLinkBlock(orderData.dashboardOrderUrl, orderData.orderNumber);
 
   const pricePerPortion = toValidMoney(orderData.subtotal);
   const totalEstimate = toValidMoney(orderData.totalPrice);
@@ -559,11 +714,15 @@ export function generateCateringAdminEmailHtml(orderData: OrderTemplateData): st
     '<table width="100%" style="border-collapse:collapse;font-size:15px;">' +
     `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};">שם:&rlm;</td><td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerName)}</bdi>&rlm;</td></tr>` +
     `<tr><td dir="rtl" style="padding:7px 0;color:#666;font-family:${FONT};">טלפון:&rlm;</td><td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};"><bdi>${escapeHtml(orderData.customerPhone)}</bdi>&rlm;</td></tr>` +
+    emailRow +
     dateRow +
-    extraInfoRows +
+    (isEvents ? extraInfoRows : '') +
     addressRow +
     '</table>' +
+    shabbatMealsSection +
     notesRow +
+    adminNotesRow +
+    dashboardLink +
     itemsSection +
     priceSummary +
     '</td></tr>' +
@@ -580,10 +739,19 @@ export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData):
   const isEvents = orderData.cateringKind === 'events';
   const itemsSection = buildCateringGroupedItemsHtml(orderData.cartItems, orderData.cateringKind);
   const extraInfoRows = buildCateringExtraInfoRows(orderData);
+  const shabbatMealsSection =
+    !isEvents && orderData.cateringExtraInfo?.length
+      ? buildMealsSectionHtml(orderData.cateringExtraInfo, 'פרטי סעודות')
+      : '';
 
   const dateRow = orderData.eventDate
     ? `<tr><td dir="rtl" style="padding:7px 0;width:140px;color:#666;font-family:${FONT};font-size:15px;">תאריך האירוע:&rlm;</td>` +
       `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(formatToIsraeliDate(orderData.eventDate))}</bdi>&rlm;</td></tr>`
+    : '';
+
+  const phoneRow = orderData.customerPhone
+    ? `<tr><td dir="rtl" style="padding:7px 0;color:#666;font-family:${FONT};font-size:15px;">טלפון:&rlm;</td>` +
+      `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(orderData.customerPhone)}</bdi>&rlm;</td></tr>`
     : '';
 
   const venueRow = orderData.address
@@ -591,9 +759,7 @@ export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData):
       `<td dir="rtl" style="padding:7px 0;font-weight:bold;color:${DARK};font-family:${FONT};font-size:15px;"><bdi>${escapeHtml(orderData.address)}</bdi>&rlm;</td></tr>`
     : '';
 
-  const notesRow = orderData.notes && orderData.notes.trim()
-    ? `<div dir="rtl" style="margin-top:16px;padding:12px 14px;background:#fcfaf5;border-right:4px solid ${GOLD};color:${DARK};font-family:${FONT};font-size:14px;"><strong>הערות:</strong> <bdi>${escapeHtml(orderData.notes)}</bdi></div>`
-    : '';
+  const notesRow = buildCustomerNotesBlock(orderData.notes);
 
   const headerTitle = isEvents
     ? 'קיבלנו את בקשתך לקייטרינג לאירוע!'
@@ -639,9 +805,11 @@ export function generateCateringCustomerEmailHtml(orderData: OrderTemplateData):
     '<h3 style="color:' + DARK + ';border-bottom:2px solid ' + GOLD + ';padding-bottom:8px;font-size:18px;font-family:' + FONT + ';margin-top:4px;">פרטי האירוע</h3>' +
     '<table width="100%" style="border-collapse:collapse;font-size:15px;">' +
     dateRow +
-    extraInfoRows +
+    phoneRow +
+    (isEvents ? extraInfoRows : '') +
     venueRow +
     '</table>' +
+    shabbatMealsSection +
     notesRow +
 
     // Menu selections

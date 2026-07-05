@@ -68,31 +68,34 @@
         type="button"
         class="source-tab-btn"
         [class.active]="orderSourceTab === 'shabbat'"
-        (click)="orderSourceTab = 'shabbat'"
+        (click)="setOrderSourceTab('shabbat')"
         role="tab"
       >
         <i class="fas fa-calendar-week" aria-hidden="true"></i>
         הזמנות לשבת וחג
+        <span class="tab-badge">{{ countSourceShabbat }}</span>
       </button>
       <button
         type="button"
         class="source-tab-btn"
         [class.active]="orderSourceTab === 'catering'"
-        (click)="orderSourceTab = 'catering'"
+        (click)="setOrderSourceTab('catering')"
         role="tab"
       >
         <i class="fas fa-utensils" aria-hidden="true"></i>
         קייטרינג שבת וחג
+        <span class="tab-badge">{{ countSourceCatering }}</span>
       </button>
       <button
         type="button"
         class="source-tab-btn"
         [class.active]="orderSourceTab === 'events'"
-        (click)="orderSourceTab = 'events'"
+        (click)="setOrderSourceTab('events')"
         role="tab"
       >
         <i class="fas fa-star" aria-hidden="true"></i>
         קייטרינג לאירועים
+        <span class="tab-badge">{{ countSourceEvents }}</span>
       </button>
     </nav>
 
@@ -186,30 +189,71 @@
       </button>
     </nav>
 
-    @if (isLoading && currentTab !== 'archive' && currentTab !== 'failed') {
+    @if (isLoading) {
       <div class="loading">
         <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
         <span>טוען הזמנות...</span>
       </div>
     }
-    @if (currentTab === 'archive' && isLoadingArchive) {
-      <div class="loading">
-        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-        <span>טוען ארכיון...</span>
-      </div>
-    }
-    @if (currentTab === 'failed' && isLoadingFailed) {
-      <div class="loading">
-        <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-        <span>טוען הזמנות שנכשלו...</span>
-      </div>
-    }
 
-    @if (
-      (!isLoading && currentTab !== 'archive' && currentTab !== 'failed') ||
-      (currentTab === 'archive' && !isLoadingArchive) ||
-      (currentTab === 'failed' && !isLoadingFailed)
-    ) {
+    @if (!isLoading) {
+      <div class="mobile-filters-bar orders-mobile">
+        <button type="button" class="btn-mobile-filters" (click)="toggleMobileFiltersPanel($event)">
+          <i class="fas fa-filter" aria-hidden="true"></i>
+          פילטרים
+          @if (hasActiveListFilters) {
+            <span class="filter-active-dot" aria-hidden="true"></span>
+          }
+        </button>
+        @if (showMobileFiltersPanel) {
+          <div class="mobile-filters-panel" (click)="$event.stopPropagation()">
+            <label class="mobile-filter-field">
+              מספר הזמנה
+              <input type="search" class="th-filter-input" [(ngModel)]="draftOrderNumberSearch" placeholder="חיפוש מספר" />
+            </label>
+            <label class="mobile-filter-field">
+              לקוח
+              <input type="search" class="th-filter-input" [(ngModel)]="draftCustomerSearch" placeholder="שם, טלפון או אימייל" />
+            </label>
+            <label class="mobile-filter-field">
+              תאריך הזמנה מתאריך
+              <input type="date" class="th-filter-input" [(ngModel)]="draftCreatedFrom" />
+            </label>
+            <label class="mobile-filter-field">
+              תאריך הזמנה עד תאריך
+              <input type="date" class="th-filter-input" [(ngModel)]="draftCreatedTo" />
+            </label>
+            <label class="mobile-filter-field">
+              תאריך אירוע מתאריך
+              <input type="date" class="th-filter-input" [(ngModel)]="draftEventFrom" />
+            </label>
+            <label class="mobile-filter-field">
+              תאריך אירוע עד תאריך
+              <input type="date" class="th-filter-input" [(ngModel)]="draftEventTo" />
+            </label>
+            <label class="mobile-filter-check">
+              <input type="checkbox" [(ngModel)]="draftHasCustomerNotes" />
+              יש הערת לקוח
+            </label>
+            <label class="mobile-filter-check">
+              <input type="checkbox" [(ngModel)]="draftHasAdminNotes" />
+              יש הערת מנהל
+            </label>
+            <div class="th-filter-actions">
+              <button type="button" class="th-filter-apply" (click)="applyMobileFilters($event)">החל</button>
+              <button type="button" class="th-filter-apply secondary" (click)="clearListFilters()">נקה</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (hasActiveListFilters) {
+        <div class="table-filter-hint">
+          <span class="filtered-label">מסונן</span>
+          <button type="button" class="btn-clear-filters-small" (click)="clearListFilters()">נקה סינונים</button>
+        </div>
+      }
+
       <!-- Shabbat orders: desktop table -->
       @if (orderSourceTab === 'shabbat') {
         <div class="table-container orders-desktop">
@@ -224,18 +268,128 @@
                     aria-label="בחר הכל"
                   />
                 </th>
-                <th>מספר הזמנה</th>
-                <th>תאריך הזמנה</th>
-                <th>תאריך אירוע</th>
-                <th>לקוח</th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('orderNumber', $event)">
+                      מספר הזמנה<span class="sort-indicator">{{ getSortIndicator('orderNumber') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('orderNumber')"
+                      (click)="toggleColumnFilter('orderNumber', $event)" aria-label="סינון מספר הזמנה">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'orderNumber') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <input type="search" class="th-filter-input" [(ngModel)]="draftOrderNumberSearch"
+                        placeholder="חיפוש מספר הזמנה" (keyup.enter)="applyColumnFilter('orderNumber', $event)" />
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('orderNumber', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('orderNumber', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('createdAt', $event)">
+                      תאריך הזמנה<span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('createdAt')"
+                      (click)="toggleColumnFilter('createdAt', $event)" aria-label="סינון תאריך הזמנה">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'createdAt') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-label">מתאריך<input type="date" class="th-filter-input" [(ngModel)]="draftCreatedFrom" /></label>
+                      <label class="th-filter-label">עד תאריך<input type="date" class="th-filter-input" [(ngModel)]="draftCreatedTo" /></label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('createdAt', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('createdAt', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('eventDate', $event)">
+                      תאריך אירוע<span class="sort-indicator">{{ getSortIndicator('eventDate') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('eventDate')"
+                      (click)="toggleColumnFilter('eventDate', $event)" aria-label="סינון תאריך אירוע">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'eventDate') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-label">מתאריך<input type="date" class="th-filter-input" [(ngModel)]="draftEventFrom" /></label>
+                      <label class="th-filter-label">עד תאריך<input type="date" class="th-filter-input" [(ngModel)]="draftEventTo" /></label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('eventDate', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('eventDate', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('customerName', $event)">
+                      לקוח<span class="sort-indicator">{{ getSortIndicator('customerName') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('customer')"
+                      (click)="toggleColumnFilter('customer', $event)" aria-label="סינון לקוח">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'customer') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <input type="search" class="th-filter-input" [(ngModel)]="draftCustomerSearch"
+                        placeholder="חיפוש שם, טלפון או אימייל" (keyup.enter)="applyColumnFilter('customer', $event)" />
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('customer', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('customer', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
                 <th>טלפון</th>
-                <th>סה"כ</th>
-                <th>סטטוס</th>
-                <th>פעולות</th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('totalPrice', $event)">
+                      סה"כ<span class="sort-indicator">{{ getSortIndicator('totalPrice') }}</span>
+                    </button>
+                  </div>
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('status', $event)">
+                      סטטוס<span class="sort-indicator">{{ getSortIndicator('status') }}</span>
+                    </button>
+                  </div>
+                </th>
+                <th class="th-sort-filter th-actions-col">
+                  <div class="th-inner">
+                    <span class="th-label">פעולות</span>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('notes')"
+                      (click)="toggleColumnFilter('notes', $event)" aria-label="סינון הערות">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'notes') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-check"><input type="checkbox" [(ngModel)]="draftHasCustomerNotes" /> יש הערת לקוח</label>
+                      <label class="th-filter-check"><input type="checkbox" [(ngModel)]="draftHasAdminNotes" /> יש הערת מנהל</label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('notes', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('notes', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
               </tr>
             </thead>
             <tbody>
-              @for (order of filteredOrders; track order._id || order.id || $index) {
+              @for (order of displayOrders; track order._id || order.id || $index) {
                 <tr>
                   <td class="select-col">
                     <input
@@ -250,6 +404,13 @@
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="customer-cell">
                     <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                    @if (hasAnyOrderNotes(order)) {
+                      <span
+                        class="order-notes-indicator"
+                        [title]="hasCustomerNotes(order) && hasAdminNotes(order) ? 'הערת לקוח + הערת מנהל' : hasAdminNotes(order) ? 'הערת מנהל' : 'הערת לקוח'"
+                        aria-hidden="true"
+                      >💬</span>
+                    }
                   </td>
                   <td class="phone-cell">{{ order.customerDetails?.phone || 'לא צוין' }}</td>
                   <td class="total-cell">₪{{ order.totalPrice | number:'1.2-2' }}</td>
@@ -292,7 +453,7 @@
 
         <!-- Shabbat: mobile cards -->
         <div class="order-cards orders-mobile">
-          @for (order of filteredOrders; track order._id || order.id || $index) {
+          @for (order of displayOrders; track order._id || order.id || $index) {
             <div class="order-card">
               <label class="card-select-box">
                 <input
@@ -338,17 +499,101 @@
                     aria-label="בחר הכל"
                   />
                 </th>
-                <th>מספר הזמנה</th>
-                <th>לקוח</th>
-                <th>תאריך אירוע</th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('orderNumber', $event)">
+                      מספר הזמנה<span class="sort-indicator">{{ getSortIndicator('orderNumber') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('orderNumber')"
+                      (click)="toggleColumnFilter('orderNumber', $event)" aria-label="סינון מספר הזמנה">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'orderNumber') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <input type="search" class="th-filter-input" [(ngModel)]="draftOrderNumberSearch"
+                        placeholder="חיפוש מספר הזמנה" (keyup.enter)="applyColumnFilter('orderNumber', $event)" />
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('orderNumber', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('orderNumber', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('customerName', $event)">
+                      לקוח<span class="sort-indicator">{{ getSortIndicator('customerName') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('customer')"
+                      (click)="toggleColumnFilter('customer', $event)" aria-label="סינון לקוח">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'customer') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <input type="search" class="th-filter-input" [(ngModel)]="draftCustomerSearch"
+                        placeholder="חיפוש שם, טלפון או אימייל" (keyup.enter)="applyColumnFilter('customer', $event)" />
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('customer', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('customer', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('eventDate', $event)">
+                      תאריך אירוע<span class="sort-indicator">{{ getSortIndicator('eventDate') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('eventDate')"
+                      (click)="toggleColumnFilter('eventDate', $event)" aria-label="סינון תאריך אירוע">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'eventDate') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-label">מתאריך<input type="date" class="th-filter-input" [(ngModel)]="draftEventFrom" /></label>
+                      <label class="th-filter-label">עד תאריך<input type="date" class="th-filter-input" [(ngModel)]="draftEventTo" /></label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('eventDate', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('eventDate', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
                 <th>מנות</th>
                 <th>סוגי ארוחות</th>
-                <th>סטטוס</th>
-                <th>פעולות</th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('status', $event)">
+                      סטטוס<span class="sort-indicator">{{ getSortIndicator('status') }}</span>
+                    </button>
+                  </div>
+                </th>
+                <th class="th-sort-filter th-actions-col">
+                  <div class="th-inner">
+                    <span class="th-label">פעולות</span>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('notes')"
+                      (click)="toggleColumnFilter('notes', $event)" aria-label="סינון הערות">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'notes') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-check"><input type="checkbox" [(ngModel)]="draftHasCustomerNotes" /> יש הערת לקוח</label>
+                      <label class="th-filter-check"><input type="checkbox" [(ngModel)]="draftHasAdminNotes" /> יש הערת מנהל</label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('notes', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('notes', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
               </tr>
             </thead>
             <tbody>
-              @for (order of filteredOrders; track order._id || order.id || $index) {
+              @for (order of displayOrders; track order._id || order.id || $index) {
                 <tr>
                   <td class="select-col">
                     <input
@@ -361,6 +606,13 @@
                   <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="customer-cell">
                     <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                    @if (hasAnyOrderNotes(order)) {
+                      <span
+                        class="order-notes-indicator"
+                        [title]="hasCustomerNotes(order) && hasAdminNotes(order) ? 'הערת לקוח + הערת מנהל' : hasAdminNotes(order) ? 'הערת מנהל' : 'הערת לקוח'"
+                        aria-hidden="true"
+                      >💬</span>
+                    }
                   </td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="portions-cell">{{ order.numberOfPortions ?? '—' }}</td>
@@ -402,7 +654,7 @@
 
         <!-- Catering: mobile cards -->
         <div class="order-cards orders-mobile">
-          @for (order of filteredOrders; track order._id || order.id || $index) {
+          @for (order of displayOrders; track order._id || order.id || $index) {
             <div class="order-card order-card-catering">
               <label class="card-select-box">
                 <input
@@ -449,18 +701,102 @@
                     aria-label="בחר הכל"
                   />
                 </th>
-                <th>מספר הזמנה</th>
-                <th>לקוח</th>
-                <th>תאריך אירוע</th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('orderNumber', $event)">
+                      מספר הזמנה<span class="sort-indicator">{{ getSortIndicator('orderNumber') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('orderNumber')"
+                      (click)="toggleColumnFilter('orderNumber', $event)" aria-label="סינון מספר הזמנה">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'orderNumber') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <input type="search" class="th-filter-input" [(ngModel)]="draftOrderNumberSearch"
+                        placeholder="חיפוש מספר הזמנה" (keyup.enter)="applyColumnFilter('orderNumber', $event)" />
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('orderNumber', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('orderNumber', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('customerName', $event)">
+                      לקוח<span class="sort-indicator">{{ getSortIndicator('customerName') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('customer')"
+                      (click)="toggleColumnFilter('customer', $event)" aria-label="סינון לקוח">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'customer') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <input type="search" class="th-filter-input" [(ngModel)]="draftCustomerSearch"
+                        placeholder="חיפוש שם, טלפון או אימייל" (keyup.enter)="applyColumnFilter('customer', $event)" />
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('customer', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('customer', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('eventDate', $event)">
+                      תאריך אירוע<span class="sort-indicator">{{ getSortIndicator('eventDate') }}</span>
+                    </button>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('eventDate')"
+                      (click)="toggleColumnFilter('eventDate', $event)" aria-label="סינון תאריך אירוע">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'eventDate') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-label">מתאריך<input type="date" class="th-filter-input" [(ngModel)]="draftEventFrom" /></label>
+                      <label class="th-filter-label">עד תאריך<input type="date" class="th-filter-input" [(ngModel)]="draftEventTo" /></label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('eventDate', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('eventDate', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
                 <th>סוג אירוע</th>
                 <th>אורחים</th>
                 <th>מיקום</th>
-                <th>סטטוס</th>
-                <th>פעולות</th>
+                <th class="th-sort-filter">
+                  <div class="th-inner">
+                    <button type="button" class="th-sort-btn" (click)="onSortColumn('status', $event)">
+                      סטטוס<span class="sort-indicator">{{ getSortIndicator('status') }}</span>
+                    </button>
+                  </div>
+                </th>
+                <th class="th-sort-filter th-actions-col">
+                  <div class="th-inner">
+                    <span class="th-label">פעולות</span>
+                    <button type="button" class="th-filter-btn" [class.active]="isColumnFilterActive('notes')"
+                      (click)="toggleColumnFilter('notes', $event)" aria-label="סינון הערות">
+                      <i class="fas fa-filter" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  @if (openFilterColumn === 'notes') {
+                    <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                      <label class="th-filter-check"><input type="checkbox" [(ngModel)]="draftHasCustomerNotes" /> יש הערת לקוח</label>
+                      <label class="th-filter-check"><input type="checkbox" [(ngModel)]="draftHasAdminNotes" /> יש הערת מנהל</label>
+                      <div class="th-filter-actions">
+                        <button type="button" class="th-filter-apply" (click)="applyColumnFilter('notes', $event)">החל</button>
+                        <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('notes', $event)">נקה</button>
+                      </div>
+                    </div>
+                  }
+                </th>
               </tr>
             </thead>
             <tbody>
-              @for (order of filteredOrders; track order._id || order.id || $index) {
+              @for (order of displayOrders; track order._id || order.id || $index) {
                 <tr>
                   <td class="select-col">
                     <input
@@ -473,6 +809,13 @@
                   <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
                   <td class="customer-cell">
                     <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
+                    @if (hasAnyOrderNotes(order)) {
+                      <span
+                        class="order-notes-indicator"
+                        [title]="hasCustomerNotes(order) && hasAdminNotes(order) ? 'הערת לקוח + הערת מנהל' : hasAdminNotes(order) ? 'הערת מנהל' : 'הערת לקוח'"
+                        aria-hidden="true"
+                      >💬</span>
+                    }
                   </td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="event-type-cell">{{ order.eventType || '—' }}</td>
@@ -515,7 +858,7 @@
 
         <!-- Events catering: mobile cards -->
         <div class="order-cards orders-mobile">
-          @for (order of filteredOrders; track order._id || order.id || $index) {
+          @for (order of displayOrders; track order._id || order.id || $index) {
             <div class="order-card order-card-events">
               <label class="card-select-box">
                 <input
@@ -546,17 +889,46 @@
         </div>
       }
 
-      @if (filteredOrders.length === 0) {
+      @if (listTotal > 0) {
+        <div class="orders-pagination">
+          <div class="pagination-summary-row">
+            <p class="pagination-summary">מציג {{ listRangeFrom }}–{{ listRangeTo }} מתוך {{ listTotal }} הזמנות</p>
+            @if (hasActiveListFilters) {
+              <span class="pagination-filter-hint">
+                <span class="filtered-label">מסונן</span>
+                <button type="button" class="btn-clear-filters-small" (click)="clearListFilters()">נקה סינונים</button>
+              </span>
+            }
+          </div>
+          <div class="pagination-controls">
+            <button type="button" class="btn-page" [disabled]="listPage <= 1" (click)="goToPage(listPage - 1)">עמוד קודם</button>
+            <span class="pagination-page-label">עמוד {{ listPage }} מתוך {{ listTotalPages }}</span>
+            <button type="button" class="btn-page" [disabled]="listPage >= listTotalPages" (click)="goToPage(listPage + 1)">עמוד הבא</button>
+            <label class="pagination-limit-label">
+              לעמוד
+              <select class="pagination-limit-select" [ngModel]="listLimit" (ngModelChange)="onPageSizeChange(+$event)">
+                <option [ngValue]="25">25</option>
+                <option [ngValue]="50">50</option>
+                <option [ngValue]="100">100</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      }
+
+      @if (listTotal === 0) {
         <div class="empty-state">
           <i class="fas fa-inbox" aria-hidden="true"></i>
           <h3>{{ emptyStateMessage }}</h3>
-          <p>
-            @if (orderSourceTab === 'catering') { הזמנות קייטרינג שבת וחג יופיעו כאן כאשר יישמרו במערכת. }
-            @else if (orderSourceTab === 'events') { הזמנות קייטרינג לאירועים יופיעו כאן כאשר יישמרו במערכת. }
-            @else if (currentTab === 'failed') { הזמנות עם תשלום שנכשל או שננטש לפני השלמתו יופיעו כאן }
-            @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן }
-            @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }
-          </p>
+          @if (!hasActiveListFilters && !customerFilter.email && !customerFilter.phone) {
+            <p>
+              @if (orderSourceTab === 'catering') { הזמנות קייטרינג שבת וחג יופיעו כאן כאשר יישמרו במערכת. }
+              @else if (orderSourceTab === 'events') { הזמנות קייטרינג לאירועים יופיעו כאן כאשר יישמרו במערכת. }
+              @else if (currentTab === 'failed') { הזמנות עם תשלום שנכשל או שננטש לפני השלמתו יופיעו כאן }
+              @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן }
+              @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }
+            </p>
+          }
         </div>
       }
     }
@@ -643,10 +1015,85 @@
                   </div>
                 }
               </div>
-              @if (selectedOrder.orderType === 'catering' && selectedOrder.numberOfPortions != null && selectedOrder.cateringKind !== 'events') {
-                <div class="detail-row">
-                  <span class="detail-label">מספר מנות:</span>
-                  <span class="detail-value">{{ selectedOrder.numberOfPortions }}</span>
+              @if (canEditCateringPortions(selectedOrder)) {
+                <div class="detail-row detail-row-portions">
+                  <span class="detail-label">כמויות מנות:</span>
+                  @if (!isEditingPortions) {
+                    <div class="detail-value portions-view">
+                      @if (hasPortionsBreakdown(selectedOrder)) {
+                        @if (showEveningPortionsView(selectedOrder)) {
+                          <span>ערב: {{ selectedOrder.portionsEvening }}</span>
+                        }
+                        @if (showMorningPortionsView(selectedOrder)) {
+                          <span>בוקר: {{ selectedOrder.portionsMorning }}</span>
+                        }
+                      } @else {
+                        <span>{{ selectedOrder.numberOfPortions }}</span>
+                      }
+                      <span class="portions-total">סה״כ: {{ selectedOrder.numberOfPortions }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn-edit-date"
+                      (click)="startEditingPortions()"
+                      title="ערוך כמויות"
+                      aria-label="ערוך כמויות מנות"
+                    >
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                  } @else {
+                    <div class="portions-edit-inline">
+                      @if (showEveningPortionField(selectedOrder)) {
+                        <label class="portions-edit-field">
+                          <span>ערב</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            class="input-portions"
+                            [(ngModel)]="editPortionsEvening"
+                            name="editPortionsEvening"
+                          />
+                        </label>
+                      }
+                      @if (showMorningPortionField(selectedOrder)) {
+                        <label class="portions-edit-field">
+                          <span>בוקר</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            class="input-portions"
+                            [(ngModel)]="editPortionsMorning"
+                            name="editPortionsMorning"
+                          />
+                        </label>
+                      }
+                      <button
+                        type="button"
+                        class="btn-save-date"
+                        (click)="savePortions()"
+                        [disabled]="portionsUpdatingId !== null"
+                        title="שמור"
+                      >
+                        @if (portionsUpdatingId) {
+                          <i class="fas fa-spinner fa-spin"></i>
+                        } @else {
+                          <i class="fas fa-check"></i>
+                        }
+                        שמור
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-cancel-date"
+                        (click)="cancelEditingPortions()"
+                        [disabled]="portionsUpdatingId !== null"
+                        title="ביטול"
+                      >
+                        <i class="fas fa-times"></i> ביטול
+                      </button>
+                    </div>
+                  }
                 </div>
               }
               @if (selectedOrder.orderType === 'catering' && (selectedOrder.mealTypes || selectedOrder.mealTime) && selectedOrder.cateringKind !== 'events') {
@@ -687,10 +1134,41 @@
               }
               @if (selectedOrder.customerDetails?.notes) {
                 <div class="detail-row">
-                  <span class="detail-label">הערות:</span>
-                  <span class="detail-value">{{ selectedOrder.customerDetails.notes }}</span>
+                  <span class="detail-label">הערת לקוח:</span>
+                  <span class="detail-value notes-readonly">{{ selectedOrder.customerDetails.notes }}</span>
+                </div>
+              } @else {
+                <div class="detail-row">
+                  <span class="detail-label">הערת לקוח:</span>
+                  <span class="detail-value notes-empty">לא נמסרה הערת לקוח</span>
                 </div>
               }
+              <div class="detail-row detail-row-admin-notes">
+                <span class="detail-label">הערת מנהל:</span>
+                <div class="admin-notes-edit">
+                  <textarea
+                    class="input textarea admin-notes-textarea"
+                    rows="3"
+                    maxlength="1000"
+                    [(ngModel)]="editAdminNotesValue"
+                    name="editAdminNotesValue"
+                    placeholder="הערה פנימית למנהל בלבד"
+                  ></textarea>
+                  <button
+                    type="button"
+                    class="btn-save-date"
+                    (click)="saveAdminNotes()"
+                    [disabled]="isSavingAdminNotes"
+                  >
+                    @if (isSavingAdminNotes) {
+                      <i class="fas fa-spinner fa-spin"></i>
+                    } @else {
+                      <i class="fas fa-check"></i>
+                    }
+                    שמור הערת מנהל
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="details-section">
               <h3>פריטי ההזמנה</h3>
@@ -825,26 +1303,56 @@
               <!-- ── VIEW MODE ── -->
               @if (!isEditingItems) {
                 @if (isSelectedOrderCatering) {
-                  <!-- Catering: grouped by category, no price column -->
+                  <!-- Catering: grouped by meal section for Shabbat, flat for events -->
                   <div class="catering-items-view">
-                    @for (group of getCateringViewItemsByCategory(); track group.category) {
-                      <div class="catering-view-category">
-                        <div class="catering-view-category-title">{{ group.category }}</div>
-                        @for (item of group.items; track $index) {
-                          <div class="catering-view-item">
-                            <i class="fas fa-check catering-check-icon"></i>
-                            <div class="catering-view-item-text">
-                              <span>{{ item.name }}</span>
-                              @if (item.kitchenNotes) {
-                                <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
+                    @if (isShabbatCateringOrder(selectedOrder)) {
+                      @for (section of getCateringDetailSections(); track section.title) {
+                        <div class="catering-meal-section" [class.legacy-section]="section.legacy">
+                          <div class="catering-meal-section-title">{{ section.title }}</div>
+                          @if (section.portions != null && section.portions > 0) {
+                            <div class="catering-meal-portions">כמות מנות: {{ section.portions }}</div>
+                          }
+                          @for (group of section.categories; track group.category) {
+                            <div class="catering-view-category">
+                              <div class="catering-view-category-title">{{ group.category }}</div>
+                              @for (item of group.items; track $index) {
+                                <div class="catering-view-item">
+                                  <i class="fas fa-check catering-check-icon"></i>
+                                  <div class="catering-view-item-text">
+                                    <span>{{ item.name }}</span>
+                                    @if (item.kitchenNotes) {
+                                      <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
+                                    }
+                                  </div>
+                                </div>
                               }
                             </div>
-                          </div>
-                        }
-                      </div>
-                    }
-                    @if (getCateringViewItemsByCategory().length === 0) {
-                      <p class="catering-items-empty">אין פריטים שמורים להזמנה זו</p>
+                          }
+                        </div>
+                      }
+                      @if (getCateringDetailSections().length === 0) {
+                        <p class="catering-items-empty">אין פריטים שמורים להזמנה זו</p>
+                      }
+                    } @else {
+                      @for (group of getCateringViewItemsByCategory(); track group.category) {
+                        <div class="catering-view-category">
+                          <div class="catering-view-category-title">{{ group.category }}</div>
+                          @for (item of group.items; track $index) {
+                            <div class="catering-view-item">
+                              <i class="fas fa-check catering-check-icon"></i>
+                              <div class="catering-view-item-text">
+                                <span>{{ item.name }}</span>
+                                @if (item.kitchenNotes) {
+                                  <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
+                                }
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
+                      @if (getCateringViewItemsByCategory().length === 0) {
+                        <p class="catering-items-empty">אין פריטים שמורים להזמנה זו</p>
+                      }
                     }
                   </div>
                 } @else {

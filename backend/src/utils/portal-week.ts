@@ -2,11 +2,17 @@
 import {
   MENU_CATEGORIES,
   MENU_DAY_FIELDS,
+  ORDER_NOTES_MAX_LENGTH,
   emptyShabbatOrder,
   normalizeCategoryNotes,
+  normalizeMealPortionCounts,
+  normalizeMealPortions,
+  normalizeOptionalNotes,
   normalizeShabbatOrder,
+  sumMealPortions,
   type MenuDayField,
-  type ShabbatOrder
+  type ShabbatOrder,
+  type ShabbatMealPortionKey
 } from './menu-structure';
 
 export { MENU_DAY_FIELDS, type MenuDayField };
@@ -171,6 +177,65 @@ export function computeIsLockedByDeadline(
   const deadline = orderDeadline instanceof Date ? orderDeadline : parseOrderDeadline(orderDeadline);
   if (!deadline) return false;
   return now.getTime() > deadline.getTime();
+}
+
+export interface MenuDeadlineFields {
+  orderDeadline?: Date | string | null;
+  weekdayOrderDeadline?: Date | string | null;
+  shabbatOrderDeadline?: Date | string | null;
+}
+
+function hasExplicitDeadline(value: unknown): boolean {
+  return value != null && value !== '';
+}
+
+/** Weekday deadline: explicit weekdayOrderDeadline, else legacy orderDeadline. */
+export function resolveWeekdayOrderDeadline(menu: MenuDeadlineFields): Date | null {
+  if (hasExplicitDeadline(menu.weekdayOrderDeadline)) {
+    return parseOrderDeadline(menu.weekdayOrderDeadline);
+  }
+  return parseOrderDeadline(menu.orderDeadline);
+}
+
+/** Shabbat deadline: explicit shabbatOrderDeadline, else legacy orderDeadline. */
+export function resolveShabbatOrderDeadline(menu: MenuDeadlineFields): Date | null {
+  if (hasExplicitDeadline(menu.shabbatOrderDeadline)) {
+    return parseOrderDeadline(menu.shabbatOrderDeadline);
+  }
+  return parseOrderDeadline(menu.orderDeadline);
+}
+
+/** Latest effective deadline — used for default week rollover. */
+export function resolveLatestOrderDeadline(menu: MenuDeadlineFields): Date | null {
+  const weekday = resolveWeekdayOrderDeadline(menu);
+  const shabbat = resolveShabbatOrderDeadline(menu);
+  if (!weekday && !shabbat) return null;
+  if (!weekday) return shabbat;
+  if (!shabbat) return weekday;
+  return weekday.getTime() >= shabbat.getTime() ? weekday : shabbat;
+}
+
+export function computeIsWeekdayLocked(menu: MenuDeadlineFields, now: Date = new Date()): boolean {
+  return computeIsLockedByDeadline(resolveWeekdayOrderDeadline(menu), now);
+}
+
+export function computeIsShabbatLocked(menu: MenuDeadlineFields, now: Date = new Date()): boolean {
+  return computeIsLockedByDeadline(resolveShabbatOrderDeadline(menu), now);
+}
+
+export function computeIsFullyLocked(menu: MenuDeadlineFields, now: Date = new Date()): boolean {
+  return computeIsWeekdayLocked(menu, now) && computeIsShabbatLocked(menu, now);
+}
+
+export function orderDaysEqual(
+  a: Array<{ dayOfWeek?: number; regularCount?: number; vegetarianCount?: number; notes?: string }> | undefined,
+  b: Array<{ dayOfWeek?: number; regularCount?: number; vegetarianCount?: number; notes?: string }> | undefined
+): boolean {
+  return JSON.stringify(normalizeOrderDays(a)) === JSON.stringify(normalizeOrderDays(b));
+}
+
+export function shabbatOrdersEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(normalizeShabbatOrder(a)) === JSON.stringify(normalizeShabbatOrder(b));
 }
 
 /**
@@ -360,6 +425,62 @@ const SHABBAT_EXTRA_LABELS: Record<string, string> = {
   grapeJuice: 'מיץ ענבים'
 };
 
+const SHABBAT_MEAL_LABELS: Record<ShabbatMealPortionKey, string> = {
+  fridayNight: 'ערב שבת',
+  shabbatDay: 'שבת בבוקר',
+  seudaShlishit: 'סעודה שלישית'
+};
+
+function validateMealPortionBlock(
+  raw: unknown,
+  mealLabel: string
+): { ok: true; counts: ReturnType<typeof normalizeMealPortionCounts> } | { ok: false; message: string } {
+  if (raw === undefined || raw === null) {
+    return { ok: true, counts: normalizeMealPortionCounts(null) };
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, message: `מבנה כמויות ${mealLabel} לא תקין` };
+  }
+  const row = raw as Record<string, unknown>;
+  for (const field of ['regularCount', 'vegetarianCount'] as const) {
+    const parsed = parseStrictNonNegativeInteger(row[field], `${COUNT_FIELD_LABELS[field]} (${mealLabel})`);
+    if (parsed.ok === false) {
+      return { ok: false, message: parsed.message };
+    }
+  }
+  return { ok: true, counts: normalizeMealPortionCounts(raw) };
+}
+
+function validateOptionalNotes(
+  raw: unknown,
+  fieldLabel: string
+): { ok: true; value: string } | { ok: false; message: string } {
+  if (raw === undefined || raw === null) {
+    return { ok: true, value: '' };
+  }
+  const s = String(raw);
+  if (s.length > ORDER_NOTES_MAX_LENGTH) {
+    return { ok: false, message: `${fieldLabel} לא יכולה להיות ארוכה מ-${ORDER_NOTES_MAX_LENGTH} תווים` };
+  }
+  return { ok: true, value: normalizeOptionalNotes(raw) };
+}
+
+export function validateAdminNotesPayload(raw: unknown):
+  | { ok: true; adminNotes: string }
+  | { ok: false; message: string } {
+  const parsed = validateOptionalNotes(raw, 'הערת מנהל');
+  if (parsed.ok === false) return parsed;
+  return { ok: true, adminNotes: parsed.value };
+}
+
+export function validateGeneralNotesPayload(raw: unknown):
+  | { ok: true; generalNotes: string }
+  | { ok: false; message: string } {
+  const parsed = validateOptionalNotes(raw, 'הערה כללית להזמנה');
+  if (parsed.ok === false) return parsed;
+  return { ok: true, generalNotes: parsed.value };
+}
+
 /** Validate Shabbat weekend order block before save — rejects negatives and decimals. */
 export function validateShabbatOrderPayload(raw: unknown):
   | { ok: true; shabbatOrder: ShabbatOrder }
@@ -373,6 +494,12 @@ export function validateShabbatOrderPayload(raw: unknown):
   }
 
   const row = raw as Record<string, unknown>;
+  const wantsSeudaShlishit = row.wantsSeudaShlishit === true;
+
+  const notesValidation = validateOptionalNotes(row.notes, 'הערות להזמנת שבת');
+  if (notesValidation.ok === false) {
+    return { ok: false, message: notesValidation.message };
+  }
 
   for (const field of ['regularCount', 'vegetarianCount'] as const) {
     const parsed = parseStrictNonNegativeInteger(row[field], COUNT_FIELD_LABELS[field]);
@@ -393,6 +520,45 @@ export function validateShabbatOrderPayload(raw: unknown):
         return { ok: false, message: parsed.message };
       }
     }
+  }
+
+  const mealPortionsRaw = row.mealPortions;
+  if (mealPortionsRaw !== undefined && mealPortionsRaw !== null) {
+    if (typeof mealPortionsRaw !== 'object' || Array.isArray(mealPortionsRaw)) {
+      return { ok: false, message: 'מבנה כמויות סעודות שבת לא תקין' };
+    }
+
+    const mpRow = mealPortionsRaw as Record<string, unknown>;
+    const friday = validateMealPortionBlock(mpRow.fridayNight, SHABBAT_MEAL_LABELS.fridayNight);
+    if (friday.ok === false) return friday;
+    const shabbatDay = validateMealPortionBlock(mpRow.shabbatDay, SHABBAT_MEAL_LABELS.shabbatDay);
+    if (shabbatDay.ok === false) return shabbatDay;
+
+    let seudaCounts: ReturnType<typeof normalizeMealPortionCounts> | undefined;
+    if (wantsSeudaShlishit && mpRow.seudaShlishit !== undefined && mpRow.seudaShlishit !== null) {
+      const seuda = validateMealPortionBlock(mpRow.seudaShlishit, SHABBAT_MEAL_LABELS.seudaShlishit);
+      if (seuda.ok === false) return seuda;
+      seudaCounts = seuda.counts;
+    }
+
+    const mealPortions = {
+      fridayNight: friday.counts,
+      shabbatDay: shabbatDay.counts,
+      ...(seudaCounts ? { seudaShlishit: seudaCounts } : {})
+    };
+
+    const legacy = sumMealPortions(mealPortions, wantsSeudaShlishit);
+
+    return {
+      ok: true,
+      shabbatOrder: normalizeShabbatOrder({
+        ...row,
+        regularCount: legacy.regularCount,
+        vegetarianCount: legacy.vegetarianCount,
+        wantsSeudaShlishit,
+        mealPortions
+      })
+    };
   }
 
   return { ok: true, shabbatOrder: normalizeShabbatOrder(raw) };

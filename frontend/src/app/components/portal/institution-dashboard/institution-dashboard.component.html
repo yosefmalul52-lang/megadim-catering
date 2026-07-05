@@ -21,7 +21,7 @@
     @if (isLoading) {
       <p class="loading-text">טוען את פורטל ההזמנות...</p>
     } @else if (status) {
-      <div class="announcement-bar" [class.locked]="isLocked">
+      <div class="announcement-bar" [class.locked]="isFullyLocked">
         <div class="announcement-main">
           <p class="week-range-banner">{{ weekRangeLabel }}</p>
           @if (customMessage) {
@@ -30,11 +30,18 @@
           @if (!noMenuPublished) {
             <p class="deadline-notice">
               <mat-icon>schedule</mat-icon>
-              {{ deadlineNotice }}
+              {{ deadlineNotices.weekday }}
             </p>
+            <p class="deadline-notice">
+              <mat-icon>nightlight</mat-icon>
+              {{ deadlineNotices.shabbat }}
+            </p>
+            @if (deadlineNotices.usesLegacyFallback) {
+              <p class="deadline-notice deadline-notice--legacy">דדליין כללי יחיד לכל השבוע (תאימות לאחור)</p>
+            }
           }
         </div>
-        @if (isLocked && !noMenuPublished) {
+        @if (isFullyLocked && !noMenuPublished) {
           <div class="locked-badge">
             <mat-icon>lock</mat-icon>
             ההזמנה נעולה – לא ניתן לערוך
@@ -49,12 +56,15 @@
         </div>
       } @else {
         <form [formGroup]="form" (ngSubmit)="submitOrder()" class="order-form">
-          <section class="order-section">
+          <section class="order-section" [class.section-locked]="isWeekdayLocked">
             <div class="order-section-heading">
               <mat-icon aria-hidden="true">calendar_today</mat-icon>
               <div>
                 <h2 class="order-section-title">ימי חול</h2>
                 <p class="order-section-subtitle">ראשון עד חמישי — הזינו כמויות בלבד</p>
+                @if (isWeekdayLocked) {
+                  <p class="section-locked-notice">הזמנות לימי חול נסגרו</p>
+                }
               </div>
             </div>
 
@@ -111,7 +121,7 @@
           </section>
 
           @if (hasShabbatMenu) {
-            <section class="order-section shabbat-order-panel" formGroupName="shabbatOrder">
+            <section class="order-section shabbat-order-panel" [class.section-locked]="isShabbatLocked" formGroupName="shabbatOrder">
               <div class="shabbat-order-header">
                 <div class="shabbat-order-header-main">
                   <div class="shabbat-order-icon" aria-hidden="true">
@@ -119,43 +129,111 @@
                   </div>
                   <div>
                     <h2 class="order-section-title">הזמנה לשבת</h2>
+                    @if (isShabbatLocked) {
+                      <p class="section-locked-notice">הזמנות שבת נסגרו</p>
+                    }
                   </div>
                 </div>
               </div>
 
               <div class="shabbat-order-grid">
-                <div class="shabbat-block">
+                <div class="shabbat-block" formGroupName="mealPortions">
                   <div class="shabbat-block-header">
                     <mat-icon aria-hidden="true">restaurant</mat-icon>
-                    <h3>כמויות מנות</h3>
+                    <h3>כמויות מנות לפי סעודה</h3>
                   </div>
-                  <div class="shabbat-block-body">
-                    <div class="qty-grid qty-grid--shabbat">
-                      <div class="qty-field">
-                        <label for="shabbat-regular">מנות רגילות</label>
-                        <input
-                          id="shabbat-regular"
-                          type="number"
-                          min="0"
-                          step="1"
-                          formControlName="regularCount"
-                          class="input qty-input qty-input--lg"
-                          inputmode="numeric"
-                        />
-                      </div>
-                      <div class="qty-field">
-                        <label for="shabbat-veg">מנות צמחוניות</label>
-                        <input
-                          id="shabbat-veg"
-                          type="number"
-                          min="0"
-                          step="1"
-                          formControlName="vegetarianCount"
-                          class="input qty-input qty-input--lg"
-                          inputmode="numeric"
-                        />
+                  <div class="shabbat-block-body shabbat-meals-stack">
+                    <div class="shabbat-meal-qty" formGroupName="fridayNight">
+                      <h4 class="shabbat-meal-qty-title">סעודה ראשונה / ערב שבת</h4>
+                      <div class="qty-grid qty-grid--shabbat">
+                        <div class="qty-field">
+                          <label for="shabbat-fn-regular">מנות רגילות</label>
+                          <input
+                            id="shabbat-fn-regular"
+                            type="number"
+                            min="0"
+                            step="1"
+                            formControlName="regularCount"
+                            class="input qty-input"
+                            inputmode="numeric"
+                          />
+                        </div>
+                        <div class="qty-field">
+                          <label for="shabbat-fn-veg">מנות צמחוניות</label>
+                          <input
+                            id="shabbat-fn-veg"
+                            type="number"
+                            min="0"
+                            step="1"
+                            formControlName="vegetarianCount"
+                            class="input qty-input"
+                            inputmode="numeric"
+                          />
+                        </div>
                       </div>
                     </div>
+
+                    <div class="shabbat-meal-qty" formGroupName="shabbatDay">
+                      <h4 class="shabbat-meal-qty-title">סעודה שנייה / שבת בבוקר</h4>
+                      <div class="qty-grid qty-grid--shabbat">
+                        <div class="qty-field">
+                          <label for="shabbat-sd-regular">מנות רגילות</label>
+                          <input
+                            id="shabbat-sd-regular"
+                            type="number"
+                            min="0"
+                            step="1"
+                            formControlName="regularCount"
+                            class="input qty-input"
+                            inputmode="numeric"
+                          />
+                        </div>
+                        <div class="qty-field">
+                          <label for="shabbat-sd-veg">מנות צמחוניות</label>
+                          <input
+                            id="shabbat-sd-veg"
+                            type="number"
+                            min="0"
+                            step="1"
+                            formControlName="vegetarianCount"
+                            class="input qty-input"
+                            inputmode="numeric"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    @if (wantsSeudaShlishit) {
+                      <div class="shabbat-meal-qty" formGroupName="seudaShlishit">
+                        <h4 class="shabbat-meal-qty-title">סעודה שלישית</h4>
+                        <div class="qty-grid qty-grid--shabbat">
+                          <div class="qty-field">
+                            <label for="shabbat-seuda-regular">מנות רגילות</label>
+                            <input
+                              id="shabbat-seuda-regular"
+                              type="number"
+                              min="0"
+                              step="1"
+                              formControlName="regularCount"
+                              class="input qty-input"
+                              inputmode="numeric"
+                            />
+                          </div>
+                          <div class="qty-field">
+                            <label for="shabbat-seuda-veg">מנות צמחוניות</label>
+                            <input
+                              id="shabbat-seuda-veg"
+                              type="number"
+                              min="0"
+                              step="1"
+                              formControlName="vegetarianCount"
+                              class="input qty-input"
+                              inputmode="numeric"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    }
                   </div>
                 </div>
 
@@ -217,11 +295,39 @@
                     </div>
                   </div>
                 </div>
+
+                <div class="shabbat-block shabbat-block--notes">
+                  <div class="notes-field">
+                    <label for="shabbat-order-notes">הערות להזמנת שבת</label>
+                    <textarea
+                      id="shabbat-order-notes"
+                      rows="2"
+                      class="input textarea"
+                      formControlName="notes"
+                      [maxlength]="1000"
+                      placeholder="אופציונלי..."
+                    ></textarea>
+                  </div>
+                </div>
               </div>
             </section>
           }
 
-          @if (!isLocked) {
+          @if (!isFullyLocked) {
+            <section class="order-section general-notes-section">
+              <div class="notes-field">
+                <label for="general-order-notes">הערה כללית להזמנה השבועית</label>
+                <textarea
+                  id="general-order-notes"
+                  rows="3"
+                  class="input textarea"
+                  formControlName="generalNotes"
+                  [maxlength]="1000"
+                  placeholder="אופציונלי — הערות כלליות לכל ההזמנה השבועית"
+                ></textarea>
+              </div>
+            </section>
+
             <div class="form-actions">
               <button type="submit" class="btn-save" [disabled]="isSaving || form.invalid">
                 @if (isSaving) {

@@ -103,6 +103,10 @@ export interface Order {
   assignedAt?: string | Date | null;
   /** Catering-specific: number of portions. */
   numberOfPortions?: number | string;
+  /** Shabbat/holiday catering: portion count for evening (first meal). */
+  portionsEvening?: number;
+  /** Shabbat/holiday catering: portion count for morning (second meal). */
+  portionsMorning?: number;
   /** Catering-specific: e.g. evening, morning, both. */
   mealTime?: string;
   /** Catering-specific: human-readable meal types summary. */
@@ -122,6 +126,8 @@ export interface Order {
   transactionId?: string;
   /** Amount that was pre-authorized — used to warn if totalPrice changed after auth. */
   authorizedAmount?: number;
+  /** Internal admin notes — never overwrites customerDetails.notes. */
+  adminNotes?: string;
 }
 
 export interface DriverOrderAssignmentPayload {
@@ -132,6 +138,64 @@ export interface DashboardStats {
   pendingCount: number;
   eventsTodayCount: number;
   monthlyRevenue: number;
+}
+
+export interface OrderSourceTabCounts {
+  total: number;
+  pending: number;
+  processing: number;
+  ready: number;
+  failed: number;
+  archive: number;
+}
+
+export interface OrderTabCounts {
+  shabbat: OrderSourceTabCounts;
+  catering: OrderSourceTabCounts;
+  events: OrderSourceTabCounts;
+}
+
+export type AdminOrderSource = 'shabbat' | 'catering' | 'events';
+export type AdminOrderStatusTab = 'pending' | 'processing' | 'ready' | 'failed' | 'archive';
+export type AdminOrdersSortBy =
+  | 'createdAt'
+  | 'eventDate'
+  | 'customerName'
+  | 'totalPrice'
+  | 'status'
+  | 'orderNumber';
+
+export interface AdminOrdersPageParams {
+  page?: number;
+  limit?: number;
+  source?: AdminOrderSource;
+  statusTab?: AdminOrderStatusTab;
+  /** @deprecated Legacy combined search */
+  search?: string;
+  /** @deprecated Legacy combined date */
+  dateFrom?: string;
+  /** @deprecated Legacy combined date */
+  dateTo?: string;
+  orderNumberSearch?: string;
+  customerSearch?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  eventFrom?: string;
+  eventTo?: string;
+  sortBy?: AdminOrdersSortBy;
+  sortDir?: 'asc' | 'desc';
+  hasCustomerNotes?: boolean;
+  hasAdminNotes?: boolean;
+}
+
+export interface AdminOrdersPageResult {
+  orders: Order[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface RevenueBySourcePoint {
@@ -227,6 +291,63 @@ export class OrderService {
         catchError((err) => {
           console.error('Error fetching dashboard stats:', err);
           return this.handleDataLoadError(err);
+        })
+      );
+  }
+
+  /** Per-source tab counts for admin orders dashboard (full DB counts, not limited to list page size). */
+  getOrderTabCounts(): Observable<OrderTabCounts> {
+    return this.http
+      .get<{ success: boolean; data: OrderTabCounts }>(`${environment.apiUrl}/order/admin/tab-counts`)
+      .pipe(
+        map((res) => res.data),
+        catchError((err) => {
+          console.error('Error fetching order tab counts:', err);
+          return throwError(() => err);
+        })
+      );
+  }
+
+  /** Paginated admin orders list with server-side filters (admin dashboard). */
+  getAdminOrdersPage(params: AdminOrdersPageParams): Observable<AdminOrdersPageResult> {
+    const query: Record<string, string> = {};
+    if (params.page != null) query['page'] = String(params.page);
+    if (params.limit != null) query['limit'] = String(params.limit);
+    if (params.source) query['source'] = params.source;
+    if (params.statusTab) query['statusTab'] = params.statusTab;
+    if (params.search?.trim()) query['search'] = params.search.trim();
+    if (params.dateFrom) query['dateFrom'] = params.dateFrom;
+    if (params.dateTo) query['dateTo'] = params.dateTo;
+    if (params.orderNumberSearch?.trim()) {
+      query['orderNumberSearch'] = params.orderNumberSearch.trim();
+    }
+    if (params.customerSearch?.trim()) query['customerSearch'] = params.customerSearch.trim();
+    if (params.createdFrom) query['createdFrom'] = params.createdFrom;
+    if (params.createdTo) query['createdTo'] = params.createdTo;
+    if (params.eventFrom) query['eventFrom'] = params.eventFrom;
+    if (params.eventTo) query['eventTo'] = params.eventTo;
+    if (params.sortBy) query['sortBy'] = params.sortBy;
+    if (params.sortDir) query['sortDir'] = params.sortDir;
+    if (params.hasCustomerNotes) query['hasCustomerNotes'] = 'true';
+    if (params.hasAdminNotes) query['hasAdminNotes'] = 'true';
+
+    return this.http
+      .get<{
+        success: boolean;
+        data: Order[];
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+      }>(`${environment.apiUrl}/order`, { params: query })
+      .pipe(
+        map((res) => ({
+          orders: (res.data || []).map((order) => ({
+            ...order,
+            id: order._id || order.id
+          })),
+          pagination: res.pagination
+        })),
+        catchError((error: unknown) => {
+          console.error('Error fetching admin orders page:', error);
+          return throwError(() => error);
         })
       );
   }
@@ -377,6 +498,49 @@ export class OrderService {
         })),
         catchError((error: any) => {
           console.error('Error updating shipping cost:', error);
+          throw error;
+        })
+      );
+  }
+
+  /** Admin: update internal order notes without modifying customer notes. */
+  updateOrderAdminNotes(orderId: string, adminNotes: string): Observable<Order> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/admin/${id}/admin-notes`,
+        { adminNotes }
+      )
+      .pipe(
+        map((response) => ({
+          ...response.data,
+          id: response.data._id || response.data.id
+        })),
+        catchError((error: any) => {
+          console.error('Error updating admin notes:', error);
+          throw error;
+        })
+      );
+  }
+
+  /** Admin: update Shabbat/holiday catering portion counts. */
+  updateOrderPortions(
+    orderId: string,
+    portions: { portionsEvening: number; portionsMorning: number }
+  ): Observable<Order> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/admin/${id}/portions`,
+        portions
+      )
+      .pipe(
+        map((response) => ({
+          ...response.data,
+          id: response.data._id || response.data.id
+        })),
+        catchError((error: any) => {
+          console.error('Error updating order portions:', error);
           throw error;
         })
       );
@@ -546,7 +710,7 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
   }
 
   // Get kitchen preparation report
-  getKitchenReport(date?: string): Observable<{
+  getKitchenReport(date?: string, includeCatering?: boolean): Observable<{
     items: {
       productName: string;
       category: string;
@@ -561,7 +725,9 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
     }[];
     meta: KitchenReportMeta | null;
   }> {
-    const params = date ? { date } : undefined;
+    const params: Record<string, string> = {};
+    if (date) params['date'] = date;
+    if (includeCatering) params['includeCatering'] = 'true';
     return this.http.get<{ 
       success: boolean; 
       data: {

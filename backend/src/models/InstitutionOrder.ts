@@ -30,12 +30,31 @@ const ShabbatOrderExtrasSchema = new Schema(
   { _id: false }
 );
 
+const ShabbatMealPortionCountsSchema = new Schema(
+  {
+    regularCount: { type: Number, default: 0, min: 0 },
+    vegetarianCount: { type: Number, default: 0, min: 0 }
+  },
+  { _id: false }
+);
+
+const ShabbatMealPortionsSchema = new Schema(
+  {
+    fridayNight: { type: ShabbatMealPortionCountsSchema, default: () => ({ regularCount: 0, vegetarianCount: 0 }) },
+    shabbatDay: { type: ShabbatMealPortionCountsSchema, default: () => ({ regularCount: 0, vegetarianCount: 0 }) },
+    seudaShlishit: { type: ShabbatMealPortionCountsSchema, required: false }
+  },
+  { _id: false }
+);
+
 const ShabbatOrderSchema = new Schema<IShabbatOrder>(
   {
     regularCount: { type: Number, default: 0, min: 0 },
     vegetarianCount: { type: Number, default: 0, min: 0 },
     wantsSeudaShlishit: { type: Boolean, default: false },
-    extras: { type: ShabbatOrderExtrasSchema, default: () => emptyShabbatOrder().extras }
+    extras: { type: ShabbatOrderExtrasSchema, default: () => emptyShabbatOrder().extras },
+    mealPortions: { type: ShabbatMealPortionsSchema, required: false },
+    notes: { type: String, trim: true, default: '', maxlength: 1000 }
   },
   { _id: false }
 );
@@ -48,6 +67,10 @@ export interface IInstitutionOrder extends Document {
   /** Sunday–Thursday portion counts. */
   days: IInstitutionOrderDay[];
   shabbatOrder: IShabbatOrder;
+  /** Institution-submitted note for the whole weekly order. */
+  generalNotes?: string;
+  /** Internal admin notes — separate from institution-submitted notes. */
+  adminNotes?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -74,7 +97,9 @@ const InstitutionOrderSchema = new Schema<IInstitutionOrder>(
     shabbatOrder: {
       type: ShabbatOrderSchema,
       default: () => emptyShabbatOrder()
-    }
+    },
+    generalNotes: { type: String, trim: true, default: '', maxlength: 1000 },
+    adminNotes: { type: String, trim: true, default: '', maxlength: 1000 }
   },
   {
     timestamps: true,

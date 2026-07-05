@@ -10,6 +10,7 @@ import { DriverUser, UsersService } from '../../../services/users.service';
 
 interface DeliveryOrder {
   _id: string;
+  orderNumber?: string | null;
   status?: string;
   assignedDriverId?: string | null;
   assignedDriverName?: string;
@@ -133,34 +134,6 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
         <div *ngIf="errorMessage" class="error-state">
           <i class="fas fa-exclamation-circle"></i>
           {{ errorMessage }}
-        </div>
-
-        <!-- Print-only: Driver table (Name, Address, Phone, Amount, Checkbox) -->
-        <div class="print-only-table" style="display: none;">
-          <div class="print-header">
-            <h1>סידור עבודה לנהג - מגדים</h1>
-            <p class="print-date">{{ getPrintDate() }}</p>
-          </div>
-          <table class="driver-print-table">
-            <thead>
-              <tr>
-                <th>שם</th>
-                <th>כתובת</th>
-                <th>טלפון</th>
-                <th>סכום לגבייה</th>
-                <th class="th-check">✓</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let order of allOrdersForPrint">
-                <td>{{ order.customerDetails.name }}</td>
-                <td>{{ order.deliveryDetails.address }}<span *ngIf="order.deliveryDetails.floor">, קומה {{ order.deliveryDetails.floor }}</span></td>
-                <td>{{ order.customerDetails.phone }}</td>
-                <td>{{ order.isPaid ? '—' : ('₪' + (order.totalPrice | number:'1.2-2')) }}</td>
-                <td class="td-check">[ &nbsp; ]</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
 
         <ng-template #dayOrdersTpl let-dateStr>
@@ -1206,28 +1179,9 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
       }
     }
 
-    // Print-only driver table (hidden on screen)
-    .print-only-table {
-      margin: 0;
-    }
-    .driver-print-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 1rem;
-    }
-    .driver-print-table th,
-    .driver-print-table td {
-      border: 1px solid #ccc;
-      padding: 0.5rem 0.75rem;
-      text-align: right;
-    }
-    .driver-print-table .th-check,
-    .driver-print-table .td-check {
-      width: 3rem;
-      text-align: center;
-    }
+    // Print-only driver table styles removed — manifest uses dedicated popup HTML
 
-    // Print Styles
+    // Print Styles (legacy fallback if user prints page directly)
     @media print {
       .no-print,
       .page-header,
@@ -1252,40 +1206,6 @@ const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמי
       .cities-grid,
       .city-card {
         display: none !important;
-      }
-
-      .print-only-table {
-        display: block !important;
-      }
-      .print-header {
-        display: block !important;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        page-break-after: avoid;
-      }
-      .print-header h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: black;
-        margin: 0 0 0.25rem 0;
-      }
-      .print-date {
-        font-size: 1rem;
-        color: black;
-        margin: 0;
-      }
-      .driver-print-table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .driver-print-table th,
-      .driver-print-table td {
-        border: 1px solid #000;
-        padding: 0.4rem 0.6rem;
-        color: black;
-      }
-      .driver-print-table .td-check {
-        font-size: 1rem;
       }
 
       ::ng-deep app-admin-layout aside,
@@ -1582,12 +1502,188 @@ export class DeliveryManagementComponent implements OnInit {
   }
 
   printManifest(): void {
-    window.print();
+    if (this.selectedOrdersForPrint.size === 0) return;
+    const popupWin = window.open('', '_blank', 'top=0,left=0,height=100%,width=auto');
+    if (!popupWin) {
+      alert('אנא אפשר חלונות קופצים (Popups) כדי להדפיס.');
+      return;
+    }
+    popupWin.document.open();
+    popupWin.document.write(this.buildDriverManifestHtml());
+    popupWin.document.close();
+    setTimeout(() => {
+      popupWin.focus();
+      popupWin.print();
+      popupWin.close();
+    }, 400);
+  }
+
+  private buildDriverManifestHtml(): string {
+    const orders = this.allOrdersForPrint;
+    const summary = this.buildManifestSummary(orders);
+    const printedAt = new Date().toLocaleString('he-IL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const rows = orders
+      .map(
+        (order) => `<tr>
+          <td class="done-col">☐</td>
+          <td class="done-col">☐</td>
+          <td class="num-col">${this.escapeManifestHtml(this.getOrderNumber(order))}</td>
+          <td>${this.escapeManifestHtml(order.customerDetails.name)}</td>
+          <td class="num-col">${this.escapeManifestHtml(order.customerDetails.phone)}</td>
+          <td>${this.escapeManifestHtml(this.formatManifestAddress(order))}</td>
+          <td class="num-col">${this.escapeManifestHtml(this.formatManifestFloor(order))}</td>
+          <td class="num-col">${this.escapeManifestHtml(this.getDisplayTime(order))}</td>
+          <td class="num-col">${this.escapeManifestHtml(this.formatCollectAmount(order))}</td>
+          <td>${this.escapeManifestHtml(this.getPaymentStatusLabel(order))}</td>
+          <td>${this.escapeManifestHtml(this.getDeliveryNotes(order))}</td>
+        </tr>`
+      )
+      .join('');
+
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">
+      <title>סידור משלוחים — מגדים</title>
+      <style>
+        @page { size: A4 portrait; margin: 8mm; }
+        body {
+          font-family: Heebo, Arial, sans-serif;
+          margin: 0; padding: 10mm;
+          color: #111; background: #fff;
+          direction: rtl; text-align: right;
+        }
+        h1 { margin: 0 0 8px; font-size: 1.35rem; font-weight: 800; text-align: center; }
+        .meta { margin: 0 0 14px; font-size: 0.9rem; line-height: 1.7; text-align: center; }
+        .meta-line { margin: 2px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 9px; }
+        th, td { border: 1px solid #111; padding: 4px 6px; text-align: right; vertical-align: top; color: #000; }
+        th { background: #f4f4f4; font-weight: 700; }
+        .done-col { width: 28px; text-align: center; white-space: nowrap; }
+        .num-col { white-space: nowrap; }
+        .summary-block { margin-top: 16px; padding: 10px 12px; border: 1px solid #111; page-break-inside: avoid; }
+        .summary-title { font-weight: 800; margin-bottom: 6px; }
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 0.9rem; }
+      </style></head><body>
+        <h1>סידור משלוחים — מגדים</h1>
+        <div class="meta">
+          <div class="meta-line"><strong>תאריך:</strong> ${this.escapeManifestHtml(this.getPrintDateRangeLabel())}</div>
+          <div class="meta-line"><strong>הודפס:</strong> ${printedAt}</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="done-col">נמסר</th>
+              <th class="done-col">תשלום התקבל</th>
+              <th class="num-col">מספר הזמנה</th>
+              <th>שם לקוח</th>
+              <th class="num-col">טלפון</th>
+              <th>כתובת</th>
+              <th class="num-col">קומה</th>
+              <th class="num-col">שעת אספקה</th>
+              <th class="num-col">סכום לגבייה</th>
+              <th>סטטוס תשלום</th>
+              <th>הערות משלוח</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="11">—</td></tr>'}</tbody>
+        </table>
+        <div class="summary-block">
+          <div class="summary-title">סיכום</div>
+          <div class="summary-grid">
+            <div>סה"כ משלוחים: <strong>${summary.total}</strong></div>
+            <div>סה"כ לגבייה: <strong>₪${summary.totalCollect.toFixed(2)}</strong></div>
+            <div>הזמנות ששולמו: <strong>${summary.paidCount}</strong></div>
+            <div>הזמנות לגבייה: <strong>${summary.unpaidCount}</strong></div>
+          </div>
+        </div>
+      </body></html>`;
+  }
+
+  private buildManifestSummary(orders: DeliveryOrder[]): {
+    total: number;
+    paidCount: number;
+    unpaidCount: number;
+    totalCollect: number;
+  } {
+    let paidCount = 0;
+    let totalCollect = 0;
+    for (const order of orders) {
+      if (order.isPaid) {
+        paidCount++;
+      } else {
+        totalCollect += Number(order.totalPrice) || 0;
+      }
+    }
+    return {
+      total: orders.length,
+      paidCount,
+      unpaidCount: orders.length - paidCount,
+      totalCollect
+    };
+  }
+
+  private escapeManifestHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private getOrderNumber(order: DeliveryOrder): string {
+    return order.orderNumber || order._id?.slice(-8) || '—';
+  }
+
+  private formatManifestAddress(order: DeliveryOrder): string {
+    const city = (order.deliveryDetails.city || '').trim();
+    const address = (order.deliveryDetails.address || '').trim();
+    if (city && address) return `${city} – ${address}`;
+    return address || city || '—';
+  }
+
+  private formatManifestFloor(order: DeliveryOrder): string {
+    const floor = order.deliveryDetails.floor;
+    return floor ? String(floor) : '—';
+  }
+
+  private formatCollectAmount(order: DeliveryOrder): string {
+    if (order.isPaid) return 'שולם';
+    const amount = Number(order.totalPrice) || 0;
+    return `₪${amount.toFixed(2)}`;
+  }
+
+  private getPaymentStatusLabel(order: DeliveryOrder): string {
+    return order.isPaid ? 'שולם' : 'לא שולם';
+  }
+
+  private getDeliveryNotes(order: DeliveryOrder): string {
+    const parts: string[] = [];
+    const comments = (order.deliveryDetails.comments || '').trim();
+    const notes = (order.notes || '').trim();
+    if (comments) parts.push(comments);
+    if (notes && notes !== comments) parts.push(notes);
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
+  getPrintDateRangeLabel(): string {
+    if (this.selectedDayFilter) return this.formatDateFull(this.selectedDayFilter);
+    return `${this.formatDateFull(this.fromDateStr)} עד ${this.formatDateFull(this.toDateStr)}`;
+  }
+
+  private formatDateFull(dateStr: string): string {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    if (!y || !m || !d) return dateStr;
+    return `${d}/${m}/${y}`;
   }
 
   getPrintDate(): string {
-    if (this.selectedDayFilter) return this.formatDateShort(this.selectedDayFilter);
-    return this.fromDateLabel + ' – ' + this.toDateLabel;
+    return this.getPrintDateRangeLabel();
   }
 
   getCurrentDate(): string {

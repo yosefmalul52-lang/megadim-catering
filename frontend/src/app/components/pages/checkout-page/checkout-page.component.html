@@ -87,6 +87,8 @@
                     </mat-hint>
                   </mat-form-field>
                   <span class="field-error" *ngIf="orderForm.get('eventDate')?.invalid && orderForm.get('eventDate')?.touched">שדה חובה — אנא בחרו תאריך אירוע</span>
+                  <span class="field-hint event-date-hint" *ngIf="eventDateCutoffHint && !eventDateClosedMessage">{{ eventDateCutoffHint }}</span>
+                  <span class="field-error" *ngIf="eventDateClosedMessage" role="alert">{{ eventDateClosedMessage }}</span>
                 </div>
               </section>
 

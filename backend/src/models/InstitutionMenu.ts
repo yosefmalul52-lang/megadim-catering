@@ -82,7 +82,10 @@ export interface IInstitutionMenu extends Document {
   wednesday: MenuDayItems;
   thursday: MenuDayItems;
   shabbatPackage: InstitutionMenuContent['shabbatPackage'];
+  /** Legacy single deadline — fallback when weekday/shabbat deadlines are absent. */
   orderDeadline: Date;
+  weekdayOrderDeadline?: Date;
+  shabbatOrderDeadline?: Date;
   updatedAt?: Date;
 }
 
@@ -101,7 +104,9 @@ const InstitutionMenuSchema = new Schema<IInstitutionMenu>(
     wednesday: { type: MenuDayItemsSchema, default: dayDefault },
     thursday: { type: MenuDayItemsSchema, default: dayDefault },
     shabbatPackage: { type: ShabbatPackageSchema, default: shabbatDefault },
-    orderDeadline: { type: Date, required: true }
+    orderDeadline: { type: Date, required: true },
+    weekdayOrderDeadline: { type: Date, required: false },
+    shabbatOrderDeadline: { type: Date, required: false }
   },
   {
     timestamps: { createdAt: false, updatedAt: true },

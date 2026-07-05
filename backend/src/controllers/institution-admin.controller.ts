@@ -15,14 +15,18 @@ import {
   MENU_DAY_FIELDS,
   PORTAL_WORK_DAYS,
   SHABBAT_ORDER_LABEL,
-  computeIsLockedByDeadline,
+  computeIsFullyLocked,
   getWeekStartKey,
   hasMeaningfulOrder,
   legacyWeekDateRange,
   normalizeOrderDays,
   parseOrderDeadline,
   parseWeekStartKey,
+  resolveShabbatOrderDeadline,
+  resolveWeekdayOrderDeadline,
   sumOrderPortions,
+  validateAdminNotesPayload,
+  validateGeneralNotesPayload,
   validateOrderDaysPayload,
   validateShabbatOrderPayload
 } from '../utils/portal-week';
@@ -30,14 +34,26 @@ import { ensureInstitutionMenuIndexes } from '../utils/ensure-institution-menu-i
 
 const User = require('../models/User');
 
+function deadlineToIso(value: unknown): string | null {
+  if (value == null || value === '') return null;
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 function menuPayload(menu: unknown) {
   const content = normalizeInstitutionMenuContent(menu as Record<string, unknown> | null | undefined);
   const raw = menu as Record<string, unknown> | null | undefined;
-  const orderDeadline =
-    raw?.orderDeadline != null && raw.orderDeadline !== ''
-      ? new Date(raw.orderDeadline as string | Date).toISOString()
-      : null;
-  return { ...content, orderDeadline };
+  const orderDeadline = deadlineToIso(raw?.orderDeadline);
+  const weekdayOrderDeadline = deadlineToIso(raw?.weekdayOrderDeadline);
+  const shabbatOrderDeadline = deadlineToIso(raw?.shabbatOrderDeadline);
+  const fields = { orderDeadline, weekdayOrderDeadline, shabbatOrderDeadline };
+  return {
+    ...content,
+    orderDeadline,
+    weekdayOrderDeadline: resolveWeekdayOrderDeadline(fields)?.toISOString() ?? null,
+    shabbatOrderDeadline: resolveShabbatOrderDeadline(fields)?.toISOString() ?? null
+  };
 }
 
 function menuWeekOnly(payload: ReturnType<typeof menuPayload>): InstitutionMenuContent {
@@ -71,13 +87,29 @@ async function purgeLegacyMenuDocs(weekKey: string): Promise<void> {
 
 interface MenuFieldUpdate extends InstitutionMenuContent {
   orderDeadline: Date;
+  weekdayOrderDeadline?: Date | null;
+  shabbatOrderDeadline?: Date | null;
 }
 
-function parseMenuFieldsFromBody(body: Record<string, unknown>): InstitutionMenuContent & { orderDeadline: Date | null } {
+function parseMenuFieldsFromBody(body: Record<string, unknown>): MenuFieldUpdate {
   const content = normalizeInstitutionMenuContent(body);
+  const weekdayOrderDeadline = parseOrderDeadline(body.weekdayOrderDeadline);
+  const shabbatOrderDeadline = parseOrderDeadline(body.shabbatOrderDeadline);
+  const legacyOrderDeadline = parseOrderDeadline(body.orderDeadline);
+
+  let orderDeadline: Date | null = legacyOrderDeadline;
+  if (weekdayOrderDeadline && shabbatOrderDeadline) {
+    orderDeadline =
+      weekdayOrderDeadline.getTime() >= shabbatOrderDeadline.getTime()
+        ? weekdayOrderDeadline
+        : shabbatOrderDeadline;
+  }
+
   return {
     ...content,
-    orderDeadline: parseOrderDeadline(body.orderDeadline)
+    orderDeadline: orderDeadline as Date,
+    weekdayOrderDeadline,
+    shabbatOrderDeadline
   };
 }
 
@@ -93,7 +125,7 @@ async function upsertMenuForWeek(weekKey: string, fields: MenuFieldUpdate) {
     await purgeAllMenuDocsForWeek(weekKey);
   }
 
-  const update = {
+  const update: Record<string, unknown> = {
     weekStartDate: weekKey,
     sunday: fields.sunday,
     monday: fields.monday,
@@ -103,6 +135,12 @@ async function upsertMenuForWeek(weekKey: string, fields: MenuFieldUpdate) {
     shabbatPackage: fields.shabbatPackage,
     orderDeadline: fields.orderDeadline
   };
+  if (fields.weekdayOrderDeadline) {
+    update.weekdayOrderDeadline = fields.weekdayOrderDeadline;
+  }
+  if (fields.shabbatOrderDeadline) {
+    update.shabbatOrderDeadline = fields.shabbatOrderDeadline;
+  }
 
   try {
     return await InstitutionMenu.findOneAndUpdate(
@@ -239,7 +277,9 @@ function mapPackingOrder(
     weeklyGrandTotal,
     hasOrder: hasMeaningfulOrder(days, shabbatOrder),
     days,
-    shabbatOrder
+    shabbatOrder,
+    adminNotes: String(order.adminNotes || '').trim(),
+    generalNotes: String(order.generalNotes || '').trim()
   };
 }
 
@@ -263,6 +303,8 @@ export async function getInstitutionWeekMenu(req: Request, res: Response): Promi
         weekStartDateLabel: weekStartDate,
         menuPublished,
         orderDeadline: menuFull.orderDeadline,
+        weekdayOrderDeadline: menuFull.weekdayOrderDeadline,
+        shabbatOrderDeadline: menuFull.shabbatOrderDeadline,
         menu
       }
     });
@@ -295,10 +337,7 @@ export async function upsertInstitutionWeekMenu(req: Request, res: Response): Pr
       return;
     }
 
-    const saved = await upsertMenuForWeek(weekStartDate, {
-      ...fields,
-      orderDeadline: fields.orderDeadline
-    });
+    const saved = await upsertMenuForWeek(weekStartDate, fields);
 
     if (!saved) {
       res.status(500).json({ success: false, message: 'שגיאה בשמירת תפריט שבועי' });
@@ -315,6 +354,8 @@ export async function upsertInstitutionWeekMenu(req: Request, res: Response): Pr
         weekStartDateLabel: weekStartDate,
         menuPublished: isMenuWeekPublished(savedWeek),
         orderDeadline: savedMenu.orderDeadline,
+        weekdayOrderDeadline: savedMenu.weekdayOrderDeadline,
+        shabbatOrderDeadline: savedMenu.shabbatOrderDeadline,
         menu: savedWeek
       }
     });
@@ -404,6 +445,8 @@ export async function getAdminInstitutionOrder(req: Request, res: Response): Pro
         weekStartDate,
         days,
         shabbatOrder,
+        adminNotes: String(order?.adminNotes || '').trim(),
+        generalNotes: String(order?.generalNotes || '').trim(),
         weeklyGrandTotal: sumOrderPortions(days, shabbatOrder)
       }
     });
@@ -443,21 +486,44 @@ export async function adminUpdateInstitutionOrder(req: Request, res: Response): 
     }
     const shabbatOrder = shabbatValidation.shabbatOrder;
 
+    if (!hasMeaningfulOrder(days, shabbatOrder)) {
+      res.status(400).json({ success: false, message: 'יש להזין לפחות מנה אחת בהזמנה' });
+      return;
+    }
+
+    let adminNotes: string | undefined;
+    if (req.body?.adminNotes !== undefined) {
+      const adminNotesValidation = validateAdminNotesPayload(req.body.adminNotes);
+      if (adminNotesValidation.ok === false) {
+        res.status(400).json({ success: false, message: adminNotesValidation.message });
+        return;
+      }
+      adminNotes = adminNotesValidation.adminNotes;
+    }
+
     const { start, end } = legacyWeekDateRange(weekStartDate);
     await InstitutionOrder.collection.deleteMany({
       institutionId: user._id,
       weekStartDate: { $type: 'date', $gte: start, $lt: end }
     });
 
-    const saved = await InstitutionOrder.findOneAndUpdate(
-      { institutionId: user._id, weekStartDate },
-      {
+    const existingOrder = await findOrderForInstitutionWeek(institutionId, weekStartDate);
+
+    const updateDoc: Record<string, unknown> = {
         institutionId: user._id,
         weekStartDate,
         days,
         shabbatOrder,
-        isLocked: false
-      },
+        isLocked: false,
+        generalNotes: String(existingOrder?.generalNotes || '').trim()
+      };
+    if (adminNotes !== undefined) {
+      updateDoc.adminNotes = adminNotes;
+    }
+
+    const saved = await InstitutionOrder.findOneAndUpdate(
+      { institutionId: user._id, weekStartDate },
+      updateDoc,
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
     ).lean();
 
@@ -476,6 +542,8 @@ export async function adminUpdateInstitutionOrder(req: Request, res: Response): 
         weekStartDate,
         days: enrichedDays,
         shabbatOrder: normalizedShabbat,
+        adminNotes: String(saved?.adminNotes || '').trim(),
+        generalNotes: String(saved?.generalNotes || '').trim(),
         weeklyGrandTotal: sumOrderPortions(normalizedDays, normalizedShabbat)
       }
     });
@@ -501,7 +569,7 @@ export async function getInstitutionWeekReports(req: Request, res: Response): Pr
 
     const menuFull = menuPayload(menuDoc);
     const menu = menuWeekOnly(menuFull);
-    const weekLocked = computeIsLockedByDeadline(menuFull.orderDeadline);
+    const weekLocked = computeIsFullyLocked(menuFull);
     const institutionIds = orders.map((o) => o.institutionId);
     const users = await User.find({ _id: { $in: institutionIds }, role: 'institution' })
       .select('fullName')
@@ -561,6 +629,8 @@ export async function getInstitutionWeekReports(req: Request, res: Response): Pr
         weekStartDateLabel: weekStartDate,
         menuPublished,
         orderDeadline: menuFull.orderDeadline,
+        weekdayOrderDeadline: menuFull.weekdayOrderDeadline,
+        shabbatOrderDeadline: menuFull.shabbatOrderDeadline,
         menu,
         orders: packingOrders,
         kitchenReport,

@@ -1,11 +1,11 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
-import { startWith, switchMap } from 'rxjs/operators';
+import { startWith } from 'rxjs/operators';
 
-import { OrderService, Order, DashboardStats } from '../../../services/order.service';
+import { OrderService, Order, DashboardStats, OrderTabCounts, OrderSourceTabCounts, AdminOrdersSortBy } from '../../../services/order.service';
 import { MenuService, MenuItem } from '../../../services/menu.service';
 import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
 import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-order-builder.component';
@@ -42,6 +42,8 @@ type SearchResultItem = {
   selectedOption?: SelectedOptionPayload;
 };
 
+type OrdersColumnFilterKey = 'orderNumber' | 'customer' | 'createdAt' | 'eventDate' | 'notes';
+
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
@@ -63,16 +65,40 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   private phoneFrequency: Record<string, number> = {};
 
   orders: Order[] = [];
-  failedOrders: Order[] = [];
-  archiveOrders: Order[] = [];
   stats: DashboardStats = { pendingCount: 0, eventsTodayCount: 0, monthlyRevenue: 0 };
+  /** Server-side tab counts — not limited by orders list page size. */
+  tabCounts: OrderTabCounts | null = null;
+  tabCountsUseFallback = false;
+  /** Server-side pagination for current tab view. */
+  listPage = 1;
+  listLimit = 25;
+  listTotal = 0;
+  listTotalPages = 1;
+  appliedOrderNumberSearch = '';
+  appliedCustomerSearch = '';
+  listCreatedFrom = '';
+  listCreatedTo = '';
+  listEventFrom = '';
+  listEventTo = '';
+  listHasCustomerNotes = false;
+  listHasAdminNotes = false;
+  openFilterColumn: OrdersColumnFilterKey | null = null;
+  showMobileFiltersPanel = false;
+  draftOrderNumberSearch = '';
+  draftCustomerSearch = '';
+  draftCreatedFrom = '';
+  draftCreatedTo = '';
+  draftEventFrom = '';
+  draftEventTo = '';
+  draftHasCustomerNotes = false;
+  draftHasAdminNotes = false;
+  sortColumn: AdminOrdersSortBy | null = null;
+  sortDirection: 'asc' | 'desc' = 'asc';
   /** Top-level tab: Shabbat (e-commerce) vs Shabbat Catering form vs Events Catering. */
   orderSourceTab: 'shabbat' | 'catering' | 'events' = 'shabbat';
   currentTab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive' = 'pending';
   isLoading = true;
   isRefreshing = false;
-  isLoadingArchive = false;
-  isLoadingFailed = false;
   statusUpdatingId: string | null = null;
   selectedOrder: Order | null = null;
   orderToEditStatus: Order | null = null;
@@ -84,6 +110,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   /** Current value of the date input (YYYY-MM-DD). */
   editEventDateValue = '';
   dateUpdatingId: string | null = null;
+  /** When true, show portion count editors for Shabbat catering orders. */
+  isEditingPortions = false;
+  editPortionsEvening = 0;
+  editPortionsMorning = 0;
+  portionsUpdatingId: string | null = null;
+  editAdminNotesValue = '';
+  isSavingAdminNotes = false;
   isEditingItems = false;
   editableItems: EditableOrderItem[] = [];
   kitchenPrepLines: KitchenPrepLine[] = [];
@@ -143,20 +176,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   ];
 
   private autoRefreshSubscription?: Subscription;
-  private previousOrderCount = 0;
   autoRefreshEnabled = true;
   private readonly REFRESH_INTERVAL = 30000;
 
   ngOnInit(): void {
     this.loadStats();
-    this.loadOrders();
-    this.loadFailedOrders();
-    this.loadArchiveOrders();
+    this.loadTabCounts();
+    this.loadOrdersPage();
     this.startAutoRefresh();
     this.route.queryParams.subscribe((params) => {
       this.customerFilter = {};
       if (params['customerEmail']) this.customerFilter.email = params['customerEmail'];
       if (params['customerPhone']) this.customerFilter.phone = params['customerPhone'];
+      this.listPage = 1;
+      this.loadOrdersPage();
     });
   }
 
@@ -166,6 +199,67 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   loadStats(): void {
     this.orderService.getDashboardStats().subscribe((s) => (this.stats = s));
+  }
+
+  loadTabCounts(): void {
+    this.orderService.getOrderTabCounts().subscribe({
+      next: (counts) => {
+        this.tabCounts = counts;
+        this.tabCountsUseFallback = false;
+      },
+      error: () => {
+        if (!this.tabCountsUseFallback) {
+          console.warn(
+            '[admin-orders] getOrderTabCounts failed — falling back to local counts from loaded orders (may be inaccurate above 100 orders)'
+          );
+        }
+        this.tabCountsUseFallback = true;
+      }
+    });
+  }
+
+  private getCurrentSourceCounts(): OrderSourceTabCounts | null {
+    if (!this.tabCounts) return null;
+    return this.tabCounts[this.orderSourceTab] ?? null;
+  }
+
+  private getActiveOrdersBySourceTab(_source: 'shabbat' | 'catering' | 'events'): Order[] {
+    return this.orders;
+  }
+
+  private getArchiveBySourceTab(_source: 'shabbat' | 'catering' | 'events'): Order[] {
+    return this.currentTab === 'archive' ? this.orders : [];
+  }
+
+  private getFailedOrdersBySourceTab(_source: 'shabbat' | 'catering' | 'events'): Order[] {
+    return this.currentTab === 'failed' ? this.orders : [];
+  }
+
+  private countSourceTotalLocal(source: 'shabbat' | 'catering' | 'events'): number {
+    const list = this.getActiveOrdersBySourceTab(source);
+    const pending = list.filter((o) => this.isPending(o.status)).length;
+    const processing = list.filter((o) => this.isProcessing(o.status)).length;
+    const ready = list.filter((o) => o.status === 'ready' || o.status === 'delivered').length;
+    const failed = this.getFailedOrdersBySourceTab(source).length;
+    return pending + processing + ready + failed;
+  }
+
+  get countSourceShabbat(): number {
+    const c = this.tabCounts?.shabbat;
+    if (c) return c.total;
+    return this.countSourceTotalLocal('shabbat');
+  }
+
+  get countSourceCatering(): number {
+    const c = this.tabCounts?.catering;
+    if (c) return c.total;
+    return this.countSourceTotalLocal('catering');
+  }
+
+  get countSourceEvents(): number {
+    const c = this.tabCounts?.events;
+    if (c) return c.total;
+    return this.countSourceTotalLocal('events');
   }
 
   private trackKpi(eventName: string): void {
@@ -182,25 +276,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   private startAutoRefresh(): void {
     if (!this.autoRefreshEnabled) return;
     this.autoRefreshSubscription = interval(this.REFRESH_INTERVAL)
-      .pipe(
-        startWith(0),
-        switchMap(() => this.orderService.getAllOrders(false))
-      )
+      .pipe(startWith(0))
       .subscribe({
-        next: (orders: Order[]) => {
-          const newOrderCount = orders.length;
-          if (newOrderCount > this.previousOrderCount && this.previousOrderCount > 0) {
-            this.successMessage = `התקבלו ${newOrderCount - this.previousOrderCount} הזמנות חדשות!`;
-            setTimeout(() => (this.successMessage = ''), 5000);
-            this.playNotificationSound();
-          }
-          this.orders = orders;
-          this.previousOrderCount = newOrderCount;
-          this.isRefreshing = false;
-          this.loadStats();
-          if (this.currentTab === 'archive') this.loadArchiveOrders();
-        },
-        error: () => (this.isRefreshing = false)
+        next: () => {
+          if (this.isRefreshing || this.isLoading) return;
+          this.isRefreshing = true;
+          this.loadTabCounts();
+          this.loadOrdersPage(undefined, { silent: true });
+        }
       });
   }
 
@@ -209,46 +292,61 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.autoRefreshSubscription = undefined;
   }
 
-  private playNotificationSound(): void {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 800;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.1, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.2);
-    } catch {}
-  }
-
   manualRefresh(): void {
     if (this.isRefreshing) return;
     this.isRefreshing = true;
     this.trackKpi('orders_manual_refresh');
-    this.loadOrders();
-    if (this.currentTab === 'failed') this.loadFailedOrders();
-    if (this.currentTab === 'archive') this.loadArchiveOrders();
+    this.loadTabCounts();
+    this.loadOrdersPage();
   }
 
-  loadOrders(): void {
-    if (!this.isRefreshing) this.isLoading = true;
-    this.orderService.getAllOrders(false).subscribe({
-      next: (orders: Order[]) => {
-        if (this.isRefreshing && orders.length > this.previousOrderCount && this.previousOrderCount > 0) {
-          this.successMessage = `התקבלו ${orders.length - this.previousOrderCount} הזמנות חדשות!`;
-          setTimeout(() => (this.successMessage = ''), 5000);
+  private buildOrdersPageParams(page = this.listPage) {
+    return {
+      page,
+      limit: this.listLimit,
+      source: this.orderSourceTab,
+      statusTab: this.currentTab,
+      orderNumberSearch: this.appliedOrderNumberSearch.trim() || undefined,
+      customerSearch: this.appliedCustomerSearch.trim() || undefined,
+      createdFrom: this.listCreatedFrom || undefined,
+      createdTo: this.listCreatedTo || undefined,
+      eventFrom: this.listEventFrom || undefined,
+      eventTo: this.listEventTo || undefined,
+      sortBy: this.sortColumn || undefined,
+      sortDir: this.sortColumn ? this.sortDirection : undefined,
+      hasCustomerNotes: this.listHasCustomerNotes || undefined,
+      hasAdminNotes: this.listHasAdminNotes || undefined
+    };
+  }
+
+  loadOrdersPage(page?: number, options?: { silent?: boolean }): void {
+    const targetPage = page ?? this.listPage;
+    if (!options?.silent && !this.isRefreshing) this.isLoading = true;
+
+    this.orderService.getAdminOrdersPage(this.buildOrdersPageParams(targetPage)).subscribe({
+      next: (result) => {
+        const { orders, pagination } = result;
+        if (
+          orders.length === 0 &&
+          pagination.total > 0 &&
+          pagination.page > 1
+        ) {
+          this.loadOrdersPage(pagination.page - 1, options);
+          return;
         }
+
         this.orders = orders;
+        this.listPage = pagination.page;
+        this.listLimit = pagination.limit;
+        this.listTotal = pagination.total;
+        this.listTotalPages = pagination.totalPages;
         this.pruneSelection();
         this.rebuildPhoneFrequency();
-        this.previousOrderCount = orders.length;
         this.isLoading = false;
         this.isRefreshing = false;
-        this.loadStats();
+        if (!options?.silent) {
+          this.loadStats();
+        }
       },
       error: () => {
         this.errorMessage = 'שגיאה בטעינת ההזמנות';
@@ -258,45 +356,220 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadFailedOrders(): void {
-    this.isLoadingFailed = true;
-    this.orderService.getAllOrders(false, undefined, 'failed').subscribe({
-      next: (list) => {
-        this.failedOrders = list;
-        this.pruneSelection();
-        this.isLoadingFailed = false;
-      },
-      error: () => {
-        this.isLoadingFailed = false;
-        this.errorMessage = 'שגיאה בטעינת הזמנות שנכשלו';
-        setTimeout(() => (this.errorMessage = ''), 3000);
-      }
-    });
+  private reloadAfterMutation(): void {
+    this.loadTabCounts();
+    this.loadOrdersPage();
   }
 
-  loadArchiveOrders(): void {
-    this.isLoadingArchive = true;
-    this.orderService.getAllOrders(true).subscribe({
-      next: (list) => {
-        this.archiveOrders = list;
-        this.pruneSelection();
-        this.rebuildPhoneFrequency();
-        this.isLoadingArchive = false;
-      },
-      error: () => {
-        this.isLoadingArchive = false;
-        this.errorMessage = 'שגיאה בטעינת הארכיון';
-        setTimeout(() => (this.errorMessage = ''), 3000);
-      }
-    });
-  }
-
-  setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive'): void {
-    this.currentTab = tab;
+  setOrderSourceTab(tab: 'shabbat' | 'catering' | 'events'): void {
+    if (this.orderSourceTab === tab) return;
+    this.orderSourceTab = tab;
+    this.listPage = 1;
     this.activeOrderMenuId = null;
     this.clearSelection();
-    if (tab === 'failed') this.loadFailedOrders();
-    if (tab === 'archive') this.loadArchiveOrders();
+    this.loadOrdersPage(1);
+  }
+
+  applyListFilters(): void {
+    this.openFilterColumn = null;
+    this.showMobileFiltersPanel = false;
+    this.listPage = 1;
+    this.loadOrdersPage(1);
+  }
+
+  clearListFilters(): void {
+    this.appliedOrderNumberSearch = '';
+    this.appliedCustomerSearch = '';
+    this.listCreatedFrom = '';
+    this.listCreatedTo = '';
+    this.listEventFrom = '';
+    this.listEventTo = '';
+    this.listHasCustomerNotes = false;
+    this.listHasAdminNotes = false;
+    this.syncFilterDraftsFromApplied();
+    this.openFilterColumn = null;
+    this.showMobileFiltersPanel = false;
+    this.listPage = 1;
+    this.loadOrdersPage(1);
+  }
+
+  @HostListener('document:click')
+  closeColumnFilterDropdown(): void {
+    this.openFilterColumn = null;
+  }
+
+  private syncFilterDraftsFromApplied(): void {
+    this.draftOrderNumberSearch = this.appliedOrderNumberSearch;
+    this.draftCustomerSearch = this.appliedCustomerSearch;
+    this.draftCreatedFrom = this.listCreatedFrom;
+    this.draftCreatedTo = this.listCreatedTo;
+    this.draftEventFrom = this.listEventFrom;
+    this.draftEventTo = this.listEventTo;
+    this.draftHasCustomerNotes = this.listHasCustomerNotes;
+    this.draftHasAdminNotes = this.listHasAdminNotes;
+  }
+
+  toggleColumnFilter(column: OrdersColumnFilterKey, event: Event): void {
+    event.stopPropagation();
+    if (this.openFilterColumn === column) {
+      this.openFilterColumn = null;
+      return;
+    }
+    this.syncFilterDraftsFromApplied();
+    this.openFilterColumn = column;
+  }
+
+  applyColumnFilter(column: OrdersColumnFilterKey, event?: Event): void {
+    event?.stopPropagation();
+    switch (column) {
+      case 'orderNumber':
+        this.appliedOrderNumberSearch = this.draftOrderNumberSearch.trim();
+        break;
+      case 'customer':
+        this.appliedCustomerSearch = this.draftCustomerSearch.trim();
+        break;
+      case 'createdAt':
+        this.listCreatedFrom = this.draftCreatedFrom;
+        this.listCreatedTo = this.draftCreatedTo;
+        break;
+      case 'eventDate':
+        this.listEventFrom = this.draftEventFrom;
+        this.listEventTo = this.draftEventTo;
+        break;
+      case 'notes':
+        this.listHasCustomerNotes = this.draftHasCustomerNotes;
+        this.listHasAdminNotes = this.draftHasAdminNotes;
+        break;
+    }
+    this.openFilterColumn = null;
+    this.listPage = 1;
+    this.loadOrdersPage(1);
+  }
+
+  clearColumnFilter(column: OrdersColumnFilterKey, event?: Event): void {
+    event?.stopPropagation();
+    switch (column) {
+      case 'orderNumber':
+        this.draftOrderNumberSearch = '';
+        this.appliedOrderNumberSearch = '';
+        break;
+      case 'customer':
+        this.draftCustomerSearch = '';
+        this.appliedCustomerSearch = '';
+        break;
+      case 'createdAt':
+        this.draftCreatedFrom = '';
+        this.draftCreatedTo = '';
+        this.listCreatedFrom = '';
+        this.listCreatedTo = '';
+        break;
+      case 'eventDate':
+        this.draftEventFrom = '';
+        this.draftEventTo = '';
+        this.listEventFrom = '';
+        this.listEventTo = '';
+        break;
+      case 'notes':
+        this.draftHasCustomerNotes = false;
+        this.draftHasAdminNotes = false;
+        this.listHasCustomerNotes = false;
+        this.listHasAdminNotes = false;
+        break;
+    }
+    this.openFilterColumn = null;
+    this.listPage = 1;
+    this.loadOrdersPage(1);
+  }
+
+  isColumnFilterActive(column: OrdersColumnFilterKey): boolean {
+    switch (column) {
+      case 'orderNumber':
+        return !!this.appliedOrderNumberSearch.trim();
+      case 'customer':
+        return !!this.appliedCustomerSearch.trim();
+      case 'createdAt':
+        return !!(this.listCreatedFrom || this.listCreatedTo);
+      case 'eventDate':
+        return !!(this.listEventFrom || this.listEventTo);
+      case 'notes':
+        return this.listHasCustomerNotes || this.listHasAdminNotes;
+      default:
+        return false;
+    }
+  }
+
+  toggleMobileFiltersPanel(event: Event): void {
+    event.stopPropagation();
+    this.showMobileFiltersPanel = !this.showMobileFiltersPanel;
+    if (this.showMobileFiltersPanel) this.syncFilterDraftsFromApplied();
+  }
+
+  applyMobileFilters(event: Event): void {
+    event.stopPropagation();
+    this.appliedOrderNumberSearch = this.draftOrderNumberSearch.trim();
+    this.appliedCustomerSearch = this.draftCustomerSearch.trim();
+    this.listCreatedFrom = this.draftCreatedFrom;
+    this.listCreatedTo = this.draftCreatedTo;
+    this.listEventFrom = this.draftEventFrom;
+    this.listEventTo = this.draftEventTo;
+    this.listHasCustomerNotes = this.draftHasCustomerNotes;
+    this.listHasAdminNotes = this.draftHasAdminNotes;
+    this.applyListFilters();
+  }
+
+  onSortColumn(column: AdminOrdersSortBy, event?: Event): void {
+    event?.stopPropagation();
+    this.openFilterColumn = null;
+    if (this.sortColumn !== column) {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    } else if (this.sortDirection === 'asc') {
+      this.sortDirection = 'desc';
+    } else {
+      this.sortColumn = null;
+      this.sortDirection = 'asc';
+    }
+    this.listPage = 1;
+    this.loadOrdersPage(1);
+  }
+
+  getSortIndicator(column: AdminOrdersSortBy): string {
+    if (this.sortColumn !== column) return '';
+    return this.sortDirection === 'asc' ? ' ▲' : ' ▼';
+  }
+
+  goToPage(page: number): void {
+    if (page < 1 || page > this.listTotalPages || page === this.listPage) return;
+    this.loadOrdersPage(page);
+  }
+
+  onPageSizeChange(limit: number): void {
+    this.listLimit = limit;
+    this.listPage = 1;
+    this.loadOrdersPage(1);
+  }
+
+  get listRangeFrom(): number {
+    if (this.listTotal === 0) return 0;
+    return (this.listPage - 1) * this.listLimit + 1;
+  }
+
+  get listRangeTo(): number {
+    if (this.listTotal === 0) return 0;
+    return Math.min(this.listPage * this.listLimit, this.listTotal);
+  }
+
+  get hasActiveListFilters(): boolean {
+    return !!(
+      this.appliedOrderNumberSearch.trim() ||
+      this.appliedCustomerSearch.trim() ||
+      this.listCreatedFrom ||
+      this.listCreatedTo ||
+      this.listEventFrom ||
+      this.listEventTo ||
+      this.listHasCustomerNotes ||
+      this.listHasAdminNotes
+    );
   }
 
   toggleOrderMenu(order: Order): void {
@@ -313,9 +586,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return this.activeOrderMenuId === String(order._id || order.id || '');
   }
 
-  /** Called when archive list might have changed so the view updates immediately */
-  private refreshArchiveIfActive(): void {
-    if (this.currentTab === 'archive') this.loadArchiveOrders();
+  setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive'): void {
+    if (this.currentTab === tab) return;
+    this.currentTab = tab;
+    this.listPage = 1;
+    this.activeOrderMenuId = null;
+    this.clearSelection();
+    this.loadOrdersPage(1);
   }
 
   private matchesCustomerFilter(order: Order): boolean {
@@ -355,8 +632,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   private rebuildPhoneFrequency(): void {
     const map: Record<string, number> = {};
-    const all = [...this.orders, ...this.archiveOrders];
-    for (const order of all) {
+    for (const order of this.orders) {
       const key = this.getOrderPhoneKey(order);
       if (!key) continue;
       map[key] = (map[key] || 0) + 1;
@@ -474,57 +750,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return !!order && this.isCateringOrder(order);
   }
 
-  /** Orders from cart/checkout (Ready for Shabbat). */
-  get shabbatOrders(): Order[] {
-    return this.orders.filter((o) => !this.isCateringOrder(o));
-  }
-
-  /** Orders from the Shabbat & holiday catering form. */
-  get cateringOrders(): Order[] {
-    return this.orders.filter((o) => this.isShabbatCateringOrder(o));
-  }
-
-  /** Orders from the events catering form (wedding, corporate, etc.). */
-  get eventCateringOrders(): Order[] {
-    return this.orders.filter((o) => this.isEventCateringOrder(o));
-  }
-
-  private getArchiveBySource(): Order[] {
-    if (this.orderSourceTab === 'catering') return this.archiveOrders.filter((o) => this.isShabbatCateringOrder(o));
-    if (this.orderSourceTab === 'events') return this.archiveOrders.filter((o) => this.isEventCateringOrder(o));
-    return this.archiveOrders.filter((o) => !this.isCateringOrder(o));
-  }
-
-  private getActiveOrdersBySource(): Order[] {
-    if (this.orderSourceTab === 'catering') return this.cateringOrders;
-    if (this.orderSourceTab === 'events') return this.eventCateringOrders;
-    return this.shabbatOrders;
-  }
-
-  private getFailedOrdersBySource(): Order[] {
-    if (this.orderSourceTab === 'catering') {
-      return this.failedOrders.filter((o) => this.isShabbatCateringOrder(o));
-    }
-    if (this.orderSourceTab === 'events') {
-      return this.failedOrders.filter((o) => this.isEventCateringOrder(o));
-    }
-    return this.failedOrders.filter((o) => !this.isCateringOrder(o));
-  }
-
-  get filteredOrders(): Order[] {
-    let list: Order[];
-    if (this.currentTab === 'archive') list = this.getArchiveBySource();
-    else if (this.currentTab === 'failed') list = this.getFailedOrdersBySource();
-    else {
-      const sourceList = this.getActiveOrdersBySource();
-      list = sourceList.filter((o) => {
-        if (this.currentTab === 'pending') return this.isPending(o.status);
-        if (this.currentTab === 'processing') return this.isProcessing(o.status);
-        if (this.currentTab === 'ready') return o.status === 'ready' || o.status === 'delivered';
-        return false;
-      });
-    }
-    return list.filter((o) => this.matchesCustomerFilter(o));
+  get displayOrders(): Order[] {
+    return this.orders.filter((o) => this.matchesCustomerFilter(o));
   }
 
   private getOrderId(order: Order): string {
@@ -533,9 +760,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   private pruneSelection(): void {
     const allowedIds = new Set(
-      [...this.orders, ...this.failedOrders, ...this.archiveOrders]
-        .map((order) => this.getOrderId(order))
-        .filter(Boolean)
+      this.orders.map((order) => this.getOrderId(order)).filter(Boolean)
     );
     const next = new Set<string>();
     this.selectedOrderIds.forEach((id) => {
@@ -562,13 +787,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   get areAllVisibleSelected(): boolean {
-    const ids = this.filteredOrders.map((order) => this.getOrderId(order)).filter(Boolean);
+    const ids = this.displayOrders.map((order) => this.getOrderId(order)).filter(Boolean);
     return ids.length > 0 && ids.every((id) => this.selectedOrderIds.has(id));
   }
 
   get selectedVisibleCount(): number {
     let count = 0;
-    for (const order of this.filteredOrders) {
+    for (const order of this.displayOrders) {
       if (this.selectedOrderIds.has(this.getOrderId(order))) count += 1;
     }
     return count;
@@ -576,7 +801,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   toggleSelectAllVisible(checked: boolean): void {
     const next = new Set(this.selectedOrderIds);
-    const visibleIds = this.filteredOrders.map((order) => this.getOrderId(order)).filter(Boolean);
+    const visibleIds = this.displayOrders.map((order) => this.getOrderId(order)).filter(Boolean);
     for (const id of visibleIds) {
       if (checked) next.add(id);
       else next.delete(id);
@@ -593,9 +818,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       next: (result) => {
         const affectedCount = action === 'permanent_delete' ? result.deletedCount : result.modifiedCount;
         this.clearSelection();
-        this.loadOrders();
-        this.loadArchiveOrders();
-        this.loadStats();
+        this.reloadAfterMutation();
         this.successMessage = `עודכנו ${affectedCount} הזמנות בהצלחה`;
         setTimeout(() => (this.successMessage = ''), 3000);
         this.isBulkUpdating = false;
@@ -631,25 +854,35 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   get countPending(): number {
-    const list = this.getActiveOrdersBySource();
-    return list.filter((o) => this.isPending(o.status)).length;
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.pending;
+    return this.currentTab === 'pending' ? this.listTotal : 0;
   }
   get countProcessing(): number {
-    const list = this.getActiveOrdersBySource();
-    return list.filter((o) => this.isProcessing(o.status)).length;
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.processing;
+    return this.currentTab === 'processing' ? this.listTotal : 0;
   }
   get countReady(): number {
-    const list = this.getActiveOrdersBySource();
-    return list.filter((o) => o.status === 'ready' || o.status === 'delivered').length;
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.ready;
+    return this.currentTab === 'ready' ? this.listTotal : 0;
   }
   get countArchive(): number {
-    return this.getArchiveBySource().length;
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.archive;
+    return this.currentTab === 'archive' ? this.listTotal : 0;
   }
   get countFailed(): number {
-    return this.getFailedOrdersBySource().length;
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.failed;
+    return this.currentTab === 'failed' ? this.listTotal : 0;
   }
 
   get emptyStateMessage(): string {
+    if (this.hasActiveListFilters || this.customerFilter.email || this.customerFilter.phone) {
+      return 'לא נמצאו הזמנות לפי הסינון הנוכחי';
+    }
     const messages: Record<string, string> = {
       pending: 'אין הזמנות ממתינות כרגע',
       processing: 'אין הזמנות בטיפול כרגע',
@@ -669,16 +902,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.trackKpi('orders_archived');
     this.orderService.deleteOrder(orderId).subscribe({
       next: () => {
-        this.orders = this.orders.filter((o) => (o._id || o.id) !== orderId);
-        this.failedOrders = this.failedOrders.filter((o) => (o._id || o.id) !== orderId);
         this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
-        this.archiveOrders = [...this.archiveOrders, { ...order, isDeleted: true }];
-        this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה הועברה לארכיון בהצלחה';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
-        this.loadStats();
-        this.refreshArchiveIfActive();
+        this.reloadAfterMutation();
       },
       error: () => {
         this.errorMessage = 'שגיאה בהעברה לארכיון';
@@ -694,16 +922,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.statusUpdatingId = orderId;
     this.trackKpi('orders_restored');
     this.orderService.restoreOrder(orderId).subscribe({
-      next: (restored) => {
-        this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
+      next: () => {
         this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
-        this.orders = [restored, ...this.orders];
-        this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה שוחזרה בהצלחה והועברה לטאב ממתינים';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
-        this.loadStats();
-        this.refreshArchiveIfActive();
+        this.currentTab = 'pending';
+        this.listPage = 1;
+        this.reloadAfterMutation();
       },
       error: () => {
         this.errorMessage = 'שגיאה בשחזור ההזמנה';
@@ -724,14 +950,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.trackKpi('orders_deleted_permanent');
     this.orderService.hardDeleteOrder(orderId).subscribe({
       next: () => {
-        this.archiveOrders = this.archiveOrders.filter((o) => (o._id || o.id) !== orderId);
         this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
-        this.rebuildPhoneFrequency();
         this.successMessage = 'ההזמנה נמחקה לצמיתות';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
-        this.loadStats();
-        this.refreshArchiveIfActive();
+        this.reloadAfterMutation();
       },
       error: () => {
         this.errorMessage = 'שגיאה במחיקה לצמיתות';
@@ -948,8 +1171,6 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           if (idx > -1) list[idx] = normalized;
         };
         replaceInList(this.orders);
-        replaceInList(this.failedOrders);
-        replaceInList(this.archiveOrders);
         this.refreshKitchenPrepLines();
         this.successMessage = 'הערות המטבח נשמרו';
         setTimeout(() => (this.successMessage = ''), 3000);
@@ -962,22 +1183,162 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Kitchen print sheet — includes editable prep notes column (admin only). */
+  /** Kitchen print sheet — internal prep document for catering orders. */
   printKitchenSheet(order: Order): void {
     if (!this.supportsKitchenPrepSheet(order)) {
       this.printOrder(order);
       return;
     }
 
+    const html = this.buildKitchenSheetHtml(order);
+    const w = window.open('', '_blank');
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+    }
+  }
+
+  private escapeKitchenHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private getKitchenCustomerNotes(order: Order): string {
+    const cd = order.customerDetails || {};
+    const raw = (
+      cd.notes ||
+      (cd as { comments?: string }).comments ||
+      (cd as { specialRequests?: string }).specialRequests ||
+      ''
+    )
+      .toString()
+      .trim();
+    return raw;
+  }
+
+  private parseSeudaShlishitFromNotes(notes: string): boolean | null {
+    if (/סעודה שלישית:\s*כן/.test(notes)) return true;
+    if (/סעודה שלישית:\s*לא/.test(notes)) return false;
+    return null;
+  }
+
+  private getKitchenPortionsInfo(order: Order): {
+    evening: number;
+    morning: number;
+    total: number;
+    hasBreakdown: boolean;
+    legacyOnly: boolean;
+    mealLabel: string;
+    seudaShlishit: boolean | null;
+  } {
+    const mealTime = (order.mealTime || '').toString();
+    const mealLabel = this.getMealTypesLabel(order);
+    const hasBreakdown = this.hasPortionsBreakdown(order);
+    const legacy = Math.max(0, Math.trunc(Number(order.numberOfPortions) || 0));
+
+    let evening = 0;
+    let morning = 0;
+    if (hasBreakdown) {
+      evening = Math.max(0, Math.trunc(Number(order.portionsEvening) || 0));
+      morning = Math.max(0, Math.trunc(Number(order.portionsMorning) || 0));
+    } else if (mealTime === 'evening') {
+      evening = legacy;
+    } else if (mealTime === 'morning') {
+      morning = legacy;
+    }
+
+    const total = hasBreakdown ? evening + morning : legacy;
+    const seudaShlishit = this.parseSeudaShlishitFromNotes(this.getKitchenCustomerNotes(order));
+
+    return {
+      evening,
+      morning,
+      total,
+      hasBreakdown,
+      legacyOnly: !hasBreakdown && (mealTime === 'both' || !mealTime),
+      mealLabel,
+      seudaShlishit
+    };
+  }
+
+  private classifyCateringCategory(category: string): 'evening' | 'morning' | 'salads' | 'third' | 'other' {
+    const cat = category.trim();
+    if (cat === 'סלטים') return 'salads';
+    if (/ערב|evening/i.test(cat)) return 'evening';
+    if (/בוקר|morning/i.test(cat)) return 'morning';
+    if (/שלישית|seuda/i.test(cat)) return 'third';
+    return 'other';
+  }
+
+  private getKitchenRowPortionQty(
+    section: 'evening' | 'morning' | 'salads' | 'third' | 'other',
+    portions: {
+      evening: number;
+      morning: number;
+      total: number;
+    },
+    isEvents: boolean,
+    guestCount: number
+  ): number | string {
+    if (isEvents) {
+      return guestCount > 0 ? guestCount : 'לפי אורחים';
+    }
+    if (section === 'evening') {
+      return portions.evening > 0 ? portions.evening : portions.total > 0 ? portions.total : 'לפי הזמנה';
+    }
+    if (section === 'morning') {
+      return portions.morning > 0 ? portions.morning : portions.total > 0 ? portions.total : 'לפי הזמנה';
+    }
+    return portions.total > 0 ? portions.total : 'לפי הזמנה';
+  }
+
+  private formatKitchenDeliveryAddress(cd: Record<string, unknown>): string {
+    const deliveryMethodRaw = (cd['deliveryType'] || cd['deliveryMethod'] || '').toString().toLowerCase();
+    const isPickup =
+      deliveryMethodRaw === 'pickup' ||
+      deliveryMethodRaw === 'self-pickup' ||
+      deliveryMethodRaw === 'self_pickup';
+    if (isPickup) return 'איסוף עצמי';
+
+    const deliveryDetails = (cd['deliveryDetails'] || {}) as Record<string, unknown>;
+    const addressObj =
+      typeof cd['address'] === 'object' && cd['address'] !== null
+        ? (cd['address'] as Record<string, unknown>)
+        : null;
+    const street = String(deliveryDetails['street'] || addressObj?.['street'] || '');
+    const houseNumber = String(deliveryDetails['number'] || addressObj?.['number'] || '');
+    const city = String(deliveryDetails['city'] || addressObj?.['city'] || cd['city'] || '');
+    const textualAddress = typeof cd['address'] === 'string' ? String(cd['address']) : '';
+    const parts = [city, street, houseNumber].filter(Boolean);
+    return parts.length ? parts.join(', ') : textualAddress || 'לא צוינה';
+  }
+
+  private formatKitchenDeliveryType(cd: Record<string, unknown>): string {
+    const raw = (cd['deliveryType'] || cd['deliveryMethod'] || '').toString().toLowerCase();
+    if (raw === 'delivery') return 'משלוח';
+    if (raw === 'pickup' || raw === 'self-pickup' || raw === 'self_pickup') return 'איסוף עצמי';
+    return '';
+  }
+
+  private buildKitchenSheetHtml(order: Order): string {
     const orderCode = order.orderNumber || (order._id || order.id)?.toString().slice(-8) || '';
     const cd: Record<string, unknown> = order.customerDetails || {};
     const isEvents = this.isEventCateringOrder(order);
-    const portions = isEvents
-      ? (order as { guestCount?: string | number }).guestCount
-      : (order as { numberOfPortions?: string | number }).numberOfPortions;
-    const mealLabel = isEvents ? '' : this.getMealTypesLabel(order);
-    const eventType = isEvents ? String((order as { eventType?: string }).eventType || '') : '';
-    const venue = isEvents ? String((order as { venue?: string }).venue || '') : '';
+    const isShabbat = this.isShabbatCateringOrder(order);
+    const printedAt = new Date().toLocaleString('he-IL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const reportTitle = isEvents
+      ? 'דוח הכנה למטבח — קייטרינג אירועים'
+      : 'דוח הכנה למטבח — קייטרינג שבת/חג';
 
     const prepByKey = new Map<string, string>();
     const sameOrder =
@@ -989,7 +1350,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       });
     }
 
-    const byCategory: Record<string, Array<{ name: string; notes: string }>> = {};
+    const itemsByCategory: Record<string, Array<{ name: string; notes: string }>> = {};
     (order.items || []).forEach((item) => {
       const cat = String((item as { category?: string }).category || 'כללי');
       const name = String(item.name || '');
@@ -997,84 +1358,250 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       const notes =
         prepByKey.get(key) ||
         String((item as { description?: string }).description || '').trim();
-      if (!byCategory[cat]) byCategory[cat] = [];
-      byCategory[cat].push({ name, notes });
+      if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
+      itemsByCategory[cat].push({ name, notes });
     });
 
     const categoryOrder = this.getCateringCategoryOrder(order);
     const sortedCategories = [
-      ...categoryOrder.filter((c) => byCategory[c]),
-      ...Object.keys(byCategory).filter((c) => !categoryOrder.includes(c))
+      ...categoryOrder.filter((c) => itemsByCategory[c]),
+      ...Object.keys(itemsByCategory).filter((c) => !categoryOrder.includes(c))
     ];
 
-    let rowIndex = 0;
-    const rowsHtml = sortedCategories
-      .map((cat) => {
-        const header = `<tr class="cat-header"><td colspan="3"><strong>${cat}</strong></td></tr>`;
-        const itemRows = byCategory[cat]
-          .map((row) => {
-            rowIndex += 1;
-            const inputId = `kitchen-note-${rowIndex}`;
-            const escapedNotes = row.notes
-              .replace(/&/g, '&amp;')
-              .replace(/"/g, '&quot;')
-              .replace(/</g, '&lt;');
-            return `<tr>
-              <td>${row.name}</td>
-              <td class="check-col">✓</td>
-              <td><input type="text" class="kitchen-note-input" id="${inputId}" value="${escapedNotes}" placeholder="כמויות, הוראות הכנה, הבהרות..." /></td>
-            </tr>`;
-          })
-          .join('');
-        return header + itemRows;
-      })
-      .join('');
+    type MealSection = 'evening' | 'morning' | 'salads' | 'third' | 'other';
+    const sectionLabels: Record<MealSection, string> = {
+      evening: 'סעודה ראשונה / ערב',
+      morning: 'סעודה שנייה / בוקר',
+      salads: 'סלטים ותוספות כלליות',
+      third: 'סעודה שלישית',
+      other: 'פריטים נוספים / ללא סיווג'
+    };
+    const sectionOrder: MealSection[] = ['evening', 'morning', 'salads', 'third', 'other'];
+    const sectionItems: Record<MealSection, Array<{ category: string; name: string; notes: string }>> = {
+      evening: [],
+      morning: [],
+      salads: [],
+      third: [],
+      other: []
+    };
 
-    const html = `<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>דף מטבח ${orderCode}</title>
+    sortedCategories.forEach((cat) => {
+      const section = isShabbat ? this.classifyCateringCategory(cat) : 'other';
+      (itemsByCategory[cat] || []).forEach((row) => {
+        sectionItems[section].push({ category: cat, name: row.name, notes: row.notes });
+      });
+    });
+
+    const portions = this.getKitchenPortionsInfo(order);
+    const guestCount = Math.max(0, Math.trunc(Number((order as { guestCount?: string | number }).guestCount) || 0));
+    let totalItemRows = 0;
+    let sectionsWithItems = 0;
+
+    const renderTable = (section: MealSection): string => {
+      const rows = sectionItems[section];
+      if (!rows.length && !(section === 'third' && portions.seudaShlishit === true)) return '';
+
+      const qty = this.getKitchenRowPortionQty(section, portions, isEvents, guestCount);
+      const itemRows = rows
+        .map((row) => {
+          totalItemRows += 1;
+          const notesCell = row.notes
+            ? this.escapeKitchenHtml(row.notes)
+            : '<span class="muted">—</span>';
+          return `<tr>
+            <td class="done-col">☐</td>
+            <td>${this.escapeKitchenHtml(row.name)}</td>
+            <td class="qty-col">${qty}</td>
+            <td class="notes-col">${notesCell}</td>
+          </tr>`;
+        })
+        .join('');
+
+      let body = itemRows;
+      if (!rows.length && section === 'third' && portions.seudaShlishit === true) {
+        body = `<tr>
+          <td class="done-col">☐</td>
+          <td colspan="3">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
+        </tr>`;
+        totalItemRows += 1;
+      }
+
+      sectionsWithItems += 1;
+      return `
+        <div class="meal-section">
+          <h2>${sectionLabels[section]}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th class="done-col">בוצע</th>
+                <th>שם מנה</th>
+                <th class="qty-col">כמות</th>
+                <th>הערות למטבח</th>
+              </tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>`;
+    };
+
+    const tablesHtml = isShabbat
+      ? sectionOrder.map((section) => renderTable(section)).join('')
+      : (() => {
+          const rows = sortedCategories
+            .flatMap((cat) => {
+              const catItems = itemsByCategory[cat] || [];
+              if (!catItems.length) return [];
+              const header = `<tr class="cat-row"><td colspan="4"><strong>${this.escapeKitchenHtml(cat)}</strong></td></tr>`;
+              const itemRows = catItems
+                .map((row) => {
+                  totalItemRows += 1;
+                  const notesCell = row.notes
+                    ? this.escapeKitchenHtml(row.notes)
+                    : '<span class="muted">—</span>';
+                  const qty = guestCount > 0 ? guestCount : 'לפי אורחים';
+                  return `<tr>
+                    <td class="done-col">☐</td>
+                    <td>${this.escapeKitchenHtml(row.name)}</td>
+                    <td class="qty-col">${qty}</td>
+                    <td class="notes-col">${notesCell}</td>
+                  </tr>`;
+                })
+                .join('');
+              return header + itemRows;
+            })
+            .join('');
+          if (rows) sectionsWithItems = 1;
+          return rows
+            ? `<div class="meal-section"><h2>פריטי האירוע</h2><table>
+              <thead><tr><th class="done-col">בוצע</th><th>שם מנה</th><th class="qty-col">כמות</th><th>הערות למטבח</th></tr></thead>
+              <tbody>${rows}</tbody></table></div>`
+            : '';
+        })();
+
+    const customerNotes = this.getKitchenCustomerNotes(order);
+    const adminNotes = (order.adminNotes || '').trim();
+    const notesBlocks: string[] = [];
+    if (customerNotes) {
+      notesBlocks.push(
+        `<div class="notes-block"><div class="notes-title">הערות לקוח</div><div>${this.escapeKitchenHtml(customerNotes)}</div></div>`
+      );
+    }
+    if (adminNotes) {
+      notesBlocks.push(
+        `<div class="notes-block notes-admin"><div class="notes-title">הערות מנהל</div><div>${this.escapeKitchenHtml(adminNotes)}</div></div>`
+      );
+    }
+
+    const deliveryTypeLabel = this.formatKitchenDeliveryType(cd);
+    const addressDisplay = this.formatKitchenDeliveryAddress(cd);
+    const email = String(cd['email'] || '').trim();
+
+    let portionsBlock = '';
+    if (isEvents) {
+      portionsBlock = `
+        <div class="portions-block">
+          <div><strong>מספר אורחים:</strong> ${guestCount || 'לא צוין'}</div>
+          ${(order as { eventType?: string }).eventType ? `<div><strong>סוג אירוע:</strong> ${this.escapeKitchenHtml(String((order as { eventType?: string }).eventType))}</div>` : ''}
+          ${(order as { venue?: string }).venue ? `<div><strong>מיקום:</strong> ${this.escapeKitchenHtml(String((order as { venue?: string }).venue))}</div>` : ''}
+        </div>`;
+    } else {
+      const lines: string[] = [];
+      if (portions.hasBreakdown || portions.evening > 0) {
+        lines.push(`<div><strong>סעודה ראשונה / ערב:</strong> ${portions.evening}</div>`);
+      }
+      if (portions.hasBreakdown || portions.morning > 0) {
+        lines.push(`<div><strong>סעודה שנייה / בוקר:</strong> ${portions.morning}</div>`);
+      }
+      if (!portions.hasBreakdown && portions.total > 0) {
+        lines.push(`<div><strong>סה"כ מנות:</strong> ${portions.total}</div>`);
+        if (order.mealTime === 'both') {
+          lines.push(`<div class="muted-line">חלוקה ערב/בוקר לא קיימת בהזמנה ישנה</div>`);
+        }
+      } else if (portions.total > 0) {
+        lines.push(`<div><strong>סה"כ מנות:</strong> ${portions.total}</div>`);
+      }
+      if (portions.mealLabel && portions.mealLabel !== '—') {
+        lines.push(`<div><strong>סוג סעודה:</strong> ${this.escapeKitchenHtml(portions.mealLabel)}</div>`);
+      }
+      if (portions.seudaShlishit === true) {
+        lines.push(`<div><strong>סעודה שלישית:</strong> כן</div>`);
+      } else if (portions.seudaShlishit === false) {
+        lines.push(`<div><strong>סעודה שלישית:</strong> לא</div>`);
+      }
+      portionsBlock = lines.length ? `<div class="portions-block">${lines.join('')}</div>` : '';
+    }
+
+    const summaryBlock = isShabbat
+      ? `<div class="summary-block">
+          <div class="summary-title">סיכום</div>
+          <div><strong>סה"כ מנות ערב:</strong> ${portions.evening}</div>
+          <div><strong>סה"כ מנות בוקר:</strong> ${portions.morning}</div>
+          <div><strong>סה"כ מנות כללי:</strong> ${portions.total}</div>
+          <div><strong>סה"כ פריטים / מנות נבחרות:</strong> ${totalItemRows}</div>
+          <div><strong>מספר סקשנים:</strong> ${sectionsWithItems}</div>
+        </div>`
+      : `<div class="summary-block">
+          <div class="summary-title">סיכום</div>
+          <div><strong>מספר אורחים:</strong> ${guestCount || '—'}</div>
+          <div><strong>סה"כ פריטים:</strong> ${totalItemRows}</div>
+        </div>`;
+
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>${reportTitle} ${orderCode}</title>
       <style>
-        body{font-family:Heebo,Arial,sans-serif;padding:16px;max-width:900px;margin:0 auto;color:#111}
-        h1{margin:0 0 6px;font-size:1.5rem}
-        .meta{margin-bottom:14px;font-size:14px;line-height:1.6}
-        .toolbar{margin:12px 0 16px;display:flex;gap:8px}
-        .toolbar button{padding:8px 14px;border:1px solid #111;background:#fff;cursor:pointer;font-family:inherit}
-        table{width:100%;border-collapse:collapse}
-        th,td{border:1px solid #111;padding:8px;text-align:right;vertical-align:middle}
+        body{font-family:Heebo,Arial,sans-serif;padding:16px;max-width:900px;margin:0 auto;color:#111;background:#fff}
+        h1{margin:0 0 4px;font-size:1.35rem;font-weight:800}
+        .subhead{margin:0 0 12px;font-size:0.9rem;color:#333}
+        .block{margin:12px 0;padding:10px 12px;border:1px solid #111}
+        .block-title{font-weight:800;margin-bottom:6px}
+        .portions-block,.summary-block{margin:14px 0;padding:10px 12px;border:1px solid #111}
+        .summary-title,.notes-title{font-weight:800;margin-bottom:6px}
+        .notes-block{margin:10px 0;padding:10px 12px;border:1px solid #111}
+        .notes-admin{border-width:2px}
+        .muted{color:#555}
+        .muted-line{font-size:0.85rem;color:#555;margin-top:4px}
+        .meal-section{margin:16px 0;page-break-inside:avoid}
+        .meal-section h2{margin:0 0 8px;font-size:1.05rem;font-weight:800;border-bottom:1px solid #111;padding-bottom:4px}
+        table{width:100%;border-collapse:collapse;margin-top:6px}
+        th,td{border:1px solid #111;padding:7px 8px;text-align:right;vertical-align:top;color:#000}
         th{background:#f4f4f4;font-weight:700}
-        tr.cat-header td{background:#f8f8f8;font-weight:700}
-        .check-col{width:48px;text-align:center}
-        .kitchen-note-input{width:100%;border:1px solid #bbb;padding:6px 8px;font-family:inherit;font-size:14px;box-sizing:border-box}
+        tr.cat-row td{background:#f8f8f8;font-weight:700}
+        .done-col{width:42px;text-align:center}
+        .qty-col{width:72px;text-align:center;white-space:nowrap}
+        .notes-col{min-width:140px}
+        .toolbar{margin:12px 0;display:flex;gap:8px}
+        .toolbar button{padding:8px 14px;border:1px solid #111;background:#fff;cursor:pointer;font-family:inherit}
         @media print{
           .toolbar{display:none !important}
-          .kitchen-note-input{border:none !important;padding:0 !important}
-          body{padding:8mm}
+          body{padding:8mm;max-width:none}
+          *{color:#000 !important;background:#fff !important;box-shadow:none !important}
+          th{background:#f4f4f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+          tr{page-break-inside:avoid}
         }
       </style></head><body>
-        <h1>דף הכנה למטבח — הזמנה #${orderCode}</h1>
-        <div class="meta">
-          <div><strong>לקוח:</strong> ${String(cd['fullName'] || 'לא צוין')}</div>
-          <div><strong>טלפון:</strong> ${String(cd['phone'] || 'לא צוין')}</div>
-          <div><strong>תאריך אירוע:</strong> ${String(cd['eventDate'] || 'לא צוין')}</div>
-          ${eventType ? `<div><strong>סוג אירוע:</strong> ${eventType}</div>` : ''}
-          ${venue ? `<div><strong>מיקום:</strong> ${venue}</div>` : ''}
-          ${portions ? `<div><strong>${isEvents ? 'מספר אורחים' : 'מספר מנות'}:</strong> ${portions}</div>` : ''}
-          ${mealLabel ? `<div><strong>סוג ארוחה:</strong> ${mealLabel}</div>` : ''}
+        <h1>${reportTitle}</h1>
+        <p class="subhead">
+          <strong>מספר הזמנה:</strong> ${this.escapeKitchenHtml(orderCode)}<br>
+          <strong>הודפס:</strong> ${printedAt}<br>
+          <strong>סטטוס:</strong> ${this.escapeKitchenHtml(this.getStatusLabel(order.status || ''))}
+        </p>
+        <div class="block">
+          <div class="block-title">פרטי לקוח</div>
+          <div><strong>שם:</strong> ${this.escapeKitchenHtml(String(cd['fullName'] || 'לא צוין'))}</div>
+          <div><strong>טלפון:</strong> ${this.escapeKitchenHtml(String(cd['phone'] || 'לא צוין'))}</div>
+          ${email ? `<div><strong>אימייל:</strong> ${this.escapeKitchenHtml(email)}</div>` : ''}
+          <div><strong>תאריך אירוע / אספקה:</strong> ${this.escapeKitchenHtml(String(cd['eventDate'] || 'לא צוין'))}</div>
+          <div><strong>כתובת:</strong> ${this.escapeKitchenHtml(addressDisplay)}</div>
+          ${deliveryTypeLabel ? `<div><strong>סוג אספקה:</strong> ${deliveryTypeLabel}</div>` : ''}
         </div>
+        ${portionsBlock}
+        ${notesBlocks.join('')}
         <div class="toolbar no-print">
           <button type="button" onclick="window.print()">הדפס</button>
           <button type="button" onclick="window.close()">סגור</button>
         </div>
-        <table>
-          <thead><tr><th>פריט</th><th>נבחר</th><th>הערות למטבח</th></tr></thead>
-          <tbody>${rowsHtml || '<tr><td colspan="3">אין פריטים</td></tr>'}</tbody>
-        </table>
+        ${tablesHtml || '<p class="muted">אין פריטים</p>'}
+        ${summaryBlock}
       </body></html>`;
-
-    const w = window.open('', '_blank');
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-      w.focus();
-    }
   }
 
   isPending(status: string): boolean {
@@ -1110,8 +1637,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
         this.trackKpi('orders_status_updated');
-        this.loadStats();
-        this.previousOrderCount = this.orders.length;
+        this.reloadAfterMutation();
       },
       error: () => {
         order.status = prev;
@@ -1148,7 +1674,58 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   viewOrderDetails(order: Order): void {
     this.selectedOrder = order;
+    this.editAdminNotesValue = order.adminNotes || '';
     this.refreshKitchenPrepLines();
+  }
+
+  hasCustomerNotes(order: Order | null): boolean {
+    if (!order) return false;
+    return !!(order.customerDetails?.notes || '').toString().trim();
+  }
+
+  hasAdminNotes(order: Order | null): boolean {
+    if (!order) return false;
+    return !!(order.adminNotes || '').trim();
+  }
+
+  hasAnyOrderNotes(order: Order | null): boolean {
+    return this.hasCustomerNotes(order) || this.hasAdminNotes(order);
+  }
+
+  saveAdminNotes(): void {
+    const order = this.selectedOrder;
+    if (!order) return;
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+
+    const value = String(this.editAdminNotesValue || '').trim();
+    if (value.length > 1000) {
+      this.errorMessage = 'הערת מנהל לא יכולה להיות ארוכה מ-1000 תווים';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+
+    this.isSavingAdminNotes = true;
+    this.orderService.updateOrderAdminNotes(orderId, value).subscribe({
+      next: (updated) => {
+        this.isSavingAdminNotes = false;
+        const normalized = { ...updated, id: (updated._id || updated.id)?.toString() };
+        this.selectedOrder = normalized;
+        this.editAdminNotesValue = normalized.adminNotes || '';
+        const updateInList = (list: Order[]) => {
+          const idx = list.findIndex((o) => (o._id || o.id)?.toString() === orderId);
+          if (idx > -1) list[idx] = normalized;
+        };
+        updateInList(this.orders);
+        this.successMessage = 'הערת המנהל נשמרה';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.isSavingAdminNotes = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בשמירת הערת מנהל';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
   }
 
   private refreshKitchenPrepLines(): void {
@@ -1166,6 +1743,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   closeModal(): void {
     this.selectedOrder = null;
     this.isEditingEventDate = false;
+    this.isEditingPortions = false;
+    this.portionsUpdatingId = null;
+    this.editAdminNotesValue = '';
+    this.isSavingAdminNotes = false;
     this.isEditingItems = false;
     this.isEditingShippingCost = false;
     this.isSavingShippingCost = false;
@@ -1283,6 +1864,85 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       if (!categoryOrder.includes(cat)) result.push({ category: cat, items: grouped[cat] });
     });
     return result;
+  }
+
+  /** Shabbat catering detail panel — grouped by meal (evening / morning / salads / legacy). */
+  getCateringDetailSections(): Array<{
+    title: string;
+    portions?: number | null;
+    legacy?: boolean;
+    categories: { category: string; items: { name: string; kitchenNotes?: string }[] }[];
+  }> {
+    if (!this.selectedOrder || !this.isShabbatCateringOrder(this.selectedOrder)) return [];
+
+    const byCat = this.getCateringViewItemsByCategory();
+    const map = new Map(byCat.map((g) => [g.category, g.items]));
+    const order = this.selectedOrder;
+
+    const hasSplit = byCat.some(
+      (g) => g.category.includes('— ערב') || g.category.includes('— בוקר')
+    );
+    const hasLegacyCourses = byCat.some(
+      (g) => g.category === 'מנות ראשונות' || g.category === 'מנות עיקריות'
+    );
+
+    if (!hasSplit && hasLegacyCourses) {
+      return [{ title: 'הזמנה ישנה (ללא פיצול ערב/בוקר)', legacy: true, categories: byCat }];
+    }
+
+    const sections: Array<{
+      title: string;
+      portions?: number | null;
+      legacy?: boolean;
+      categories: { category: string; items: { name: string; kitchenNotes?: string }[] }[];
+    }> = [];
+
+    const salads = map.get('סלטים');
+    if (salads?.length) {
+      sections.push({
+        title: 'סלטים (כללי לכל ההזמנה)',
+        categories: [{ category: 'סלטים', items: salads }]
+      });
+    }
+
+    const eveningCategoryKeys = ['מנות ראשונות — ערב', 'מנות עיקריות — ערב', 'תוספות ערב'];
+    const eveningGroups = eveningCategoryKeys
+      .filter((c) => map.has(c))
+      .map((c) => ({ category: c, items: map.get(c)! }));
+    if (eveningGroups.length || this.showEveningPortionsView(order)) {
+      sections.push({
+        title: 'סעודה ראשונה / ערב',
+        portions: order.portionsEvening ?? null,
+        categories: eveningGroups
+      });
+    }
+
+    const morningCategoryKeys = ['מנות ראשונות — בוקר', 'מנות עיקריות — בוקר', 'תוספות בוקר'];
+    const morningGroups = morningCategoryKeys
+      .filter((c) => map.has(c))
+      .map((c) => ({ category: c, items: map.get(c)! }));
+    if (morningGroups.length || this.showMorningPortionsView(order)) {
+      sections.push({
+        title: 'סעודה שנייה / שבת בבוקר',
+        portions: order.portionsMorning ?? null,
+        categories: morningGroups
+      });
+    }
+
+    const known = new Set([
+      'סלטים',
+      ...eveningCategoryKeys,
+      ...morningCategoryKeys,
+      'מנות ראשונות',
+      'מנות עיקריות',
+      'שונות'
+    ]);
+    const other = byCat.filter((g) => !known.has(g.category));
+    if (other.length) {
+      sections.push({ title: 'פריטים נוספים', categories: other });
+    }
+
+    return sections;
   }
 
   /** Add a free-text catering item to the editable list. */
@@ -1467,7 +2127,6 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           if (idx !== -1) list[idx] = normalizedUpdated;
         };
         replaceInList(this.orders);
-        replaceInList(this.archiveOrders);
 
         this.selectedOrder = normalizedUpdated;
         this.cancelEditingItems();
@@ -1480,8 +2139,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           this.authorizedAmountMismatchWarning = true;
         }
         setTimeout(() => (this.successMessage = ''), 3000);
-        // Keep data in sync with server snapshot.
-        this.loadOrders();
+        this.loadOrdersPage();
         this.loadStats();
       },
       error: (err) => {
@@ -1537,7 +2195,6 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           }
         };
         updateInList(this.orders);
-        updateInList(this.archiveOrders);
         this.dateUpdatingId = null;
         this.isEditingEventDate = false;
         this.successMessage = 'תאריך האספקה עודכן בהצלחה';
@@ -1562,8 +2219,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   onManualOrderCreated(): void {
     this.isCreatingOrder = false;
-    this.loadOrders();
-    this.loadStats();
+    this.listPage = 1;
+    this.reloadAfterMutation();
     this.successMessage = 'הזמנה טלפונית נוספה בהצלחה';
     this.trackKpi('orders_manual_created');
     setTimeout(() => (this.successMessage = ''), 5000);
@@ -1600,6 +2257,120 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       cancelled: 'בוטל'
     };
     return labels[status] || status;
+  }
+
+  /** True when order has explicit evening/morning portion breakdown. */
+  hasPortionsBreakdown(order: Order): boolean {
+    return order.portionsEvening !== undefined && order.portionsEvening !== null
+      || order.portionsMorning !== undefined && order.portionsMorning !== null;
+  }
+
+  /** Shabbat/holiday catering orders (not events) support admin portion edits. */
+  canEditCateringPortions(order: Order | null): boolean {
+    if (!order) return false;
+    return order.orderType === 'catering'
+      && order.cateringKind !== 'events'
+      && (order.numberOfPortions != null || !!order.mealTime);
+  }
+
+  showEveningPortionField(order: Order | null): boolean {
+    if (!order) return false;
+    const m = order.mealTime;
+    return !m || m === 'evening' || m === 'both';
+  }
+
+  showMorningPortionField(order: Order | null): boolean {
+    if (!order) return false;
+    const m = order.mealTime;
+    return !m || m === 'morning' || m === 'both';
+  }
+
+  /** Read-only detail panel: show evening only when stored count is > 0. */
+  showEveningPortionsView(order: Order | null): boolean {
+    if (!order || !this.hasPortionsBreakdown(order)) return false;
+    return Math.max(0, Math.trunc(Number(order.portionsEvening) || 0)) > 0;
+  }
+
+  /** Read-only detail panel: show morning only when stored count is > 0. */
+  showMorningPortionsView(order: Order | null): boolean {
+    if (!order || !this.hasPortionsBreakdown(order)) return false;
+    return Math.max(0, Math.trunc(Number(order.portionsMorning) || 0)) > 0;
+  }
+
+  startEditingPortions(): void {
+    const order = this.selectedOrder;
+    if (!order) return;
+    const mealTime = order.mealTime || 'both';
+    const legacy = Number(order.numberOfPortions) || 0;
+
+    if (this.hasPortionsBreakdown(order)) {
+      this.editPortionsEvening = Number(order.portionsEvening) || 0;
+      this.editPortionsMorning = Number(order.portionsMorning) || 0;
+    } else if (mealTime === 'evening') {
+      this.editPortionsEvening = legacy;
+      this.editPortionsMorning = 0;
+    } else if (mealTime === 'morning') {
+      this.editPortionsEvening = 0;
+      this.editPortionsMorning = legacy;
+    } else {
+      this.editPortionsEvening = legacy;
+      this.editPortionsMorning = 0;
+    }
+
+    this.isEditingPortions = true;
+  }
+
+  cancelEditingPortions(): void {
+    this.isEditingPortions = false;
+    this.portionsUpdatingId = null;
+  }
+
+  savePortions(): void {
+    const order = this.selectedOrder;
+    if (!order) return;
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+
+    const evening = this.showEveningPortionField(order) ? Number(this.editPortionsEvening) : 0;
+    const morning = this.showMorningPortionField(order) ? Number(this.editPortionsMorning) : 0;
+
+    if (!Number.isFinite(evening) || !Number.isInteger(evening) || evening < 0) {
+      this.errorMessage = 'כמות ערב חייבת להיות מספר שלם שאינו שלילי';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+    if (!Number.isFinite(morning) || !Number.isInteger(morning) || morning < 0) {
+      this.errorMessage = 'כמות בוקר חייבת להיות מספר שלם שאינו שלילי';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+    if (evening + morning <= 0) {
+      this.errorMessage = 'יש להזין לפחות מנה אחת';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+
+    this.portionsUpdatingId = orderId;
+    this.orderService.updateOrderPortions(orderId, { portionsEvening: evening, portionsMorning: morning }).subscribe({
+      next: (updated) => {
+        this.portionsUpdatingId = null;
+        this.isEditingPortions = false;
+        const normalized = { ...updated, id: (updated._id || updated.id)?.toString() };
+        this.selectedOrder = normalized;
+        const updateInList = (list: Order[]) => {
+          const idx = list.findIndex((o) => (o._id || o.id)?.toString() === orderId);
+          if (idx > -1) list[idx] = normalized;
+        };
+        updateInList(this.orders);
+        this.successMessage = 'כמויות המנות עודכנו';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.portionsUpdatingId = null;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון כמויות';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
   }
 
   /** Human-readable meal types for catering orders (e.g. evening/morning/both). */
@@ -1675,6 +2446,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.successMessage = res.message || 'החיוב בוצע בהצלחה';
         setTimeout(() => (this.successMessage = ''), 4000);
         this.loadStats();
+        this.loadTabCounts();
+        this.loadOrdersPage();
       },
       error: (err) => {
         this.isCapturing = false;
@@ -1706,6 +2479,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.successMessage = res.message || 'ההרשאה בוטלה וההחזקה שוחררה';
         setTimeout(() => (this.successMessage = ''), 4000);
         this.loadStats();
+        this.loadTabCounts();
+        this.loadOrdersPage();
       },
       error: (err) => {
         this.isVoiding = false;
@@ -1715,13 +2490,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Patch a single order in both `orders` and `archiveOrders` arrays without a full reload. */
+  /** Patch a single order in the current page list without a full reload. */
   private _patchOrderInLists(orderId: string, patch: Partial<Order>): void {
     const apply = (list: Order[]) => {
       const idx = list.findIndex((o) => (o._id || o.id || '').toString() === orderId);
       if (idx !== -1) list[idx] = { ...list[idx], ...patch };
     };
     apply(this.orders);
-    apply(this.archiveOrders);
   }
 }

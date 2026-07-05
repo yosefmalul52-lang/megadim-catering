@@ -1,11 +1,12 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDatepickerModule, MatCalendar } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ToastrService } from 'ngx-toastr';
+import { Subscription } from 'rxjs';
 import {
   SiteSettingsService,
   SiteSettings,
@@ -16,6 +17,18 @@ import {
 import { UploadService } from '../../../services/upload.service';
 import { AdminDeliveryService } from '../../../services/admin-delivery.service';
 import { toYYYYMMDD } from '../../../utils/date.utils';
+import {
+  DEFAULT_CUTOFF_TIME,
+  formatDateDisplayHe,
+  normalizeCutoffTime,
+  normalizeOpenDateRules,
+  type OpenDateRule
+} from '../../../utils/open-date-rules';
+
+export interface OpenDateEntry {
+  date: string;
+  cutoffTime: string;
+}
 
 const PAGE_LABELS: Record<PageId, string> = {
   home: 'דף הבית',
@@ -34,7 +47,7 @@ const PAGE_LABELS: Record<PageId, string> = {
   templateUrl: './admin-settings.component.html',
   styleUrls: ['./admin-settings.component.scss']
 })
-export class AdminSettingsComponent implements OnInit {
+export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy {
   private fb = inject(FormBuilder);
   private settingsService = inject(SiteSettingsService);
   private uploadService = inject(UploadService);
@@ -63,13 +76,21 @@ export class AdminSettingsComponent implements OnInit {
     { name: 'קינוחים', route: '/desserts' }
   ] as const;
 
-  /** Specific dates open for orders (YYYY-MM-DD); loaded from store settings */
-  openDates: string[] = [];
+  /** Specific dates open for orders with per-date cutoff times */
+  openDateEntries: OpenDateEntry[] = [];
   /** Minimum days from today until earliest selectable order date (standalone ngModel, not in form) */
   minimumLeadDays = 2;
   isSavingDays = false;
+  isDeliveryLoading = true;
   /** Calendar month to display (for mat-calendar) */
   calendarMonth: Date = new Date();
+  /** Date key (YYYY-MM-DD) selected in calendar for panel editing */
+  selectedDateKey: string | null = null;
+  /** Cutoff time shown/edited in the side panel */
+  panelCutoffTime = DEFAULT_CUTOFF_TIME;
+
+  @ViewChild(MatCalendar) private calendar?: MatCalendar<Date>;
+  private calendarStateSub?: Subscription;
 
   ngOnInit(): void {
     this.settingsForm = this.fb.group({
@@ -99,19 +120,91 @@ export class AdminSettingsComponent implements OnInit {
     this.loadDeliverySettings();
   }
 
+  ngAfterViewInit(): void {
+    this.bindCalendarStateChanges();
+  }
+
+  ngOnDestroy(): void {
+    this.calendarStateSub?.unsubscribe();
+  }
+
+  private bindCalendarStateChanges(): void {
+    const tryBind = () => {
+      if (!this.calendar?.stateChanges) return;
+      this.calendarStateSub?.unsubscribe();
+      this.calendarStateSub = this.calendar.stateChanges.subscribe(() => this.injectCutoffLabels());
+      this.injectCutoffLabels();
+    };
+    setTimeout(tryBind, 0);
+  }
+
   loadDeliverySettings(): void {
+    this.isDeliveryLoading = true;
     this.adminDelivery.getDeliverySettings().subscribe({
       next: (res) => {
         const data = res?.data;
-        if (data?.openDates && Array.isArray(data.openDates)) {
-          this.openDates = data.openDates.filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s));
-        } else {
-          this.openDates = [];
-        }
-        if (typeof data?.minimumLeadDays === 'number' && data.minimumLeadDays >= 0) {
-          this.minimumLeadDays = data.minimumLeadDays;
-        }
+        this.applyDeliverySettings(data);
+        this.isDeliveryLoading = false;
+        this.refreshCalendar();
+        this.bindCalendarStateChanges();
+      },
+      error: () => {
+        this.isDeliveryLoading = false;
       }
+    });
+  }
+
+  private applyDeliverySettings(data: {
+    openDates?: string[];
+    openDateRules?: OpenDateRule[];
+    minimumLeadDays?: number;
+  } | null | undefined): void {
+    const openDates = Array.isArray(data?.openDates)
+      ? data.openDates.filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s))
+      : [];
+    const rulesMap = new Map(
+      normalizeOpenDateRules(data?.openDateRules).map((r) => [r.date, r.cutoffTime])
+    );
+    this.openDateEntries = openDates
+      .map((date) => ({
+        date,
+        cutoffTime: rulesMap.get(date) || DEFAULT_CUTOFF_TIME
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (typeof data?.minimumLeadDays === 'number' && data.minimumLeadDays >= 0) {
+      this.minimumLeadDays = data.minimumLeadDays;
+    }
+  }
+
+  /** Force mat-calendar to re-evaluate dateClass after openDateEntries change. */
+  private refreshCalendar(): void {
+    setTimeout(() => {
+      this.calendar?.updateTodaysDate();
+      this.injectCutoffLabels();
+    }, 0);
+  }
+
+  private injectCutoffLabels(): void {
+    const wrap = document.querySelector('.calendar-wrap');
+    if (!wrap) return;
+    wrap.querySelectorAll('.cutoff-time-label').forEach((el) => el.remove());
+    const activeDate = this.calendar?.activeDate;
+    if (!activeDate) return;
+
+    const cells = wrap.querySelectorAll('.mat-calendar-body-cell, .mat-mdc-calendar-body-cell');
+    cells.forEach((cell) => {
+      const content = cell.querySelector('.mat-calendar-body-cell-content, .mat-mdc-calendar-body-cell-content');
+      if (!content) return;
+      const dayText = (content.childNodes[0]?.textContent || content.textContent || '').trim();
+      const dayNum = parseInt(dayText, 10);
+      if (!dayNum || dayNum < 1 || dayNum > 31) return;
+      const dateKey = toYYYYMMDD(new Date(activeDate.getFullYear(), activeDate.getMonth(), dayNum));
+      const entry = this.openDateEntries.find((e) => e.date === dateKey);
+      if (!entry) return;
+      const label = document.createElement('span');
+      label.className = 'cutoff-time-label';
+      label.textContent = entry.cutoffTime === '23:59' ? '23:59' : `עד ${entry.cutoffTime}`;
+      content.appendChild(label);
     });
   }
 
@@ -127,27 +220,95 @@ export class AdminSettingsComponent implements OnInit {
   dateClass = (cellDate: Date, view: 'month' | 'year' | 'multi-year'): string => {
     if (view !== 'month') return '';
     const dateString = toYYYYMMDD(cellDate);
-    const isOpen = this.openDates.includes(dateString);
-    return isOpen ? 'opened-date' : 'closed-date';
+    const classes: string[] = [];
+    const isOpen = this.openDateEntries.some((e) => e.date === dateString);
+    classes.push(isOpen ? 'opened-date' : 'closed-date');
+    if (this.selectedDateKey === dateString) {
+      classes.push('selected-date');
+    }
+    return classes.join(' ');
   };
 
-  /** Toggle a date in openDates: add if missing, remove if present. */
+  formatOpenDateLabel(dateKey: string): string {
+    return formatDateDisplayHe(dateKey);
+  }
+
+  get openDatesCount(): number {
+    return this.openDateEntries.length;
+  }
+
+  get isPanelOpen(): boolean {
+    return this.selectedDateKey !== null;
+  }
+
+  get isSelectedDateOpen(): boolean {
+    return this.selectedDateKey !== null && this.openDateEntries.some((e) => e.date === this.selectedDateKey);
+  }
+
+  /** Select a date and open the edit panel — does not toggle open/closed. */
   onCalendarDateSelect(value: Date | null): void {
     if (!value) return;
     const key = toYYYYMMDD(value);
-    if (this.openDates.includes(key)) {
-      this.openDates = this.openDates.filter((d) => d !== key);
+    this.selectedDateKey = key;
+    const existing = this.openDateEntries.find((e) => e.date === key);
+    this.panelCutoffTime = existing?.cutoffTime ?? DEFAULT_CUTOFF_TIME;
+    this.refreshCalendar();
+  }
+
+  cancelPanel(): void {
+    this.selectedDateKey = null;
+    this.refreshCalendar();
+  }
+
+  openSelectedDate(): void {
+    if (!this.selectedDateKey) return;
+    const key = this.selectedDateKey;
+    const cutoff = normalizeCutoffTime(this.panelCutoffTime);
+    const existing = this.openDateEntries.find((e) => e.date === key);
+    if (existing) {
+      existing.cutoffTime = cutoff;
     } else {
-      this.openDates = [...this.openDates, key].sort();
+      this.openDateEntries = [...this.openDateEntries, { date: key, cutoffTime: cutoff }].sort((a, b) =>
+        a.date.localeCompare(b.date)
+      );
     }
+    this.refreshCalendar();
+  }
+
+  saveSelectedCutoffTime(): void {
+    if (!this.selectedDateKey) return;
+    const key = this.selectedDateKey;
+    const cutoff = normalizeCutoffTime(this.panelCutoffTime);
+    const existing = this.openDateEntries.find((e) => e.date === key);
+    if (existing) {
+      existing.cutoffTime = cutoff;
+    }
+    this.refreshCalendar();
+  }
+
+  removeSelectedDate(): void {
+    if (!this.selectedDateKey) return;
+    const key = this.selectedDateKey;
+    this.openDateEntries = this.openDateEntries.filter((e) => e.date !== key);
+    this.selectedDateKey = null;
+    this.refreshCalendar();
   }
 
   saveOpenDates(): void {
     this.isSavingDays = true;
     const lead = Math.max(0, Math.floor(Number(this.minimumLeadDays)) || 2);
-    this.adminDelivery.updateDeliverySettings({ openDates: [...this.openDates], minimumLeadDays: lead }).subscribe({
-      next: () => {
+    const openDates = this.openDateEntries.map((e) => e.date);
+    const openDateRules: OpenDateRule[] = this.openDateEntries.map((e) => ({
+      date: e.date,
+      cutoffTime: normalizeCutoffTime(e.cutoffTime)
+    }));
+    this.adminDelivery.updateDeliverySettings({ openDates, openDateRules, minimumLeadDays: lead }).subscribe({
+      next: (res) => {
         this.isSavingDays = false;
+        if (res?.data) {
+          this.applyDeliverySettings(res.data);
+          this.refreshCalendar();
+        }
         this.toastr.success('תאריכי ההזמנה עודכנו', 'הצלחה', { timeOut: 3000, positionClass: 'toast-top-left' });
       },
       error: () => {

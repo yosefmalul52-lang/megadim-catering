@@ -10,10 +10,70 @@ import { sanitizeMarketingData } from '../utils/webhook.util';
 import { emailService } from './email.service';
 import { upsertCustomerFromOrder } from './customer.service';
 import { ORDER_ADMIN_LIST_SELECT, ORDER_API_DETAIL_SELECT } from '../utils/order-projection.util';
+import { validateAdminNotesPayload } from '../utils/portal-week';
+import StoreSettings from '../models/store-settings.model';
+import { assertEventDateOpen, normalizeOpenDateRules, normalizeOpenDates } from '../utils/open-date-rules';
+
+export interface AdminSourceTabCounts {
+  total: number;
+  pending: number;
+  processing: number;
+  ready: number;
+  failed: number;
+  archive: number;
+}
+
+export type AdminOrderSource = 'shabbat' | 'catering' | 'events';
+export type AdminOrderStatusTab = 'pending' | 'processing' | 'ready' | 'failed' | 'archive';
+export type AdminOrdersSortBy =
+  | 'createdAt'
+  | 'eventDate'
+  | 'customerName'
+  | 'totalPrice'
+  | 'status'
+  | 'orderNumber';
+
+export interface AdminOrdersPageFilters {
+  page?: number;
+  limit?: number;
+  source?: AdminOrderSource;
+  statusTab?: AdminOrderStatusTab;
+  /** @deprecated Legacy combined search — use orderNumberSearch / customerSearch */
+  search?: string;
+  /** @deprecated Legacy combined date — use createdFrom/createdTo or eventFrom/eventTo */
+  dateFrom?: string;
+  /** @deprecated Legacy combined date — use createdFrom/createdTo or eventFrom/eventTo */
+  dateTo?: string;
+  orderNumberSearch?: string;
+  customerSearch?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  eventFrom?: string;
+  eventTo?: string;
+  sortBy?: AdminOrdersSortBy;
+  sortDir?: 'asc' | 'desc';
+  hasCustomerNotes?: boolean;
+  hasAdminNotes?: boolean;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export class OrderService {
   // Categories that should only show units, not calculated weight
   private readonly UNIT_ONLY_CATEGORIES = ['דגים', 'מנות עיקריות', 'Fish', 'Main Courses'];
+
+  /** Validate customer event date against store openDates / openDateRules (Israel cutoff). */
+  async validateEventDateOpen(eventDate: unknown): Promise<void> {
+    if (eventDate == null || eventDate === '') return;
+    const doc = await StoreSettings.findOne().lean();
+    const settings = {
+      openDates: normalizeOpenDates((doc as any)?.openDates),
+      openDateRules: normalizeOpenDateRules((doc as any)?.openDateRules)
+    };
+    assertEventDateOpen(eventDate, settings);
+  }
 
   private generateOrderNumber(): string {
     return 'MG-' + Math.floor(100000 + Math.random() * 900000).toString();
@@ -230,6 +290,335 @@ export class OrderService {
       console.error('Error fetching all orders:', error);
       throw error;
     }
+  }
+
+  /** Mirrors admin-orders source tabs: shabbat cart vs shabbat catering vs events catering. */
+  private buildAdminOrderSourceFilter(source: 'shabbat' | 'catering' | 'events'): Record<string, unknown> {
+    if (source === 'events') {
+      return { cateringKind: 'events' };
+    }
+    const cateringSignals = {
+      $or: [
+        { orderType: 'catering' },
+        { numberOfPortions: { $exists: true, $nin: [null, ''] } },
+        { mealTime: { $exists: true, $nin: [null, ''] } }
+      ]
+    };
+    if (source === 'catering') {
+      return {
+        cateringKind: { $ne: 'events' },
+        ...cateringSignals
+      };
+    }
+    return {
+      cateringKind: { $ne: 'events' },
+      $nor: [
+        { orderType: 'catering' },
+        { numberOfPortions: { $exists: true, $nin: [null, ''] } },
+        { mealTime: { $exists: true, $nin: [null, ''] } }
+      ]
+    };
+  }
+
+  private buildAdminActiveOrdersFilter(): Record<string, unknown> {
+    return {
+      isDeleted: { $ne: true },
+      paymentStatus: { $nin: ['failed', 'awaiting_payment'] }
+    };
+  }
+
+  private buildAdminFailedOrdersFilter(): Record<string, unknown> {
+    return {
+      isDeleted: { $ne: true },
+      paymentStatus: { $in: ['failed', 'awaiting_payment'] }
+    };
+  }
+
+  private buildAdminArchiveOrdersFilter(): Record<string, unknown> {
+    return {
+      $or: [{ isDeleted: true }, { status: 'cancelled' }]
+    };
+  }
+
+  private buildAdminStatusTabFilter(statusTab: AdminOrderStatusTab): Record<string, unknown> {
+    switch (statusTab) {
+      case 'pending':
+        return {
+          ...this.buildAdminActiveOrdersFilter(),
+          status: { $in: ['pending', 'new'] }
+        };
+      case 'processing':
+        return {
+          ...this.buildAdminActiveOrdersFilter(),
+          status: { $in: ['processing', 'in-progress'] }
+        };
+      case 'ready':
+        return {
+          ...this.buildAdminActiveOrdersFilter(),
+          status: { $in: ['ready', 'delivered'] }
+        };
+      case 'failed':
+        return this.buildAdminFailedOrdersFilter();
+      case 'archive':
+        return this.buildAdminArchiveOrdersFilter();
+      default:
+        return {};
+    }
+  }
+
+  private mergeMongoQueryParts(...parts: Record<string, unknown>[]): Record<string, unknown> {
+    const nonEmpty = parts.filter((p) => p && Object.keys(p).length > 0);
+    if (nonEmpty.length === 0) return {};
+    if (nonEmpty.length === 1) return nonEmpty[0];
+    return { $and: nonEmpty };
+  }
+
+  private buildAdminOrdersSort(
+    sortBy?: AdminOrdersSortBy,
+    sortDir?: 'asc' | 'desc'
+  ): Record<string, 1 | -1> {
+    if (!sortBy) {
+      return { 'customerDetails.eventDate': 1, createdAt: -1 };
+    }
+    const dir: 1 | -1 = sortDir === 'desc' ? -1 : 1;
+    switch (sortBy) {
+      case 'createdAt':
+        return { createdAt: dir };
+      case 'eventDate':
+        return { 'customerDetails.eventDate': dir, createdAt: -1 };
+      case 'customerName':
+        return { 'customerDetails.fullName': dir, createdAt: -1 };
+      case 'totalPrice':
+        return { totalPrice: dir, createdAt: -1 };
+      case 'status':
+        return { status: dir, createdAt: -1 };
+      case 'orderNumber':
+        return { orderNumber: dir, createdAt: -1 };
+      default:
+        return { 'customerDetails.eventDate': 1, createdAt: -1 };
+    }
+  }
+
+  private buildAdminOrdersLegacyDateFilter(dateFrom?: string, dateTo?: string): Record<string, unknown> | null {
+    if (!dateFrom && !dateTo) return null;
+    const eventRange: Record<string, string> = {};
+    if (dateFrom) eventRange.$gte = dateFrom;
+    if (dateTo) eventRange.$lte = dateTo;
+
+    const createdRange: Record<string, Date> = {};
+    if (dateFrom) createdRange.$gte = new Date(`${dateFrom}T00:00:00.000Z`);
+    if (dateTo) createdRange.$lte = new Date(`${dateTo}T23:59:59.999Z`);
+
+    return {
+      $or: [
+        { 'customerDetails.eventDate': eventRange },
+        {
+          $and: [
+            {
+              $or: [
+                { 'customerDetails.eventDate': { $exists: false } },
+                { 'customerDetails.eventDate': null },
+                { 'customerDetails.eventDate': '' }
+              ]
+            },
+            { createdAt: createdRange }
+          ]
+        }
+      ]
+    };
+  }
+
+  private buildAdminOrdersCreatedDateFilter(
+    createdFrom?: string,
+    createdTo?: string
+  ): Record<string, unknown> | null {
+    if (!createdFrom && !createdTo) return null;
+    const createdRange: Record<string, Date> = {};
+    if (createdFrom) createdRange.$gte = new Date(`${createdFrom}T00:00:00.000Z`);
+    if (createdTo) createdRange.$lte = new Date(`${createdTo}T23:59:59.999Z`);
+    return { createdAt: createdRange };
+  }
+
+  private buildAdminOrdersEventDateFilter(
+    eventFrom?: string,
+    eventTo?: string
+  ): Record<string, unknown> | null {
+    if (!eventFrom && !eventTo) return null;
+    const eventRange: Record<string, string> = {};
+    if (eventFrom) eventRange.$gte = eventFrom;
+    if (eventTo) eventRange.$lte = eventTo;
+    return { 'customerDetails.eventDate': eventRange };
+  }
+
+  private buildAdminOrdersLegacySearchFilter(search: string): Record<string, unknown> {
+    const regex = new RegExp(escapeRegex(search), 'i');
+    return {
+      $or: [
+        { orderNumber: regex },
+        { 'customerDetails.fullName': regex },
+        { 'customerDetails.phone': regex },
+        { 'customerDetails.email': regex },
+        { 'customerDetails.address': regex }
+      ]
+    };
+  }
+
+  private buildAdminOrdersOrderNumberSearchFilter(search: string): Record<string, unknown> {
+    const regex = new RegExp(escapeRegex(search), 'i');
+    return { orderNumber: regex };
+  }
+
+  private buildAdminOrdersCustomerSearchFilter(search: string): Record<string, unknown> {
+    const regex = new RegExp(escapeRegex(search), 'i');
+    return {
+      $or: [
+        { 'customerDetails.fullName': regex },
+        { 'customerDetails.phone': regex },
+        { 'customerDetails.email': regex },
+        { 'customerDetails.address': regex }
+      ]
+    };
+  }
+
+  /**
+   * Paginated admin orders list — full DB query with source/status/search/sort filters.
+   */
+  async getAdminOrdersPage(filters: AdminOrdersPageFilters): Promise<{
+    orders: IOrder[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  }> {
+    const page = Math.max(1, Math.floor(Number(filters.page)) || 1);
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(filters.limit)) || 25));
+    const skip = (page - 1) * limit;
+
+    const parts: Record<string, unknown>[] = [];
+    if (filters.source) {
+      parts.push(this.buildAdminOrderSourceFilter(filters.source));
+    }
+    if (filters.statusTab) {
+      parts.push(this.buildAdminStatusTabFilter(filters.statusTab));
+    }
+
+    const orderNumberSearch = String(filters.orderNumberSearch || '').trim();
+    const customerSearch = String(filters.customerSearch || '').trim();
+    const legacySearch = String(filters.search || '').trim();
+
+    if (orderNumberSearch) {
+      parts.push(this.buildAdminOrdersOrderNumberSearchFilter(orderNumberSearch));
+    }
+    if (customerSearch) {
+      parts.push(this.buildAdminOrdersCustomerSearchFilter(customerSearch));
+    }
+    if (legacySearch && !orderNumberSearch && !customerSearch) {
+      parts.push(this.buildAdminOrdersLegacySearchFilter(legacySearch));
+    }
+
+    const createdDateFilter = this.buildAdminOrdersCreatedDateFilter(
+      filters.createdFrom,
+      filters.createdTo
+    );
+    if (createdDateFilter) parts.push(createdDateFilter);
+
+    const eventDateFilter = this.buildAdminOrdersEventDateFilter(filters.eventFrom, filters.eventTo);
+    if (eventDateFilter) parts.push(eventDateFilter);
+
+    const hasNewDateParams = !!(
+      filters.createdFrom ||
+      filters.createdTo ||
+      filters.eventFrom ||
+      filters.eventTo
+    );
+    if (!hasNewDateParams) {
+      const legacyDateFilter = this.buildAdminOrdersLegacyDateFilter(
+        filters.dateFrom,
+        filters.dateTo
+      );
+      if (legacyDateFilter) parts.push(legacyDateFilter);
+    }
+
+    if (filters.hasCustomerNotes) {
+      parts.push({
+        'customerDetails.notes': { $exists: true, $nin: [null, ''] }
+      });
+    }
+    if (filters.hasAdminNotes) {
+      parts.push({
+        adminNotes: { $exists: true, $nin: [null, ''] }
+      });
+    }
+
+    const query = this.mergeMongoQueryParts(...parts);
+    const sort = this.buildAdminOrdersSort(filters.sortBy, filters.sortDir);
+
+    const total = await Order.countDocuments(query);
+    const orders = await Order.find(query)
+      .select(ORDER_ADMIN_LIST_SELECT)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+
+    return {
+      orders: orders as IOrder[],
+      page,
+      limit,
+      total,
+      totalPages
+    };
+  }
+
+  /**
+   * Admin dashboard tab counts — full DB counts, no list limit.
+   * Status buckets match admin-orders.component filteredOrders logic.
+   */
+  async getAdminTabCounts(): Promise<{
+    shabbat: AdminSourceTabCounts;
+    catering: AdminSourceTabCounts;
+    events: AdminSourceTabCounts;
+  }> {
+    const sources = ['shabbat', 'catering', 'events'] as const;
+    const entries = await Promise.all(
+      sources.map(async (source) => {
+        const sourceFilter = this.buildAdminOrderSourceFilter(source);
+        const [pending, processing, ready, failed, archive] = await Promise.all([
+          Order.countDocuments({
+            ...sourceFilter,
+            ...this.buildAdminActiveOrdersFilter(),
+            status: { $in: ['pending', 'new'] }
+          }),
+          Order.countDocuments({
+            ...sourceFilter,
+            ...this.buildAdminActiveOrdersFilter(),
+            status: { $in: ['processing', 'in-progress'] }
+          }),
+          Order.countDocuments({
+            ...sourceFilter,
+            ...this.buildAdminActiveOrdersFilter(),
+            status: { $in: ['ready', 'delivered'] }
+          }),
+          Order.countDocuments({
+            ...sourceFilter,
+            ...this.buildAdminFailedOrdersFilter()
+          }),
+          Order.countDocuments({
+            ...sourceFilter,
+            ...this.buildAdminArchiveOrdersFilter()
+          })
+        ]);
+        const total = pending + processing + ready + failed;
+        return [source, { total, pending, processing, ready, failed, archive }] as const;
+      })
+    );
+    return Object.fromEntries(entries) as {
+      shabbat: AdminSourceTabCounts;
+      catering: AdminSourceTabCounts;
+      events: AdminSourceTabCounts;
+    };
   }
 
   // Get order by ID (with user verification). Enriches items with imageUrl from menu when missing.
@@ -729,6 +1118,69 @@ export class OrderService {
     return order as IOrder | null;
   }
 
+  /** Admin: update Shabbat/holiday catering portion counts. */
+  async updateOrderPortions(
+    orderId: string,
+    payload: { portionsEvening?: unknown; portionsMorning?: unknown }
+  ): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    const row = order as any;
+    if (row.orderType !== 'catering' || row.cateringKind === 'events') {
+      throw new Error('ניתן לעדכן כמויות רק להזמנות קייטרינג שבת/חג');
+    }
+
+    const parseNonNegativeInteger = (value: unknown, label: string): number => {
+      if (value === undefined || value === null || value === '') {
+        throw new Error(`${label} חייב להיות מספר שלם`);
+      }
+      const n = typeof value === 'number' ? value : parseInt(String(value).trim(), 10);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+        throw new Error(`${label} חייב להיות מספר שלם שאינו שלילי`);
+      }
+      return n;
+    };
+
+    const mealTime = (row.mealTime as string) || 'both';
+    let portionsEvening = parseNonNegativeInteger(payload.portionsEvening, 'כמות ערב');
+    let portionsMorning = parseNonNegativeInteger(payload.portionsMorning, 'כמות בוקר');
+
+    if (mealTime === 'evening') {
+      portionsMorning = 0;
+    } else if (mealTime === 'morning') {
+      portionsEvening = 0;
+    }
+
+    const numberOfPortions = portionsEvening + portionsMorning;
+    if (numberOfPortions <= 0) {
+      throw new Error('יש להזין לפחות מנה אחת');
+    }
+
+    const updateResult = await Order.updateOne(
+      { _id: orderId },
+      { $set: { portionsEvening, portionsMorning, numberOfPortions } }
+    );
+    if (updateResult.matchedCount === 0) return null;
+
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return updated as IOrder | null;
+  }
+
+  /** Admin: update internal order notes without touching customerDetails.notes. */
+  async updateOrderAdminNotes(orderId: string, adminNotes: unknown): Promise<IOrder | null> {
+    const validation = validateAdminNotesPayload(adminNotes);
+    if (validation.ok === false) {
+      throw new Error(validation.message);
+    }
+
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set: { adminNotes: validation.adminNotes } });
+    if (updateResult.matchedCount === 0) return null;
+
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return updated as IOrder | null;
+  }
+
   /** Update order event/delivery date (Admin). Sets customerDetails.eventDate (stored as YYYY-MM-DD). */
   async updateOrderEventDate(orderId: string, eventDate: string | Date): Promise<IOrder | null> {
     try {
@@ -1167,7 +1619,10 @@ export class OrderService {
 
   // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
   // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
-  async getKitchenReport(targetDate?: string): Promise<{
+  async getKitchenReport(
+    targetDate?: string,
+    includeCatering = false
+  ): Promise<{
     items: Array<{
       productName: string;
       category: string;
@@ -1199,6 +1654,14 @@ export class OrderService {
         status: { $in: activeStatuses },
         isDeleted: { $ne: true }
       };
+
+      if (!includeCatering) {
+        matchStage.$nor = [
+          { orderType: 'catering' },
+          { numberOfPortions: { $exists: true, $nin: [null, ''] } },
+          { mealTime: { $exists: true, $nin: [null, ''] } }
+        ];
+      }
 
       // Kitchen prep should use the intended delivery/pickup date (customerDetails.eventDate).
       // Match exact YYYY-MM-DD and also tolerate values that include a time suffix.
@@ -1264,6 +1727,11 @@ export class OrderService {
             },
             productId: '$items.productId',
             quantity: { $ifNull: ['$items.quantity', 0] },
+            orderType: { $ifNull: ['$orderType', ''] },
+            mealTime: { $ifNull: ['$mealTime', ''] },
+            numberOfPortions: { $ifNull: ['$numberOfPortions', 0] },
+            portionsEvening: { $ifNull: ['$portionsEvening', 0] },
+            portionsMorning: { $ifNull: ['$portionsMorning', 0] },
             // CRITICAL: Use category from populated productDetails, NOT from order item
             category: {
               $ifNull: [
@@ -1284,11 +1752,83 @@ export class OrderService {
             eventDateRaw: { $ifNull: ['$customerDetails.eventDate', ''] }
           }
         },
+
+        // Step 5b: Catering lines store quantity=1 per dish; scale by portions for kitchen prep totals
+        {
+          $addFields: {
+            effectiveQuantity: {
+              $let: {
+                vars: {
+                  baseQty: { $ifNull: ['$quantity', 0] },
+                  cat: { $ifNull: ['$category', ''] },
+                  portionsEvening: {
+                    $convert: { input: '$portionsEvening', to: 'int', onError: 0, onNull: 0 }
+                  },
+                  portionsMorning: {
+                    $convert: { input: '$portionsMorning', to: 'int', onError: 0, onNull: 0 }
+                  },
+                  numberOfPortions: {
+                    $convert: { input: '$numberOfPortions', to: 'int', onError: 0, onNull: 0 }
+                  },
+                  isCateringOrder: {
+                    $or: [
+                      { $eq: ['$orderType', 'catering'] },
+                      {
+                        $and: [
+                          { $ne: ['$mealTime', ''] },
+                          { $gt: [{ $convert: { input: '$numberOfPortions', to: 'int', onError: 0, onNull: 0 } }, 0] }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                in: {
+                  $cond: {
+                    if: '$$isCateringOrder',
+                    then: {
+                      $multiply: [
+                        '$$baseQty',
+                        {
+                          $switch: {
+                            branches: [
+                              {
+                                case: { $regexMatch: { input: '$$cat', regex: 'ערב' } },
+                                then: {
+                                  $cond: {
+                                    if: { $gt: ['$$portionsEvening', 0] },
+                                    then: '$$portionsEvening',
+                                    else: { $max: ['$$numberOfPortions', 1] }
+                                  }
+                                }
+                              },
+                              {
+                                case: { $regexMatch: { input: '$$cat', regex: 'בוקר' } },
+                                then: {
+                                  $cond: {
+                                    if: { $gt: ['$$portionsMorning', 0] },
+                                    then: '$$portionsMorning',
+                                    else: { $max: ['$$numberOfPortions', 1] }
+                                  }
+                                }
+                              }
+                            ],
+                            default: { $max: ['$$numberOfPortions', 1] }
+                          }
+                        }
+                      ]
+                    },
+                    else: '$$baseQty'
+                  }
+                }
+              }
+            }
+          }
+        },
         
         // Step 6: Filter out items with zero or negative quantity
         {
           $match: {
-            quantity: { $gt: 0 }
+            effectiveQuantity: { $gt: 0 }
           }
         },
         
@@ -1299,7 +1839,7 @@ export class OrderService {
               category: '$category',
               productName: '$productName'
             },
-            totalPackages: { $sum: '$quantity' },
+            totalPackages: { $sum: '$effectiveQuantity' },
             productName: { $first: '$productName' },
             category: { $first: '$category' },
             weightString: { $first: '$productNameForWeight' },
@@ -1624,6 +2164,7 @@ export class OrderService {
 
       const orderSummary = {
         _id: (order as any)._id.toString(),
+        orderNumber: (order as any).orderNumber || null,
         status: (order as any).status || 'pending',
         assignedDriverId: (order as any).assignedDriverId ? String((order as any).assignedDriverId) : null,
         assignedDriverName: (order as any).assignedDriverName || '',

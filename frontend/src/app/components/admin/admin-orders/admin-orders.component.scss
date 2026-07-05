@@ -73,6 +73,18 @@ $border: #e2e8f0;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
 
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.08);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
   i {
     opacity: 0.85;
   }
@@ -87,13 +99,18 @@ $border: #e2e8f0;
   color: $brand-dark;
   border-bottom-color: $brand-dark;
   background: rgba($brand-dark, 0.06);
+
+  .tab-badge {
+    background: $brand-dark;
+    color: #fff;
+  }
 }
 
 .tabs-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   padding: 0.25rem;
   background: #fff;
   border-radius: 12px;
@@ -152,6 +169,321 @@ $border: #e2e8f0;
 .tab-btn.active .tab-badge {
   background: $brand-dark;
   color: #fff;
+}
+
+.table-filter-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  color: $slate;
+}
+
+.filtered-label {
+  font-weight: 600;
+  color: $brand-dark;
+}
+
+.btn-clear-filters-small {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid $border;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.75rem;
+  color: $slate;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:hover {
+    border-color: $brand-dark;
+    color: $brand-dark;
+  }
+}
+
+.mobile-filters-bar {
+  position: relative;
+  margin-bottom: 0.75rem;
+}
+
+.btn-mobile-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid $border;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  color: $slate;
+
+  .filter-active-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $brand-dark;
+  }
+}
+
+.mobile-filters-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 20;
+  min-width: 240px;
+  max-width: 90vw;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  color: $slate;
+}
+
+.th-sort-filter {
+  position: relative;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.th-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+
+  &:hover {
+    color: $brand-dark;
+  }
+}
+
+.th-label {
+  font-weight: 600;
+}
+
+.th-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba($slate, 0.55);
+  font-size: 0.7rem;
+  cursor: pointer;
+
+  &:hover {
+    color: $brand-dark;
+    background: rgba($brand-dark, 0.06);
+  }
+
+  &.active {
+    color: $brand-dark;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      inset-inline-end: 2px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: $brand-dark;
+    }
+  }
+}
+
+.th-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 30;
+  min-width: 200px;
+  max-width: 260px;
+  padding: 0.6rem;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-weight: 400;
+  white-space: normal;
+}
+
+.th-filter-input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid $border;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.th-filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.75rem;
+  color: $slate;
+}
+
+.th-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: $slate;
+  cursor: pointer;
+}
+
+.mobile-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: $slate;
+  cursor: pointer;
+}
+
+.th-filter-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.th-filter-apply {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid $brand-dark;
+  border-radius: 4px;
+  background: $brand-dark;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+
+  &.secondary {
+    background: #fff;
+    color: $slate;
+    border-color: $border;
+  }
+}
+
+.th-actions-col .th-filter-dropdown {
+  inset-inline-end: 0;
+  inset-inline-start: auto;
+}
+
+.sort-indicator {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.orders-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border: 1px solid $border;
+  border-radius: 8px;
+}
+
+.pagination-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.pagination-filter-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.pagination-summary {
+  margin: 0;
+  font-size: 0.9rem;
+  color: $slate;
+}
+
+.pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.btn-page {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid $border;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.pagination-page-label {
+  font-size: 0.85rem;
+  color: $slate;
+}
+
+.pagination-limit-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: $slate;
+}
+
+.pagination-limit-select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid $border;
+  border-radius: 6px;
+  font-family: inherit;
 }
 
 .page-header {
@@ -992,7 +1324,41 @@ $border: #e2e8f0;
   text-align: left;
 }
 
-.detail-row-event-date {
+.notes-empty {
+  color: $slate;
+  font-style: italic;
+}
+
+.notes-readonly {
+  white-space: pre-wrap;
+}
+
+.detail-row-admin-notes {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-notes-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.admin-notes-textarea {
+  width: 100%;
+  min-height: 4.5rem;
+}
+
+.order-notes-indicator {
+  margin-inline-start: 0.35rem;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.detail-row-event-date,
+.detail-row-portions {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -1000,6 +1366,40 @@ $border: #e2e8f0;
   .detail-value {
     margin-left: auto;
   }
+}
+
+.portions-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.portions-total {
+  font-weight: 600;
+}
+
+.portions-edit-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-right: auto;
+}
+
+.portions-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: $slate;
+}
+
+.input-portions {
+  width: 5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid $border;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
 .btn-edit-date {
@@ -1552,6 +1952,31 @@ $border: #e2e8f0;
   font-size: 0.82rem;
   color: #64748b;
   line-height: 1.4;
+}
+
+.catering-meal-section {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e8e8e8;
+
+  &.legacy-section {
+    background: #fafafa;
+    padding: 0.75rem;
+    border: 1px dashed #ccc;
+  }
+}
+
+.catering-meal-section-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1f3540;
+  margin-bottom: 0.35rem;
+}
+
+.catering-meal-portions {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin-bottom: 0.5rem;
 }
 
 .kitchen-prep-section {

@@ -78,24 +78,54 @@
 
           <section class="week-deadline-section">
             <span class="week-panel-label">סגירת הזמנות</span>
-            <div class="week-deadline-control">
-              <mat-icon class="week-deadline-icon">schedule</mat-icon>
-              <div class="field week-deadline-field">
-                <label for="menuOrderDeadline" class="week-picker-label">תאריך ושעת נעילה <span class="required-mark">*</span></label>
-                <input
-                  id="menuOrderDeadline"
-                  type="datetime-local"
-                  class="input week-date-input"
-                  [class.input-invalid]="menuForm.get('orderDeadline')?.invalid && menuForm.get('orderDeadline')?.touched"
-                  formControlName="orderDeadline"
-                  required
-                />
-                @if (menuForm.get('orderDeadline')?.invalid && menuForm.get('orderDeadline')?.touched) {
-                  <span class="field-error">שדה חובה — יש להגדיר מתי ההזמנות ננעלות</span>
-                }
+            <div class="week-deadline-controls">
+              <div class="week-deadline-control">
+                <mat-icon class="week-deadline-icon">schedule</mat-icon>
+                <div class="field week-deadline-field">
+                  <label for="menuWeekdayOrderDeadline" class="week-picker-label">סגירת הזמנות ימי חול <span class="required-mark">*</span></label>
+                  <input
+                    id="menuWeekdayOrderDeadline"
+                    type="datetime-local"
+                    class="input week-date-input"
+                    [class.input-invalid]="menuForm.get('weekdayOrderDeadline')?.invalid && menuForm.get('weekdayOrderDeadline')?.touched"
+                    formControlName="weekdayOrderDeadline"
+                    required
+                  />
+                  @if (menuForm.get('weekdayOrderDeadline')?.invalid && menuForm.get('weekdayOrderDeadline')?.touched) {
+                    <span class="field-error">שדה חובה</span>
+                  }
+                </div>
+              </div>
+              <div class="week-deadline-control">
+                <mat-icon class="week-deadline-icon">nightlight</mat-icon>
+                <div class="field week-deadline-field">
+                  <label for="menuShabbatOrderDeadline" class="week-picker-label">סגירת הזמנות שבת <span class="required-mark">*</span></label>
+                  <input
+                    id="menuShabbatOrderDeadline"
+                    type="datetime-local"
+                    class="input week-date-input"
+                    [class.input-invalid]="menuForm.get('shabbatOrderDeadline')?.invalid && menuForm.get('shabbatOrderDeadline')?.touched"
+                    formControlName="shabbatOrderDeadline"
+                    required
+                  />
+                  @if (menuForm.get('shabbatOrderDeadline')?.invalid && menuForm.get('shabbatOrderDeadline')?.touched) {
+                    <span class="field-error">שדה חובה</span>
+                  }
+                </div>
               </div>
             </div>
-            <p class="week-deadline-hint">חובה לפני שמירת תפריט — חל על כל המוסדות לשבוע הנבחר; לאחר מכן הפורטל ננעל</p>
+            <p class="week-deadline-unsaved-hint">שימו לב: שינוי דדליין דורש שמירה</p>
+            <div class="week-deadline-footer">
+              <button
+                type="button"
+                class="btn-primary week-deadline-save-btn"
+                (click)="saveWeekMenu()"
+                [disabled]="isSavingMenu || isLoadingMenu || menuForm.invalid"
+              >
+                @if (isSavingMenu) { שומר... } @else { שמור הגדרות שבוע }
+              </button>
+            </div>
+            <p class="week-deadline-hint">חובה לפני שמירה — דדליין נפרד לימי חול (א׳–ה׳) ולשבת; לאחר מכן הפורטל ננעל לפי כל דדליין בנפרד</p>
           </section>
         </div>
       </div>
@@ -279,8 +309,14 @@
               @if (menuError) {
                 <div class="alert alert-error">{{ menuError }}</div>
               }
-              @if (menuForm.get('orderDeadline')?.invalid && (menuForm.get('orderDeadline')?.touched || menuForm.get('orderDeadline')?.dirty)) {
-                <div class="alert alert-error">יש להגדיר תאריך ושעת סגירת הזמנות בפאנל העליון לפני שמירת התפריט</div>
+              @if (
+                (menuForm.get('weekdayOrderDeadline')?.invalid || menuForm.get('shabbatOrderDeadline')?.invalid) &&
+                (menuForm.get('weekdayOrderDeadline')?.touched ||
+                  menuForm.get('shabbatOrderDeadline')?.touched ||
+                  menuForm.get('weekdayOrderDeadline')?.dirty ||
+                  menuForm.get('shabbatOrderDeadline')?.dirty)
+              ) {
+                <div class="alert alert-error">יש להגדיר שני זמני סגירת הזמנות (ימי חול ושבת) בפאנל העליון לפני שמירת התפריט</div>
               }
               @if (isLoadingMenu) {
                 <p class="loading-text">טוען תפריט...</p>
@@ -452,8 +488,8 @@
             </div>
 
             <div class="form-actions menu-actions">
-              <button type="submit" class="btn-primary" [disabled]="isSavingMenu || menuForm.invalid">
-                @if (isSavingMenu) { שומר... } @else { שמור תפריט }
+              <button type="submit" class="btn-primary" [disabled]="isSavingMenu || isLoadingMenu || menuForm.invalid">
+                @if (isSavingMenu) { שומר... } @else { שמור תפריט והגדרות שבוע }
               </button>
               <button type="button" class="btn-secondary danger-outline" (click)="clearWeekMenu()" [disabled]="isClearingMenu">
                 @if (isClearingMenu) { מוחק... } @else { נקה תפריט }
@@ -467,9 +503,13 @@
       <mat-tab label="דוחות ועריכת הזמנות">
         <div class="tab-panel reports-panel">
           <div class="reports-toolbar no-print">
-            <button type="button" class="btn-primary" (click)="printReports()" [disabled]="!reports">
+            <button type="button" class="btn-primary" (click)="printProductionReport()" [disabled]="!reports">
               <mat-icon>print</mat-icon>
-              הדפס דוח
+              הדפס דוח ייצור
+            </button>
+            <button type="button" class="btn-primary" (click)="printPackingReport()" [disabled]="!reports">
+              <mat-icon>local_shipping</mat-icon>
+              הדפס דוח אריזה
             </button>
           </div>
 
@@ -586,6 +626,12 @@
                     <div class="erp-card packing-institution day-packing-card">
                       <div class="packing-institution-header">
                         <h4>{{ order.institutionName }}</h4>
+                        @if (order.generalNotes?.trim()) {
+                          <div class="packing-general-notes institution-notes">
+                            <mat-icon class="packing-note-icon" aria-hidden="true">comment</mat-icon>
+                            <span><strong>הערה כללית מהמוסד:</strong> {{ order.generalNotes }}</span>
+                          </div>
+                        }
                         <div class="packing-header-actions no-print">
                           <span class="weekly-total-badge">
                             סה"כ מנות לשבוע זה: <strong>{{ order.weeklyGrandTotal }}</strong>
@@ -617,8 +663,10 @@
                               <td>{{ day.vegetarianCount }}</td>
                               <td class="packing-categories-cell">
                                 @if (day.isShabbat) {
-                                  @let shabbatLines = packingShabbatLineItems(order);
-                                  @if (shabbatLines.length === 0) {
+                                  @let shabbatLines = packingShabbatLineItemsForMeal(order, day);
+                                  @if (shabbatLines.length === 0 && day.dayLabel === 'תוספות שבת') {
+                                    <span>—</span>
+                                  } @else if (shabbatLines.length === 0) {
                                     <span>—</span>
                                   } @else {
                                     <div class="report-menu-list">
@@ -627,15 +675,8 @@
                                       }
                                     </div>
                                   }
-                                  @if (order.shabbatOrder?.extras; as extras) {
-                                    @if (extras.challahs || extras.rolls || extras.grapeJuice) {
-                                      <div class="packing-day-note institution-notes">
-                                        תוספות:
-                                        @if (extras.challahs) { חלות {{ extras.challahs }} }
-                                        @if (extras.rolls) { · לחמניות {{ extras.rolls }} }
-                                        @if (extras.grapeJuice) { · מיץ ענבים {{ extras.grapeJuice }} }
-                                      </div>
-                                    }
+                                  @if (day.notes) {
+                                    <div class="packing-day-note institution-notes">{{ day.notes }}</div>
                                   }
                                 } @else {
                                   @let packingLines = packingCategoryLineItems(day);
@@ -779,15 +820,51 @@
 
         <div class="order-shabbat-section" formGroupName="shabbatOrder">
           <h4 class="day-title">חבילת שבת</h4>
-          <div class="form-row">
-            <div class="field">
-              <label for="ord-shabbat-reg">מנות רגילות (שבת)</label>
-              <input id="ord-shabbat-reg" type="number" min="0" step="1" class="input" formControlName="regularCount" />
+          @if (orderEditShabbatLegacySummary) {
+            <div class="alert alert-info legacy-shabbat-summary">{{ orderEditShabbatLegacySummary }}</div>
+          }
+          <div formGroupName="mealPortions" class="admin-shabbat-meals">
+            <div class="admin-shabbat-meal-block" formGroupName="fridayNight">
+              <h5 class="admin-shabbat-meal-title">סעודה ראשונה / ערב שבת</h5>
+              <div class="form-row">
+                <div class="field">
+                  <label for="ord-shabbat-fn-reg">מנות רגילות</label>
+                  <input id="ord-shabbat-fn-reg" type="number" min="0" step="1" class="input" formControlName="regularCount" />
+                </div>
+                <div class="field">
+                  <label for="ord-shabbat-fn-veg">מנות צמחוניות</label>
+                  <input id="ord-shabbat-fn-veg" type="number" min="0" step="1" class="input" formControlName="vegetarianCount" />
+                </div>
+              </div>
             </div>
-            <div class="field">
-              <label for="ord-shabbat-veg">מנות צמחוניות (שבת)</label>
-              <input id="ord-shabbat-veg" type="number" min="0" step="1" class="input" formControlName="vegetarianCount" />
+            <div class="admin-shabbat-meal-block" formGroupName="shabbatDay">
+              <h5 class="admin-shabbat-meal-title">סעודה שנייה / שבת בבוקר</h5>
+              <div class="form-row">
+                <div class="field">
+                  <label for="ord-shabbat-sd-reg">מנות רגילות</label>
+                  <input id="ord-shabbat-sd-reg" type="number" min="0" step="1" class="input" formControlName="regularCount" />
+                </div>
+                <div class="field">
+                  <label for="ord-shabbat-sd-veg">מנות צמחוניות</label>
+                  <input id="ord-shabbat-sd-veg" type="number" min="0" step="1" class="input" formControlName="vegetarianCount" />
+                </div>
+              </div>
             </div>
+            @if (orderWantsSeudaShlishit) {
+              <div class="admin-shabbat-meal-block" formGroupName="seudaShlishit">
+                <h5 class="admin-shabbat-meal-title">סעודה שלישית</h5>
+                <div class="form-row">
+                  <div class="field">
+                    <label for="ord-shabbat-seuda-reg">מנות רגילות</label>
+                    <input id="ord-shabbat-seuda-reg" type="number" min="0" step="1" class="input" formControlName="regularCount" />
+                  </div>
+                  <div class="field">
+                    <label for="ord-shabbat-seuda-veg">מנות צמחוניות</label>
+                    <input id="ord-shabbat-seuda-veg" type="number" min="0" step="1" class="input" formControlName="vegetarianCount" />
+                  </div>
+                </div>
+              </div>
+            }
           </div>
           <div class="field shabbat-checkbox-field">
             <mat-checkbox formControlName="wantsSeudaShlishit">מעוניינים בסעודה שלישית?</mat-checkbox>
@@ -806,6 +883,36 @@
               <input id="ord-grape" type="number" min="0" step="1" class="input" formControlName="grapeJuice" />
             </div>
           </div>
+          <div class="field">
+            <label for="ord-shabbat-notes">הערות מוסד להזמנת שבת</label>
+            <textarea
+              id="ord-shabbat-notes"
+              rows="2"
+              class="input textarea"
+              formControlName="notes"
+              maxlength="1000"
+              placeholder="הערות שהמוסד הזין לשבת"
+            ></textarea>
+          </div>
+        </div>
+
+        @if (orderEditGeneralNotes) {
+          <div class="field order-general-notes-field">
+            <label>הערה כללית מהמוסד</label>
+            <div class="readonly-notes">{{ orderEditGeneralNotes }}</div>
+          </div>
+        }
+
+        <div class="field order-admin-notes-field">
+          <label for="ord-admin-notes">הערת מנהל (פנימית)</label>
+          <textarea
+            id="ord-admin-notes"
+            rows="2"
+            class="input textarea"
+            formControlName="adminNotes"
+            maxlength="1000"
+            placeholder="הערה פנימית למנהל — לא נשלחת למוסד"
+          ></textarea>
         </div>
 
         <div class="weekly-total-preview">

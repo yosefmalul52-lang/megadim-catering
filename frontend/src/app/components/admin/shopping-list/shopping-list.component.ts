@@ -37,6 +37,14 @@ interface ShoppingListByCategory {
                 <span class="toggle-label-text">הוסף 10% ביטחון</span>
               </label>
             </div>
+            <button
+              type="button"
+              class="btn-print"
+              (click)="printShoppingList()"
+              [disabled]="isLoading || !shoppingList || getCategoryCount() === 0">
+              <i class="fas fa-print"></i>
+              הדפס רשימת קניות
+            </button>
             <button class="btn-export" (click)="copyToWhatsApp()">
               <i class="fab fa-whatsapp"></i>
               העתק לוואטסאפ
@@ -214,6 +222,31 @@ interface ShoppingListByCategory {
       box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
     }
 
+    .btn-print {
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .btn-print:hover:not(:disabled) {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+
+    .btn-print:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     /* Loading & Error States */
     .loading {
       text-align: center;
@@ -381,6 +414,11 @@ interface ShoppingListByCategory {
         justify-content: center;
       }
 
+      .btn-print {
+        width: 100%;
+        justify-content: center;
+      }
+
       .item-row {
         grid-template-columns: 1fr;
         gap: 0.5rem;
@@ -396,7 +434,9 @@ interface ShoppingListByCategory {
 })
 export class ShoppingListComponent implements OnInit {
   private http = inject(HttpClient);
-  
+
+  private readonly safetyMarginPercent = 10;
+
   shoppingList: ShoppingListByCategory | null = null;
   isLoading = false;
   errorMessage = '';
@@ -410,7 +450,7 @@ export class ShoppingListComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
     
-    const safetyMargin = this.safetyMarginEnabled ? 10 : 0;
+    const safetyMargin = this.safetyMarginEnabled ? this.safetyMarginPercent : 0;
     const url = `${environment.apiUrl}/shopping?safetyMargin=${safetyMargin}`;
     
     this.http.get<{ success: boolean; data: ShoppingListByCategory }>(url).subscribe({
@@ -482,6 +522,126 @@ export class ShoppingListComponent implements OnInit {
       'חבילה': 'חבילה'
     };
     return translations[unit] || unit;
+  }
+
+  getTotalItemCount(): number {
+    return this.getCategories().reduce((sum, category) => sum + this.getItemCount(category), 0);
+  }
+
+  printShoppingList(): void {
+    if (!this.shoppingList || this.getCategoryCount() === 0) return;
+
+    const popupWin = window.open('', '_blank', 'top=0,left=0,height=100%,width=auto');
+    if (!popupWin) {
+      alert('אנא אפשר חלונות קופצים (Popups) כדי להדפיס.');
+      return;
+    }
+
+    popupWin.document.open();
+    popupWin.document.write(this.buildShoppingListPrintHtml());
+    popupWin.document.close();
+
+    setTimeout(() => {
+      popupWin.focus();
+      popupWin.print();
+      popupWin.close();
+    }, 400);
+  }
+
+  private buildShoppingListPrintHtml(): string {
+    const printedAt = new Date().toLocaleString('he-IL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const metaLines: string[] = [`<div class="meta-line"><strong>הודפס:</strong> ${printedAt}</div>`];
+    if (this.safetyMarginEnabled) {
+      metaLines.push(
+        `<div class="meta-line"><strong>כולל מרווח ביטחון:</strong> ${this.safetyMarginPercent}%</div>`
+      );
+    }
+    metaLines.push(`<div class="meta-line">מבוסס על הזמנות פעילות (ללא ביטול)</div>`);
+
+    const categoriesHtml = this.getCategories()
+      .map((category) => {
+        const items = this.shoppingList![category] || [];
+        const rows = items
+          .map(
+            (item) => `<tr>
+              <td class="done-col">☐</td>
+              <td>${this.escapePrintHtml(item.name)}</td>
+              <td class="num-col">${this.escapePrintHtml(this.formatQuantity(item.total))}</td>
+              <td class="num-col">${this.escapePrintHtml(this.translateUnit(item.unit))}</td>
+            </tr>`
+          )
+          .join('');
+
+        return `<div class="category-block">
+          <h2>${this.escapePrintHtml(this.translateCategory(category))}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th class="done-col">בוצע</th>
+                <th>חומר גלם</th>
+                <th class="num-col">כמות</th>
+                <th class="num-col">יחידה</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      })
+      .join('');
+
+    const categoryCount = this.getCategoryCount();
+    const itemCount = this.getTotalItemCount();
+
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8">
+      <title>רשימת קניות — מגדים</title>
+      <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        body {
+          font-family: Heebo, Arial, sans-serif;
+          margin: 0; padding: 12mm;
+          color: #111; background: #fff;
+          direction: rtl; text-align: right;
+        }
+        h1 { margin: 0 0 8px; font-size: 1.35rem; font-weight: 800; text-align: center; }
+        .meta { margin: 0 0 16px; font-size: 0.9rem; line-height: 1.7; text-align: center; }
+        .meta-line { margin: 2px 0; }
+        .category-block { margin: 16px 0; page-break-inside: avoid; }
+        .category-block h2 {
+          margin: 0 0 6px; font-size: 1rem; font-weight: 800;
+          border-bottom: 1px solid #111; padding-bottom: 4px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #111; padding: 5px 8px; text-align: right; vertical-align: top; color: #000; }
+        th { background: #f4f4f4; font-weight: 700; }
+        .done-col { width: 36px; text-align: center; }
+        .num-col { white-space: nowrap; }
+        .summary-block { margin-top: 20px; padding: 10px 12px; border: 1px solid #111; page-break-inside: avoid; }
+        .summary-title { font-weight: 800; margin-bottom: 6px; }
+      </style></head><body>
+        <h1>רשימת קניות — מגדים</h1>
+        <div class="meta">${metaLines.join('')}</div>
+        ${categoriesHtml}
+        <div class="summary-block">
+          <div class="summary-title">סיכום</div>
+          <div>סה"כ קטגוריות: <strong>${categoryCount}</strong></div>
+          <div>סה"כ פריטים שונים: <strong>${itemCount}</strong></div>
+        </div>
+      </body></html>`;
+  }
+
+  private escapePrintHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   copyToWhatsApp(): void {

@@ -198,6 +198,13 @@ export class OrderController {
     if (body.email && !isValidEmail(body.email)) {
       throw createValidationError('email must be a valid email address');
     }
+    if (body.eventDate && body.manualOrder !== true) {
+      try {
+        await this.orderService.validateEventDateOpen(body.eventDate);
+      } catch (err: any) {
+        throw createValidationError(err?.message || 'תאריך זה אינו פתוח להזמנות');
+      }
+    }
 
     const recalculatedDeliveryFee = await this.recalculateDeliveryFeeForCheckout(body);
     body.deliveryFee = recalculatedDeliveryFee;
@@ -318,6 +325,14 @@ export class OrderController {
       throw createValidationError('Guest count must be greater than 0');
     }
 
+    if (orderData.eventDate) {
+      try {
+        await this.orderService.validateEventDateOpen(orderData.eventDate);
+      } catch (err: any) {
+        throw createValidationError(err?.message || 'תאריך זה אינו פתוח להזמנות');
+      }
+    }
+
     // Pass userId to service (null for guest orders)
     const response = await this.orderService.submitOrder(orderData, userId);
 
@@ -365,8 +380,110 @@ export class OrderController {
 
   // Get all orders (Admin only). ?archive=1 returns archived/cancelled orders.
   // ?paymentFilter=failed returns failed/abandoned online-payment orders only.
+  // When ?page or ?source or ?statusTab is sent, uses paginated admin dashboard query.
   getAllOrders = asyncHandler(async (req: Request, res: Response) => {
-    const { status, limit, offset, startDate, endDate, archive, paymentFilter } = req.query;
+    const {
+      status,
+      limit,
+      offset,
+      startDate,
+      endDate,
+      archive,
+      paymentFilter,
+      page,
+      source,
+      statusTab,
+      search,
+      dateFrom,
+      dateTo,
+      orderNumberSearch,
+      customerSearch,
+      createdFrom,
+      createdTo,
+      eventFrom,
+      eventTo,
+      sortBy,
+      sortDir,
+      hasCustomerNotes,
+      hasAdminNotes
+    } = req.query;
+
+    const usesAdminPage =
+      page != null ||
+      source != null ||
+      statusTab != null ||
+      search != null ||
+      dateFrom != null ||
+      dateTo != null ||
+      orderNumberSearch != null ||
+      customerSearch != null ||
+      createdFrom != null ||
+      createdTo != null ||
+      eventFrom != null ||
+      eventTo != null ||
+      sortBy != null ||
+      hasCustomerNotes != null ||
+      hasAdminNotes != null;
+
+    if (usesAdminPage) {
+      const validSources = ['shabbat', 'catering', 'events'] as const;
+      const validStatusTabs = ['pending', 'processing', 'ready', 'failed', 'archive'] as const;
+      const validSortBy = [
+        'createdAt',
+        'eventDate',
+        'customerName',
+        'totalPrice',
+        'status',
+        'orderNumber'
+      ] as const;
+
+      const sourceValue =
+        typeof source === 'string' && (validSources as readonly string[]).includes(source)
+          ? (source as (typeof validSources)[number])
+          : undefined;
+      const statusTabValue =
+        typeof statusTab === 'string' && (validStatusTabs as readonly string[]).includes(statusTab)
+          ? (statusTab as (typeof validStatusTabs)[number])
+          : undefined;
+      const sortByValue =
+        typeof sortBy === 'string' && (validSortBy as readonly string[]).includes(sortBy)
+          ? (sortBy as (typeof validSortBy)[number])
+          : undefined;
+
+      const result = await this.orderService.getAdminOrdersPage({
+        page: page ? parseInt(page as string, 10) : 1,
+        limit: limit ? parseInt(limit as string, 10) : 25,
+        source: sourceValue,
+        statusTab: statusTabValue,
+        search: typeof search === 'string' ? search : undefined,
+        dateFrom: typeof dateFrom === 'string' ? dateFrom : undefined,
+        dateTo: typeof dateTo === 'string' ? dateTo : undefined,
+        orderNumberSearch:
+          typeof orderNumberSearch === 'string' ? orderNumberSearch : undefined,
+        customerSearch: typeof customerSearch === 'string' ? customerSearch : undefined,
+        createdFrom: typeof createdFrom === 'string' ? createdFrom : undefined,
+        createdTo: typeof createdTo === 'string' ? createdTo : undefined,
+        eventFrom: typeof eventFrom === 'string' ? eventFrom : undefined,
+        eventTo: typeof eventTo === 'string' ? eventTo : undefined,
+        sortBy: sortByValue,
+        sortDir: sortDir === 'desc' ? 'desc' : sortDir === 'asc' ? 'asc' : undefined,
+        hasCustomerNotes: hasCustomerNotes === 'true' || hasCustomerNotes === '1',
+        hasAdminNotes: hasAdminNotes === 'true' || hasAdminNotes === '1'
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: result.orders,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const paymentFilterValue =
       paymentFilter === 'failed' ? ('failed' as const) : ('valid' as const);
 
@@ -606,12 +723,75 @@ export class OrderController {
     });
   });
 
+  /** PATCH /api/order/admin/:id/portions – update Shabbat catering portion counts (Admin). */
+  updateOrderPortions = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.updateOrderPortions(id, {
+        portionsEvening: req.body?.portionsEvening,
+        portionsMorning: req.body?.portionsMorning
+      });
+    } catch (err: any) {
+      throw createValidationError(err?.message || 'Failed to update portion counts');
+    }
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Portion counts updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  /** PATCH /api/order/admin/:id/admin-notes – update internal admin notes only (Admin). */
+  updateOrderAdminNotes = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.updateOrderAdminNotes(id, req.body?.adminNotes);
+    } catch (err: any) {
+      throw createValidationError(err?.message || 'Failed to update admin notes');
+    }
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Admin notes updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   /** GET /api/order/dashboard-stats – pending count, events today, monthly revenue. */
   getDashboardStats = asyncHandler(async (req: Request, res: Response) => {
     const stats = await this.orderService.getDashboardStats();
     res.status(200).json({
       success: true,
       data: stats,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  /** GET /api/order/admin/tab-counts – per-source status counts for admin orders dashboard. */
+  getAdminTabCounts = asyncHandler(async (req: Request, res: Response) => {
+    const counts = await this.orderService.getAdminTabCounts();
+    res.status(200).json({
+      success: true,
+      data: counts,
       timestamp: new Date().toISOString()
     });
   });
@@ -816,7 +996,9 @@ export class OrderController {
   getKitchenReport = asyncHandler(async (req: Request, res: Response) => {
     try {
       const targetDate = typeof req.query.date === 'string' ? req.query.date : undefined;
-      const report = await this.orderService.getKitchenReport(targetDate);
+      const includeCatering =
+        req.query.includeCatering === 'true' || req.query.includeCatering === '1';
+      const report = await this.orderService.getKitchenReport(targetDate, includeCatering);
 
       res.status(200).json({
         success: true,

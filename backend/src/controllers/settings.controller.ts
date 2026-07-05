@@ -5,6 +5,19 @@ import StoreSettings from '../models/store-settings.model';
 import Setting from '../models/setting.model';
 import DeliveryPricing from '../models/delivery-pricing.model';
 import { asyncHandler, createValidationError } from '../middleware/errorHandler';
+import {
+  normalizeOpenDateRules,
+  normalizeOpenDates,
+  validateOpenDateRulesPayload
+} from '../utils/open-date-rules';
+
+const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
+
+function deliveryDatesFromDoc(doc: any) {
+  const openDates = normalizeOpenDates(doc?.openDates);
+  const openDateRules = normalizeOpenDateRules(doc?.openDateRules);
+  return { openDates, openDateRules };
+}
 
 function defaultPageAnnouncements(): Record<string, IPageAnnouncement> {
   const out: Record<string, IPageAnnouncement> = {};
@@ -324,9 +337,7 @@ export class SettingsController {
       });
     }
     const tiers = await DeliveryPricing.find({}).sort({ minDistanceKm: 1 }).lean();
-    const openDates = Array.isArray((doc as any).openDates)
-      ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s as string))
-      : [];
+    const { openDates, openDateRules } = deliveryDatesFromDoc(doc);
     const minimumLeadDays = typeof doc.minimumLeadDays === 'number' && doc.minimumLeadDays >= 0 ? doc.minimumLeadDays : 2;
     res.status(200).json({
       success: true,
@@ -336,6 +347,7 @@ export class SettingsController {
         baseDeliveryFee: typeof (doc as any).baseDeliveryFee === 'number' ? (doc as any).baseDeliveryFee : 25,
         pricePerKm: typeof (doc as any).pricePerKm === 'number' ? (doc as any).pricePerKm : 3,
         openDates,
+        openDateRules,
         minimumLeadDays,
         tiers
       }
@@ -348,6 +360,7 @@ export class SettingsController {
       freeShippingThreshold,
       isFreeShippingActive,
       openDates,
+      openDateRules,
       minimumLeadDays,
       baseDeliveryFee,
       pricePerKm,
@@ -361,11 +374,27 @@ export class SettingsController {
     if (isFreeShippingActive !== undefined && typeof isFreeShippingActive !== 'boolean') {
       throw createValidationError('isFreeShippingActive must be a boolean');
     }
-    const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
+    const YYYYMMDD_LOCAL = YYYYMMDD;
     if (openDates !== undefined) {
       if (!Array.isArray(openDates)) throw createValidationError('openDates must be an array');
-      const valid = openDates.every((s: unknown) => typeof s === 'string' && YYYYMMDD.test(s as string));
+      const valid = openDates.every((s: unknown) => typeof s === 'string' && YYYYMMDD_LOCAL.test(s as string));
       if (!valid) throw createValidationError('openDates must contain only strings in YYYY-MM-DD format');
+    }
+    let normalizedOpenDateRules: ReturnType<typeof normalizeOpenDateRules> | undefined;
+    if (openDateRules !== undefined) {
+      const rulesValidation = validateOpenDateRulesPayload(openDateRules);
+      if (rulesValidation.ok === false) {
+        throw createValidationError(rulesValidation.message);
+      }
+      normalizedOpenDateRules = rulesValidation.rules;
+      if (openDates !== undefined) {
+        const openSet = new Set(openDates as string[]);
+        for (const rule of normalizedOpenDateRules) {
+          if (!openSet.has(rule.date)) {
+            throw createValidationError('כל תאריך ב-openDateRules חייב להופיע גם ב-openDates');
+          }
+        }
+      }
     }
     if (minimumLeadDays !== undefined) {
       const n = Number(minimumLeadDays);
@@ -412,6 +441,7 @@ export class SettingsController {
     if (freeShippingThreshold !== undefined) update.freeShippingThreshold = Number(freeShippingThreshold);
     if (isFreeShippingActive !== undefined) update.isFreeShippingActive = isFreeShippingActive;
     if (openDates !== undefined) update.openDates = openDates;
+    if (normalizedOpenDateRules !== undefined) update.openDateRules = normalizedOpenDateRules;
     if (minimumLeadDays !== undefined) update.minimumLeadDays = Number(minimumLeadDays);
     if (baseDeliveryFee !== undefined) update.baseDeliveryFee = Number(baseDeliveryFee);
     if (pricePerKm !== undefined) update.pricePerKm = Number(pricePerKm);
@@ -456,9 +486,7 @@ export class SettingsController {
       });
 
       const doc = savedDoc as any;
-      const openDatesOut = Array.isArray(doc?.openDates)
-        ? (doc as any).openDates.filter((s: unknown) => typeof s === 'string' && YYYYMMDD.test(s as string))
-        : [];
+      const { openDates: openDatesOut, openDateRules: openDateRulesOut } = deliveryDatesFromDoc(doc);
       const minimumLeadDaysOut = typeof doc?.minimumLeadDays === 'number' && doc.minimumLeadDays >= 0 ? doc.minimumLeadDays : 2;
       const tiersOut = await DeliveryPricing.find({}).sort({ minDistanceKm: 1 }).lean();
       console.log('2. Document actually saved to DB (tiers from DeliveryPricing collection):', JSON.stringify(tiersOut, null, 2));
@@ -471,6 +499,7 @@ export class SettingsController {
           baseDeliveryFee: typeof doc?.baseDeliveryFee === 'number' ? doc.baseDeliveryFee : 25,
           pricePerKm: typeof doc?.pricePerKm === 'number' ? doc.pricePerKm : 3,
           openDates: openDatesOut,
+          openDateRules: openDateRulesOut,
           minimumLeadDays: minimumLeadDaysOut,
           tiers: tiersOut
         },

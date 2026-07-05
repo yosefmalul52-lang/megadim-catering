@@ -4,6 +4,12 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import {
+  formatDeadlineNotice,
+  resolveShabbatOrderDeadline,
+  resolveWeekdayOrderDeadline,
+  type MenuDeadlineFields
+} from '../utils/portal-week';
+import {
   MenuDayItems,
   InstitutionMenuContent,
   ShabbatOrder,
@@ -31,16 +37,23 @@ export interface PortalStatus {
   currentWeekStartDate: string;
   nextWeekStartDate: string;
   isLocked: boolean;
+  isWeekdayLocked: boolean;
+  isShabbatLocked: boolean;
   menuPublished: boolean;
   noMenuPublished: boolean;
   orderDeadline: string | null;
+  weekdayOrderDeadline: string | null;
+  shabbatOrderDeadline: string | null;
   portalSettings: InstitutionPortalSettings;
   menu: InstitutionMenuContent;
   order: {
     weekStartDate: string;
     isLocked: boolean;
+    isWeekdayLocked: boolean;
+    isShabbatLocked: boolean;
     days: InstitutionOrderDay[];
     shabbatOrder: ShabbatOrder;
+    generalNotes?: string;
   };
 }
 
@@ -51,6 +64,7 @@ export const PORTAL_DAY_LABELS = MENU_WEEKDAY_FORM_FIELDS.map((d) => ({
 }));
 
 export { MENU_CATEGORIES, MenuDayItems, emptyMenuDayItems, emptyShabbatOrder, isMenuWeekPublished };
+export type { InstitutionMenuContent, ShabbatOrder };
 
 export function formatOrderDeadlineNotice(orderDeadline: string | null | undefined): string {
   if (!orderDeadline) {
@@ -65,6 +79,28 @@ export function formatOrderDeadlineNotice(orderDeadline: string | null | undefin
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   return `שימו לב: נעילת הזמנות לשבוע זה תתבצע בתאריך ${dd}.${mm} בשעה ${hh}:${min}`;
+}
+
+export function formatPortalDeadlineNotices(status: MenuDeadlineFields): {
+  weekday: string;
+  shabbat: string;
+  usesLegacyFallback: boolean;
+} {
+  const usesLegacyFallback =
+    !status.weekdayOrderDeadline?.trim() &&
+    !status.shabbatOrderDeadline?.trim() &&
+    !!status.orderDeadline?.trim();
+  const weekdayPrefix = usesLegacyFallback
+    ? 'סגירת הזמנות (דדליין כללי לימי חול)'
+    : 'סגירת הזמנות ימי חול';
+  const shabbatPrefix = usesLegacyFallback
+    ? 'סגירת הזמנות (דדליין כללי לשבת)'
+    : 'סגירת הזמנות שבת';
+  return {
+    weekday: formatDeadlineNotice(resolveWeekdayOrderDeadline(status), weekdayPrefix),
+    shabbat: formatDeadlineNotice(resolveShabbatOrderDeadline(status), shabbatPrefix),
+    usesLegacyFallback
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -85,11 +121,21 @@ export class InstitutionPortalService {
       .pipe(map((res) => res.data));
   }
 
-  submit(days: InstitutionOrderDay[], weekStartDate: string, shabbatOrder?: ShabbatOrder): Observable<void> {
+  submit(
+    days: InstitutionOrderDay[],
+    weekStartDate: string,
+    shabbatOrder?: ShabbatOrder,
+    generalNotes?: string
+  ): Observable<void> {
     return this.http
       .post<{ success: boolean; message?: string }>(
         `${this.baseUrl}/submit`,
-        { weekStartDate, days, shabbatOrder: shabbatOrder ?? emptyShabbatOrder() },
+        {
+          weekStartDate,
+          days,
+          shabbatOrder: shabbatOrder ?? emptyShabbatOrder(),
+          generalNotes: (generalNotes ?? '').trim()
+        },
         { withCredentials: true }
       )
       .pipe(map(() => undefined));

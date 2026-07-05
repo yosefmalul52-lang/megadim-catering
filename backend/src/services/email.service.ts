@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import Order, { IOrder } from '../models/Order';
-import { generateAdminEmailHtml, generateCustomerEmailHtml, generateCateringCustomerEmailHtml, OrderTemplateData } from './email-templates';
+import { generateAdminEmailHtml, generateCustomerEmailHtml, generateCateringCustomerEmailHtml, buildShabbatMealsExtraInfo, OrderTemplateData } from './email-templates';
 import { ORDER_API_DETAIL_SELECT } from '../utils/order-projection.util';
 import {
   normalizeCateringLineItems,
@@ -53,6 +53,142 @@ export interface OrderEmailData {
   cateringKind?: 'shabbat' | 'events';
   /** Extra labelled info for the catering email (meal type, guest count, etc.). */
   cateringExtraInfo?: Array<{ label: string; value: string }>;
+  /** Internal admin notes — included in owner email only. */
+  adminNotes?: string;
+  /** Mongo order id — used to build admin dashboard link for owner emails. */
+  orderId?: string;
+}
+
+function buildDashboardOrderUrl(): string {
+  const base = (process.env.FRONTEND_URL || 'http://localhost:4200').replace(/\/$/, '');
+  return `${base}/admin/orders`;
+}
+
+function resolveOrderAddress(order: IOrder): string | undefined {
+  const addressRaw = order.customerDetails?.address;
+  if (typeof addressRaw === 'string') return addressRaw.trim() || undefined;
+  if (addressRaw && typeof addressRaw === 'object') {
+    const joined = [addressRaw.city, addressRaw.street, addressRaw.apartment].filter(Boolean).join(', ');
+    return joined.trim() || undefined;
+  }
+  if (order.cateringKind === 'events' && order.venue) {
+    return String(order.venue).trim() || undefined;
+  }
+  return undefined;
+}
+
+function buildEventsCateringExtraInfo(order: IOrder): Array<{ label: string; value: string }> {
+  const rows: Array<{ label: string; value: string }> = [];
+  if (order.eventType) rows.push({ label: 'סוג אירוע', value: String(order.eventType) });
+  const guests = order.guestCount ?? order.numberOfPortions;
+  if (guests !== undefined && guests !== null && String(guests).trim()) {
+    rows.push({ label: 'מספר אורחים', value: String(guests) });
+  }
+  if (order.venue) rows.push({ label: 'מיקום האירוע', value: String(order.venue) });
+  const pricePerPortion = order.subtotal ?? order.customerDetails?.pricePerPortion;
+  if (pricePerPortion != null && Number(pricePerPortion) > 0) {
+    rows.push({ label: 'מחיר למנה (משוער)', value: `₪${Number(pricePerPortion)}` });
+  }
+  if (order.totalPrice != null && Number(order.totalPrice) > 0) {
+    rows.push({ label: 'סה״כ לתשלום (משוער)', value: `₪${Number(order.totalPrice)}` });
+  }
+  return rows.filter((r) => r.value.trim());
+}
+
+function buildTemplateDataFromOrder(order: IOrder): OrderTemplateData {
+  const deliveryType: 'pickup' | 'delivery' =
+    order.customerDetails?.deliveryMethod === 'delivery' ||
+    order.customerDetails?.deliveryType === 'delivery'
+      ? 'delivery'
+      : 'pickup';
+
+  const cateringKind =
+    order.cateringKind === 'events' ? 'events' : order.cateringKind === 'shabbat' ? 'shabbat' : undefined;
+
+  let cateringExtraInfo: Array<{ label: string; value: string }> | undefined;
+  let orderKindLabel: string | undefined;
+
+  if (cateringKind === 'shabbat') {
+    orderKindLabel = 'קייטרינג שבת/חג';
+    const seudaFromNotes = (order.customerDetails?.notes || '').includes('סעודה שלישית: כן');
+    cateringExtraInfo = buildShabbatMealsExtraInfo({
+      portionsEvening: order.portionsEvening,
+      portionsMorning: order.portionsMorning,
+      numberOfPortions: order.numberOfPortions,
+      mealTime: order.mealTime,
+      mealTypes: order.mealTypes,
+      seudaShlishit: seudaFromNotes ? 'yes' : undefined
+    });
+  } else if (cateringKind === 'events') {
+    orderKindLabel = 'קייטרינג אירועים';
+    cateringExtraInfo = buildEventsCateringExtraInfo(order);
+  } else {
+    orderKindLabel = 'הזמנה רגילה';
+  }
+
+  return {
+    customerName: order.customerDetails?.fullName || 'לא צוין',
+    customerPhone: order.customerDetails?.phone || 'לא צוין',
+    customerEmail: (order.customerDetails?.email || '').toString().trim() || undefined,
+    orderType: deliveryType,
+    eventDate: order.customerDetails?.eventDate,
+    address: resolveOrderAddress(order),
+    notes: order.customerDetails?.notes,
+    adminNotes: (order.adminNotes || '').trim() || undefined,
+    cartItems: (order.items || []).map((item: any) => ({
+      name: item.name,
+      price: Number(item.price) || 0,
+      quantity: Number(item.quantity) || 0,
+      category: item.category
+    })),
+    subtotal: order.subtotal ?? order.customerDetails?.subtotal ?? undefined,
+    deliveryFee: order.deliveryFee ?? order.customerDetails?.deliveryFee ?? undefined,
+    totalPrice: order.totalPrice ?? 0,
+    orderNumber: order.orderNumber,
+    orderKindLabel,
+    dashboardOrderUrl: buildDashboardOrderUrl(),
+    cateringKind,
+    cateringExtraInfo
+  };
+}
+
+function buildCustomerTemplateData(orderData: OrderEmailData): OrderTemplateData {
+  return {
+    customerName: orderData.customerName,
+    customerPhone: orderData.phone,
+    customerEmail: orderData.customerEmail,
+    orderType: orderData.deliveryType,
+    eventDate: orderData.eventDate,
+    address: orderData.address,
+    notes: orderData.notes,
+    cartItems: orderData.items.map((item) => ({
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      category: item.category
+    })),
+    subtotal: orderData.subtotal,
+    deliveryFee: orderData.deliveryFee,
+    totalPrice: orderData.total,
+    orderNumber: orderData.orderNumber,
+    cateringKind: orderData.cateringKind,
+    cateringExtraInfo: orderData.cateringExtraInfo
+  };
+}
+
+function buildOwnerTemplateData(orderData: OrderEmailData): OrderTemplateData {
+  const kindLabel =
+    orderData.cateringKind === 'events'
+      ? 'קייטרינג אירועים'
+      : orderData.cateringKind === 'shabbat'
+        ? 'קייטרינג שבת/חג'
+        : 'הזמנה רגילה';
+  return {
+    ...buildCustomerTemplateData(orderData),
+    adminNotes: (orderData.adminNotes || '').trim() || undefined,
+    orderKindLabel: kindLabel,
+    dashboardOrderUrl: buildDashboardOrderUrl()
+  };
 }
 
 function escapeHtml(s: string): string {
@@ -187,31 +323,13 @@ export class EmailService {
       throw new Error('OWNER_EMAIL is not configured');
     }
 
-    const templateData: OrderTemplateData = {
-      customerName: orderData.customerName,
-      customerPhone: orderData.phone,
-      orderType: orderData.deliveryType,
-      eventDate: orderData.eventDate,
-      address: orderData.address,
-      notes: orderData.notes,
-      cartItems: orderData.items.map((item) => ({
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        category: item.category
-      })),
-      subtotal: orderData.subtotal,
-      deliveryFee: orderData.deliveryFee,
-      totalPrice: orderData.total,
-      orderNumber: orderData.orderNumber,
-      cateringKind: orderData.cateringKind,
-      cateringExtraInfo: orderData.cateringExtraInfo
-    };
+    const ownerTemplateData = buildOwnerTemplateData(orderData);
+    const customerTemplateData = buildCustomerTemplateData(orderData);
 
-    const ownerHtml = generateAdminEmailHtml(templateData);
+    const ownerHtml = generateAdminEmailHtml(ownerTemplateData);
     const customerHtml = orderData.cateringKind
-      ? generateCateringCustomerEmailHtml(templateData)
-      : generateCustomerEmailHtml(templateData);
+      ? generateCateringCustomerEmailHtml(customerTemplateData)
+      : generateCustomerEmailHtml(customerTemplateData);
 
     const customerReplyTo =
       (typeof orderData.customerEmail === 'string' ? orderData.customerEmail.trim() : '') ||
@@ -298,6 +416,16 @@ export class EmailService {
     const customerName = order.customerDetails?.fullName || 'לקוח/ה';
     const orderLabel = order.orderNumber || order._id?.toString().slice(-8) || '';
     const itemsList = this.buildItemsListHtml(order);
+    const deliveryType =
+      order.customerDetails?.deliveryMethod === 'delivery' ||
+      order.customerDetails?.deliveryType === 'delivery'
+        ? 'משלוח'
+        : 'איסוף עצמי';
+    const address = resolveOrderAddress(order);
+    const eventDate = order.customerDetails?.eventDate
+      ? new Date(order.customerDetails.eventDate).toLocaleDateString('he-IL')
+      : '';
+    const customerNotes = (order.customerDetails?.notes || '').trim();
 
     const html = `
       <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #fafafa; border: 1px solid #e5e5e5;">
@@ -306,8 +434,13 @@ export class EmailService {
         <p style="color: #333; line-height: 1.6;">פרטי ההזמנה שלך עודכנו על ידי צוות מגדים.</p>
         <div style="background: #fff; padding: 20px; margin: 20px 0; border: 1px solid #e5e5e5;">
           <p style="margin: 0 0 8px;"><strong>מספר הזמנה:</strong> ${escapeHtml(String(orderLabel))}</p>
-          <p style="margin: 0 0 8px;"><strong>סה"כ:</strong> ₪${(order.totalPrice ?? 0).toFixed(2)}</p>
-          <p style="margin: 0 0 8px;"><strong>פריטים:</strong></p>
+          <p style="margin: 0 0 8px;"><strong>טלפון:</strong> ${escapeHtml(String(order.customerDetails?.phone || '—'))}</p>
+          ${eventDate ? `<p style="margin: 0 0 8px;"><strong>תאריך אספקה:</strong> ${escapeHtml(eventDate)}</p>` : ''}
+          <p style="margin: 0 0 8px;"><strong>סוג:</strong> ${deliveryType}</p>
+          ${address ? `<p style="margin: 0 0 8px;"><strong>כתובת:</strong> ${escapeHtml(address)}</p>` : ''}
+          <p style="margin: 0 0 8px;"><strong>סה"כ מעודכן:</strong> ₪${(order.totalPrice ?? 0).toFixed(2)}</p>
+          ${customerNotes ? `<p style="margin: 0 0 8px;"><strong>הערות:</strong> ${escapeHtml(customerNotes)}</p>` : ''}
+          <p style="margin: 0 0 8px;"><strong>פריטים מעודכנים:</strong></p>
           <div style="color: #555; font-size: 0.95em;">${itemsList}</div>
         </div>
         <p style="color: #666; font-size: 0.95em;">לשאלות נוספות – צרו איתנו קשר.</p>
@@ -338,53 +471,51 @@ export class EmailService {
         return;
       }
       const customerReplyEmail = (order.customerDetails?.email || '').toString().trim();
-      const deliveryType: 'pickup' | 'delivery' =
-        order.customerDetails?.deliveryMethod === 'delivery' ? 'delivery' : 'pickup';
-
-      const addressRaw = order.customerDetails?.address;
-      const addressStr =
-        typeof addressRaw === 'string'
-          ? addressRaw
-          : addressRaw && typeof addressRaw === 'object'
-            ? [addressRaw.city, addressRaw.street, addressRaw.apartment].filter(Boolean).join(', ')
-            : undefined;
-
-      const templateData: OrderTemplateData = {
-        customerName: order.customerDetails?.fullName || 'לא צוין',
-        customerPhone: order.customerDetails?.phone || 'לא צוין',
-        orderType: deliveryType,
-        eventDate: order.customerDetails?.eventDate,
-        address: addressStr,
-        notes: order.customerDetails?.notes,
-        cartItems: (order.items || []).map((item: any) => ({
-          name: item.name,
-          price: Number(item.price) || 0,
-          quantity: Number(item.quantity) || 0
-        })),
-        subtotal: order.subtotal ?? order.customerDetails?.subtotal,
-        deliveryFee: order.deliveryFee ?? order.customerDetails?.deliveryFee,
-        totalPrice: order.totalPrice,
-        orderNumber: order.orderNumber
+      const ownerTemplateData = buildTemplateDataFromOrder(order);
+      const customerTemplateData: OrderTemplateData = {
+        customerName: ownerTemplateData.customerName,
+        customerPhone: ownerTemplateData.customerPhone,
+        customerEmail: ownerTemplateData.customerEmail,
+        orderType: ownerTemplateData.orderType,
+        eventDate: ownerTemplateData.eventDate,
+        address: ownerTemplateData.address,
+        notes: ownerTemplateData.notes,
+        cartItems: ownerTemplateData.cartItems,
+        subtotal: ownerTemplateData.subtotal,
+        deliveryFee: ownerTemplateData.deliveryFee,
+        totalPrice: ownerTemplateData.totalPrice,
+        orderNumber: ownerTemplateData.orderNumber,
+        cateringKind: ownerTemplateData.cateringKind,
+        cateringExtraInfo: ownerTemplateData.cateringExtraInfo
       };
 
-      const ownerHtml = generateAdminEmailHtml(templateData);
-      const customerHtml = generateCustomerEmailHtml(templateData);
+      const ownerHtml = generateAdminEmailHtml(ownerTemplateData);
+      const customerHtml = ownerTemplateData.cateringKind
+        ? generateCateringCustomerEmailHtml(customerTemplateData)
+        : generateCustomerEmailHtml(customerTemplateData);
+
+      const ownerSubject = ownerTemplateData.cateringKind
+        ? `בקשת קייטרינג חדשה${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`
+        : `הזמנה חדשה התקבלה 🍽️${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`;
 
       await this.sendMailWithLogging('order:legacy-admin', {
         from: getWebsiteFromHeader(),
         to: ownerEmail,
         replyTo: customerReplyEmail || undefined,
-        subject: `הזמנה חדשה התקבלה 🍽️${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`,
+        subject: ownerSubject,
         html: ownerHtml
       });
 
       // Also send receipt to the customer when email is available
       if (customerReplyEmail) {
+        const customerSubject = ownerTemplateData.cateringKind
+          ? `אישור קבלת בקשת קייטרינג${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`
+          : `אישור הזמנה${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`;
         await this.sendMailWithLogging('order:legacy-customer-receipt', {
           from: getWebsiteFromHeader(),
           replyTo: ownerEmail,
           to: customerReplyEmail,
-          subject: `אישור הזמנה${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`,
+          subject: customerSubject,
           html: customerHtml
         });
         console.log('✅ Order receipt sent to customer:', customerReplyEmail);
@@ -418,7 +549,11 @@ export class EmailService {
     const businessName = process.env.BUSINESS_NAME || 'Megadim';
     const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
     const customerName = order.customerDetails?.fullName || 'לקוח/ה';
-    const orderIdShort = order._id?.toString().slice(-8) || '';
+    const orderLabel = order.orderNumber || order._id?.toString().slice(-8) || '';
+    const eventDate = order.customerDetails?.eventDate
+      ? new Date(order.customerDetails.eventDate).toLocaleDateString('he-IL')
+      : '';
+    const address = resolveOrderAddress(order);
 
     const itemsList = this.buildItemsListHtml(order);
 
@@ -433,7 +568,10 @@ export class EmailService {
         <p style="color: #333; font-size: 1.05em; line-height: 1.6;"><strong>הזמנתך מקייטרינג מגדים אושרה!</strong> השפים שלנו כבר התחילו בהכנות.</p>
         <div style="background: #fff; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid rgba(224, 192, 117, 0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
           <h3 style="color: #0E1A24; border-bottom: 2px solid #e0c075; padding-bottom: 10px; margin: 0 0 16px;">פרטי ההזמנה</h3>
-          <p style="margin: 0 0 8px;"><strong>מספר הזמנה:</strong> #${orderIdShort}</p>
+          <p style="margin: 0 0 8px;"><strong>מספר הזמנה:</strong> ${escapeHtml(String(orderLabel))}</p>
+          <p style="margin: 0 0 8px;"><strong>טלפון:</strong> ${escapeHtml(String(order.customerDetails?.phone || '—'))}</p>
+          ${eventDate ? `<p style="margin: 0 0 8px;"><strong>תאריך אספקה:</strong> ${escapeHtml(eventDate)}</p>` : ''}
+          ${address ? `<p style="margin: 0 0 8px;"><strong>כתובת:</strong> ${escapeHtml(address)}</p>` : ''}
           <p style="margin: 0 0 8px;"><strong>סה"כ:</strong> <span style="color: #e0c075; font-weight: bold;">₪${(order.totalPrice ?? 0).toFixed(2)}</span></p>
           <p style="margin: 0 0 8px;"><strong>פריטים:</strong></p>
           <div style="color: #555; font-size: 0.95em;">${itemsList}</div>
@@ -462,6 +600,8 @@ export class EmailService {
       phone: string;
       email: string;
       numberOfPortions: string;
+      portionsEvening?: number;
+      portionsMorning?: number;
       eventDate: string;
       mealTime: string;
       salads: unknown;
@@ -484,13 +624,6 @@ export class EmailService {
     ownerEmail: string,
     customerEmail?: string
   ): Promise<void> {
-    const mealTimeLabel =
-      data.mealTime === 'evening'
-        ? 'ערב שבת'
-        : data.mealTime === 'morning'
-          ? 'שבת בבוקר'
-          : 'שתי ארוחות שבת';
-
     const bodyLike = data as Record<string, unknown>;
     const firstCourses = resolveMealCourseLines(
       bodyLike,
@@ -509,19 +642,29 @@ export class EmailService {
 
     const items: Array<{ id: string; name: string; quantity: number; price: number; category: string }> = [];
     pushCateringEmailItems(items, normalizeCateringLineItems(data.salads), 'סלטים');
-    pushCateringEmailItems(items, firstCourses.evening, 'מנות ראשונות — ערב');
-    pushCateringEmailItems(items, firstCourses.morning, 'מנות ראשונות — בוקר');
-    pushCateringEmailItems(items, mainCourses.evening, 'מנות עיקריות — ערב');
-    pushCateringEmailItems(items, mainCourses.morning, 'מנות עיקריות — בוקר');
+    if (firstCourses.legacy.length) {
+      pushCateringEmailItems(items, firstCourses.legacy, 'מנות ראשונות');
+    } else {
+      pushCateringEmailItems(items, firstCourses.evening, 'מנות ראשונות — ערב');
+      pushCateringEmailItems(items, firstCourses.morning, 'מנות ראשונות — בוקר');
+    }
+    if (mainCourses.legacy.length) {
+      pushCateringEmailItems(items, mainCourses.legacy, 'מנות עיקריות');
+    } else {
+      pushCateringEmailItems(items, mainCourses.evening, 'מנות עיקריות — ערב');
+      pushCateringEmailItems(items, mainCourses.morning, 'מנות עיקריות — בוקר');
+    }
     pushCateringEmailItems(items, normalizeCateringLineItems(data.sidesEvening), 'תוספות ערב');
     pushCateringEmailItems(items, normalizeCateringLineItems(data.sidesMorning), 'תוספות בוקר');
     pushCateringEmailItems(items, normalizeCateringLineItems(data.miscItems), 'שונות');
 
-    const cateringExtraInfo: Array<{ label: string; value: string }> = [
-      { label: 'מספר מנות', value: String(data.numberOfPortions) },
-      { label: 'סוג ארוחה', value: mealTimeLabel },
-      { label: 'סעודה שלישית', value: data.seudaShlishit === 'yes' ? 'כן' : 'לא' }
-    ].filter((r) => r.value && r.value.trim());
+    const cateringExtraInfo = buildShabbatMealsExtraInfo({
+      portionsEvening: data.portionsEvening,
+      portionsMorning: data.portionsMorning,
+      numberOfPortions: data.numberOfPortions,
+      mealTime: data.mealTime,
+      seudaShlishit: data.seudaShlishit
+    });
 
     const orderData: OrderEmailData = {
       customerName: data.fullName,

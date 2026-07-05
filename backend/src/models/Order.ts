@@ -12,6 +12,10 @@ export interface IOrder extends Document {
   status: string;
   isDeleted?: boolean;
   numberOfPortions?: number | string;
+  /** Shabbat/holiday catering: portion count for first meal (evening). */
+  portionsEvening?: number;
+  /** Shabbat/holiday catering: portion count for second meal (morning). */
+  portionsMorning?: number;
   mealTime?: string;
   mealTypes?: string;
   /** Client-captured UTM / campaign params (optional). */
@@ -64,6 +68,20 @@ export interface IOrder extends Document {
   expireYear?: number;
   /** Amount that was authorized — used to warn admin if totalPrice changed after auth. */
   authorizedAmount?: number;
+  /** Internal admin notes — never overwrites customerDetails.notes. */
+  adminNotes?: string;
+  /** Shabbat catering — selected salads (order-level). */
+  salads?: string[];
+  /** @deprecated legacy flat course arrays — kept for old orders. */
+  firstCourses?: string[];
+  /** @deprecated legacy flat course arrays — kept for old orders. */
+  mainCourses?: string[];
+  firstCoursesEvening?: string[];
+  firstCoursesMorning?: string[];
+  mainCoursesEvening?: string[];
+  mainCoursesMorning?: string[];
+  sidesEvening?: string[];
+  sidesMorning?: string[];
   /**
    * One-time random token generated server-side when the payment page URL is built.
    * Embedded in the Tranzila HPP URL (pdesc / contact fields).
@@ -138,6 +156,8 @@ const OrderSchema: Schema<IOrder> = new Schema({
     required: false
   },
   numberOfPortions: { type: Schema.Types.Mixed, required: false },
+  portionsEvening: { type: Number, required: false, min: 0 },
+  portionsMorning: { type: Number, required: false, min: 0 },
   mealTime: { type: String, required: false },
   mealTypes: { type: String, required: false },
   subtotal: { type: Number, default: null },
@@ -181,6 +201,16 @@ const OrderSchema: Schema<IOrder> = new Schema({
   expireMonth:   { type: Number, required: false, select: false },
   expireYear:    { type: Number, required: false, select: false },
   authorizedAmount: { type: Number, required: false, default: null },
+  adminNotes: { type: String, trim: true, default: '', maxlength: 1000 },
+  salads: [{ type: String, trim: true }],
+  firstCourses: [{ type: String, trim: true }],
+  mainCourses: [{ type: String, trim: true }],
+  firstCoursesEvening: [{ type: String, trim: true }],
+  firstCoursesMorning: [{ type: String, trim: true }],
+  mainCoursesEvening: [{ type: String, trim: true }],
+  mainCoursesMorning: [{ type: String, trim: true }],
+  sidesEvening: [{ type: String, trim: true }],
+  sidesMorning: [{ type: String, trim: true }],
   paymentSecurityToken: { type: String, required: false, select: false }, // excluded from default queries
   confirmationEmailSentAt: { type: Date, required: false, default: null }
 }, {

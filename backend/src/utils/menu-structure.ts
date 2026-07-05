@@ -93,11 +93,34 @@ export interface ShabbatOrderExtras {
   grapeJuice: number;
 }
 
+export interface ShabbatMealPortionCounts {
+  regularCount: number;
+  vegetarianCount: number;
+}
+
+export interface ShabbatMealPortions {
+  fridayNight: ShabbatMealPortionCounts;
+  shabbatDay: ShabbatMealPortionCounts;
+  seudaShlishit?: ShabbatMealPortionCounts;
+}
+
+export type ShabbatMealPortionKey = keyof Pick<ShabbatMealPortions, 'fridayNight' | 'shabbatDay' | 'seudaShlishit'>;
+
 export interface ShabbatOrder {
   regularCount: number;
   vegetarianCount: number;
   wantsSeudaShlishit: boolean;
   extras: ShabbatOrderExtras;
+  mealPortions?: ShabbatMealPortions;
+  /** Institution notes for the Shabbat package (optional). */
+  notes?: string;
+}
+
+export const ORDER_NOTES_MAX_LENGTH = 1000;
+
+export function normalizeOptionalNotes(raw: unknown, maxLen = ORDER_NOTES_MAX_LENGTH): string {
+  if (raw === undefined || raw === null) return '';
+  return String(raw).trim().slice(0, maxLen);
 }
 
 function trimString(value: unknown): string {
@@ -159,6 +182,17 @@ export function emptyInstitutionMenuContent(): InstitutionMenuContent {
   };
 }
 
+export function emptyMealPortionCounts(): ShabbatMealPortionCounts {
+  return { regularCount: 0, vegetarianCount: 0 };
+}
+
+export function emptyMealPortions(): ShabbatMealPortions {
+  return {
+    fridayNight: emptyMealPortionCounts(),
+    shabbatDay: emptyMealPortionCounts()
+  };
+}
+
 export function emptyShabbatOrder(): ShabbatOrder {
   return {
     regularCount: 0,
@@ -166,6 +200,156 @@ export function emptyShabbatOrder(): ShabbatOrder {
     wantsSeudaShlishit: false,
     extras: { challahs: 0, rolls: 0, grapeJuice: 0 }
   };
+}
+
+function safePortionCount(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : 0;
+}
+
+export function normalizeMealPortionCounts(raw: unknown): ShabbatMealPortionCounts {
+  if (!raw || typeof raw !== 'object') {
+    return emptyMealPortionCounts();
+  }
+  const row = raw as Record<string, unknown>;
+  return {
+    regularCount: safePortionCount(row.regularCount),
+    vegetarianCount: safePortionCount(row.vegetarianCount)
+  };
+}
+
+export function normalizeMealPortions(raw: unknown): ShabbatMealPortions | undefined {
+  if (!raw || typeof raw !== 'object') {
+    return undefined;
+  }
+  const row = raw as Record<string, unknown>;
+  if (!row.fridayNight && !row.shabbatDay) {
+    return undefined;
+  }
+  const portions: ShabbatMealPortions = {
+    fridayNight: normalizeMealPortionCounts(row.fridayNight),
+    shabbatDay: normalizeMealPortionCounts(row.shabbatDay)
+  };
+  if (row.seudaShlishit !== undefined && row.seudaShlishit !== null) {
+    portions.seudaShlishit = normalizeMealPortionCounts(row.seudaShlishit);
+  }
+  return portions;
+}
+
+/** True when persisted order includes per-meal portion breakdown. */
+export function hasStoredMealPortions(order: ShabbatOrder): boolean {
+  return !!order.mealPortions?.fridayNight && !!order.mealPortions?.shabbatDay;
+}
+
+/** Per-meal counts; falls back to legacy regularCount/vegetarianCount when mealPortions absent. */
+export function resolveShabbatMealCounts(
+  order: ShabbatOrder,
+  meal: ShabbatMealPortionKey
+): ShabbatMealPortionCounts {
+  const legacy = {
+    regularCount: safePortionCount(order.regularCount),
+    vegetarianCount: safePortionCount(order.vegetarianCount)
+  };
+
+  if (meal === 'seudaShlishit') {
+    if (!order.wantsSeudaShlishit) {
+      return emptyMealPortionCounts();
+    }
+    if (!hasStoredMealPortions(order)) {
+      return legacy;
+    }
+    return order.mealPortions?.seudaShlishit
+      ? normalizeMealPortionCounts(order.mealPortions.seudaShlishit)
+      : emptyMealPortionCounts();
+  }
+
+  if (!hasStoredMealPortions(order)) {
+    return legacy;
+  }
+
+  const block = meal === 'fridayNight' ? order.mealPortions!.fridayNight : order.mealPortions!.shabbatDay;
+  return normalizeMealPortionCounts(block);
+}
+
+export function sumMealPortions(portions: ShabbatMealPortions, includeSeuda: boolean): ShabbatMealPortionCounts {
+  let regularCount = safePortionCount(portions.fridayNight.regularCount) + safePortionCount(portions.shabbatDay.regularCount);
+  let vegetarianCount =
+    safePortionCount(portions.fridayNight.vegetarianCount) + safePortionCount(portions.shabbatDay.vegetarianCount);
+  if (includeSeuda && portions.seudaShlishit) {
+    regularCount += safePortionCount(portions.seudaShlishit.regularCount);
+    vegetarianCount += safePortionCount(portions.seudaShlishit.vegetarianCount);
+  }
+  return { regularCount, vegetarianCount };
+}
+
+export function totalShabbatPortionCount(order: ShabbatOrder): number {
+  if (hasStoredMealPortions(order)) {
+    const mp = order.mealPortions!;
+    let total =
+      safePortionCount(mp.fridayNight.regularCount) +
+      safePortionCount(mp.fridayNight.vegetarianCount) +
+      safePortionCount(mp.shabbatDay.regularCount) +
+      safePortionCount(mp.shabbatDay.vegetarianCount);
+    if (order.wantsSeudaShlishit && mp.seudaShlishit) {
+      total += safePortionCount(mp.seudaShlishit.regularCount) + safePortionCount(mp.seudaShlishit.vegetarianCount);
+    }
+    return total;
+  }
+  return safePortionCount(order.regularCount) + safePortionCount(order.vegetarianCount);
+}
+
+/** Form defaults: use stored mealPortions; legacy orders without split return empty per-meal fields. */
+export function mealPortionsForForm(order: ShabbatOrder): ShabbatMealPortions {
+  if (hasStoredMealPortions(order)) {
+    const mp = order.mealPortions!;
+    const result: ShabbatMealPortions = {
+      fridayNight: normalizeMealPortionCounts(mp.fridayNight),
+      shabbatDay: normalizeMealPortionCounts(mp.shabbatDay)
+    };
+    if (order.wantsSeudaShlishit) {
+      result.seudaShlishit = mp.seudaShlishit
+        ? normalizeMealPortionCounts(mp.seudaShlishit)
+        : emptyMealPortionCounts();
+    }
+    return result;
+  }
+
+  const result: ShabbatMealPortions = {
+    fridayNight: emptyMealPortionCounts(),
+    shabbatDay: emptyMealPortionCounts()
+  };
+  if (order.wantsSeudaShlishit) {
+    result.seudaShlishit = emptyMealPortionCounts();
+  }
+  return result;
+}
+
+export function isLegacyShabbatOrderWithoutMealPortions(order: ShabbatOrder): boolean {
+  if (hasStoredMealPortions(order)) return false;
+  return safePortionCount(order.regularCount) + safePortionCount(order.vegetarianCount) > 0;
+}
+
+export function formatLegacyShabbatOrderSummary(order: ShabbatOrder): string {
+  if (!isLegacyShabbatOrderWithoutMealPortions(order)) return '';
+  const regular = safePortionCount(order.regularCount);
+  const vegetarian = safePortionCount(order.vegetarianCount);
+  return `הזמנה ישנה ללא פיצול סעודות: רגיל ${regular}, צמחוני ${vegetarian}. יש להזין כמויות לכל סעודה לפני שמירה.`;
+}
+
+export function formatShabbatPortionsSummary(order: ShabbatOrder): string {
+  if (!hasStoredMealPortions(order)) {
+    return order.wantsSeudaShlishit ? 'כולל סעודה שלישית' : '';
+  }
+  const parts: string[] = [];
+  const fn = resolveShabbatMealCounts(order, 'fridayNight');
+  parts.push(`ערב שבת: רגיל ${fn.regularCount}, צמחוני ${fn.vegetarianCount}`);
+  const sd = resolveShabbatMealCounts(order, 'shabbatDay');
+  parts.push(`שבת בבוקר: רגיל ${sd.regularCount}, צמחוני ${sd.vegetarianCount}`);
+  if (order.wantsSeudaShlishit) {
+    const seuda = resolveShabbatMealCounts(order, 'seudaShlishit');
+    parts.push(`סעודה שלישית: רגיל ${seuda.regularCount}, צמחוני ${seuda.vegetarianCount}`);
+  }
+  return parts.join(' · ');
 }
 
 /** Normalize a single day's menu — supports legacy plain string. */
@@ -267,11 +451,35 @@ export function normalizeShabbatOrder(raw: unknown): ShabbatOrder {
     return emptyShabbatOrder();
   }
   const row = raw as Record<string, unknown>;
+  const wantsSeudaShlishit = row.wantsSeudaShlishit === true;
+  const mealPortions = normalizeMealPortions(row.mealPortions);
+  const extras = normalizeShabbatOrderExtras(row.extras);
+
+  if (mealPortions) {
+    const legacy = sumMealPortions(mealPortions, wantsSeudaShlishit);
+    const normalized: ShabbatOrder = {
+      regularCount: legacy.regularCount,
+      vegetarianCount: legacy.vegetarianCount,
+      wantsSeudaShlishit,
+      extras,
+      notes: normalizeOptionalNotes(row.notes),
+      mealPortions: {
+        fridayNight: mealPortions.fridayNight,
+        shabbatDay: mealPortions.shabbatDay
+      }
+    };
+    if (wantsSeudaShlishit && mealPortions.seudaShlishit) {
+      normalized.mealPortions!.seudaShlishit = mealPortions.seudaShlishit;
+    }
+    return normalized;
+  }
+
   return {
-    regularCount: Math.max(0, Number(row.regularCount) || 0),
-    vegetarianCount: Math.max(0, Number(row.vegetarianCount) || 0),
-    wantsSeudaShlishit: row.wantsSeudaShlishit === true,
-    extras: normalizeShabbatOrderExtras(row.extras)
+    regularCount: safePortionCount(row.regularCount),
+    vegetarianCount: safePortionCount(row.vegetarianCount),
+    wantsSeudaShlishit,
+    extras,
+    notes: normalizeOptionalNotes(row.notes)
   };
 }
 

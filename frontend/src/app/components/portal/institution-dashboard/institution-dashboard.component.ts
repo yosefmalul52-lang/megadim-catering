@@ -18,11 +18,17 @@ import {
   InstitutionOrderDay,
   PortalStatus,
   PORTAL_DAY_LABELS,
-  formatOrderDeadlineNotice,
-  emptyShabbatOrder
+  formatPortalDeadlineNotices
 } from '../../../services/institution-portal.service';
 import { getWeekRangeString, getCurrentWeekStart, getNextWeekStartKey } from '../../../utils/portal-week';
-import type { ShabbatOrder } from '../../../utils/menu-structure';
+import type { ShabbatOrder, ShabbatMealPortions } from '../../../utils/menu-structure';
+import {
+  emptyShabbatOrder,
+  mealPortionsForForm,
+  sumMealPortions,
+  totalShabbatPortionCount,
+  ORDER_NOTES_MAX_LENGTH
+} from '../../../utils/menu-structure';
 
 function nonNegativeIntegerValidator(control: AbstractControl): ValidationErrors | null {
   const raw = control.value;
@@ -58,6 +64,7 @@ export class InstitutionDashboardComponent implements OnInit {
 
   readonly dayLabels = PORTAL_DAY_LABELS;
   readonly countValidators = [Validators.min(0), nonNegativeIntegerValidator];
+  readonly notesValidators = [Validators.maxLength(ORDER_NOTES_MAX_LENGTH)];
 
   status: PortalStatus | null = null;
   isLoading = true;
@@ -69,7 +76,8 @@ export class InstitutionDashboardComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       days: this.fb.array([]),
-      shabbatOrder: this.buildShabbatOrderGroup()
+      shabbatOrder: this.buildShabbatOrderGroup(),
+      generalNotes: ['', this.notesValidators]
     });
     this.loadStatus();
   }
@@ -82,20 +90,40 @@ export class InstitutionDashboardComponent implements OnInit {
     return this.shabbatOrderGroup.get('extras') as FormGroup;
   }
 
+  get shabbatMealPortionsGroup(): FormGroup {
+    return this.shabbatOrderGroup.get('mealPortions') as FormGroup;
+  }
+
+  get wantsSeudaShlishit(): boolean {
+    return this.shabbatOrderGroup.get('wantsSeudaShlishit')?.value === true;
+  }
+
   get hasShabbatMenu(): boolean {
     return this.status?.menu?.shabbatPackage?.hasShabbat !== false;
   }
 
-  private buildShabbatOrderGroup(order = emptyShabbatOrder()) {
+  private buildMealPortionGroup(counts = { regularCount: 0, vegetarianCount: 0 }) {
     return this.fb.group({
-      regularCount: [order.regularCount ?? 0, this.countValidators],
-      vegetarianCount: [order.vegetarianCount ?? 0, this.countValidators],
+      regularCount: [counts.regularCount ?? 0, this.countValidators],
+      vegetarianCount: [counts.vegetarianCount ?? 0, this.countValidators]
+    });
+  }
+
+  private buildShabbatOrderGroup(order = emptyShabbatOrder()) {
+    const portions = mealPortionsForForm(order);
+    return this.fb.group({
       wantsSeudaShlishit: [order.wantsSeudaShlishit === true],
+      mealPortions: this.fb.group({
+        fridayNight: this.buildMealPortionGroup(portions.fridayNight),
+        shabbatDay: this.buildMealPortionGroup(portions.shabbatDay),
+        seudaShlishit: this.buildMealPortionGroup(portions.seudaShlishit ?? { regularCount: 0, vegetarianCount: 0 })
+      }),
       extras: this.fb.group({
         challahs: [order.extras?.challahs ?? 0, this.countValidators],
         rolls: [order.extras?.rolls ?? 0, this.countValidators],
         grapeJuice: [order.extras?.grapeJuice ?? 0, this.countValidators]
-      })
+      }),
+      notes: [order.notes ?? '', this.notesValidators]
     });
   }
 
@@ -119,7 +147,35 @@ export class InstitutionDashboardComponent implements OnInit {
   }
 
   get isLocked(): boolean {
+    return this.isFullyLocked;
+  }
+
+  get isFullyLocked(): boolean {
+    if (this.status?.isLocked !== undefined) {
+      return !!this.status.isLocked;
+    }
+    return this.isWeekdayLocked && this.isShabbatLocked;
+  }
+
+  get isWeekdayLocked(): boolean {
+    if (this.status?.isWeekdayLocked !== undefined) {
+      return !!this.status.isWeekdayLocked;
+    }
     return !!this.status?.isLocked;
+  }
+
+  get isShabbatLocked(): boolean {
+    if (this.status?.isShabbatLocked !== undefined) {
+      return !!this.status.isShabbatLocked;
+    }
+    return !!this.status?.isLocked;
+  }
+
+  get deadlineNotices(): { weekday: string; shabbat: string; usesLegacyFallback: boolean } {
+    if (!this.status) {
+      return { weekday: '', shabbat: '', usesLegacyFallback: false };
+    }
+    return formatPortalDeadlineNotices(this.status);
   }
 
   get noMenuPublished(): boolean {
@@ -128,10 +184,6 @@ export class InstitutionDashboardComponent implements OnInit {
 
   get weekRangeLabel(): string {
     return getWeekRangeString(this.status?.weekStartDate || '', 'טופס הזמנת מנות לשבוע');
-  }
-
-  get deadlineNotice(): string {
-    return formatOrderDeadlineNotice(this.status?.orderDeadline);
   }
 
   get customMessage(): string {
@@ -150,22 +202,34 @@ export class InstitutionDashboardComponent implements OnInit {
         if (!data.noMenuPublished) {
           this.buildDaysForm(data.order.days);
           this.form.setControl('shabbatOrder', this.buildShabbatOrderGroup(data.order.shabbatOrder || emptyShabbatOrder()));
+          this.form.patchValue({ generalNotes: data.order.generalNotes || '' });
         } else {
           this.daysArray.clear();
           this.form.setControl('shabbatOrder', this.buildShabbatOrderGroup());
         }
         this.isLoading = false;
-        if (data.isLocked || data.noMenuPublished) {
-          this.form.disable();
-        } else {
-          this.form.enable();
-        }
+        this.applyFormLockState();
       },
       error: (err) => {
         this.isLoading = false;
         this.errorMessage = err?.error?.message || 'שגיאה בטעינת הפורטל';
       }
     });
+  }
+
+  private applyFormLockState(): void {
+    if (!this.status || this.status.noMenuPublished) {
+      this.form.disable();
+      return;
+    }
+
+    this.form.enable();
+    if (this.isWeekdayLocked) {
+      this.daysArray.disable();
+    }
+    if (this.isShabbatLocked) {
+      this.shabbatOrderGroup.disable();
+    }
   }
 
   private buildDaysForm(days: InstitutionOrderDay[]): void {
@@ -186,10 +250,35 @@ export class InstitutionDashboardComponent implements OnInit {
   private mapShabbatOrderFromForm(): ShabbatOrder {
     const v = this.shabbatOrderGroup.getRawValue();
     const extras = v.extras || {};
+    const mpRaw = v.mealPortions || {};
+    const wantsSeudaShlishit = v.wantsSeudaShlishit === true;
+
+    const mealPortions: ShabbatMealPortions = {
+      fridayNight: {
+        regularCount: Math.max(0, Math.trunc(Number(mpRaw.fridayNight?.regularCount) || 0)),
+        vegetarianCount: Math.max(0, Math.trunc(Number(mpRaw.fridayNight?.vegetarianCount) || 0))
+      },
+      shabbatDay: {
+        regularCount: Math.max(0, Math.trunc(Number(mpRaw.shabbatDay?.regularCount) || 0)),
+        vegetarianCount: Math.max(0, Math.trunc(Number(mpRaw.shabbatDay?.vegetarianCount) || 0))
+      }
+    };
+
+    if (wantsSeudaShlishit) {
+      mealPortions.seudaShlishit = {
+        regularCount: Math.max(0, Math.trunc(Number(mpRaw.seudaShlishit?.regularCount) || 0)),
+        vegetarianCount: Math.max(0, Math.trunc(Number(mpRaw.seudaShlishit?.vegetarianCount) || 0))
+      };
+    }
+
+    const legacy = sumMealPortions(mealPortions, wantsSeudaShlishit);
+
     return {
-      regularCount: Math.max(0, Math.trunc(Number(v.regularCount) || 0)),
-      vegetarianCount: Math.max(0, Math.trunc(Number(v.vegetarianCount) || 0)),
-      wantsSeudaShlishit: v.wantsSeudaShlishit === true,
+      regularCount: legacy.regularCount,
+      vegetarianCount: legacy.vegetarianCount,
+      wantsSeudaShlishit,
+      mealPortions,
+      notes: String(v.notes || '').trim().slice(0, ORDER_NOTES_MAX_LENGTH),
       extras: {
         challahs: Math.max(0, Math.trunc(Number(extras.challahs) || 0)),
         rolls: Math.max(0, Math.trunc(Number(extras.rolls) || 0)),
@@ -198,8 +287,12 @@ export class InstitutionDashboardComponent implements OnInit {
     };
   }
 
+  private weekdayPortionsTotal(days: InstitutionOrderDay[]): number {
+    return days.reduce((sum, d) => sum + d.regularCount + d.vegetarianCount, 0);
+  }
+
   submitOrder(): void {
-    if (this.noMenuPublished || this.isLocked || this.form.invalid) {
+    if (this.noMenuPublished || this.isFullyLocked || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -216,6 +309,14 @@ export class InstitutionDashboardComponent implements OnInit {
 
     const shabbatOrder = this.hasShabbatMenu ? this.mapShabbatOrderFromForm() : emptyShabbatOrder();
 
+    const weekdayTotal = this.weekdayPortionsTotal(days);
+    const shabbatTotal = this.hasShabbatMenu ? totalShabbatPortionCount(shabbatOrder) : 0;
+    if (weekdayTotal + shabbatTotal <= 0) {
+      this.snackBar.open('יש להזין לפחות מנה אחת בהזמנה', 'סגור', { duration: 5000 });
+      this.form.markAllAsTouched();
+      return;
+    }
+
     this.isSaving = true;
     const weekStartDate = this.status?.weekStartDate;
     if (!weekStartDate) {
@@ -223,7 +324,9 @@ export class InstitutionDashboardComponent implements OnInit {
       return;
     }
 
-    this.portalService.submit(days, weekStartDate, shabbatOrder).subscribe({
+    this.portalService
+      .submit(days, weekStartDate, shabbatOrder, String(this.form.get('generalNotes')?.value || '').trim())
+      .subscribe({
       next: () => {
         this.isSaving = false;
         this.snackBar.open('ההזמנה נשמרה בהצלחה', 'סגור', { duration: 4000 });

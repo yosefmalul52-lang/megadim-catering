@@ -6,8 +6,11 @@ import type {
   ShabbatDayMeals,
   SeudaShlishitMeals
 } from './menu-structure';
+import { hasStoredMealPortions, resolveShabbatMealCounts } from './menu-structure';
 import {
   buildCategoryLogisticsLine,
+  formatLogisticsMetric,
+  logisticsQuantityLabel,
   type CategoryLogisticsDisplayLine,
   type DishLogisticsLookup,
   type LogisticsCategoryKey
@@ -75,6 +78,59 @@ export function aggregateShabbatKitchenTotals(
     vegetarian += safeCount(s.vegetarianCount);
   }
   return { regular, vegetarian, grandTotal: regular + vegetarian };
+}
+
+function aggregateMealTotals(
+  orders: { shabbatOrder?: ShabbatOrder | null }[],
+  meal: 'fridayNight' | 'shabbatDay' | 'seudaShlishit'
+): { regular: number; vegetarian: number } {
+  let regular = 0;
+  let vegetarian = 0;
+  for (const order of orders) {
+    const s = order.shabbatOrder;
+    if (!s) continue;
+    if (meal === 'seudaShlishit' && !s.wantsSeudaShlishit) continue;
+    const counts = resolveShabbatMealCounts(s, meal);
+    regular += counts.regularCount;
+    vegetarian += counts.vegetarianCount;
+  }
+  return { regular, vegetarian };
+}
+
+function aggregateShabbatSaladPortions(orders: { shabbatOrder?: ShabbatOrder | null }[]): number {
+  let total = 0;
+  for (const order of orders) {
+    const s = order.shabbatOrder;
+    if (!s) continue;
+    let regular: number;
+    let vegetarian: number;
+    if (hasStoredMealPortions(s)) {
+      const fn = resolveShabbatMealCounts(s, 'fridayNight');
+      const sd = resolveShabbatMealCounts(s, 'shabbatDay');
+      regular = fn.regularCount + sd.regularCount;
+      vegetarian = fn.vegetarianCount + sd.vegetarianCount;
+    } else {
+      regular = safeCount(s.regularCount);
+      vegetarian = safeCount(s.vegetarianCount);
+    }
+    total += portionsByRule('saladDouble', regular, vegetarian);
+  }
+  return total;
+}
+
+function saladPortionsForOrder(shabbatOrder: ShabbatOrder): number {
+  let regular: number;
+  let vegetarian: number;
+  if (hasStoredMealPortions(shabbatOrder)) {
+    const fn = resolveShabbatMealCounts(shabbatOrder, 'fridayNight');
+    const sd = resolveShabbatMealCounts(shabbatOrder, 'shabbatDay');
+    regular = fn.regularCount + sd.regularCount;
+    vegetarian = fn.vegetarianCount + sd.vegetarianCount;
+  } else {
+    regular = safeCount(shabbatOrder.regularCount);
+    vegetarian = safeCount(shabbatOrder.vegetarianCount);
+  }
+  return portionsByRule('saladDouble', regular, vegetarian);
 }
 
 function logisticsKeyForShabbatField(fieldKey: string): LogisticsCategoryKey {
@@ -158,7 +214,9 @@ export function buildAggregatedShabbatKitchenLines(
   const pkg = menu.shabbatPackage;
   if (!pkg?.hasShabbat) return [];
 
-  const totals = aggregateShabbatKitchenTotals(orders);
+  const fridayTotals = aggregateMealTotals(orders, 'fridayNight');
+  const dayTotals = aggregateMealTotals(orders, 'shabbatDay');
+  const seudaTotals = aggregateMealTotals(orders, 'seudaShlishit');
   const lines: CategoryLogisticsDisplayLine[] = [];
 
   lines.push(
@@ -166,8 +224,8 @@ export function buildAggregatedShabbatKitchenLines(
       'ערב שבת',
       pkg.fridayNight as unknown as Record<string, string>,
       FRIDAY_NIGHT_RULES,
-      totals.regular,
-      totals.vegetarian,
+      fridayTotals.regular,
+      fridayTotals.vegetarian,
       lookup
     )
   );
@@ -177,27 +235,18 @@ export function buildAggregatedShabbatKitchenLines(
       'שבת בוקר',
       pkg.shabbatDay as unknown as Record<string, string>,
       SHABBAT_DAY_RULES,
-      totals.regular,
-      totals.vegetarian,
+      dayTotals.regular,
+      dayTotals.vegetarian,
       lookup
     )
   );
 
+  const saladPortionsTotal = aggregateShabbatSaladPortions(orders);
   for (let i = 0; i < pkg.shabbatSalads.length; i++) {
     const dish = (pkg.shabbatSalads[i] || '').trim();
     if (!dish) continue;
-    const portions = portionsByRule('saladDouble', totals.regular, totals.vegetarian);
-    const line = buildLine('סלטי שבת', `סלט ${i + 1}`, dish, portions, 'saladFruit', lookup(dish, 'saladFruit'));
+    const line = buildLine('סלטי שבת', `סלט ${i + 1}`, dish, saladPortionsTotal, 'saladFruit', lookup(dish, 'saladFruit'));
     if (line) lines.push(line);
-  }
-
-  let seudaRegular = 0;
-  let seudaVegetarian = 0;
-  for (const order of orders) {
-    const s = order.shabbatOrder;
-    if (!s?.wantsSeudaShlishit) continue;
-    seudaRegular += safeCount(s.regularCount);
-    seudaVegetarian += safeCount(s.vegetarianCount);
   }
 
   lines.push(
@@ -205,8 +254,8 @@ export function buildAggregatedShabbatKitchenLines(
       'סעודה שלישית',
       pkg.seudaShlishit as unknown as Record<string, string>,
       SEUDA_RULES,
-      seudaRegular,
-      seudaVegetarian,
+      seudaTotals.regular,
+      seudaTotals.vegetarian,
       lookup
     )
   );
@@ -222,8 +271,8 @@ export function buildPackingShabbatLines(
 ): CategoryLogisticsDisplayLine[] {
   if (!pkg?.hasShabbat) return [];
 
-  const regular = safeCount(shabbatOrder.regularCount);
-  const vegetarian = safeCount(shabbatOrder.vegetarianCount);
+  const friday = resolveShabbatMealCounts(shabbatOrder, 'fridayNight');
+  const shabbatDay = resolveShabbatMealCounts(shabbatOrder, 'shabbatDay');
   const lines: CategoryLogisticsDisplayLine[] = [];
 
   lines.push(
@@ -231,8 +280,8 @@ export function buildPackingShabbatLines(
       'ערב שבת',
       pkg.fridayNight as unknown as Record<string, string>,
       FRIDAY_NIGHT_RULES,
-      regular,
-      vegetarian,
+      friday.regularCount,
+      friday.vegetarianCount,
       lookup
     )
   );
@@ -242,28 +291,29 @@ export function buildPackingShabbatLines(
       'שבת בוקר',
       pkg.shabbatDay as unknown as Record<string, string>,
       SHABBAT_DAY_RULES,
-      regular,
-      vegetarian,
+      shabbatDay.regularCount,
+      shabbatDay.vegetarianCount,
       lookup
     )
   );
 
+  const saladPortions = saladPortionsForOrder(shabbatOrder);
   for (let i = 0; i < pkg.shabbatSalads.length; i++) {
     const dish = (pkg.shabbatSalads[i] || '').trim();
     if (!dish) continue;
-    const portions = portionsByRule('saladDouble', regular, vegetarian);
-    const line = buildLine('סלטי שבת', `סלט ${i + 1}`, dish, portions, 'saladFruit', lookup(dish, 'saladFruit'));
+    const line = buildLine('סלטי שבת', `סלט ${i + 1}`, dish, saladPortions, 'saladFruit', lookup(dish, 'saladFruit'));
     if (line) lines.push(line);
   }
 
   if (shabbatOrder.wantsSeudaShlishit) {
+    const seuda = resolveShabbatMealCounts(shabbatOrder, 'seudaShlishit');
     lines.push(
       ...linesFromMealBlock(
         'סעודה שלישית',
         pkg.seudaShlishit as unknown as Record<string, string>,
         SEUDA_RULES,
-        regular,
-        vegetarian,
+        seuda.regularCount,
+        seuda.vegetarianCount,
         lookup
       )
     );
@@ -278,4 +328,163 @@ export function formatShabbatExtrasSummary(extras: ShabbatExtrasTotals): string 
   if (extras.rolls > 0) parts.push(`לחמניות: ${extras.rolls}`);
   if (extras.grapeJuice > 0) parts.push(`מיץ ענבים: ${extras.grapeJuice}`);
   return parts.join(' · ');
+}
+
+export interface InstitutionKitchenPrintRow {
+  sectionLabel: string;
+  categoryLabel: string;
+  dish: string;
+  regular: number;
+  vegetarian: number;
+  total: number;
+  logisticsText: string;
+}
+
+function printRowFromField(
+  sectionLabel: string,
+  fieldLabel: string,
+  dish: string,
+  fieldKey: string,
+  rule: ShabbatPortionRule,
+  regularTotal: number,
+  vegetarianTotal: number,
+  lookup: (dish: string, fieldKey: string) => DishLogisticsLookup
+): InstitutionKitchenPrintRow | null {
+  const trimmed = (dish || '').trim();
+  if (!trimmed) return null;
+
+  let regular = 0;
+  let vegetarian = 0;
+  let total = 0;
+  switch (rule) {
+    case 'regular':
+      regular = regularTotal;
+      total = regularTotal;
+      break;
+    case 'vegetarian':
+      vegetarian = vegetarianTotal;
+      total = vegetarianTotal;
+      break;
+    case 'both':
+      regular = regularTotal;
+      vegetarian = vegetarianTotal;
+      total = regularTotal + vegetarianTotal;
+      break;
+    case 'saladDouble':
+      regular = regularTotal;
+      vegetarian = vegetarianTotal;
+      total = (regularTotal + vegetarianTotal) * 2;
+      break;
+  }
+  if (total <= 0) return null;
+
+  const key = logisticsKeyForShabbatField(fieldKey);
+  const metric = formatLogisticsMetric(total, key, lookup(trimmed, fieldKey));
+  const logisticsText = metric || `${total} ${logisticsQuantityLabel(key)}`;
+
+  return {
+    sectionLabel,
+    categoryLabel: fieldLabel,
+    dish: trimmed,
+    regular,
+    vegetarian,
+    total,
+    logisticsText
+  };
+}
+
+function printRowsFromMealBlock(
+  sectionLabel: string,
+  meals: Record<string, string>,
+  fields: readonly { key: string; label: string; rule: ShabbatPortionRule }[],
+  regularTotal: number,
+  vegetarianTotal: number,
+  lookup: (dish: string, fieldKey: string) => DishLogisticsLookup
+): InstitutionKitchenPrintRow[] {
+  const rows: InstitutionKitchenPrintRow[] = [];
+  for (const field of fields) {
+    const row = printRowFromField(
+      sectionLabel,
+      field.label,
+      meals[field.key] || '',
+      field.key,
+      field.rule,
+      regularTotal,
+      vegetarianTotal,
+      lookup
+    );
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+/** Production print: Shabbat rows with per-meal diner counts via resolveShabbatMealCounts. */
+export function buildInstitutionProductionShabbatRows(
+  menu: InstitutionMenuContent,
+  orders: { shabbatOrder?: ShabbatOrder | null }[],
+  lookup: (dish: string, fieldKey: string) => DishLogisticsLookup
+): InstitutionKitchenPrintRow[] {
+  const pkg = menu.shabbatPackage;
+  if (!pkg?.hasShabbat) return [];
+
+  const fridayTotals = aggregateMealTotals(orders, 'fridayNight');
+  const dayTotals = aggregateMealTotals(orders, 'shabbatDay');
+  const seudaTotals = aggregateMealTotals(orders, 'seudaShlishit');
+  const rows: InstitutionKitchenPrintRow[] = [];
+
+  rows.push(
+    ...printRowsFromMealBlock(
+      'ערב שבת',
+      pkg.fridayNight as unknown as Record<string, string>,
+      FRIDAY_NIGHT_RULES,
+      fridayTotals.regular,
+      fridayTotals.vegetarian,
+      lookup
+    )
+  );
+
+  rows.push(
+    ...printRowsFromMealBlock(
+      'שבת בבוקר',
+      pkg.shabbatDay as unknown as Record<string, string>,
+      SHABBAT_DAY_RULES,
+      dayTotals.regular,
+      dayTotals.vegetarian,
+      lookup
+    )
+  );
+
+  const saladRegular = fridayTotals.regular + dayTotals.regular;
+  const saladVegetarian = fridayTotals.vegetarian + dayTotals.vegetarian;
+  for (let i = 0; i < pkg.shabbatSalads.length; i++) {
+    const dish = (pkg.shabbatSalads[i] || '').trim();
+    if (!dish) continue;
+    const row = printRowFromField(
+      'סלטי שבת',
+      `סלט ${i + 1}`,
+      dish,
+      'saladFruit',
+      'saladDouble',
+      saladRegular,
+      saladVegetarian,
+      lookup
+    );
+    if (row) rows.push(row);
+  }
+
+  const hasSeuda = orders.some((o) => o.shabbatOrder?.wantsSeudaShlishit);
+  if (hasSeuda) {
+    rows.push(
+      ...printRowsFromMealBlock(
+        'סעודה שלישית',
+        pkg.seudaShlishit as unknown as Record<string, string>,
+        SEUDA_RULES,
+        seudaTotals.regular,
+        seudaTotals.vegetarian,
+        lookup
+      )
+    );
+  }
+
+  return rows;
 }

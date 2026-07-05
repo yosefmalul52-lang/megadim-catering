@@ -3,14 +3,21 @@ import mongoose from 'mongoose';
 import InstitutionOrder from '../models/InstitutionOrder';
 import { isMenuWeekPublished, normalizeShabbatOrder } from '../utils/menu-structure';
 import {
-  computeIsLockedByDeadline,
+  computeIsFullyLocked,
+  computeIsShabbatLocked,
+  computeIsWeekdayLocked,
   defaultOrderDays,
   getNextWeekStartKey,
   getWeekStartKey,
+  hasMeaningfulOrder,
   legacyWeekDateRange,
   normalizeOrderDays,
+  orderDaysEqual,
   parseWeekStartKey,
+  resolveLatestOrderDeadline,
   resolvePortalWeekStartKey,
+  shabbatOrdersEqual,
+  validateGeneralNotesPayload,
   validateOrderDaysPayload,
   validateShabbatOrderPayload,
   type WeekStartKey
@@ -49,16 +56,18 @@ async function findInstitutionOrder(institutionId: unknown, weekKey: string) {
 
 async function loadWeekDeadline(weekKey: WeekStartKey): Promise<Date | string | null | undefined> {
   const menuData = await loadMenuForWeek(weekKey);
-  return menuData.orderDeadline ?? null;
+  return resolveLatestOrderDeadline(menuData);
 }
 
 async function buildPortalWeekPayload(institutionId: unknown, weekStartDate: WeekStartKey, now = new Date()) {
   const menuDoc = await findMenuForWeek(weekStartDate);
   const menuData = await loadMenuForWeek(weekStartDate);
-  const { orderDeadline, ...menu } = menuData;
+  const { orderDeadline, weekdayOrderDeadline, shabbatOrderDeadline, ...menu } = menuData;
   const menuPublished = isMenuWeekPublished(menu);
   const noMenuPublished = !menuDoc || !menuPublished;
-  const isLocked = computeIsLockedByDeadline(orderDeadline, now);
+  const isWeekdayLocked = computeIsWeekdayLocked(menuData, now);
+  const isShabbatLocked = computeIsShabbatLocked(menuData, now);
+  const isLocked = computeIsFullyLocked(menuData, now);
 
   const order = await findInstitutionOrder(institutionId, weekStartDate);
   let orderDays: ReturnType<typeof normalizeOrderDays> = defaultOrderDays();
@@ -75,15 +84,22 @@ async function buildPortalWeekPayload(institutionId: unknown, weekStartDate: Wee
   return {
     weekStartDate,
     isLocked,
+    isWeekdayLocked,
+    isShabbatLocked,
     menuPublished,
     noMenuPublished,
     orderDeadline,
+    weekdayOrderDeadline,
+    shabbatOrderDeadline,
     menu,
     order: {
       weekStartDate,
       isLocked,
+      isWeekdayLocked,
+      isShabbatLocked,
       days: orderDays,
-      shabbatOrder
+      shabbatOrder,
+      generalNotes: String(order?.generalNotes || '').trim()
     }
   };
 }
@@ -149,7 +165,7 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
 
     const menuDoc = await findMenuForWeek(weekStartDate);
     const menuData = await loadMenuForWeek(weekStartDate);
-    const { orderDeadline, ...menu } = menuData;
+    const { orderDeadline, weekdayOrderDeadline, shabbatOrderDeadline, ...menu } = menuData;
     const menuPublished = isMenuWeekPublished(menu);
     const noMenuPublished = !menuDoc || !menuPublished;
 
@@ -161,9 +177,11 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const isLocked = computeIsLockedByDeadline(orderDeadline);
+    const isWeekdayLocked = computeIsWeekdayLocked(menuData);
+    const isShabbatLocked = computeIsShabbatLocked(menuData);
+    const isFullyLocked = computeIsFullyLocked(menuData);
 
-    if (isLocked) {
+    if (isFullyLocked) {
       res.status(403).json({
         success: false,
         message: 'מועד ההזמנה הסתיים – לא ניתן לעדכן כמויות'
@@ -176,18 +194,54 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, message: validation.message });
       return;
     }
-    const days = validation.days;
+    const incomingDays = validation.days;
 
     const shabbatValidation = validateShabbatOrderPayload(req.body?.shabbatOrder);
     if (shabbatValidation.ok === false) {
       res.status(400).json({ success: false, message: shabbatValidation.message });
       return;
     }
-    const shabbatOrder = shabbatValidation.shabbatOrder;
+    const incomingShabbat = shabbatValidation.shabbatOrder;
+
+    const generalNotesValidation = validateGeneralNotesPayload(req.body?.generalNotes);
+    if (generalNotesValidation.ok === false) {
+      res.status(400).json({ success: false, message: generalNotesValidation.message });
+      return;
+    }
 
     const existing = await findInstitutionOrder(user._id, weekStartDate);
     if (existing && String(existing.weekStartDate) !== weekStartDate) {
       await InstitutionOrder.deleteOne({ _id: existing._id });
+    }
+
+    const existingDays = normalizeOrderDays(existing?.days);
+    const existingShabbat = normalizeShabbatOrder(existing?.shabbatOrder);
+
+    if (isWeekdayLocked && !orderDaysEqual(incomingDays, existingDays)) {
+      res.status(403).json({
+        success: false,
+        message: 'הזמנות לימי חול נסגרו'
+      });
+      return;
+    }
+
+    if (isShabbatLocked && !shabbatOrdersEqual(incomingShabbat, existingShabbat)) {
+      res.status(403).json({
+        success: false,
+        message: 'הזמנות שבת נסגרו'
+      });
+      return;
+    }
+
+    const days = isWeekdayLocked ? existingDays : incomingDays;
+    const shabbatOrder = isShabbatLocked ? existingShabbat : incomingShabbat;
+    const generalNotes = isFullyLocked
+      ? String(existing?.generalNotes || '').trim()
+      : generalNotesValidation.generalNotes;
+
+    if (!hasMeaningfulOrder(days, shabbatOrder)) {
+      res.status(400).json({ success: false, message: 'יש להזין לפחות מנה אחת בהזמנה' });
+      return;
     }
 
     const saved = await InstitutionOrder.findOneAndUpdate(
@@ -195,9 +249,10 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
       {
         institutionId: user._id,
         weekStartDate,
-        isLocked: false,
+        isLocked: isFullyLocked,
         days,
-        shabbatOrder
+        shabbatOrder,
+        generalNotes
       },
       { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, runValidators: true }
     ).lean();
@@ -207,9 +262,12 @@ export async function submitPortalOrder(req: Request, res: Response): Promise<vo
       message: 'ההזמנה נשמרה בהצלחה',
       data: {
         weekStartDate,
-        isLocked: false,
+        isLocked: isFullyLocked,
+        isWeekdayLocked,
+        isShabbatLocked,
         days: normalizeOrderDays(saved?.days),
-        shabbatOrder: normalizeShabbatOrder(saved?.shabbatOrder)
+        shabbatOrder: normalizeShabbatOrder(saved?.shabbatOrder),
+        generalNotes: String(saved?.generalNotes || '').trim()
       }
     });
   } catch (err: any) {

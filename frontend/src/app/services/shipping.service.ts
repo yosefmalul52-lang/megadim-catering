@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import type { OpenDateRule } from '../utils/open-date-rules';
 
 export interface ShippingGlobalSettings {
   freeShippingThreshold: number;
@@ -10,6 +11,7 @@ export interface ShippingGlobalSettings {
   pricePerKm: number;
   /** Specific dates open for orders; format 'YYYY-MM-DD' */
   openDates?: string[];
+  openDateRules?: OpenDateRule[];
   minimumLeadDays?: number;
   tiers?: DeliveryPricingTier[];
 }

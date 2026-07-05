@@ -164,3 +164,62 @@ export function isSundayDateInput(value: string): boolean {
 export function isMenuPublished(menu: Record<string, unknown> | null | undefined): boolean {
   return isMenuWeekPublished(menu as Partial<InstitutionMenuContent>);
 }
+
+export interface MenuDeadlineFields {
+  orderDeadline?: string | null;
+  weekdayOrderDeadline?: string | null;
+  shabbatOrderDeadline?: string | null;
+}
+
+function parseDeadlineMs(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function hasExplicitDeadline(value: string | null | undefined): boolean {
+  return value != null && value !== '';
+}
+
+export function resolveWeekdayOrderDeadline(menu: MenuDeadlineFields): string | null {
+  if (hasExplicitDeadline(menu.weekdayOrderDeadline)) return menu.weekdayOrderDeadline ?? null;
+  return menu.orderDeadline ?? null;
+}
+
+export function resolveShabbatOrderDeadline(menu: MenuDeadlineFields): string | null {
+  if (hasExplicitDeadline(menu.shabbatOrderDeadline)) return menu.shabbatOrderDeadline ?? null;
+  return menu.orderDeadline ?? null;
+}
+
+export function isDeadlinePassed(deadline: string | null | undefined, now = Date.now()): boolean {
+  const ms = parseDeadlineMs(deadline ?? null);
+  if (ms == null) return false;
+  return now > ms;
+}
+
+export function isWeekdayLocked(menu: MenuDeadlineFields, now = Date.now()): boolean {
+  return isDeadlinePassed(resolveWeekdayOrderDeadline(menu), now);
+}
+
+export function isShabbatLocked(menu: MenuDeadlineFields, now = Date.now()): boolean {
+  return isDeadlinePassed(resolveShabbatOrderDeadline(menu), now);
+}
+
+export function isFullyLocked(menu: MenuDeadlineFields, now = Date.now()): boolean {
+  return isWeekdayLocked(menu, now) && isShabbatLocked(menu, now);
+}
+
+export function formatDeadlineNotice(deadline: string | null | undefined, label: string): string {
+  if (!deadline) {
+    return `${label}: טרם הוגדר`;
+  }
+  const d = new Date(deadline);
+  if (Number.isNaN(d.getTime())) {
+    return `${label}: טרם הוגדר`;
+  }
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${label}: ${dd}.${mm} בשעה ${hh}:${min}`;
+}

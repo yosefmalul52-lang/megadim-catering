@@ -20,6 +20,12 @@ import { DeliveryService } from '../../../services/delivery.service';
 import { CouponService } from '../../../services/coupon.service';
 import { MarketingService } from '../../../services/marketing.service';
 import { toYYYYMMDD } from '../../../utils/date.utils';
+import {
+  isDateOpenForOrdering,
+  normalizeOpenDateRules,
+  resolveCutoffTime,
+  type OpenDateSettings
+} from '../../../utils/open-date-rules';
 import { environment } from '../../../../environments/environment';
 import { Subject, of } from 'rxjs';
 import { catchError, debounceTime, map, switchMap, takeUntil } from 'rxjs/operators';
@@ -105,23 +111,27 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
   /** Minimum date for event (today + minimumLeadDays); set after settings load */
   minDate: Date = this.getMinDateForLeadDays(2);
   /** Specific dates open for orders (YYYY-MM-DD); from store settings */
-  openDates: string[] = [];
+  openDateSettings: OpenDateSettings = { openDates: [], openDateRules: [] };
   /** Minimum days from today until allowed order date (from store settings) */
   minimumLeadDays = 2;
+  /** Hint for selected event date cutoff */
+  eventDateCutoffHint = '';
+  /** Error when selected date is closed */
+  eventDateClosedMessage = '';
 
   private getMinDateForLeadDays(days: number): Date {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
   }
 
-  /** Filter: only allow dates >= minDate and in openDates list */
+  /** Filter: only allow dates >= minDate, in open list, and before cutoff time */
   dateFilter = (d: Date | null): boolean => {
     if (!d) return false;
     const pick = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const min = new Date(this.minDate.getFullYear(), this.minDate.getMonth(), this.minDate.getDate());
     const isTooSoon = pick < min;
     const key = toYYYYMMDD(d);
-    return !isTooSoon && this.openDates.includes(key);
+    return !isTooSoon && isDateOpenForOrdering(key, this.openDateSettings);
   };
 
   ngOnInit(): void {
@@ -147,6 +157,9 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
       });
     });
     this.updateAddressValidators();
+    this.orderForm.get('eventDate')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((date) => {
+      this.updateEventDateMessages(date);
+    });
     this.orderForm.get('deliveryType')?.valueChanges.subscribe(() => {
       this.updateAddressValidators();
       if (this.orderForm.get('deliveryType')?.value !== 'delivery') {
@@ -248,19 +261,20 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
       this.filteredCities = [...cities];
     });
     this.settingsService.getSettings(true).subscribe(s => (this.settings = s));
-    this.http.get<{ success: boolean; data: { openDates?: string[]; minimumLeadDays?: number } }>(`${environment.apiUrl}/settings/delivery`).subscribe({
+    this.http.get<{ success: boolean; data: { openDates?: string[]; openDateRules?: { date: string; cutoffTime: string }[]; minimumLeadDays?: number } }>(`${environment.apiUrl}/settings/delivery`).subscribe({
       next: (res) => {
         const data = res?.data;
-        if (data?.openDates && Array.isArray(data.openDates)) {
-          this.openDates = data.openDates.filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s));
-        } else {
-          this.openDates = [];
-        }
+        const openDates = Array.isArray(data?.openDates)
+          ? data.openDates.filter((s): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s))
+          : [];
+        const openDateRules = normalizeOpenDateRules(data?.openDateRules);
+        this.openDateSettings = { openDates, openDateRules };
         const lead = data?.minimumLeadDays;
         if (typeof lead === 'number' && lead >= 0) {
           this.minimumLeadDays = lead;
         }
         this.minDate = this.getMinDateForLeadDays(this.minimumLeadDays);
+        this.updateEventDateMessages(this.orderForm.get('eventDate')?.value);
       }
     });
     this.cartService.cartItems$.subscribe(items => {
@@ -423,6 +437,28 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     this.recalculateDeliveryIfNeeded();
   }
 
+  private updateEventDateMessages(date: Date | null | undefined): void {
+    if (!date) {
+      this.eventDateCutoffHint = '';
+      this.eventDateClosedMessage = '';
+      return;
+    }
+    const key = toYYYYMMDD(date);
+    const cutoff = resolveCutoffTime(key, this.openDateSettings);
+    if (!cutoff) {
+      this.eventDateCutoffHint = '';
+      this.eventDateClosedMessage = 'תאריך זה אינו פתוח להזמנות';
+      return;
+    }
+    if (!isDateOpenForOrdering(key, this.openDateSettings)) {
+      this.eventDateCutoffHint = '';
+      this.eventDateClosedMessage = `ההזמנות לתאריך זה נסגרו בשעה ${cutoff}`;
+      return;
+    }
+    this.eventDateClosedMessage = '';
+    this.eventDateCutoffHint = `תאריך זה פתוח להזמנות עד ${cutoff}`;
+  }
+
   /** Submit disabled while submitting or when delivery cannot be calculated. */
   get isSubmitDisabled(): boolean {
     const isDelivery = this.orderForm?.get('deliveryType')?.value === 'delivery';
@@ -458,6 +494,25 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
         verticalPosition: 'top'
       });
       return;
+    }
+
+    const eventDateValue = this.orderForm.get('eventDate')?.value as Date | null;
+    if (eventDateValue) {
+      const key = toYYYYMMDD(eventDateValue);
+      const cutoff = resolveCutoffTime(key, this.openDateSettings);
+      if (!isDateOpenForOrdering(key, this.openDateSettings)) {
+        const msg = cutoff
+          ? `ההזמנות לתאריך זה נסגרו בשעה ${cutoff}`
+          : 'תאריך זה אינו פתוח להזמנות';
+        this.eventDateClosedMessage = msg;
+        this.snackBar.open(msg, 'סגור', {
+          duration: 5000,
+          horizontalPosition: 'start',
+          verticalPosition: 'top',
+          panelClass: ['snack-warning']
+        });
+        return;
+      }
     }
 
     this.isSubmitting = true;

@@ -668,6 +668,24 @@ $text-gray: #4b5563;
             background: $gold;
           }
         }
+
+        &.meal-block {
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          padding: 20px 16px;
+          border-radius: 4px;
+        }
+
+        &.nested-section {
+          margin-bottom: 24px;
+        }
+
+        .subsection-title {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: $dark-blue;
+          margin: 0 0 16px;
+          text-align: right;
+        }
         
         .form-grid {
           display: grid;

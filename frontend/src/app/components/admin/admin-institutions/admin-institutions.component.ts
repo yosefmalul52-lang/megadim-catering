@@ -30,10 +30,19 @@ import {
   emptyMenuDayItems,
   emptyShabbatPackage,
   emptyShabbatOrder,
+  mealPortionsForForm,
+  sumMealPortions,
+  totalShabbatPortionCount,
+  resolveShabbatMealCounts,
+  hasStoredMealPortions,
+  formatLegacyShabbatOrderSummary,
+  isLegacyShabbatOrderWithoutMealPortions,
+  ORDER_NOTES_MAX_LENGTH,
   isMenuWeekPublished,
   type MenuCategoryKey,
   type InstitutionMenuContent,
   type ShabbatOrder,
+  type ShabbatMealPortions,
   type MenuWeekdayField
 } from '../../../utils/menu-structure';
 import { shiftWeekStartKey, getWeekRangeString, getWeekRangeReportString, getWeekRangePackingReportString, formatWeekDateHe, getWeekEndKey, getWeekOffsetFromCurrent, getWeekOffsetLabel } from '../../../utils/portal-week';
@@ -52,10 +61,12 @@ import {
 import {
   buildAggregatedShabbatKitchenLines,
   buildPackingShabbatLines,
+  buildInstitutionProductionShabbatRows,
   aggregateShabbatExtras,
   aggregateShabbatKitchenTotals,
   formatShabbatExtrasSummary,
-  type ShabbatExtrasTotals
+  type ShabbatExtrasTotals,
+  type InstitutionKitchenPrintRow
 } from '../../../utils/shabbat-logistics';
 
 export interface PastWeekCopyOption {
@@ -98,11 +109,15 @@ export class AdminInstitutionsComponent implements OnInit {
 
   /** Global week timeline — drives all tabs */
   selectedWeekStart = getCurrentWeekStart();
+  /** Last committed week — revert date picker when navigation is cancelled */
+  private committedWeekStart = getCurrentWeekStart();
 
   showOrderModal = false;
   orderEditInstitutionId = '';
   orderEditInstitutionName = '';
   orderEditWeek = '';
+  orderEditGeneralNotes = '';
+  orderEditShabbatSource: ShabbatOrder | null = null;
   orderForm!: FormGroup;
   isLoadingOrder = false;
   isSavingOrder = false;
@@ -187,7 +202,8 @@ export class AdminInstitutionsComponent implements OnInit {
     this.buildDictionaryForm();
     this.orderForm = this.fb.group({
       days: this.fb.array([]),
-      shabbatOrder: this.buildShabbatOrderGroup()
+      shabbatOrder: this.buildShabbatOrderGroup(),
+      adminNotes: ['', [Validators.maxLength(ORDER_NOTES_MAX_LENGTH)]]
     });
     this.loadDictionary();
     this.refreshAllTabs();
@@ -247,6 +263,14 @@ export class AdminInstitutionsComponent implements OnInit {
     return this.orderForm.get('shabbatOrder') as FormGroup;
   }
 
+  get orderShabbatMealPortionsGroup(): FormGroup {
+    return this.orderShabbatGroup.get('mealPortions') as FormGroup;
+  }
+
+  get orderWantsSeudaShlishit(): boolean {
+    return this.orderShabbatGroup.get('wantsSeudaShlishit')?.value === true;
+  }
+
   get menuShabbatGroup(): FormGroup {
     return this.menuForm.get('shabbatPackage') as FormGroup;
   }
@@ -278,16 +302,28 @@ export class AdminInstitutionsComponent implements OnInit {
     });
   }
 
-  private buildShabbatOrderGroup(order = emptyShabbatOrder()) {
+  private buildMealPortionGroup(counts = { regularCount: 0, vegetarianCount: 0 }) {
     return this.fb.group({
-      regularCount: [order.regularCount ?? 0, [Validators.min(0)]],
-      vegetarianCount: [order.vegetarianCount ?? 0, [Validators.min(0)]],
+      regularCount: [counts.regularCount ?? 0, [Validators.min(0)]],
+      vegetarianCount: [counts.vegetarianCount ?? 0, [Validators.min(0)]]
+    });
+  }
+
+  private buildShabbatOrderGroup(order = emptyShabbatOrder()) {
+    const portions = mealPortionsForForm(order);
+    return this.fb.group({
       wantsSeudaShlishit: [order.wantsSeudaShlishit === true],
+      mealPortions: this.fb.group({
+        fridayNight: this.buildMealPortionGroup(portions.fridayNight),
+        shabbatDay: this.buildMealPortionGroup(portions.shabbatDay),
+        seudaShlishit: this.buildMealPortionGroup(portions.seudaShlishit ?? { regularCount: 0, vegetarianCount: 0 })
+      }),
       extras: this.fb.group({
         challahs: [order.extras?.challahs ?? 0, [Validators.min(0)]],
         rolls: [order.extras?.rolls ?? 0, [Validators.min(0)]],
         grapeJuice: [order.extras?.grapeJuice ?? 0, [Validators.min(0)]]
-      })
+      }),
+      notes: [order.notes ?? '', [Validators.maxLength(ORDER_NOTES_MAX_LENGTH)]]
     });
   }
 
@@ -308,7 +344,8 @@ export class AdminInstitutionsComponent implements OnInit {
       dayGroups[day.key] = this.buildMenuDayGroup();
     }
     this.menuForm = this.fb.group({
-      orderDeadline: ['', Validators.required],
+      weekdayOrderDeadline: ['', Validators.required],
+      shabbatOrderDeadline: ['', Validators.required],
       ...dayGroups,
       shabbatPackage: this.buildShabbatPackageGroup()
     });
@@ -586,6 +623,30 @@ export class AdminInstitutionsComponent implements OnInit {
     );
   }
 
+  packingShabbatFilterPrefix(day: PackingOrderDay): string {
+    switch (day.shabbatMeal) {
+      case 'fridayNight':
+        return 'ערב שבת';
+      case 'shabbatDay':
+        return 'שבת בבוקר';
+      case 'seudaShlishit':
+        return 'סעודה שלישית';
+      default:
+        return '';
+    }
+  }
+
+  packingShabbatLineItemsForMeal(
+    order: InstitutionWeekReports['orders'][number],
+    day: PackingOrderDay
+  ): CategoryLogisticsDisplayLine[] {
+    const allLines = this.packingShabbatLineItems(order);
+    if (day.shabbatMeal === 'legacy') return allLines;
+    const prefix = this.packingShabbatFilterPrefix(day);
+    if (!prefix) return allLines;
+    return allLines.filter((line) => line.categoryLabel.startsWith(`${prefix} —`));
+  }
+
   packingCategoryLineItems(day: PackingOrderDay): CategoryLogisticsDisplayLine[] {
     return MENU_CATEGORIES.map((c) => {
       const dish = day.menuItems?.[c.key] || '';
@@ -617,29 +678,41 @@ export class AdminInstitutionsComponent implements OnInit {
     return (day.notes || '').trim();
   }
 
-  onGlobalWeekDateChange(): void {
-    const normalized = normalizeWeekInput(this.selectedWeekStart);
+  private confirmLeaveWithUnsavedChanges(): boolean {
+    if (!this.menuForm?.dirty) return true;
+    return confirm('יש שינויים שלא נשמרו. לעבור שבוע בלי לשמור?');
+  }
+
+  private applyWeekNavigation(nextWeek: string): void {
+    const normalized = normalizeWeekInput(nextWeek);
     if (!normalized) {
       this.snackBar.open('תאריך לא תקין — בחר יום ראשון', 'סגור', { duration: 4000 });
+      this.selectedWeekStart = this.committedWeekStart;
+      return;
+    }
+    if (!this.confirmLeaveWithUnsavedChanges()) {
+      this.selectedWeekStart = this.committedWeekStart;
       return;
     }
     this.selectedWeekStart = normalized;
+    this.committedWeekStart = normalized;
     this.refreshAllTabs();
+  }
+
+  onGlobalWeekDateChange(): void {
+    this.applyWeekNavigation(this.selectedWeekStart);
   }
 
   goToPreviousWeek(): void {
-    this.selectedWeekStart = getPreviousWeekStartKey(this.selectedWeekStart);
-    this.refreshAllTabs();
+    this.applyWeekNavigation(getPreviousWeekStartKey(this.committedWeekStart));
   }
 
   goToCurrentWeek(): void {
-    this.selectedWeekStart = getCurrentWeekStart();
-    this.refreshAllTabs();
+    this.applyWeekNavigation(getCurrentWeekStart());
   }
 
   goToNextWeek(): void {
-    this.selectedWeekStart = shiftWeekStartKey(this.selectedWeekStart, 1);
-    this.refreshAllTabs();
+    this.applyWeekNavigation(shiftWeekStartKey(this.committedWeekStart, 1));
   }
 
   loadInstitutions(): void {
@@ -685,11 +758,22 @@ export class AdminInstitutionsComponent implements OnInit {
     }
   }
 
-  private patchMenuFormFromContent(menu: InstitutionMenuContent, orderDeadline?: string | null): void {
+  private patchMenuFormFromContent(
+    menu: InstitutionMenuContent,
+    deadlines?: {
+      orderDeadline?: string | null;
+      weekdayOrderDeadline?: string | null;
+      shabbatOrderDeadline?: string | null;
+    }
+  ): void {
     const pkg = menu.shabbatPackage || emptyShabbatPackage();
+    const legacy = deadlines?.orderDeadline ?? null;
+    const weekday = deadlines?.weekdayOrderDeadline || legacy;
+    const shabbat = deadlines?.shabbatOrderDeadline || legacy;
     this.menuForm.patchValue({
       ...menu,
-      orderDeadline: orderDeadline ? isoToDatetimeLocal(orderDeadline) : '',
+      weekdayOrderDeadline: weekday ? isoToDatetimeLocal(weekday) : '',
+      shabbatOrderDeadline: shabbat ? isoToDatetimeLocal(shabbat) : '',
       shabbatPackage: {
         hasShabbat: pkg.hasShabbat !== false,
         fridayNight: pkg.fridayNight,
@@ -734,7 +818,12 @@ export class AdminInstitutionsComponent implements OnInit {
     this.menuError = '';
     this.institutionService.getWeekMenu(this.selectedWeekStart).subscribe({
       next: (data) => {
-        this.patchMenuFormFromContent(data.menu, data.orderDeadline);
+        this.patchMenuFormFromContent(data.menu, {
+          orderDeadline: data.orderDeadline,
+          weekdayOrderDeadline: data.weekdayOrderDeadline,
+          shabbatOrderDeadline: data.shabbatOrderDeadline
+        });
+        this.menuForm.markAsPristine();
         this.menuPublished = data.menuPublished ?? isMenuWeekPublished(data.menu);
         this.isLoadingMenu = false;
       },
@@ -748,8 +837,13 @@ export class AdminInstitutionsComponent implements OnInit {
   saveWeekMenu(): void {
     if (this.menuForm.invalid) {
       this.menuForm.markAllAsTouched();
-      if (this.menuForm.get('orderDeadline')?.invalid) {
-        this.snackBar.open('נדרש תאריך ושעת סגירת הזמנות לפני שמירת התפריט', 'סגור', { duration: 5000 });
+      if (
+        this.menuForm.get('weekdayOrderDeadline')?.invalid ||
+        this.menuForm.get('shabbatOrderDeadline')?.invalid
+      ) {
+        this.snackBar.open('נדרשים שני זמני סגירת הזמנות (ימי חול ושבת) לפני שמירה', 'סגור', {
+          duration: 5000
+        });
       }
       return;
     }
@@ -760,7 +854,8 @@ export class AdminInstitutionsComponent implements OnInit {
       return;
     }
     const v = this.menuForm.value;
-    const orderDeadlineIso = datetimeLocalToIso(String(v.orderDeadline));
+    const weekdayOrderDeadlineIso = datetimeLocalToIso(String(v.weekdayOrderDeadline));
+    const shabbatOrderDeadlineIso = datetimeLocalToIso(String(v.shabbatOrderDeadline));
     const menu = this.menuContentFromForm();
 
     this.isSavingMenu = true;
@@ -768,14 +863,20 @@ export class AdminInstitutionsComponent implements OnInit {
     this.institutionService
       .saveWeekMenu(weekStartDate, {
         ...menu,
-        orderDeadline: orderDeadlineIso
+        weekdayOrderDeadline: weekdayOrderDeadlineIso,
+        shabbatOrderDeadline: shabbatOrderDeadlineIso
       })
       .subscribe({
         next: (data) => {
           this.isSavingMenu = false;
-          this.patchMenuFormFromContent(data.menu, data.orderDeadline);
+          this.patchMenuFormFromContent(data.menu, {
+            orderDeadline: data.orderDeadline,
+            weekdayOrderDeadline: data.weekdayOrderDeadline,
+            shabbatOrderDeadline: data.shabbatOrderDeadline
+          });
+          this.menuForm.markAsPristine();
           this.menuPublished = data.menuPublished ?? isMenuWeekPublished(data.menu);
-          this.snackBar.open('תפריט שבועי נשמר בהצלחה', 'סגור', { duration: 4000 });
+          this.snackBar.open('הגדרות השבוע נשמרו בהצלחה', 'סגור', { duration: 4000 });
           if (this.reportsLoaded) this.loadReports();
         },
         error: (err) => {
@@ -798,7 +899,8 @@ export class AdminInstitutionsComponent implements OnInit {
       next: () => {
         this.isClearingMenu = false;
         this.menuForm.reset({
-          orderDeadline: '',
+          weekdayOrderDeadline: '',
+          shabbatOrderDeadline: '',
           ...MENU_WEEKDAY_FORM_FIELDS.reduce(
             (acc, d) => {
               acc[d.key] = emptyMenuDayItems();
@@ -847,8 +949,9 @@ export class AdminInstitutionsComponent implements OnInit {
           return;
         }
         this.patchMenuContentOnly(data.menu);
-        this.menuForm.patchValue({ orderDeadline: '' });
-        this.menuForm.get('orderDeadline')?.markAsUntouched();
+        this.menuForm.patchValue({ weekdayOrderDeadline: '', shabbatOrderDeadline: '' });
+        this.menuForm.get('weekdayOrderDeadline')?.markAsUntouched();
+        this.menuForm.get('shabbatOrderDeadline')?.markAsUntouched();
         this.snackBar.open('התפריט הועתק בהצלחה — הגדר דדליין ולחץ שמור', 'סגור', { duration: 5000 });
       },
       error: () => {
@@ -876,6 +979,16 @@ export class AdminInstitutionsComponent implements OnInit {
     });
   }
 
+  printProductionReport(): void {
+    if (!this.reports) return;
+    this.openPrintWindow(this.buildProductionReportHtml(), 'דוח ייצור מוסדות — מגדים');
+  }
+
+  printPackingReport(): void {
+    if (!this.reports) return;
+    this.openPrintWindow(this.buildPackingReportHtml(), 'דוח אריזה מוסדות — מגדים');
+  }
+
   printReports(): void {
     const printContent = document.getElementById('print-section');
     if (!printContent) {
@@ -887,6 +1000,29 @@ export class AdminInstitutionsComponent implements OnInit {
       .map((el) => el.outerHTML)
       .join('\n');
 
+    const legacyStyles = `
+      @page { size: A4 portrait; margin: 1.5cm; }
+      button, .no-print, .mat-mdc-tab-header, .global-week-selector { display: none !important; }
+      h2, h3 { text-align: center; color: #000; margin-bottom: 5px; }
+      .report-container { margin-bottom: 40px; }
+      table, .mat-mdc-table {
+        width: 100% !important; border-collapse: collapse !important; margin-top: 15px;
+        font-size: 13px !important; display: table !important;
+      }
+      thead, .mat-mdc-header-row { display: table-header-group !important; }
+      tr, .mat-mdc-row, .mat-mdc-header-row { display: table-row !important; page-break-inside: avoid; }
+      th, td, .mat-mdc-cell, .mat-mdc-header-cell {
+        display: table-cell !important; border: 1px solid #aaa !important; padding: 10px !important;
+        text-align: right !important; vertical-align: top !important;
+      }
+      th, .mat-mdc-header-cell { background-color: #f2f2f2 !important; font-weight: bold !important; }
+      .day-packing-card { page-break-inside: avoid; border: 1px solid #ccc !important; margin-bottom: 15px !important; padding: 10px !important; }
+    `;
+
+    this.openPrintWindow(printContent.innerHTML, 'דוחות מטבח - מגדים', `${stylesHtml}<style>${legacyStyles}</style>`);
+  }
+
+  private openPrintWindow(bodyHtml: string, title: string, extraHead = ''): void {
     const popupWin = window.open('', '_blank', 'top=0,left=0,height=100%,width=auto');
     if (!popupWin) {
       alert('אנא אפשר חלונות קופצים (Popups) כדי להדפיס.');
@@ -898,88 +1034,11 @@ export class AdminInstitutionsComponent implements OnInit {
       <html dir="rtl" lang="he">
         <head>
           <meta charset="utf-8">
-          <title>דוחות מטבח - מגדים</title>
-          ${stylesHtml}
-          <style>
-            @page { size: A4 portrait; margin: 1.5cm; }
-            body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, Arial !important;
-              direction: rtl;
-              background-color: white !important;
-              color: black !important;
-              padding: 0;
-              margin: 0;
-            }
-
-            /* Hide non-printable elements */
-            button, .no-print, .mat-mdc-tab-header, .global-week-selector {
-              display: none !important;
-            }
-
-            /* Typography & Spacing */
-            h2, h3 { text-align: center; color: #000; margin-bottom: 5px; }
-            .report-container { margin-bottom: 40px; }
-
-            /* Force Material Tables to behave like standard HTML tables for printing */
-            table, .mat-mdc-table {
-              width: 100% !important;
-              border-collapse: collapse !important;
-              margin-top: 15px;
-              font-size: 13px !important;
-              display: table !important;
-            }
-            thead, .mat-mdc-header-row { display: table-header-group !important; }
-            tr, .mat-mdc-row, .mat-mdc-header-row { display: table-row !important; page-break-inside: avoid; }
-            th, td, .mat-mdc-cell, .mat-mdc-header-cell {
-              display: table-cell !important;
-              border: 1px solid #aaa !important;
-              padding: 10px !important;
-              text-align: right !important;
-              vertical-align: top !important;
-            }
-
-            /* Header styling */
-            th, .mat-mdc-header-cell {
-              background-color: #f2f2f2 !important;
-              font-weight: bold !important;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              color-adjust: exact;
-            }
-
-            /* List of items inside the cell styling */
-            .mat-mdc-cell div, .item-row {
-              padding: 4px 0;
-              border-bottom: 1px dashed #ddd;
-              display: block !important;
-            }
-            .mat-mdc-cell div:last-child, .item-row:last-child {
-              border-bottom: none;
-            }
-
-            /* Highlight notes in Packing breakdown */
-            .institution-notes {
-              background-color: #fff9c4 !important;
-              border-right: 4px solid #fbc02d !important;
-              padding: 6px !important;
-              margin-top: 8px !important;
-              font-weight: bold;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              color-adjust: exact;
-              display: block !important;
-            }
-
-            /* Avoid cutting cards in half */
-            .day-packing-card {
-              page-break-inside: avoid;
-              border: 1px solid #ccc !important;
-              margin-bottom: 15px !important;
-              padding: 10px !important;
-            }
-          </style>
+          <title>${this.escapePrintHtml(title)}</title>
+          ${extraHead}
+          <style>${this.institutionPrintBaseStyles()}</style>
         </head>
-        <body>${printContent.innerHTML}</body>
+        <body>${bodyHtml}</body>
       </html>
     `);
     popupWin.document.close();
@@ -989,6 +1048,501 @@ export class AdminInstitutionsComponent implements OnInit {
       popupWin.print();
       popupWin.close();
     }, 500);
+  }
+
+  private institutionPrintBaseStyles(): string {
+    return `
+      @page { size: A4 portrait; margin: 12mm; }
+      body {
+        font-family: Heebo, 'Segoe UI', Tahoma, Arial, sans-serif !important;
+        direction: rtl; background: #fff !important; color: #111 !important;
+        padding: 0; margin: 0; text-align: right;
+      }
+      h1 { margin: 0 0 8px; font-size: 1.35rem; font-weight: 800; text-align: center; color: #000; }
+      h2 { margin: 16px 0 8px; font-size: 1rem; font-weight: 800; color: #000; border-bottom: 1px solid #111; padding-bottom: 4px; }
+      h3 { margin: 0 0 8px; font-size: 0.95rem; font-weight: 700; color: #000; }
+      .meta { margin: 0 0 14px; font-size: 0.9rem; line-height: 1.7; text-align: center; }
+      .meta-line { margin: 2px 0; }
+      .section-note { margin: 8px 0 12px; padding: 8px 10px; border: 1px solid #111; font-size: 0.85rem; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 12px; }
+      th, td { border: 1px solid #111; padding: 5px 7px; text-align: right; vertical-align: top; color: #000; }
+      th { background: #f4f4f4; font-weight: 700; }
+      .done-col { width: 32px; text-align: center; }
+      .num-col { width: 44px; text-align: center; white-space: nowrap; }
+      .summary-block { margin-top: 16px; padding: 10px 12px; border: 1px solid #111; page-break-inside: avoid; }
+      .summary-title { font-weight: 800; margin-bottom: 6px; }
+      .institution-block { page-break-inside: avoid; margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
+      .institution-block + .institution-block { page-break-before: always; }
+      .institution-meta { margin: 4px 0 10px; font-size: 0.85rem; line-height: 1.6; }
+      .menu-cell { white-space: pre-line; font-size: 11px; }
+      button, .no-print { display: none !important; }
+    `;
+  }
+
+  private escapePrintHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private printTimestamp(): string {
+    return new Date().toLocaleString('he-IL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  private printWeekRangeLine(): string {
+    const week = normalizeWeekInput(this.reports?.weekStartDate || this.selectedWeekStart);
+    if (!week) return '';
+    return `שבוע: ${formatWeekDateHe(week)} עד ${formatWeekDateHe(getWeekEndKey(week))}`;
+  }
+
+  private categoryDinerCounts(
+    menuCategoryKey: MenuCategoryKey,
+    totalRegular: number,
+    totalVegetarian: number
+  ): { regular: number; vegetarian: number; total: number } {
+    if (menuCategoryKey === 'mainMeat') {
+      return { regular: totalRegular, vegetarian: 0, total: totalRegular };
+    }
+    if (menuCategoryKey === 'vegetarianMain') {
+      return { regular: 0, vegetarian: totalVegetarian, total: totalVegetarian };
+    }
+    return {
+      regular: totalRegular,
+      vegetarian: totalVegetarian,
+      total: totalRegular + totalVegetarian
+    };
+  }
+
+  private buildProductionWeekdayRows(): InstitutionKitchenPrintRow[] {
+    if (!this.reports) return [];
+    const rows: InstitutionKitchenPrintRow[] = [];
+    for (const kRow of this.reports.kitchenReport) {
+      const dayField = MENU_WEEKDAY_FORM_FIELDS.find((d) => d.dayOfWeek === kRow.dayOfWeek);
+      if (!dayField) continue;
+      const dayMenu = this.reports.menu[dayField.key];
+      for (const c of MENU_CATEGORIES) {
+        const dish = (dayMenu[c.key] || '').trim();
+        if (!dish) continue;
+        const counts = this.categoryDinerCounts(c.key, kRow.totalRegular, kRow.totalVegetarian);
+        if (!this.shouldIncludeReportLine(c.key, counts.total)) continue;
+        const line = buildCategoryLogisticsLine(
+          c.label,
+          dish,
+          counts.total,
+          c.key,
+          this.logisticsForDish(dish, c.key)
+        );
+        if (!line) continue;
+        rows.push({
+          sectionLabel: kRow.dayLabel,
+          categoryLabel: c.label,
+          dish,
+          regular: counts.regular,
+          vegetarian: counts.vegetarian,
+          total: counts.total,
+          logisticsText: line.logisticsMetric || `${counts.total} מנות`
+        });
+      }
+    }
+    return rows;
+  }
+
+  private buildProductionShabbatRows(): InstitutionKitchenPrintRow[] {
+    if (!this.reports) return [];
+    return buildInstitutionProductionShabbatRows(this.reports.menu, this.reports.orders || [], (dish, fieldKey) =>
+      this.shabbatLogisticsLookup(dish, fieldKey)
+    );
+  }
+
+  private collectProductionNotes(): string[] {
+    const notes: string[] = [];
+    for (const order of this.reports?.orders || []) {
+      const generalNotes = (order.generalNotes || '').trim();
+      if (generalNotes) {
+        notes.push(`${order.institutionName} — הערה כללית מהמוסד: ${generalNotes}`);
+      }
+      const shabbatNotes = (order.shabbatOrder?.notes || '').trim();
+      if (shabbatNotes) {
+        notes.push(`${order.institutionName} — הערות שבת: ${shabbatNotes}`);
+      }
+      const adminNotes = (order.adminNotes || '').trim();
+      if (adminNotes) {
+        notes.push(`${order.institutionName} — הערת מנהל: ${adminNotes}`);
+      }
+      for (const day of order.days || []) {
+        const dayNotes = (day.notes || '').trim();
+        if (dayNotes) {
+          notes.push(`${order.institutionName} — ${day.dayLabel}: ${dayNotes}`);
+        }
+      }
+    }
+    return notes;
+  }
+
+  private buildProductionReportHtml(): string {
+    const weekdayRows = this.buildProductionWeekdayRows();
+    const shabbatRows = this.buildProductionShabbatRows();
+    const notes = this.collectProductionNotes();
+    const extrasSummary = this.shabbatExtrasSummary;
+
+    let totalRegular = 0;
+    let totalVegetarian = 0;
+    let totalPortions = 0;
+    const daySummary = new Map<string, { regular: number; vegetarian: number; total: number }>();
+
+    for (const row of weekdayRows) {
+      totalRegular += row.regular;
+      totalVegetarian += row.vegetarian;
+      totalPortions += row.total;
+      const prev = daySummary.get(row.sectionLabel) || { regular: 0, vegetarian: 0, total: 0 };
+      prev.regular += row.regular;
+      prev.vegetarian += row.vegetarian;
+      prev.total += row.total;
+      daySummary.set(row.sectionLabel, prev);
+    }
+
+    const weekdayTableRows = weekdayRows
+      .map(
+        (row) => `<tr>
+          <td class="done-col">☐</td>
+          <td>${this.escapePrintHtml(row.sectionLabel)}</td>
+          <td>${this.escapePrintHtml(row.categoryLabel)}</td>
+          <td>${this.escapePrintHtml(row.dish)}</td>
+          <td class="num-col">${row.regular}</td>
+          <td class="num-col">${row.vegetarian}</td>
+          <td class="num-col">${row.total}</td>
+          <td>${this.escapePrintHtml(row.logisticsText)}</td>
+        </tr>`
+      )
+      .join('');
+
+    const shabbatTableRows = shabbatRows
+      .map(
+        (row) => `<tr>
+          <td class="done-col">☐</td>
+          <td>${this.escapePrintHtml(row.sectionLabel)}</td>
+          <td>${this.escapePrintHtml(row.categoryLabel)}</td>
+          <td>${this.escapePrintHtml(row.dish)}</td>
+          <td class="num-col">${row.regular}</td>
+          <td class="num-col">${row.vegetarian}</td>
+          <td class="num-col">${row.total}</td>
+          <td>${this.escapePrintHtml(row.logisticsText)}</td>
+        </tr>`
+      )
+      .join('');
+
+    for (const row of shabbatRows) {
+      totalRegular += row.regular;
+      totalVegetarian += row.vegetarian;
+      totalPortions += row.total;
+      const prev = daySummary.get(row.sectionLabel) || { regular: 0, vegetarian: 0, total: 0 };
+      prev.regular += row.regular;
+      prev.vegetarian += row.vegetarian;
+      prev.total += row.total;
+      daySummary.set(row.sectionLabel, prev);
+    }
+
+    const daySummaryRows = Array.from(daySummary.entries())
+      .map(
+        ([label, s]) => `<tr>
+          <td>${this.escapePrintHtml(label)}</td>
+          <td class="num-col">${s.regular}</td>
+          <td class="num-col">${s.vegetarian}</td>
+          <td class="num-col">${s.total}</td>
+        </tr>`
+      )
+      .join('');
+
+    const notesHtml =
+      notes.length > 0
+        ? `<div class="section-note"><strong>הערות לייצור:</strong><br>${notes.map((n) => this.escapePrintHtml(n)).join('<br>')}</div>`
+        : '';
+
+    const shabbatSection =
+      shabbatRows.length > 0
+        ? `<h2>שבת</h2>
+          <table>
+            <thead>
+              <tr>
+                <th class="done-col">בוצע</th>
+                <th>סעודה</th>
+                <th>קטגוריה</th>
+                <th>שם מנה / פריט</th>
+                <th class="num-col">כמות רגילה</th>
+                <th class="num-col">כמות צמחונית</th>
+                <th class="num-col">סה"כ</th>
+                <th>לוגיסטיקה / הערות הכנה</th>
+              </tr>
+            </thead>
+            <tbody>${shabbatTableRows || '<tr><td colspan="8">—</td></tr>'}</tbody>
+          </table>
+          ${extrasSummary ? `<div class="section-note"><strong>תוספות שבת (סיכום):</strong> ${this.escapePrintHtml(extrasSummary)}</div>` : ''}`
+        : '';
+
+    return `
+      <h1>דוח ייצור מוסדות — מגדים</h1>
+      <div class="meta">
+        <div class="meta-line">${this.escapePrintHtml(this.printWeekRangeLine())}</div>
+        <div class="meta-line"><strong>הודפס:</strong> ${this.printTimestamp()}</div>
+        ${!this.reports?.menuPublished ? '<div class="meta-line">שים לב: תפריט לשבוע זה טרם פורסם</div>' : ''}
+      </div>
+      ${notesHtml}
+      <h2>ימי חול</h2>
+      <table>
+        <thead>
+          <tr>
+            <th class="done-col">בוצע</th>
+            <th>יום</th>
+            <th>קטגוריה</th>
+            <th>שם מנה / פריט</th>
+            <th class="num-col">כמות רגילה</th>
+            <th class="num-col">כמות צמחונית</th>
+            <th class="num-col">סה"כ</th>
+            <th>לוגיסטיקה / הערות הכנה</th>
+          </tr>
+        </thead>
+        <tbody>${weekdayTableRows || '<tr><td colspan="8">—</td></tr>'}</tbody>
+      </table>
+      ${shabbatSection}
+      <div class="summary-block">
+        <div class="summary-title">סיכום כללי</div>
+        <div>סה"כ רגיל: <strong>${totalRegular}</strong></div>
+        <div>סה"כ צמחוני: <strong>${totalVegetarian}</strong></div>
+        <div>סה"כ מנות: <strong>${totalPortions}</strong></div>
+      </div>
+      ${
+        daySummaryRows
+          ? `<div class="summary-block">
+              <div class="summary-title">סיכום לפי יום / סעודה</div>
+              <table>
+                <thead><tr><th>יום / סעודה</th><th class="num-col">רגיל</th><th class="num-col">צמחוני</th><th class="num-col">סה"כ</th></tr></thead>
+                <tbody>${daySummaryRows}</tbody>
+              </table>
+            </div>`
+          : ''
+      }`;
+  }
+
+  private institutionContactInfo(institutionIdValue: string): { phone: string; contact: string } {
+    const inst = this.institutions.find((i) => institutionId(i) === institutionIdValue);
+    return {
+      phone: (inst?.phone || '').trim(),
+      contact: (inst?.username || '').trim()
+    };
+  }
+
+  private formatShabbatExtrasForOrder(order: InstitutionWeekReports['orders'][number]): string {
+    const extras = order.shabbatOrder?.extras;
+    if (!extras) return '';
+    const parts: string[] = [];
+    if (extras.challahs) parts.push(`חלות: ${extras.challahs}`);
+    if (extras.rolls) parts.push(`לחמניות: ${extras.rolls}`);
+    if (extras.grapeJuice) parts.push(`מיץ ענבים: ${extras.grapeJuice}`);
+    return parts.join(' · ');
+  }
+
+  private buildPackingShabbatPrintRows(
+    order: InstitutionWeekReports['orders'][number]
+  ): Array<{
+    dayMeal: string;
+    regular: number;
+    vegetarian: number;
+    total: number;
+    menuText: string;
+    extras: string;
+    institutionNotes: string;
+  }> {
+    const pkg = this.reports?.menu?.shabbatPackage;
+    const s = order.shabbatOrder;
+    if (!pkg?.hasShabbat || !s) return [];
+
+    const rows: Array<{
+      dayMeal: string;
+      regular: number;
+      vegetarian: number;
+      total: number;
+      menuText: string;
+      extras: string;
+      institutionNotes: string;
+    }> = [];
+
+    if (!hasStoredMealPortions(s)) {
+      const regular = Number(s.regularCount) || 0;
+      const vegetarian = Number(s.vegetarianCount) || 0;
+      const allLines = this.packingShabbatLineItems(order);
+      if (regular + vegetarian > 0 || allLines.length > 0) {
+        rows.push({
+          dayMeal: 'שבת — הזמנה ישנה ללא פיצול סעודות',
+          regular,
+          vegetarian,
+          total: regular + vegetarian,
+          menuText: allLines.map((l) => l.displayText).join('\n') || '—',
+          extras: this.formatShabbatExtrasForOrder(order),
+          institutionNotes: (s.notes || '').trim()
+        });
+      }
+      return rows;
+    }
+
+    const allLines = this.packingShabbatLineItems(order);
+    const sections: Array<{ displayLabel: string; filterPrefix: string; meal: 'fridayNight' | 'shabbatDay' | 'seudaShlishit' }> = [
+      { displayLabel: 'סעודה ראשונה — ערב שבת', filterPrefix: 'ערב שבת', meal: 'fridayNight' },
+      { displayLabel: 'סעודה שנייה — שבת בבוקר', filterPrefix: 'שבת בבוקר', meal: 'shabbatDay' }
+    ];
+    if (s.wantsSeudaShlishit) {
+      sections.push({ displayLabel: 'סעודה שלישית', filterPrefix: 'סעודה שלישית', meal: 'seudaShlishit' });
+    }
+
+    for (const section of sections) {
+      const counts = resolveShabbatMealCounts(s, section.meal);
+      const sectionLines = allLines.filter((line) => line.categoryLabel.startsWith(`${section.filterPrefix} —`));
+      if (sectionLines.length === 0 && counts.regularCount + counts.vegetarianCount <= 0) continue;
+      rows.push({
+        dayMeal: section.displayLabel,
+        regular: counts.regularCount,
+        vegetarian: counts.vegetarianCount,
+        total: counts.regularCount + counts.vegetarianCount,
+        menuText: sectionLines.map((l) => l.displayText).join('\n') || '—',
+        extras: '',
+        institutionNotes: section.meal === 'fridayNight' ? (s.notes || '').trim() : ''
+      });
+    }
+
+    const saladLines = allLines.filter((line) => line.categoryLabel.startsWith('סלטי שבת —'));
+    if (saladLines.length > 0) {
+      const fn = resolveShabbatMealCounts(s, 'fridayNight');
+      const sd = resolveShabbatMealCounts(s, 'shabbatDay');
+      rows.push({
+        dayMeal: 'סלטי שבת',
+        regular: fn.regularCount + sd.regularCount,
+        vegetarian: fn.vegetarianCount + sd.vegetarianCount,
+        total: fn.regularCount + fn.vegetarianCount + sd.regularCount + sd.vegetarianCount,
+        menuText: saladLines.map((l) => l.displayText).join('\n'),
+        extras: '',
+        institutionNotes: ''
+      });
+    }
+
+    const extrasText = this.formatShabbatExtrasForOrder(order);
+    if (extrasText) {
+      rows.push({
+        dayMeal: 'תוספות שבת',
+        regular: 0,
+        vegetarian: 0,
+        total: 0,
+        menuText: '—',
+        extras: extrasText,
+        institutionNotes: (s.notes || '').trim()
+      });
+    }
+
+    return rows;
+  }
+
+  private buildPackingReportHtml(): string {
+    const orders = this.reports?.orders || [];
+
+    const institutionsHtml = orders
+      .map((order) => {
+        const contact = this.institutionContactInfo(order.institutionId);
+        const adminNotes = (order.adminNotes || '').trim();
+        const generalNotes = (order.generalNotes || '').trim();
+
+        const weekdayRows = (order.days || [])
+          .filter((day) => day.regularCount || day.vegetarianCount)
+          .map((day, index) => {
+            const lines = this.packingCategoryLineItems(day);
+            const institutionNotes = [
+              index === 0 && generalNotes ? `הערה כללית: ${generalNotes}` : '',
+              this.packingDayNotes(day)
+            ]
+              .filter(Boolean)
+              .join(' · ');
+            return {
+              dayMeal: day.dayLabel,
+              regular: day.regularCount,
+              vegetarian: day.vegetarianCount,
+              total: (Number(day.regularCount) || 0) + (Number(day.vegetarianCount) || 0),
+              menuText: lines.map((l) => l.displayText).join('\n') || '—',
+              extras: '',
+              institutionNotes,
+              adminNotes: ''
+            };
+          });
+
+        const shabbatRows = this.buildPackingShabbatPrintRows(order).map((row, index) => {
+          const institutionNotes = [
+            weekdayRows.length === 0 && index === 0 && generalNotes ? `הערה כללית: ${generalNotes}` : '',
+            row.institutionNotes
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          return { ...row, institutionNotes };
+        });
+
+        const allRows = [...weekdayRows, ...shabbatRows];
+        if (allRows.length === 0) return '';
+
+        const tableRows = allRows
+          .map((row, index) => {
+            const showAdmin = index === 0 && adminNotes;
+            return `<tr>
+              <td class="done-col">☐</td>
+              <td>${this.escapePrintHtml(row.dayMeal)}</td>
+              <td class="num-col">${row.regular}</td>
+              <td class="num-col">${row.vegetarian}</td>
+              <td class="num-col">${row.total}</td>
+              <td class="menu-cell">${this.escapePrintHtml(row.menuText)}</td>
+              <td>${this.escapePrintHtml(row.extras)}</td>
+              <td>${this.escapePrintHtml(row.institutionNotes)}</td>
+              <td>${showAdmin ? this.escapePrintHtml(adminNotes) : ''}</td>
+            </tr>`;
+          })
+          .join('');
+
+        const metaParts: string[] = [];
+        if (contact.contact) metaParts.push(`<div>איש קשר: ${this.escapePrintHtml(contact.contact)}</div>`);
+        if (contact.phone) metaParts.push(`<div>טלפון: ${this.escapePrintHtml(contact.phone)}</div>`);
+
+        return `<div class="institution-block">
+          <h3>${this.escapePrintHtml(order.institutionName)}</h3>
+          <div class="institution-meta">${metaParts.join('') || ''}</div>
+          <table>
+            <thead>
+              <tr>
+                <th class="done-col">בוצע</th>
+                <th>יום / סעודה</th>
+                <th class="num-col">כמות רגילה</th>
+                <th class="num-col">כמות צמחונית</th>
+                <th class="num-col">סה"כ</th>
+                <th>תפריט / פריטים לאריזה</th>
+                <th>תוספות</th>
+                <th>הערות מוסד</th>
+                <th>הערות מנהל</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>`;
+      })
+      .filter(Boolean)
+      .join('');
+
+    return `
+      <h1>דוח אריזה מוסדות — מגדים</h1>
+      <div class="meta">
+        <div class="meta-line">${this.escapePrintHtml(this.printWeekRangeLine())}</div>
+        <div class="meta-line"><strong>הודפס:</strong> ${this.printTimestamp()}</div>
+      </div>
+      ${institutionsHtml || '<p>אין הזמנות לשבוע זה</p>'}`;
   }
 
   openCreateModal(): void {
@@ -1139,17 +1693,93 @@ export class AdminInstitutionsComponent implements OnInit {
   packingDayRows(order: InstitutionWeekReports['orders'][number]): PackingOrderDay[] {
     const rows = [...(order.days || [])];
     const pkg = this.reports?.menu?.shabbatPackage;
-    if (pkg?.hasShabbat && order.shabbatOrder) {
+    const s = order.shabbatOrder;
+    if (!pkg?.hasShabbat || !s) return rows;
+
+    const generalNotes = (order.generalNotes || '').trim();
+    const adminNotes = (order.adminNotes || '').trim();
+    const shabbatNotes = (s.notes || '').trim();
+
+    const buildNotes = (includeGeneral: boolean, includeShabbat: boolean, includeAdmin: boolean): string => {
+      const parts: string[] = [];
+      if (includeGeneral && generalNotes) parts.push(`הערה כללית: ${generalNotes}`);
+      if (includeShabbat && shabbatNotes) parts.push(`הערות מוסד: ${shabbatNotes}`);
+      if (includeAdmin && adminNotes) parts.push(`הערת מנהל: ${adminNotes}`);
+      return parts.join(' · ');
+    };
+
+    if (!hasStoredMealPortions(s)) {
       rows.push({
         dayOfWeek: -1,
-        dayLabel: 'חבילת שבת',
-        regularCount: order.shabbatOrder.regularCount || 0,
-        vegetarianCount: order.shabbatOrder.vegetarianCount || 0,
-        notes: order.shabbatOrder.wantsSeudaShlishit ? 'כולל סעודה שלישית' : '',
+        dayLabel: 'שבת — הזמנה ישנה ללא פיצול סעודות',
+        regularCount: s.regularCount || 0,
+        vegetarianCount: s.vegetarianCount || 0,
+        notes: buildNotes(true, true, true),
+        menuItems: emptyMenuDayItems(),
+        isShabbat: true,
+        shabbatMeal: 'legacy'
+      });
+      return rows;
+    }
+
+    const sections: Array<{
+      dayOfWeek: number;
+      displayLabel: string;
+      meal: 'fridayNight' | 'shabbatDay' | 'seudaShlishit';
+    }> = [
+      { dayOfWeek: -11, displayLabel: 'סעודה ראשונה — ערב שבת', meal: 'fridayNight' },
+      { dayOfWeek: -12, displayLabel: 'סעודה שנייה — שבת בבוקר', meal: 'shabbatDay' }
+    ];
+    if (s.wantsSeudaShlishit) {
+      sections.push({ dayOfWeek: -13, displayLabel: 'סעודה שלישית', meal: 'seudaShlishit' });
+    }
+
+    let firstShabbatRow = true;
+    for (const section of sections) {
+      const counts = resolveShabbatMealCounts(s, section.meal);
+      if (counts.regularCount + counts.vegetarianCount <= 0) continue;
+      rows.push({
+        dayOfWeek: section.dayOfWeek,
+        dayLabel: section.displayLabel,
+        regularCount: counts.regularCount,
+        vegetarianCount: counts.vegetarianCount,
+        notes: buildNotes(firstShabbatRow, section.meal === 'fridayNight', firstShabbatRow),
+        menuItems: emptyMenuDayItems(),
+        isShabbat: true,
+        shabbatMeal: section.meal
+      });
+      firstShabbatRow = false;
+    }
+
+    const allLines = this.packingShabbatLineItems(order);
+    const saladLines = allLines.filter((line) => line.categoryLabel.startsWith('סלטי שבת —'));
+    if (saladLines.length > 0) {
+      const fn = resolveShabbatMealCounts(s, 'fridayNight');
+      const sd = resolveShabbatMealCounts(s, 'shabbatDay');
+      rows.push({
+        dayOfWeek: -14,
+        dayLabel: 'סלטי שבת',
+        regularCount: fn.regularCount + sd.regularCount,
+        vegetarianCount: fn.vegetarianCount + sd.vegetarianCount,
+        notes: '',
         menuItems: emptyMenuDayItems(),
         isShabbat: true
       });
     }
+
+    const extrasText = this.formatShabbatExtrasForOrder(order);
+    if (extrasText) {
+      rows.push({
+        dayOfWeek: -15,
+        dayLabel: 'תוספות שבת',
+        regularCount: 0,
+        vegetarianCount: 0,
+        notes: extrasText,
+        menuItems: emptyMenuDayItems(),
+        isShabbat: true
+      });
+    }
+
     return rows;
   }
 
@@ -1167,11 +1797,16 @@ export class AdminInstitutionsComponent implements OnInit {
     this.institutionService.getInstitutionOrder(institutionIdValue, week).subscribe({
       next: (data) => {
         this.buildOrderDaysForm(data.days);
+        this.orderEditShabbatSource = data.shabbatOrder || null;
         this.orderForm.setControl('shabbatOrder', this.buildShabbatOrderGroup(data.shabbatOrder || emptyShabbatOrder()));
+        this.orderForm.patchValue({ adminNotes: data.adminNotes || '' });
+        this.orderEditGeneralNotes = (data.generalNotes || '').trim();
         this.isLoadingOrder = false;
       },
       error: (err) => {
         console.error('[AdminInstitutions] getInstitutionOrder failed:', err);
+        this.orderEditGeneralNotes = '';
+        this.orderEditShabbatSource = null;
         this.buildOrderDaysForm(
           MENU_WEEKDAY_FORM_FIELDS.map((d) => ({
             dayOfWeek: d.dayOfWeek,
@@ -1237,7 +1872,14 @@ export class AdminInstitutionsComponent implements OnInit {
   closeOrderModal(): void {
     this.showOrderModal = false;
     this.orderEditInstitutionId = '';
+    this.orderEditGeneralNotes = '';
+    this.orderEditShabbatSource = null;
     this.orderError = '';
+  }
+
+  get orderEditShabbatLegacySummary(): string {
+    if (!this.orderEditShabbatSource) return '';
+    return formatLegacyShabbatOrderSummary(this.orderEditShabbatSource);
   }
 
   get orderEditWeeklyTotal(): number {
@@ -1246,12 +1888,53 @@ export class AdminInstitutionsComponent implements OnInit {
   }
 
   private mapShabbatOrderFromForm(): ShabbatOrder {
-    const v = this.orderShabbatGroup.value;
+    const v = this.orderShabbatGroup.getRawValue();
     const extras = v.extras || {};
+    const mpRaw = v.mealPortions || {};
+    const wantsSeudaShlishit = v.wantsSeudaShlishit === true;
+
+    const mealPortions: ShabbatMealPortions = {
+      fridayNight: {
+        regularCount: Math.max(0, Math.trunc(Number(mpRaw.fridayNight?.regularCount) || 0)),
+        vegetarianCount: Math.max(0, Math.trunc(Number(mpRaw.fridayNight?.vegetarianCount) || 0))
+      },
+      shabbatDay: {
+        regularCount: Math.max(0, Math.trunc(Number(mpRaw.shabbatDay?.regularCount) || 0)),
+        vegetarianCount: Math.max(0, Math.trunc(Number(mpRaw.shabbatDay?.vegetarianCount) || 0))
+      }
+    };
+
+    if (wantsSeudaShlishit) {
+      mealPortions.seudaShlishit = {
+        regularCount: Math.max(0, Math.trunc(Number(mpRaw.seudaShlishit?.regularCount) || 0)),
+        vegetarianCount: Math.max(0, Math.trunc(Number(mpRaw.seudaShlishit?.vegetarianCount) || 0))
+      };
+    }
+
+    const legacy = sumMealPortions(mealPortions, wantsSeudaShlishit);
+    const hasEnteredMealSplit =
+      legacy.regularCount + legacy.vegetarianCount > 0;
+
+    if (!hasEnteredMealSplit && this.orderEditShabbatSource && isLegacyShabbatOrderWithoutMealPortions(this.orderEditShabbatSource)) {
+      return {
+        regularCount: this.orderEditShabbatSource.regularCount ?? 0,
+        vegetarianCount: this.orderEditShabbatSource.vegetarianCount ?? 0,
+        wantsSeudaShlishit,
+        notes: String(v.notes || '').trim().slice(0, ORDER_NOTES_MAX_LENGTH),
+        extras: {
+          challahs: Math.max(0, Math.trunc(Number(extras.challahs) || 0)),
+          rolls: Math.max(0, Math.trunc(Number(extras.rolls) || 0)),
+          grapeJuice: Math.max(0, Math.trunc(Number(extras.grapeJuice) || 0))
+        }
+      };
+    }
+
     return {
-      regularCount: Math.max(0, Math.trunc(Number(v.regularCount) || 0)),
-      vegetarianCount: Math.max(0, Math.trunc(Number(v.vegetarianCount) || 0)),
-      wantsSeudaShlishit: v.wantsSeudaShlishit === true,
+      regularCount: legacy.regularCount,
+      vegetarianCount: legacy.vegetarianCount,
+      wantsSeudaShlishit,
+      mealPortions,
+      notes: String(v.notes || '').trim().slice(0, ORDER_NOTES_MAX_LENGTH),
       extras: {
         challahs: Math.max(0, Math.trunc(Number(extras.challahs) || 0)),
         rolls: Math.max(0, Math.trunc(Number(extras.rolls) || 0)),
@@ -1288,10 +1971,19 @@ export class AdminInstitutionsComponent implements OnInit {
     });
 
     const shabbatOrder = this.mapShabbatOrderFromForm();
+    const adminNotes = String(this.orderForm.get('adminNotes')?.value || '').trim().slice(0, ORDER_NOTES_MAX_LENGTH);
+
+    const weekdayTotal = days.reduce((sum, d) => sum + d.regularCount + d.vegetarianCount, 0);
+    const shabbatTotal = totalShabbatPortionCount(shabbatOrder);
+    if (weekdayTotal + shabbatTotal <= 0) {
+      this.snackBar.open('יש להזין לפחות מנה אחת בהזמנה', 'סגור', { duration: 5000 });
+      this.orderForm.markAllAsTouched();
+      return;
+    }
 
     this.isSavingOrder = true;
     this.institutionService
-      .updateInstitutionOrder(this.orderEditInstitutionId, this.orderEditWeek, days, shabbatOrder)
+      .updateInstitutionOrder(this.orderEditInstitutionId, this.orderEditWeek, days, shabbatOrder, adminNotes)
       .subscribe({
       next: () => {
         this.isSavingOrder = false;

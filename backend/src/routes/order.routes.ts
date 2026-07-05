@@ -118,6 +118,12 @@ router.get('/delivery-report', authenticate, requireCapability(CAP.DELIVERIES_MY
 router.get('/recent', authenticate, requireCapability(CAP.ORDERS_RECENT), orderController.getRecentOrders);
 router.get('/search', authenticate, requireCapability(CAP.ORDERS_SEARCH), orderController.searchOrders);
 router.get('/dashboard-stats', authenticate, requireCapability(CAP.ORDERS_DASHBOARD_STATS), orderController.getDashboardStats);
+router.get(
+  '/admin/tab-counts',
+  authenticate,
+  requireCapability(CAP.ORDERS_LIST),
+  orderController.getAdminTabCounts
+);
 router.get('/driver/my', authenticate, requireCapability(CAP.DELIVERIES_MY_LIST), orderController.getDriverMyOrders);
 router.patch('/:id/assign-driver', authenticate, requireAdmin, orderController.assignOrderToDriver);
 router.post('/bulk', authenticate, requireAdmin, orderController.bulkUpdateOrders);
@@ -133,6 +139,8 @@ router.patch('/:id/status', authenticate, requireCapability(CAP.DELIVERIES_MY_UP
 router.patch('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
 router.put('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
 router.put('/admin/:id/items', authenticate, requireAdmin, orderController.updateOrderItems);
+router.patch('/admin/:id/portions', authenticate, requireAdmin, orderController.updateOrderPortions);
+router.patch('/admin/:id/admin-notes', authenticate, requireAdmin, orderController.updateOrderAdminNotes);
 router.patch('/:id/shipping-cost', authenticate, requireAdmin, orderController.updateOrderShippingCost);
 router.delete('/:id', authenticate, requireAdmin, orderController.deleteOrder);
 

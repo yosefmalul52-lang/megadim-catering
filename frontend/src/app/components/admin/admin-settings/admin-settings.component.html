@@ -306,7 +306,7 @@
             <i class="fas fa-calendar-day"></i>
             תאריכי הזמנה
           </h3>
-          <p class="card-description">לחץ על תאריך בלוח השנה כדי לפתוח/לסגור אותו להזמנות. תאריכים פתוחים מסומנים בירוק.</p>
+          <p class="card-description">לחץ על תאריך בלוח השנה כדי לפתוח או לערוך את שעת הסגירה. תאריכים פתוחים מסומנים בכחול.</p>
         </div>
         <div class="form-group lead-days-group">
           <label for="minimumLeadDays" class="form-label">מינימום ימים מראש</label>
@@ -323,15 +323,68 @@
           <small class="form-hint">התאריך המוקדם ביותר לבחירה יהיה היום + מספר ימים זה (למשל 2 = מינימום 48 שעות)</small>
         </div>
         <div class="calendar-management">
-          <div class="calendar-wrap">
-            <mat-calendar
-              [startAt]="calendarMonth"
-              (selectedChange)="onCalendarDateSelect($event)"
-              [dateClass]="dateClass"
-            >
-            </mat-calendar>
+          <div class="calendar-layout">
+            <div class="calendar-wrap" *ngIf="!isDeliveryLoading; else calendarLoading">
+              <mat-calendar
+                [startAt]="calendarMonth"
+                (selectedChange)="onCalendarDateSelect($event)"
+                [dateClass]="dateClass"
+              >
+              </mat-calendar>
+            </div>
+            <ng-template #calendarLoading>
+              <div class="calendar-loading">
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                <span>טוען תאריכים...</span>
+              </div>
+            </ng-template>
+
+            <div class="date-edit-panel" *ngIf="isPanelOpen && !isDeliveryLoading">
+              <ng-container *ngIf="!isSelectedDateOpen; else editOpenDate">
+                <h4 class="panel-title">פתיחת תאריך להזמנות</h4>
+                <p class="panel-date">{{ formatOpenDateLabel(selectedDateKey!) }}</p>
+                <div class="panel-field">
+                  <label class="form-label" for="panelCutoffOpen">שעת סגירה</label>
+                  <input
+                    id="panelCutoffOpen"
+                    type="time"
+                    class="form-input panel-time-input"
+                    [(ngModel)]="panelCutoffTime"
+                    [ngModelOptions]="{standalone: true}"
+                  />
+                </div>
+                <div class="panel-actions">
+                  <button type="button" class="btn-panel-primary" (click)="openSelectedDate()">פתח תאריך</button>
+                  <button type="button" class="btn-panel-secondary" (click)="cancelPanel()">ביטול</button>
+                </div>
+              </ng-container>
+              <ng-template #editOpenDate>
+                <h4 class="panel-title">עריכת שעת סגירה</h4>
+                <p class="panel-date">{{ formatOpenDateLabel(selectedDateKey!) }}</p>
+                <div class="panel-field">
+                  <label class="form-label" for="panelCutoffEdit">שעת סגירה</label>
+                  <input
+                    id="panelCutoffEdit"
+                    type="time"
+                    class="form-input panel-time-input"
+                    [(ngModel)]="panelCutoffTime"
+                    [ngModelOptions]="{standalone: true}"
+                  />
+                </div>
+                <div class="panel-actions">
+                  <button type="button" class="btn-panel-primary" (click)="saveSelectedCutoffTime()">שמור שעה</button>
+                  <button type="button" class="btn-panel-danger" (click)="removeSelectedDate()">הסר תאריך</button>
+                  <button type="button" class="btn-panel-secondary" (click)="cancelPanel()">ביטול</button>
+                </div>
+              </ng-template>
+            </div>
           </div>
-          <p class="calendar-hint" *ngIf="openDates.length > 0">{{ openDates.length }} תאריכים פתוחים להזמנה</p>
+          <p class="calendar-hint" *ngIf="!isDeliveryLoading && openDatesCount > 0">
+            {{ openDatesCount }} תאריכים פתוחים להזמנות
+          </p>
+          <p class="calendar-hint calendar-hint-secondary" *ngIf="!isDeliveryLoading">
+            ערוך שעה על ידי לחיצה על תאריך בלוח
+          </p>
         </div>
         <div class="form-actions-inline">
           <button

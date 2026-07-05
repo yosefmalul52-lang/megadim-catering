@@ -303,6 +303,27 @@ $card-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04)
   min-width: 0;
 }
 
+.week-deadline-unsaved-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b45309;
+  line-height: 1.4;
+}
+
+.week-deadline-footer {
+  display: flex;
+  align-items: center;
+  margin-top: 0.15rem;
+}
+
+.week-deadline-save-btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 2.35rem;
+  font-size: 0.85rem;
+}
+
 .week-deadline-hint {
   margin: 0;
   font-size: 0.78rem;
@@ -1311,6 +1332,20 @@ tr.erp-table-row,
   border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+.admin-shabbat-meals {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-shabbat-meal-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $dark;
+}
+
 .shabbat-extras-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1320,6 +1355,16 @@ tr.erp-table-row,
 
 .shabbat-checkbox-field {
   margin-top: 0.5rem;
+}
+
+.week-deadline-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.order-admin-notes-field {
+  margin-top: 1rem;
 }
 
 // ─── Tab 3: Reports ───────────────────────────────────────────────────────────

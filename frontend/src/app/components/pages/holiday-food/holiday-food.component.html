@@ -52,7 +52,7 @@
             <li><span class="check-icon">✓</span><span class="list-text">8 סוגי סלטים</span></li>
             <li><span class="check-icon">✓</span><span class="list-text">2 מנות ראשונות (תוספת 20 ₪ למנה לכל ארוחה)</span></li>
             <li><span class="check-icon">✓</span><span class="list-text">2 מנות עיקריות לכל ארוחה</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">3 תוספות לערב + 2 תוספות לבוקר</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">הכמות נקבעת לפי מספר הסועדים בכל סעודה. ניתן לבחור סוגי מנות נפרדים לערב ולבוקר.</span></li>
             <li><span class="check-icon">✓</span><span class="list-text">כולל לחמניות (בהזמנה של 20 מנות ומעלה)</span></li>
           </ul>
         </div>
@@ -64,7 +64,7 @@
   <section class="info-section">
     <div class="container">
       <div class="info-box">
-        <p><strong>בהזמנה בפחות מ-20 מנות ניתן לבחור:</strong> מנה ראשונה אחת, מנה עיקרית אחת ושתי תוספות (בכל ארוחה).</p>
+        <p>הכמות נקבעת לפי מספר הסועדים. הבחירה היא של סוגי מנות לגיוון ההזמנה.</p>
       </div>
     </div>
   </section>
@@ -170,10 +170,6 @@
                 <input type="email" [(ngModel)]="orderForm.email" name="email" required>
               </div>
               <div class="form-group">
-                <label>מספר מנות *</label>
-                <input type="number" [(ngModel)]="orderForm.numberOfPortions" name="numberOfPortions" required>
-              </div>
-              <div class="form-group">
                 <label>תאריך הספקה *</label>
                 <mat-form-field appearance="outline" class="full-width">
                   <input
@@ -191,6 +187,9 @@
                 </mat-form-field>
                 @if (eventDateError) {
                   <p class="field-error">{{ eventDateError }}</p>
+                }
+                @if (eventDateCutoffHint && !eventDateError) {
+                  <p class="field-hint">{{ eventDateCutoffHint }}</p>
                 }
               </div>
             </div>
@@ -213,9 +212,38 @@
                 <span>שתי ארוחות שבת</span>
               </label>
             </div>
+            @if (showEveningPortions) {
+              <div class="form-group portions-field">
+                <label>כמות מנות לערב *</label>
+                <input
+                  type="number"
+                  [(ngModel)]="orderForm.portionsEvening"
+                  name="portionsEvening"
+                  min="1"
+                  step="1"
+                  required
+                >
+              </div>
+            }
+            @if (showMorningPortions) {
+              <div class="form-group portions-field">
+                <label>כמות מנות לבוקר *</label>
+                <input
+                  type="number"
+                  [(ngModel)]="orderForm.portionsMorning"
+                  name="portionsMorning"
+                  min="1"
+                  step="1"
+                  required
+                >
+              </div>
+            }
+            @if (portionsError) {
+              <p class="field-error">{{ portionsError }}</p>
+            }
           </div>
           
-          <!-- Section 3: Salads -->
+          <!-- Section 3: Salads (shared) -->
           <div class="form-section">
             <h3 class="section-title">סלטים (6-8 לבחירה)</h3>
             <div class="selects-grid">
@@ -223,8 +251,8 @@
                 <div class="form-group">
                   <label>סלטים - בחירה {{ index }}</label>
                   <select [(ngModel)]="orderForm.salads[index - 1]" [name]="'salad' + index">
-                    <option value="" disabled selected>בחר סלט...</option>
-                    @for (salad of saladOptions; track salad) {
+                    <option value="" hidden></option>
+                    @for (salad of availableOptions(saladOptions, orderForm.salads, index - 1); track salad) {
                       <option [value]="salad">{{ salad }}</option>
                     }
                   </select>
@@ -232,96 +260,134 @@
               }
             </div>
           </div>
-          
-          <!-- Section 4: First Course -->
-          <div class="form-section">
-            <h3 class="section-title">מנה ראשונה ({{ maxFirstCourses === 2 ? 'עד 2' : '2-4' }} לבחירה)</h3>
-            <div class="selects-grid">
-              @for (index of getFirstCourseIndexes(); track index) {
-                <div class="form-group">
-                  <label>מנה ראשונה - בחירה {{ index }}</label>
-                  <select 
-                    [(ngModel)]="orderForm.firstCourses[index - 1]" 
-                    [name]="'firstCourse' + index"
-                    (ngModelChange)="onFirstCourseChange(index - 1)"
-                  >
-                    <option value="" disabled selected>בחר מנה ראשונה...</option>
-                    @for (dish of firstCourseOptions; track dish) {
-                      <option [value]="dish">{{ dish }}</option>
-                    }
-                  </select>
-                </div>
+
+          @if (showEveningMealBlock) {
+            <div class="form-section meal-block">
+              @if (orderForm.mealTime === 'both') {
+                <h3 class="section-title">סעודה ראשונה / ערב שבת</h3>
               }
-            </div>
-          </div>
-          
-          <!-- Section 5: Main Course -->
-          <div class="form-section">
-            <h3 class="section-title">מנה עיקרית ({{ maxMainCourses === 2 ? 'עד 2' : '2-4' }} לבחירה)</h3>
-            <div class="selects-grid">
-              @for (index of getMainCourseIndexes(); track index) {
-                <div class="form-group">
-                  <label>מנה עיקרית - בחירה {{ index }}</label>
-                  <select 
-                    [(ngModel)]="orderForm.mainCourses[index - 1]" 
-                    [name]="'mainCourse' + index"
-                    (ngModelChange)="onMainCourseChange(index - 1)"
-                  >
-                    <option value="" disabled selected>בחר מנה עיקרית...</option>
-                    @for (dish of mainCourseOptions; track dish) {
-                      <option [value]="dish">{{ dish }}</option>
-                    }
-                  </select>
-                </div>
+              @if (orderForm.mealTime === 'evening') {
+                <h3 class="section-title">מנות לערב שבת</h3>
               }
-            </div>
-            @if (mainCoursesError) {
-              <p class="field-error">{{ mainCoursesError }}</p>
-            }
-          </div>
-          
-          <!-- Section 6: Sides -->
-          <div class="form-section">
-            <h3 class="section-title">תוספות (3-5 לבחירה)</h3>
-            <div class="selects-grid">
-              <div class="sides-group" [class.disabled-group]="!isEveningSidesEnabled">
-                <h4>תוספות לערב</h4>
-                @for (index of sidesEveningIndexes; track index) {
-                  <div class="form-group" [class.disabled-select]="!isEveningSidesEnabled">
-                    <label>תוספת ערב - בחירה {{ index }}</label>
-                    <select 
-                      [(ngModel)]="orderForm.sidesEvening[index - 1]" 
-                      [name]="'sideEvening' + index"
-                      [disabled]="!isEveningSidesEnabled"
-                    >
-                      <option value="" disabled selected>בחר תוספת...</option>
-                      @for (side of sideDishOptions; track side) {
-                        <option [value]="side">{{ side }}</option>
-                      }
-                    </select>
-                  </div>
-                }
+
+              <div class="form-section nested-section">
+                <h4 class="subsection-title">מנה ראשונה — 2 סוגים לבחירה</h4>
+                <div class="selects-grid">
+                  @for (index of courseSlotIndexes; track index) {
+                    <div class="form-group">
+                      <label>מנה ראשונה לערב - בחירה {{ index }}</label>
+                      <select [(ngModel)]="orderForm.firstCoursesEvening[index - 1]" [name]="'firstCourseEvening' + index">
+                        <option value="" hidden></option>
+                        @for (dish of availableOptions(firstCourseOptions, orderForm.firstCoursesEvening, index - 1); track dish) {
+                          <option [value]="dish">{{ dish }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
               </div>
-              <div class="sides-group" [class.disabled-group]="!isMorningSidesEnabled">
-                <h4>תוספות לבוקר</h4>
-                @for (index of sidesMorningIndexes; track index) {
-                  <div class="form-group" [class.disabled-select]="!isMorningSidesEnabled">
-                    <label>תוספת בוקר - בחירה {{ index }}</label>
-                    <select 
-                      [(ngModel)]="orderForm.sidesMorning[index - 1]" 
-                      [name]="'sideMorning' + index"
-                      [disabled]="!isMorningSidesEnabled"
-                    >
-                      <option value="" disabled selected>בחר תוספת...</option>
-                      @for (side of sideDishOptions; track side) {
-                        <option [value]="side">{{ side }}</option>
-                      }
-                    </select>
-                  </div>
-                }
+
+              <div class="form-section nested-section">
+                <h4 class="subsection-title">מנה עיקרית — 2 סוגים לבחירה</h4>
+                <div class="selects-grid">
+                  @for (index of courseSlotIndexes; track index) {
+                    <div class="form-group">
+                      <label>מנה עיקרית לערב - בחירה {{ index }}</label>
+                      <select [(ngModel)]="orderForm.mainCoursesEvening[index - 1]" [name]="'mainCourseEvening' + index">
+                        <option value="" hidden></option>
+                        @for (dish of availableOptions(mainCourseOptions, orderForm.mainCoursesEvening, index - 1); track dish) {
+                          <option [value]="dish">{{ dish }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="form-section nested-section">
+                <h4 class="subsection-title">תוספות — 3 סוגים לבחירה</h4>
+                <div class="selects-grid">
+                  @for (index of sidesSlotIndexes; track index) {
+                    <div class="form-group">
+                      <label>תוספת ערב - בחירה {{ index }}</label>
+                      <select [(ngModel)]="orderForm.sidesEvening[index - 1]" [name]="'sideEvening' + index">
+                        <option value="" hidden></option>
+                        @for (side of availableOptions(sideDishOptions, orderForm.sidesEvening, index - 1); track side) {
+                          <option [value]="side">{{ side }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
               </div>
             </div>
-          </div>
+          }
+
+          @if (showMorningMealBlock) {
+            <div class="form-section meal-block">
+              @if (orderForm.mealTime === 'both') {
+                <h3 class="section-title">סעודה שנייה / שבת בבוקר</h3>
+              }
+              @if (orderForm.mealTime === 'morning') {
+                <h3 class="section-title">מנות לשבת בבוקר</h3>
+              }
+
+              <div class="form-section nested-section">
+                <h4 class="subsection-title">מנה ראשונה — 2 סוגים לבחירה</h4>
+                <div class="selects-grid">
+                  @for (index of courseSlotIndexes; track index) {
+                    <div class="form-group">
+                      <label>מנה ראשונה לבוקר - בחירה {{ index }}</label>
+                      <select [(ngModel)]="orderForm.firstCoursesMorning[index - 1]" [name]="'firstCourseMorning' + index">
+                        <option value="" hidden></option>
+                        @for (dish of availableOptions(firstCourseOptions, orderForm.firstCoursesMorning, index - 1); track dish) {
+                          <option [value]="dish">{{ dish }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="form-section nested-section">
+                <h4 class="subsection-title">מנה עיקרית — 2 סוגים לבחירה</h4>
+                <div class="selects-grid">
+                  @for (index of courseSlotIndexes; track index) {
+                    <div class="form-group">
+                      <label>מנה עיקרית לבוקר - בחירה {{ index }}</label>
+                      <select [(ngModel)]="orderForm.mainCoursesMorning[index - 1]" [name]="'mainCourseMorning' + index">
+                        <option value="" hidden></option>
+                        @for (dish of availableOptions(mainCourseOptions, orderForm.mainCoursesMorning, index - 1); track dish) {
+                          <option [value]="dish">{{ dish }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="form-section nested-section">
+                <h4 class="subsection-title">תוספות — 3 סוגים לבחירה</h4>
+                <div class="selects-grid">
+                  @for (index of sidesSlotIndexes; track index) {
+                    <div class="form-group">
+                      <label>תוספת בוקר - בחירה {{ index }}</label>
+                      <select [(ngModel)]="orderForm.sidesMorning[index - 1]" [name]="'sideMorning' + index">
+                        <option value="" hidden></option>
+                        @for (side of availableOptions(sideDishOptions, orderForm.sidesMorning, index - 1); track side) {
+                          <option [value]="side">{{ side }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          @if (menuSelectionError) {
+            <p class="field-error">{{ menuSelectionError }}</p>
+          }
           
           <!-- Section 7: Seuda Shlishit -->
           <div class="form-section">

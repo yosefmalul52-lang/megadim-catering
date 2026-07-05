@@ -66,17 +66,19 @@ export function resolveMealCourseLines(
   eveningKey: string,
   morningKey: string,
   legacyKey: string
-): { evening: CateringLineItem[]; morning: CateringLineItem[] } {
+): { evening: CateringLineItem[]; morning: CateringLineItem[]; legacy: CateringLineItem[] } {
   let evening = normalizeCateringLineItems(body[eveningKey]);
   let morning = normalizeCateringLineItems(body[morningKey]);
+  let legacy: CateringLineItem[] = [];
 
   if (evening.length === 0 && morning.length === 0) {
-    const legacy = normalizeCateringLineItems(body[legacyKey]);
-    if (legacy.length > 0) {
-      if (mealTime === 'morning') morning = legacy;
-      else evening = legacy;
+    const legacyItems = normalizeCateringLineItems(body[legacyKey]);
+    if (legacyItems.length > 0) {
+      if (mealTime === 'morning') morning = legacyItems;
+      else if (mealTime === 'evening') evening = legacyItems;
+      else legacy = legacyItems;
     }
   }
 
-  return { evening, morning };
+  return { evening, morning, legacy };
 }
