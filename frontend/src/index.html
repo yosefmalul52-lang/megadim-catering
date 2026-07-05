@@ -80,49 +80,59 @@
     src="https://www.facebook.com/tr?id=554257163533711&ev=PageView&noscript=1"
   /></noscript>
   <app-root></app-root>
-  <!-- EqualWeb accessibility: deferred until after load so tracking boot is not blocked -->
+  <!-- Accessibility Code for "www.megadim-catering.com" -->
   <script>
-    window.addEventListener('load', function () {
-      setTimeout(function () {
-        window.interdeal = {
-          get sitekey() { return "ebfca26bbe8c437811d61d55d545c651"; },
-          get domains() {
-            return {
+  /*
+  Want to customize your button? visit our documentation page:
+  https://login.equalweb.com/custom-button
+  */
+  window.interdeal = {
+      get sitekey (){ return "ebfca26bbe8c437811d61d55d545c651"} ,
+      get domains(){
+          return {
               "js": "https://cdn.equalweb.com/",
               "acc": "https://access.equalweb.com/"
-            };
-          },
-          "Position": "right",
-          "Menulang": "HE",
-          "draggable": false,
-          "btnStyle": {
-            "vPosition": ["98%", "24px"],
-            "margin": ["0", "0"],
-            "scale": ["0.5", "0.5"],
-            "color": {
-              "main": "#1c4bb6",
+          }
+      },
+      "Position": "right",
+      "Menulang": "HE",
+      "draggable": true,
+      "btnStyle": {
+          "vPosition": [
+              "80%",
+              "80%"
+          ],
+          "margin": [
+              "0",
+              "0"
+          ],
+          "scale": [
+              "0.5",
+              "0.5"
+          ],
+          "color": {
+              "main": "#3c6ee2",
               "second": "#ffffff"
-            },
-            "icon": {
+          },
+          "icon": {
               "outline": false,
               "outlineColor": "#ffffff",
-              "type": 7,
+              "type":  10 ,
               "shape": "circle"
-            }
           }
-        };
+      },
 
-        (function (doc, head, body) {
-          var coreCall = doc.createElement('script');
-          coreCall.src = interdeal.domains.js + 'core/5.2.6/accessibility.js';
-          coreCall.defer = true;
-          coreCall.integrity = 'sha512-Eyej8seFY4JUGJThUYSWV/UwEEC5GCbBnzUg8lfmFjsZd4+iXGFALUoqt0MNUQXfj6/blmksYQ2yCXivmTWcgQ==';
-          coreCall.crossOrigin = 'anonymous';
-          coreCall.setAttribute('data-cfasync', true);
-          body ? body.appendChild(coreCall) : head.appendChild(coreCall);
-        })(document, document.head, document.body);
-      }, 1500);
-    });
+  };
+
+  (function(doc, head, body){
+      var coreCall             = doc.createElement('script');
+      coreCall.src             = interdeal.domains.js + 'core/5.2.8/accessibility.js';
+      coreCall.defer           = true;
+      coreCall.integrity       = 'sha512-ka0NgF7zDksnhoZ5ZCKlm+t0F7KTih5lCfXwuzQDnrwu/EdKZSsJotoJvQPd0cuVmV63s0q2cgoUjeki688PuQ==';
+      coreCall.crossOrigin     = 'anonymous';
+      coreCall.setAttribute('data-cfasync', true );
+      body? body.appendChild(coreCall) : head.appendChild(coreCall);
+  })(document, document.head, document.body);
   </script>
 </body>
 </html>
