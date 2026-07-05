@@ -310,15 +310,17 @@ html:has(.admin-layout)::-webkit-scrollbar-corner {
   direction: rtl;
 }
 
-// EqualWeb accessibility widget: middle of the page on the right
-#INDmenu-btn,
-[id*='equalweb'],
-[class*='equalweb'] {
+// EqualWeb lives inside Shadow DOM; pin logic is in index.html.
+// Keep as a fallback for environments where the button is in the light DOM.
+#INDmenu-btn {
+  position: fixed !important;
+  inset: auto 20px calc(20px + env(safe-area-inset-bottom, 0px)) auto !important;
+  top: auto !important;
   right: 20px !important;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
   left: auto !important;
-  top: 50% !important;
-  bottom: auto !important;
-  transform: translateY(-50%) !important;
+  transform: none !important;
+  margin: 0 !important;
 }
 
 /* === UNIFIED MENU ITEM CARD (all categories: Salads, Desserts, Fish, Sides, Stuffed, Main) === */

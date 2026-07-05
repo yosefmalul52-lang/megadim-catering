@@ -47,18 +47,18 @@ export type WhatsappCtaVariant = 'fab' | 'sticky';
     .wa-cta--fab {
       position: fixed;
       left: 20px;
-      bottom: 20px;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
       z-index: 9999;
-      width: 60px;
-      height: 60px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       background-color: #25D366;
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 32px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      font-size: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
       text-decoration: none;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
 

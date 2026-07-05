@@ -94,9 +94,9 @@
           },
           "Position": "right",
           "Menulang": "HE",
-          "draggable": true,
+          "draggable": false,
           "btnStyle": {
-            "vPosition": ["50%", "80%"],
+            "vPosition": ["98%", "24px"],
             "margin": ["0", "0"],
             "scale": ["0.5", "0.5"],
             "color": {
@@ -112,6 +112,96 @@
           }
         };
 
+        function findEqualWebButton() {
+          var host = document.getElementById('INDShadowRootHost');
+          if (host && host.shadowRoot) {
+            var shadowBtn = host.shadowRoot.querySelector('#INDmenu-btn');
+            if (shadowBtn) return shadowBtn;
+          }
+
+          return document.getElementById('INDmenu-btn');
+        }
+
+        function injectEqualWebShadowStyles(shadowRoot) {
+          if (!shadowRoot) return;
+
+          var style = shadowRoot.getElementById('megadim-ind-pin-style');
+          if (!style) {
+            style = document.createElement('style');
+            style.id = 'megadim-ind-pin-style';
+            shadowRoot.appendChild(style);
+          }
+
+          style.textContent = [
+            ':host-context(.INDDesktop) #INDmenu-btn,',
+            ':host-context(.INDMobile) #INDmenu-btn,',
+            '#INDmenu-btn {',
+            '  position: fixed !important;',
+            '  top: unset !important;',
+            '  bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;',
+            '  right: 20px !important;',
+            '  left: auto !important;',
+            '  margin: 0 !important;',
+            '  transform-origin: bottom right !important;',
+            '}'
+          ].join('\n');
+
+          shadowRoot.appendChild(style);
+        }
+
+        function pinEqualWebAccessibilityButton() {
+          var host = document.getElementById('INDShadowRootHost');
+          if (host && host.shadowRoot) {
+            injectEqualWebShadowStyles(host.shadowRoot);
+          }
+
+          var btn = findEqualWebButton();
+          if (!btn) return false;
+
+          btn.style.removeProperty('top');
+          btn.style.setProperty('position', 'fixed', 'important');
+          btn.style.setProperty('top', 'unset', 'important');
+          btn.style.setProperty('bottom', '20px', 'important');
+          btn.style.setProperty('right', '20px', 'important');
+          btn.style.setProperty('left', 'auto', 'important');
+          btn.style.setProperty('margin', '0', 'important');
+          btn.style.setProperty('transform-origin', 'bottom right', 'important');
+
+          if (!btn.__megadimPinned) {
+            btn.__megadimPinned = true;
+            new MutationObserver(pinEqualWebAccessibilityButton).observe(btn, {
+              attributes: true,
+              attributeFilter: ['style', 'class']
+            });
+          }
+          return true;
+        }
+
+        function startPinEqualWebButton() {
+          try { localStorage.removeItem('INDbtnPosition'); } catch (e) {}
+
+          var attempts = 0;
+          var interval = setInterval(function () {
+            pinEqualWebAccessibilityButton();
+            if (++attempts > 80) clearInterval(interval);
+          }, 250);
+        }
+
+        function watchForEqualWebHost() {
+          if (document.getElementById('INDShadowRootHost')) {
+            startPinEqualWebButton();
+            return;
+          }
+
+          new MutationObserver(function () {
+            if (document.getElementById('INDShadowRootHost')) {
+              startPinEqualWebButton();
+            }
+          }).observe(document.body, { childList: true, subtree: true });
+        }
+
+        watchForEqualWebHost();
+
         (function (doc, head, body) {
           var coreCall = doc.createElement('script');
           coreCall.src = interdeal.domains.js + 'core/5.2.6/accessibility.js';
@@ -119,6 +209,10 @@
           coreCall.integrity = 'sha512-Eyej8seFY4JUGJThUYSWV/UwEEC5GCbBnzUg8lfmFjsZd4+iXGFALUoqt0MNUQXfj6/blmksYQ2yCXivmTWcgQ==';
           coreCall.crossOrigin = 'anonymous';
           coreCall.setAttribute('data-cfasync', true);
+          coreCall.addEventListener('load', function () {
+            setTimeout(startPinEqualWebButton, 100);
+            setTimeout(startPinEqualWebButton, 2000);
+          });
           body ? body.appendChild(coreCall) : head.appendChild(coreCall);
         })(document, document.head, document.body);
       }, 1500);
