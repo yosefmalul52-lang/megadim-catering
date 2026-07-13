@@ -369,15 +369,21 @@ export class CateringController {
     if (!body.eventDate || typeof body.eventDate !== 'string' || !body.eventDate.trim())
       throw createValidationError('eventDate is required');
     const eventDateStr = (body.eventDate as string).trim();
-    const storeDoc = await StoreSettings.findOne().lean();
-    try {
-      assertEventDateOpen(eventDateStr, {
-        openDates: normalizeOpenDates((storeDoc as { openDates?: unknown })?.openDates),
-        openDateRules: normalizeOpenDateRules((storeDoc as { openDateRules?: unknown })?.openDateRules)
-      });
-    } catch (dateErr: unknown) {
-      const msg = dateErr instanceof Error ? dateErr.message : 'תאריך האירוע אינו פתוח להזמנות';
-      throw createValidationError(msg);
+    // Events catering: only reject past dates and Saturdays (no admin openDates list).
+    {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(eventDateStr);
+      if (!m) throw createValidationError('eventDate must be YYYY-MM-DD');
+      const y = Number(m[1]);
+      const mo = Number(m[2]);
+      const d = Number(m[3]);
+      const picked = new Date(y, mo - 1, d);
+      if (picked.getFullYear() !== y || picked.getMonth() !== mo - 1 || picked.getDate() !== d) {
+        throw createValidationError('eventDate must be a valid calendar date');
+      }
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (picked < todayStart) throw createValidationError('לא ניתן לבחור תאריך שעבר');
+      if (picked.getDay() === 6) throw createValidationError('לא ניתן לבחור יום שבת');
     }
     if (!body.guestCount || Number(body.guestCount) <= 0)
       throw createValidationError('guestCount must be a positive number');

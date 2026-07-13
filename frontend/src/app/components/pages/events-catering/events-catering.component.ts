@@ -90,7 +90,8 @@ export class EventsCateringComponent implements OnInit {
 
   ngOnInit(): void {
     const today = new Date();
-    this.minEventDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2);
+    // Events catering: allow any future/today date except Shabbat.
+    this.minEventDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     this.settingsService.getSettings(true).subscribe(settings => {
       this.settings = settings;
@@ -164,7 +165,7 @@ export class EventsCateringComponent implements OnInit {
 
     if (!this.dateFilter(value)) {
       this.orderForm.eventDate = '';
-      this.eventDateError = 'ניתן לבחור תאריך מיומיים קדימה ומעלה, לא בשבת.';
+      this.eventDateError = 'ניתן לבחור כל תאריך מהיום ומעלה, חוץ משבת.';
       return;
     }
 
@@ -261,7 +262,7 @@ export class EventsCateringComponent implements OnInit {
     if (!this.orderForm.eventType?.trim()) missing.push('סוג האירוע');
 
     if (this.eventDateControl && !this.dateFilter(this.eventDateControl)) {
-      this.eventDateError = 'ניתן לבחור תאריך מיומיים קדימה ומעלה, לא בשבת.';
+      this.eventDateError = 'ניתן לבחור כל תאריך מהיום ומעלה, חוץ משבת.';
       this.submitError = this.eventDateError;
       return;
     }
