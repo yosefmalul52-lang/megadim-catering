@@ -32,7 +32,7 @@ export class FishComponent implements OnInit {
     this.seoService.updateTags({
       title: 'דגים לשבת - קייטרינג מגדים | מנות דגים כשרות',
       description: 'מנות דגים טריות לשבת: גפילטה פיש, סלמון, דגים אפויים ומבושלים. קייטרינג כשר למהדרין.',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/66b9922b9c941dc1/original.jpg',
       keywords: 'דגים לשבת, גפילטה פיש, קייטרינג מגדים, אוכל כשר'
     });
     this.settingsService.getSettings(true).subscribe(s => {

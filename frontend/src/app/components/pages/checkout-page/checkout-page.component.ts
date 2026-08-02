@@ -564,18 +564,25 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
 
     // ── Step 1: Create the order record ───────────────────────────────────────
     this.http
-      .post<{ success: boolean; orderId: string; order?: unknown }>(`${environment.apiUrl}/orders`, orderData)
+      .post<{
+        success: boolean;
+        orderId: string;
+        order?: unknown;
+        paymentInitToken?: string;
+      }>(`${environment.apiUrl}/orders`, orderData)
       .pipe(
         switchMap((orderRes) => {
           const orderId = orderRes.orderId;
           if (!orderId) throw new Error('Missing orderId in server response');
+          const paymentInitToken = orderRes.paymentInitToken;
+          if (!paymentInitToken) throw new Error('Missing payment initiation token in server response');
 
           // ── Step 2: Initiate pre-auth hold ──────────────────────────────────
           this.isRedirectingToPayment = true;
           return this.http
             .post<{ success: boolean; redirectUrl: string; transactionId?: string; authCode?: string }>(
               `${environment.apiUrl}/payment/initiate/${orderId}`,
-              {}
+              { paymentInitToken }
             )
             .pipe(map((paymentRes) => ({ ...paymentRes, orderId })));
         })

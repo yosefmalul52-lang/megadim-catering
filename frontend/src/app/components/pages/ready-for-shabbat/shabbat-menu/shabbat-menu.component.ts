@@ -13,7 +13,7 @@ import {
 } from '../../../../utils/holiday-menu.utils';
 
 const DEFAULT_HOLIDAY_CARD_IMAGE =
-  'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg';
+  'https://megadim-media.megadim.workers.dev/frontend/static/a9c861c5232b469b/original.jpg';
 
 @Component({
   selector: 'app-shabbat-menu',
@@ -39,37 +39,37 @@ export class ShabbatMenuComponent implements OnInit, OnDestroy {
       id: 'salads',
       nameKey: 'CATEGORIES.SALADS',
       title: 'סלטים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg'
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/a9c861c5232b469b/original.jpg'
     },
     {
       id: 'fish',
       nameKey: 'CATEGORIES.FISH',
       title: 'דגים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg'
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/66b9922b9c941dc1/original.jpg'
     },
     {
       id: 'main',
       nameKey: 'CATEGORIES.MAIN',
       title: 'מנות עיקריות',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg'
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg'
     },
     {
       id: 'sides',
       nameKey: 'CATEGORIES.SIDES',
       title: 'תוספות',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906621/IMG_9702_f9k2xj.jpg'
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/e1e10a399b476b78/original.jpg'
     },
     {
       id: 'desserts',
       nameKey: 'CATEGORIES.DESSERTS',
       title: 'קינוחים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1773392935/magadim-catering/v0bvgugfq4aomoz6pusr.jpg'
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/6d627e19e465a262/original.jpg'
     },
     {
       id: 'stuffed',
       nameKey: 'CATEGORIES.STUFFED',
       title: 'ממולאים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914767/IMG_9678_sfg0bj.jpg'
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/860e462d94f6b8da/original.jpg'
     }
   ];
 

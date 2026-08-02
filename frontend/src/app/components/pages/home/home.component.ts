@@ -68,7 +68,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly servicePaths: HomeServicePath[] = [
     {
       route: '/ready-for-shabbat',
-      image: 'v1773065908/sj-objio-tXM6dMQmMzk-unsplash_bzi656.jpg',
+      image: 'assets/images/shabbat-holiday-catering.png',
       alt: 'אוכל מוכן לשבת וחג – מנות ביתיות ובשר כשר למהדרין | קייטרינג מגדים',
       title: 'אוכל מוכן לשבת וחג',
       text: 'מנות עשירות ומוכנות להגשה לשולחן שבת, חג או אירוח משפחתי.',
@@ -87,7 +87,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       route: '/shabbat-events',
-      image: 'v1773063956/pen_ash-9qWhN2Nnl0g-unsplash_b4yrtk.jpg',
+      image: 'assets/images/ready-for-shabbat-home.png',
       alt: 'קייטרינג לשבת וחג – כשר למהדרין | קייטרינג מגדים',
       title: 'קייטרינג לשבת וחג',
       text: 'קייטרינג מלא לשבתות, חגים ואירועי שבת וחג עם תפריט מותאם.',

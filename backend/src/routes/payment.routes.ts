@@ -4,7 +4,7 @@ import { PaymentController } from '../controllers/payment.controller';
 const router = express.Router();
 const payment = new PaymentController();
 
-const { authenticate } = require('../middleware/auth');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 const { requireAdmin }  = require('../config/role-access');
 
 /**
@@ -17,9 +17,10 @@ router.post('/success', payment.paymentSuccess);
 
 /**
  * Customer-facing: generate the Tranzila HPP URL for an existing order.
- * No auth required — guest checkout uses orderId to identify the order.
+ * Authentication is optional; guests must present the short-lived proof
+ * returned by order creation.
  */
-router.post('/initiate/:orderId', payment.initiatePreAuth);
+router.post('/initiate/:orderId', optionalAuthenticate, payment.initiatePreAuth);
 
 /**
  * Polling fallback: frontend queries payment status after returning from Tranzila.

@@ -253,7 +253,7 @@ export class OrderService {
     return this.submitOrder(orderRequest);
   }
 
-  /** Payload for admin manual (phone) order – same shape as checkout + manualOrder & paymentStatus. */
+  /** Payload for the protected admin manual-order endpoint. */
   createManualOrder(payload: {
     customerName: string;
     phone: string;
@@ -268,13 +268,9 @@ export class OrderService {
     notes?: string;
     paymentStatus?: 'paid' | 'unpaid';
   }): Observable<{ success: boolean; orderId: string; order?: unknown }> {
-    const body = {
-      ...payload,
-      manualOrder: true
-    };
     return this.http.post<{ success: boolean; orderId: string; order?: unknown }>(
-      `${environment.apiUrl}/orders`,
-      body
+      `${environment.apiUrl}/orders/manual`,
+      payload
     ).pipe(
       catchError((err: unknown) => {
         console.error('Error creating manual order:', err);

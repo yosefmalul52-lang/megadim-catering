@@ -30,13 +30,13 @@ export const SEO_PAGES: Record<string, SeoTags> = {
     title: SITE_DEFAULT_SEO_TITLE,
     description: SITE_DEFAULT_SEO_DESCRIPTION,
     keywords: SITE_DEFAULT_SEO_KEYWORDS,
-    image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg',
+    image: 'https://megadim-media.megadim.workers.dev/frontend/static/a9c861c5232b469b/original.jpg',
     url: `${SITE_PUBLIC_ORIGIN}/`
   },
   menu: {
     title: 'תפריט מוכן לשבת - קייטרינג מגדים | סלטים, דגים, מנות עיקריות, קינוחים',
     description: 'מגוון מנות מוכנות לשבת: סלטים טריים, דגים, מנות עיקריות, תוספות וממולאים, קינוחים. הזמינו אוכל כשר לשבת.',
-    image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg',
+    image: 'https://megadim-media.megadim.workers.dev/frontend/static/a9c861c5232b469b/original.jpg',
     url: `${SITE_PUBLIC_ORIGIN}/ready-for-shabbat`
   },
   about: {

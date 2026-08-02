@@ -35,7 +35,7 @@ export class CholentBarComponent implements OnInit {
     this.seoService.updateTags({
       title: 'צ\'ולנט בר - קייטרינג מגדים | צ\'ולנט ומשקאות לשבת',
       description: 'הצ\'ולנט הביתי שלנו, משקאות וקינוחי צ\'ולנט. הזמנות בימי חמישי. קייטרינג מגדים.',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
       keywords: 'צ\'ולנט, צ\'ולנט בר, קייטרינג מגדים, אוכל לשבת'
     });
     this.settingsService.getSettings(true).subscribe(settings => {

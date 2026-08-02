@@ -1,0 +1,46 @@
+{
+  "sourceRoot": "/Users/yosefmalul/Desktop/megadim-media-source/drive-download-20260802T091911Z-1-001",
+  "qualityPolicy": {
+    "uploadMode": "original-byte-for-byte",
+    "noResize": true,
+    "noReencode": true,
+    "noWebPConversion": true,
+    "noAIProcessing": true,
+    "primaryDbUrlPointsTo": "original-full-resolution",
+    "displayVariants": "separate-files-only-after-explicit-approval"
+  },
+  "notes": [
+    "תיקיית המקור מחוץ לריפו (Desktop/megadim-media-source). לא הועתקה לתוך Megadim-P.",
+    "4 קבצים עם סיומת .jpg הם בפועל PNG לפי magic bytes — בהעלאה Content-Type חייב להיות image/png ללא שינוי בתים.",
+    "קינוחים/1.jpg ו-קינוחים/1.png הם קבצים שונים (cmp≠0) — דורשים החלטה במסך האישור.",
+    "אין העלאה ל-R2 ואין עדכון DB עד אישור מפורש."
+  ],
+  "folderToSiteCategory": {
+    "סלטים": { "id": "salads", "name": "סלטים" },
+    "דגים": { "id": "fish", "name": "דגים" },
+    "מנות עיקריות": { "id": "main", "name": "מנות עיקריות" },
+    "תוספות": { "id": "sides", "name": "תוספות" },
+    "קינוחים": { "id": "desserts", "name": "קינוחים" },
+    "ממולאים": { "id": "stuffed", "name": "ממולאים" }
+  },
+  "siteCategoriesNotInSource": [
+    { "id": "cholent", "name": "צ'ולנט" },
+    { "id": "desserts-cholent", "name": "קינוחים צ'ולנט" }
+  ],
+  "countsByFolder": {
+    "דגים": 7,
+    "ממולאים": 6,
+    "מנות עיקריות": 11,
+    "סלטים": 31,
+    "קינוחים": 8,
+    "תוספות": 13
+  },
+  "totalImages": 76,
+  "decisionDefaults": {
+    "status": "pending",
+    "targetMenuItemId": null,
+    "targetMenuItemName": "",
+    "action": "replace-menu-item-image",
+    "notes": ""
+  }
+}

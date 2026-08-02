@@ -337,7 +337,7 @@ export class SaladsComponent implements OnInit {
     this.seoService.updateTags({
       title: 'סלטי הבית - קייטרינג מגדים | סלטים לשבת',
       description: 'מגוון סלטים טריים בעבודת יד לכבוד שבת המלכה. חומוס, טחינה, חצילים ועוד. הזמינו עכשיו.',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906611/IMG_9750_v7mval.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/a9c861c5232b469b/original.jpg',
       keywords: 'סלטים לשבת, חומוס, טחינה, קייטרינג מגדים, אוכל כשר'
     });
     this.settingsService.getSettings(true).subscribe(s => {

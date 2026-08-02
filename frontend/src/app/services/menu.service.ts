@@ -97,7 +97,7 @@ export class MenuService {
       category: 'מנות עיקריות',
       description: 'אסאדו ארגנטינאי מסורתי עשוי מבשר איכותי, מתובל בתבלינים מיוחדים וצלוי על הגריל. טעם עשיר ומענג שמביא את הטעמים האותנטיים של המטבח הארגנטינאי.',
       price: 72,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
       tags: ['בשרי', 'מיוחד'],
       isAvailable: true,
       isPopular: true,
@@ -111,7 +111,7 @@ export class MenuService {
       category: 'מנות עיקריות',
       description: 'צלי בקר איכותי מבושל לאט עם ירקות שורש ותבלינים מיוחדים. מרקם רך ועשיר עם טעם עמוק ומשביע שמביא את הטעמים הקלאסיים של המטבח המסורתי.',
       price: 64,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
       tags: ['בשרי', 'מסורתי'],
       isAvailable: true,
       pricingOptions: [],
@@ -124,7 +124,7 @@ export class MenuService {
       category: 'מנות עיקריות',
       description: 'כבד איכותי ברוטב עשיר ומתובל, מבושל לאט עם בצל ותבלינים מיוחדים. טעם עשיר ומעניין שמביא את הטעמים המוכרים והאהובים של המטבח המסורתי.',
       price: 48,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
       tags: ['בשרי', 'מסורתי'],
       isAvailable: true,
       pricingOptions: [],
@@ -137,7 +137,7 @@ export class MenuService {
       category: 'מנות עיקריות',
       description: 'מוסאקה מסורתית עם חצילים, בשר טחון ורוטב בצל. מנה עשירה ומשביעה.',
       price: 65,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906615/IMG_9690_u75cnk.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
       tags: [],
       isAvailable: true,
       pricingOptions: [],
@@ -151,7 +151,7 @@ export class MenuService {
       category: 'דגים',
       description: 'פילה סלמון איכותי ברוטב טריאקי מתוק וחריף, אפוי בתנור. מנה בריאה וטעימה עם טעם אסיאתי אותנטי.',
       price: 85,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/66b9922b9c941dc1/original.jpg',
       tags: ['בריא'],
       isAvailable: true,
       pricingOptions: [],
@@ -164,7 +164,7 @@ export class MenuService {
       category: 'דגים',
       description: 'סלמון טרי אפוי בתנור עם עשבי תיבול ולימון. מנה בריאה וטעימה.',
       price: 85,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/66b9922b9c941dc1/original.jpg',
       tags: ['בריא'],
       isAvailable: true,
       pricingOptions: [],
@@ -177,7 +177,7 @@ export class MenuService {
       category: 'דגים',
       description: 'גפילטע פיש מסורתי לשבת, מוכן בסגנון ביתי עם גזר וצנון.',
       price: 55,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906613/IMG_9721_rrsv3d.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/66b9922b9c941dc1/original.jpg',
       tags: [],
       isAvailable: true,
       pricingOptions: [],
@@ -191,7 +191,7 @@ export class MenuService {
       category: 'סלטים',
       description: 'חומוס קלאסי ביתי עשוי מגרגרי חומוס איכותיים, טחינה משובחת, לימון טרי ושום. מרקם קרמי ועדין עם טעם עשיר ומאוזן.',
       price: 17,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/da7e9eee1eeac5e2/original.png',
       tags: ['טבעוני', 'ללא גלוטן'],
       isAvailable: true,
       pricingOptions: [
@@ -207,7 +207,7 @@ export class MenuService {
       category: 'סלטים',
       description: 'טחינה קרמית ומרוכזת עשויה משומשום איכותי, מתובלת בלימון טרי ושום. מרקם חלק ועשיר שמביא טעם מזרח תיכוני אותנטי.',
       price: 18,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/da7e9eee1eeac5e2/original.png',
       tags: ['טבעוני', 'ללא גלוטן'],
       isAvailable: true,
       pricingOptions: [
@@ -224,7 +224,7 @@ export class MenuService {
       category: 'תוספות',
       description: 'אורז לבן מבושל בסגנון ביתי, פריך וטעים. מתאים לכל מנה עיקרית.',
       price: 15,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906621/IMG_9702_f9k2xj.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/e1e10a399b476b78/original.jpg',
       tags: ['טבעוני', 'ללא גלוטן'],
       isAvailable: true,
       pricingOptions: [],
@@ -237,7 +237,7 @@ export class MenuService {
       category: 'תוספות',
       description: 'תפוחי אדמה מבושלים או צלויים, מתובלים בתבלינים. תוספת קלאסית וטעימה.',
       price: 12,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906621/IMG_9702_f9k2xj.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/e1e10a399b476b78/original.jpg',
       tags: ['טבעוני', 'ללא גלוטן'],
       isAvailable: true,
       pricingOptions: [],
@@ -251,7 +251,7 @@ export class MenuService {
       category: 'קינוחים',
       description: 'מוס שוקולד בלגי עשיר ואוורירי, מוגש בכוסית אישית. קינוח מושלם ושוקולדי.',
       price: 15,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       tags: ['חלבי/פרווה', 'שוקולד'],
       isAvailable: true,
       pricingOptions: [],
@@ -264,7 +264,7 @@ export class MenuService {
       category: 'קינוחים',
       description: 'עוגת גבינה קרה עם פירורים פריכים, במרקם שמנת עשיר. מוגש בפרוסה אישית.',
       price: 18,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       tags: ['חלבי'],
       isAvailable: true,
       pricingOptions: [],
@@ -277,7 +277,7 @@ export class MenuService {
       category: 'קינוחים',
       description: 'מלבי שמנת מסורתי עם סירופ מי ורדים, קוקוס ובוטנים. טעם של בית.',
       price: 12,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       tags: ['ללא גלוטן'],
       isAvailable: true,
       pricingOptions: [],
@@ -290,7 +290,7 @@ export class MenuService {
       category: 'קינוחים',
       description: 'פאי תפוחים חם וביתי עם קינמון ובצק פריך. מומלץ להגיש חם.',
       price: 22,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       tags: ['פרווה'],
       isAvailable: true,
       pricingOptions: [],
@@ -304,7 +304,7 @@ export class MenuService {
       category: 'ממולאים',
       description: 'טירמיסו קלאסי איטלקי עם קפה, ביסקוויטים וקרם מתוק. קינוח מושלם לסיום הארוחה.',
       price: 35,
-      imageUrl: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      imageUrl: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       tags: [],
       isAvailable: true,
       pricingOptions: [],
@@ -905,6 +905,16 @@ export class MenuService {
       // If it's already a placeholder, return it
       if (url.includes('placeholder-dish.jpg')) {
         return '/assets/images/placeholder-dish.jpg';
+      }
+
+      // Local Angular: prefer backend media proxy for R2 Worker URLs
+      const r2Host = 'https://megadim-media.megadim.workers.dev/';
+      if (
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+        url.startsWith(r2Host)
+      ) {
+        return `http://127.0.0.1:4000/api/media/${url.slice(r2Host.length)}`;
       }
       
       // Check if URL is absolute (starts with http:// or https://)

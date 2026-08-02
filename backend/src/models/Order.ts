@@ -89,6 +89,10 @@ export interface IOrder extends Document {
    * Never exposed to the client.
    */
   paymentSecurityToken?: string;
+  /** SHA-256 hash of the short-lived capability returned once at checkout creation. */
+  paymentInitTokenHash?: string;
+  /** Application-enforced expiry for paymentInitTokenHash; no Mongo TTL index is used. */
+  paymentInitTokenExpiresAt?: Date;
   /** Set when checkout confirmation emails (admin + customer) were sent after successful payment. */
   confirmationEmailSentAt?: Date;
 }
@@ -212,6 +216,8 @@ const OrderSchema: Schema<IOrder> = new Schema({
   sidesEvening: [{ type: String, trim: true }],
   sidesMorning: [{ type: String, trim: true }],
   paymentSecurityToken: { type: String, required: false, select: false }, // excluded from default queries
+  paymentInitTokenHash: { type: String, required: false, select: false },
+  paymentInitTokenExpiresAt: { type: Date, required: false, select: false },
   confirmationEmailSentAt: { type: Date, required: false, default: null }
 }, {
   timestamps: true,

@@ -16,7 +16,7 @@ export class PortalLayoutComponent {
   private authService = inject(AuthService);
 
   readonly logoUrl =
-    'https://res.cloudinary.com/dioklg7lx/image/upload/f_auto,q_auto/v1773160661/Gemini_Generated_Image_swmdneswmdneswmd_gvchgd.png';
+    'https://megadim-media.megadim.workers.dev/frontend/static/33e71892b429580c/original.png';
 
   logout(): void {
     this.authService.logout();

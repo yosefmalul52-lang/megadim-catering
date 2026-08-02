@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מיפוי תמונות מגדים — מקומי בלבד</title>
+  <style>
+    :root {
+      --bg:#f6f6f4; --surface:#fff; --border:#d8d6cf; --text:#1c1c1a;
+      --muted:#6a685f; --accent:#1f4e79; --ok:#0a7a2f; --warn:#9a6700; --danger:#a12622;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Heebo,Assistant,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+    h1{margin:0;font-size:1.05rem;font-weight:600}
+    .meta{font-size:.82rem;color:var(--muted)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    input,select,button,textarea{font:inherit;border:1px solid var(--border);border-radius:4px;padding:6px 9px;background:#fff}
+    button{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
+    button.secondary{background:#fff;color:var(--text);border-color:var(--border)}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .banner{margin:12px 16px 0;padding:10px 12px;background:#fff8e6;border:1px solid #e6d7a8;font-size:.9rem}
+    .layout{display:grid;grid-template-columns:1fr 320px;gap:14px;padding:12px 16px 32px}
+    @media(max-width:1100px){.layout{grid-template-columns:1fr}}
+    .stats{display:flex;flex-wrap:wrap;gap:12px;margin:8px 16px;font-size:.88rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;display:flex;flex-direction:column}
+    .card.st-אושרה{outline:2px solid var(--ok)}
+    .card.st-התאמה\ מוצעת{outline:2px solid #3b82f6}
+    .card.st-דורשת\ בדיקה{outline:2px solid var(--warn)}
+    .card.st-כפולה{outline:2px solid var(--danger)}
+    .card.st-ללא\ התאמה{outline:2px solid #888}
+    .thumb{background:#eceae3;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center}
+    .thumb img{width:100%;height:100%;object-fit:contain}
+    .body{padding:10px;display:flex;flex-direction:column;gap:6px}
+    .title{font-weight:600;font-size:.92rem;word-break:break-word}
+    .pills{display:flex;flex-wrap:wrap;gap:5px;font-size:.75rem;color:var(--muted)}
+    .pill{border:1px solid var(--border);background:#f2f1ec;border-radius:3px;padding:1px 6px}
+    .pill.warn{background:#fff3cd;border-color:#e0c200;color:#6b5300}
+    .pill.danger{background:#fde8e7;border-color:#e3a29f;color:var(--danger)}
+    label{font-size:.78rem;color:var(--muted);display:block}
+    .fields{display:grid;gap:6px}
+    .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+    .actions button{font-size:.8rem;padding:7px 4px}
+    .approve{background:var(--ok);border-color:var(--ok)}
+    .review{background:#fff;color:var(--warn);border-color:#c9a227}
+    .reject{background:var(--danger);border-color:var(--danger)}
+    .side{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:12px;align-self:start;position:sticky;top:70px;max-height:calc(100vh - 90px);overflow:auto}
+    .side h2{margin:0 0 8px;font-size:.95rem}
+    .side ul{margin:0;padding:0;list-style:none}
+    .side li{padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem}
+    .warnbox{background:#fde8e7;border:1px solid #e3a29f;color:#7a1f1c;padding:8px;border-radius:4px;font-size:.82rem;margin-bottom:10px}
+    .search-results{max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:4px;display:none}
+    .search-results button{display:block;width:100%;text-align:right;background:#fff;color:var(--text);border:0;border-bottom:1px solid var(--border);border-radius:0}
+    .search-results button:hover{background:#f3f2ee}
+    .visual{font-size:.84rem;line-height:1.35;color:var(--text)}
+    .cands{display:grid;gap:4px}
+    .cands button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:right;background:#fff;color:var(--text);border:1px solid var(--border);padding:7px 8px;font-size:.8rem}
+    .cands button.active{border-color:var(--accent);background:#eef4fa;outline:1px solid var(--accent)}
+    .cands button .meta{font-size:.72rem}
+    .unc{font-size:.78rem;color:var(--warn)}
+    footer{margin:0 16px 24px;padding:10px 12px;border:1px solid var(--border);background:var(--surface);font-size:.82rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>מיפוי תמונות → מוצרים (מקומי בלבד)</h1>
+      <div class="meta" id="meta">טוען…</div>
+    </div>
+    <div class="toolbar">
+      <select id="filterFolder"><option value="">כל התיקיות</option></select>
+      <select id="filterConfidence">
+        <option value="">כל רמות הביטחון</option>
+        <option value="גבוה">ביטחון גבוה</option>
+        <option value="בינוני">ביטחון בינוני</option>
+        <option value="נמוך">ביטחון נמוך</option>
+        <option value="דורשת בדיקה">דורשת בדיקה</option>
+        <option value="ללא התאמה">ללא התאמה</option>
+      </select>
+      <select id="filterStatus">
+        <option value="">כל הסטטוסים</option>
+        <option>לא טופלה</option>
+        <option>התאמה מוצעת</option>
+        <option>אושרה</option>
+        <option>דורשת בדיקה</option>
+        <option>ללא התאמה</option>
+        <option>כפולה</option>
+      </select>
+      <input id="q" type="search" placeholder="חיפוש קובץ / מוצר" style="min-width:180px" />
+      <button type="button" class="secondary" id="btnSave">שמור מיפוי</button>
+      <button type="button" class="secondary" id="btnExport">ייצוא JSON</button>
+    </div>
+  </header>
+
+  <div class="banner">
+    שלב מיפוי ואישור בלבד. <b>אין העלאה ל־R2</b>, <b>אין שינוי מסד</b>, <b>אין מחיקת Cloudinary</b>.
+    מקור מוגש byte-for-byte. אישור דורש בחירת מוצר עם <code>entityId</code>.
+  </div>
+  <div class="stats" id="stats"></div>
+
+  <div class="layout">
+    <main class="grid" id="grid"></main>
+    <aside class="side">
+      <div id="dupWarn" class="warnbox" style="display:none"></div>
+      <h2>מוצרים ללא תמונה חדשה</h2>
+      <div class="meta" id="unmatchedCount"></div>
+      <ul id="unmatchedList"></ul>
+      <h2 style="margin-top:16px">ישויות נוספות (לא אוטומטי)</h2>
+      <ul id="extraList"></ul>
+    </aside>
+  </div>
+
+  <footer>
+    הכלי תחת <code>docs/media-migration</code> + <code>scripts/serve-media-mapper.cjs</code> — אינו חלק מ־production build של Angular.
+    <div id="footerNotes"></div>
+  </footer>
+
+<script>
+const S = { mapping:null, entities:null, decisions:{} };
+
+const STATUS = ['לא טופלה','התאמה מוצעת','אושרה','דורשת בדיקה','ללא התאמה','כפולה'];
+
+function fmtMB(n){ return (n/1048576).toFixed(2)+' MB'; }
+
+function decisionKey(rel){ return rel; }
+
+function confidenceBandOf(conf){
+  if(conf >= 0.8) return 'גבוה';
+  if(conf >= 0.6) return 'בינוני';
+  return 'נמוך';
+}
+
+function seedFromMapping(m){
+  return {
+    sourceFile: m.sourceFile,
+    sourceFolder: m.sourceFolder,
+    relativePath: m.relativePath,
+    entityType: m.entityType || 'menuItem',
+    entityId: m.entityId || null,
+    entityName: m.entityName || '',
+    categoryId: m.categoryId || m.categoryName || '',
+    categoryName: m.categoryName || '',
+    currentImageUrl: m.currentImageUrl || '',
+    suggestedMatch: m.suggestedMatch || null,
+    candidateMatches: m.candidateMatches || [],
+    visualDescription: m.visualDescription || '',
+    uncertainty: m.uncertainty || '',
+    confidence: m.confidence || 0,
+    confidenceBand: m.confidenceBand || confidenceBandOf(m.confidence || 0),
+    approvalStatus: m.approvalStatus || 'לא טופלה',
+    approvedAt: m.approvedAt || null,
+    notes: m.notes || '',
+    allowSharedImage: !!m.allowSharedImage,
+    sha256: m.sha256,
+    detectedMime: m.detectedMime,
+    bytes: m.bytes,
+    width: m.width,
+    height: m.height,
+  };
+}
+
+function ensureDecision(m){
+  const k = decisionKey(m.relativePath);
+  if(S.decisions[k]){
+    const d = S.decisions[k];
+    // Keep candidate list / visual text available even on older saved decisions
+    if(!d.candidateMatches || !d.candidateMatches.length) d.candidateMatches = m.candidateMatches || [];
+    if(!d.visualDescription) d.visualDescription = m.visualDescription || '';
+    if(d.uncertainty == null) d.uncertainty = m.uncertainty || '';
+    if(!d.confidenceBand) d.confidenceBand = m.confidenceBand || confidenceBandOf(d.confidence || 0);
+    return d;
+  }
+  S.decisions[k] = seedFromMapping(m);
+  return S.decisions[k];
+}
+
+/** Refresh non-approved suggestions from latest visual analysis (never touches אושרה). */
+function hydrateDecisionsFromMapping(){
+  const next = {};
+  (S.mapping.mappings || []).forEach(m => {
+    const k = decisionKey(m.relativePath);
+    const prev = S.decisions[k];
+    if(prev && prev.approvalStatus === 'אושרה' && prev.entityId){
+      next[k] = {
+        ...seedFromMapping(m),
+        ...prev,
+        approvalStatus: 'אושרה',
+        entityId: prev.entityId,
+        entityName: prev.entityName,
+        entityType: prev.entityType || 'menuItem',
+        categoryName: prev.categoryName,
+        categoryId: prev.categoryId,
+        currentImageUrl: prev.currentImageUrl || '',
+        approvedAt: prev.approvedAt,
+        allowSharedImage: !!prev.allowSharedImage,
+        notes: prev.notes || '',
+        candidateMatches: prev.candidateMatches || m.candidateMatches || [],
+        visualDescription: prev.visualDescription || m.visualDescription || '',
+      };
+    } else {
+      next[k] = seedFromMapping(m);
+    }
+  });
+  S.decisions = next;
+}
+
+function allProducts(){
+  return (S.entities.menuItems || []).filter(p => p.categoryName !== 'archived_holiday');
+}
+
+function productById(id){
+  return allProducts().find(p => p.entityId === id);
+}
+
+function duplicateEntityIds(){
+  const counts = {};
+  Object.values(S.decisions).forEach(d => {
+    if(!d.entityId) return;
+    if(d.approvalStatus === 'ללא התאמה' || d.approvalStatus === 'לא טופלה') return;
+    // count if linked
+    counts[d.entityId] = (counts[d.entityId]||0)+1;
+  });
+  return Object.entries(counts).filter(([,c]) => c>1).map(([id,c]) => ({id,c,name:(productById(id)||{}).entityName||id}));
+}
+
+function refreshDuplicateFlags(){
+  const dups = new Set(duplicateEntityIds().map(d=>d.id));
+  Object.values(S.decisions).forEach(d => {
+    if(d.entityId && dups.has(d.entityId) && !d.allowSharedImage){
+      if(d.approvalStatus === 'אושרה' || d.approvalStatus === 'התאמה מוצעת' || d.approvalStatus === 'דורשת בדיקה'){
+        d.approvalStatus = 'כפולה';
+      }
+    }
+  });
+}
+
+function filteredMappings(){
+  const folder = document.getElementById('filterFolder').value;
+  const status = document.getElementById('filterStatus').value;
+  const confFilter = document.getElementById('filterConfidence').value;
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const list = S.mapping.mappings.filter(m => {
+    const d = ensureDecision(m);
+    if(folder && m.sourceFolder !== folder) return false;
+    if(status && d.approvalStatus !== status) return false;
+    if(confFilter){
+      if(confFilter === 'דורשת בדיקה' || confFilter === 'ללא התאמה'){
+        if(d.approvalStatus !== confFilter) return false;
+      } else {
+        const band = d.confidenceBand || confidenceBandOf(d.confidence || 0);
+        if(band !== confFilter) return false;
+      }
+    }
+    if(q){
+      const hay = `${m.relativePath} ${d.entityName||''} ${d.visualDescription||''} ${d.notes||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  // Highest confidence first; approved stay sortable by confidence too
+  return list.sort((a,b) => {
+    const da = ensureDecision(a), db = ensureDecision(b);
+    return (db.confidence||0) - (da.confidence||0) || a.relativePath.localeCompare(b.relativePath,'he');
+  });
+}
+
+function renderStats(){
+  const all = S.mapping.mappings.map(m => ensureDecision(m));
+  const counts = Object.fromEntries(STATUS.map(s=>[s,0]));
+  const bands = {גבוה:0, בינוני:0, נמוך:0};
+  all.forEach(d => {
+    counts[d.approvalStatus] = (counts[d.approvalStatus]||0)+1;
+    const b = d.confidenceBand || confidenceBandOf(d.confidence||0);
+    if(bands[b] != null) bands[b]++;
+  });
+  const bandHtml = `ביטחון גבוה: <b>${bands['גבוה']}</b> · בינוני: <b>${bands['בינוני']}</b> · נמוך: <b>${bands['נמוך']}</b>`;
+  const statusHtml = STATUS.map(s => `<span>${s}: <b>${counts[s]||0}</b></span>`).join('');
+  document.getElementById('stats').innerHTML = `<span>${bandHtml}</span>` + statusHtml;
+  const dups = duplicateEntityIds();
+  const box = document.getElementById('dupWarn');
+  if(dups.length){
+    box.style.display='block';
+    box.innerHTML = 'אזהרת כפילות — אותו מוצר מקושר ליותר מתמונה אחת ללא אישור שיתוף:<br>' +
+      dups.map(d => `${d.name} (${d.c})`).join(', ');
+  } else box.style.display='none';
+}
+
+function renderUnmatched(){
+  const assigned = new Set(Object.values(S.decisions).filter(d=>d.entityId && d.approvalStatus!=='ללא התאמה').map(d=>d.entityId));
+  const unmatched = allProducts().filter(p => !assigned.has(p.entityId));
+  document.getElementById('unmatchedCount').textContent = unmatched.length + ' מוצרים';
+  document.getElementById('unmatchedList').innerHTML = unmatched.slice(0,80).map(p =>
+    `<li><b>${p.entityName}</b><div class="meta">${p.categoryName}</div></li>`
+  ).join('') + (unmatched.length>80?`<li class="meta">…ועוד ${unmatched.length-80}</li>`:'');
+
+  const extra = S.mapping.extraEntities || {};
+  const lines = [];
+  (extra.siteSettings||[]).forEach(s => lines.push(`הגדרות: ${s.entityName}`));
+  (extra.galleryItems||[]).forEach(g => lines.push(`גלריה: ${g.entityName}`));
+  (extra.holidayEvents||[]).forEach(h => {
+    lines.push(`אירוע: ${h.entityName}`);
+    (h.products||[]).forEach(p => lines.push(`־ מוצר אירוע: ${p.entityName}`));
+  });
+  (extra.categoriesWithoutSourceFolder||[]).forEach(c => lines.push(`קטגוריה ללא תיקיית מקור: ${c.name} (${c.count})`));
+  document.getElementById('extraList').innerHTML = lines.map(t=>`<li>${t}</li>`).join('') || '<li class="meta">אין</li>';
+}
+
+function bindProductSearch(card, d, m){
+  const input = card.querySelector('[data-search]');
+  const results = card.querySelector('[data-results]');
+  const clearBtn = card.querySelector('[data-clear]');
+  function renderResults(list){
+    if(!list.length){ results.style.display='none'; results.innerHTML=''; return; }
+    results.style.display='block';
+    results.innerHTML = list.slice(0,40).map(p =>
+      `<button type="button" data-id="${p.entityId}">${p.entityName} <span class="meta">(${p.categoryName})</span></button>`
+    ).join('');
+    results.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = productById(btn.dataset.id);
+        d.entityId = p.entityId;
+        d.entityName = p.entityName;
+        d.entityType = 'menuItem';
+        d.categoryName = p.categoryName;
+        d.categoryId = p.categoryName;
+        d.currentImageUrl = p.currentImageUrl || '';
+        if(d.approvalStatus === 'ללא התאמה' || d.approvalStatus === 'לא טופלה') d.approvalStatus = 'התאמה מוצעת';
+        input.value = p.entityName;
+        results.style.display='none';
+        refreshDuplicateFlags();
+        render();
+      });
+    });
+  }
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    let list = allProducts();
+    if(d.categoryName) list = list.filter(p => p.categoryName === d.categoryName || !q);
+    if(q) list = allProducts().filter(p => (`${p.entityName} ${p.categoryName}`).toLowerCase().includes(q));
+    else if(d.categoryName) list = allProducts().filter(p => p.categoryName === d.categoryName);
+    renderResults(list);
+  });
+  input.addEventListener('focus', () => input.dispatchEvent(new Event('input')));
+  clearBtn.addEventListener('click', () => {
+    d.entityId = null; d.entityName=''; d.currentImageUrl='';
+    if(d.approvalStatus==='אושרה' || d.approvalStatus==='התאמה מוצעת' || d.approvalStatus==='כפולה') d.approvalStatus='דורשת בדיקה';
+    input.value='';
+    render();
+  });
+}
+
+function render(){
+  refreshDuplicateFlags();
+  const grid = document.getElementById('grid');
+  grid.innerHTML='';
+  filteredMappings().forEach(m => {
+    const d = ensureDecision(m);
+    const card = document.createElement('article');
+    card.className = 'card st-' + d.approvalStatus;
+    const src = '/original/' + m.relativePath.split('/').map(encodeURIComponent).join('/');
+    const mimeWarn = m.extensionMatchesMime===false ? '<span class="pill warn">סיומת≠MIME</span>' : '';
+    const shared = d.entityId && duplicateEntityIds().some(x=>x.id===d.entityId)
+      ? '<span class="pill danger">כפילות מוצר</span>' : '';
+    const cands = (d.candidateMatches && d.candidateMatches.length)
+      ? d.candidateMatches
+      : (m.candidateMatches || []);
+    const band = d.confidenceBand || confidenceBandOf(d.confidence || 0);
+    const candsHtml = cands.length
+      ? `<div class="cands" data-cands>
+          ${cands.slice(0,3).map((c,i) => `
+            <button type="button" data-cand="${c.entityId}" class="${d.entityId===c.entityId?'active':''}">
+              <span>${i+1}. ${c.entityName}</span>
+              <span class="meta">${c.categoryName||''}</span>
+            </button>`).join('')}
+        </div>`
+      : `<div class="meta">אין הצעות מוצר לתמונה זו</div>`;
+    card.innerHTML = `
+      <div class="thumb"><img loading="lazy" alt="" src="${src}" /></div>
+      <div class="body">
+        <div class="title">${m.relativePath}</div>
+        <div class="pills">
+          <span class="pill">${m.sourceFolder}</span>
+          <span class="pill">${m.width}×${m.height}</span>
+          <span class="pill">${fmtMB(m.bytes)}</span>
+          <span class="pill">ביטחון ${(d.confidence*100).toFixed(0)}% · ${band}</span>
+          <span class="pill">${d.approvalStatus}</span>
+          ${mimeWarn}${shared}
+        </div>
+        <div class="visual">${d.visualDescription || m.visualDescription || '—'}</div>
+        ${d.uncertainty || m.uncertainty ? `<div class="unc">חוסר ודאות: ${d.uncertainty || m.uncertainty}</div>` : ''}
+        <div class="meta">נוכחי באתר: ${d.currentImageUrl ? d.currentImageUrl.slice(0,60)+'…' : '—'}</div>
+        <div class="meta">${d.notes||''}</div>
+        <label>הצעות התאמה (לחיצה מחליפה)</label>
+        ${candsHtml}
+        <div class="fields">
+          <label>סטטוס
+            <select data-status>
+              ${STATUS.map(s=>`<option ${d.approvalStatus===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </label>
+          <label>חיפוש / בחירת מוצר מהמסד
+            <input data-search type="search" value="${d.entityName||''}" placeholder="הקלד שם מנה…" />
+          </label>
+          <div class="search-results" data-results></div>
+          <label><input type="checkbox" data-shared ${d.allowSharedImage?'checked':''}/> אשר שיתוף אותה תמונה לכמה ישויות</label>
+          <div class="meta">entityId: <code dir="ltr">${d.entityId||'—'}</code></div>
+        </div>
+        <div class="actions">
+          <button type="button" class="approve" data-act="approve">אשר</button>
+          <button type="button" class="review" data-act="review">לבדיקה</button>
+          <button type="button" class="secondary" data-clear>בטל התאמה</button>
+        </div>
+        <button type="button" class="reject" data-act="none" style="width:100%">ללא התאמה</button>
+      </div>`;
+    card.querySelectorAll('[data-cand]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if(d.approvalStatus === 'אושרה'){
+          alert('ההתאמה כבר אושרה ידנית — בטל אישור לפני החלפת מוצר');
+          return;
+        }
+        const p = productById(btn.dataset.cand);
+        if(!p) return;
+        d.entityId = p.entityId;
+        d.entityName = p.entityName;
+        d.entityType = 'menuItem';
+        d.categoryName = p.categoryName;
+        d.categoryId = p.categoryName;
+        d.currentImageUrl = p.currentImageUrl || '';
+        if(d.approvalStatus === 'ללא התאמה' || d.approvalStatus === 'לא טופלה') d.approvalStatus = 'התאמה מוצעת';
+        refreshDuplicateFlags();
+        render();
+      });
+    });
+    card.querySelector('[data-status]').addEventListener('change', (e) => {
+      d.approvalStatus = e.target.value;
+      if(d.approvalStatus==='אושרה'){
+        if(!d.entityId){ alert('לא ניתן לאשר בלי entityId'); d.approvalStatus='דורשת בדיקה'; e.target.value=d.approvalStatus; return; }
+        d.approvedAt = new Date().toISOString();
+      }
+      render();
+    });
+    card.querySelector('[data-shared]').addEventListener('change', (e) => {
+      d.allowSharedImage = e.target.checked;
+      render();
+    });
+    card.querySelector('[data-act="approve"]').addEventListener('click', () => {
+      if(!d.entityId){ alert('בחר מוצר לפני אישור'); return; }
+      const dups = duplicateEntityIds().filter(x => x.id===d.entityId);
+      if(dups.length && !d.allowSharedImage){
+        alert('המוצר כבר מקושר לתמונה אחרת. סמן "אשר שיתוף" או בחר מוצר אחר.');
+        d.approvalStatus='כפולה';
+        render();
+        return;
+      }
+      d.approvalStatus='אושרה';
+      d.approvedAt=new Date().toISOString();
+      render();
+    });
+    card.querySelector('[data-act="review"]').addEventListener('click', () => { d.approvalStatus='דורשת בדיקה'; render(); });
+    card.querySelector('[data-act="none"]').addEventListener('click', () => {
+      d.approvalStatus='ללא התאמה'; d.entityId=null; d.entityName=''; d.approvedAt=null; render();
+    });
+    bindProductSearch(card, d, m);
+    grid.appendChild(card);
+  });
+  renderStats();
+  renderUnmatched();
+}
+
+async function save(){
+  // client-side validate approved
+  for(const d of Object.values(S.decisions)){
+    if(d.approvalStatus==='אושרה' && !d.entityId){
+      alert('יש אישורים בלי entityId');
+      return;
+    }
+  }
+  const payload = {
+    decisions: S.decisions,
+    qualityPolicy: S.mapping.qualityPolicy,
+    sourceRoot: S.mapping.sourceRoot,
+  };
+  const res = await fetch('/api/state', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const j = await res.json();
+  if(!res.ok){ alert(j.message||'שמירה נכשלה'); return; }
+  alert('נשמר מקומית ב-mapping-state.json — ללא R2/DB');
+}
+
+function exportJson(){
+  const blob = new Blob([JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    sourceRoot: S.mapping.sourceRoot,
+    qualityPolicy: S.mapping.qualityPolicy,
+    r2PlanDraft: S.mapping.r2PlanDraft,
+    decisions: S.decisions
+  }, null, 2)], {type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='megadim-mapping-decisions.json';
+  a.click();
+}
+
+async function boot(){
+  const [mapping, entities, state] = await Promise.all([
+    fetch('/api/mapping').then(r=>r.json()),
+    fetch('/api/entities').then(r=>r.json()),
+    fetch('/api/state').then(r=>r.json()),
+  ]);
+  S.mapping = mapping;
+  S.entities = entities;
+  S.decisions = state.decisions || {};
+  hydrateDecisionsFromMapping();
+  document.getElementById('meta').textContent =
+    `מקור: ${mapping.sourceRoot} · ${mapping.stats.totalImages} תמונות · ${entities.menuItems.length} מוצרים (ייצוא קריאה בלבד)`;
+  document.getElementById('footerNotes').textContent =
+    (mapping.extraEntities?.categoriesWithoutSourceFolder||[]).map(c=>c.name).join(', ');
+
+  const folders = [...new Set(mapping.mappings.map(m=>m.sourceFolder))].sort((a,b)=>a.localeCompare(b,'he'));
+  const sel = document.getElementById('filterFolder');
+  folders.forEach(f => { const o=document.createElement('option'); o.value=f; o.textContent=f; sel.appendChild(o); });
+
+  document.getElementById('filterFolder').onchange = render;
+  document.getElementById('filterConfidence').onchange = render;
+  document.getElementById('filterStatus').onchange = render;
+  document.getElementById('q').oninput = render;
+  document.getElementById('btnSave').onclick = save;
+  document.getElementById('btnExport').onclick = exportJson;
+  render();
+}
+
+boot().catch(err => {
+  document.getElementById('meta').textContent = 'שגיאה בטעינה — האם השרת רץ על פורט 4178?';
+  console.error(err);
+});
+</script>
+</body>
+</html>

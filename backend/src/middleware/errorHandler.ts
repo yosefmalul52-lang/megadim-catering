@@ -18,6 +18,27 @@ export class AppError extends Error implements ApiError {
   }
 }
 
+function redactSensitiveRequestFields(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const redacted = { ...(value as Record<string, unknown>) };
+  for (const key of [
+    'paymentInitToken',
+    'paymentSecurityToken',
+    'pdesc',
+    'PDesc',
+    'contact',
+    'Contact',
+    'TranzilaTK',
+    'ccard',
+    'Ccard'
+  ]) {
+    if (Object.prototype.hasOwnProperty.call(redacted, key)) {
+      redacted[key] = '[REDACTED]';
+    }
+  }
+  return redacted;
+}
+
 // Explicit error handler function with proper Express signature
 export const errorHandler: (error: any, req: Request, res: Response, next: NextFunction) => void = (
   error: any,
@@ -35,8 +56,8 @@ export const errorHandler: (error: any, req: Request, res: Response, next: NextF
   console.error('Request details:', {
     method: req.method,
     url: req.url,
-    body: req.body,
-    query: req.query,
+    body: redactSensitiveRequestFields(req.body),
+    query: redactSensitiveRequestFields(req.query),
     params: req.params,
     ip: req.ip,
     userAgent: req.get('User-Agent')

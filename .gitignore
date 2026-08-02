@@ -243,8 +243,61 @@ frontend/dist/
 *.seed.log
 
 # ============================================
+# Local media source (original photos — never commit)
+# ============================================
+# Full-resolution originals for R2 migration / approval workflow
+media-migration-input/
+media-migration-input
+**/media-migration-input/
+**/media-migration-input
+megadim-media-source/
+**/megadim-media-source/
+drive-download-*/
+**/drive-download-*/
+
+# Local mapping tool artifacts (not production)
+docs/media-migration/local-approval-state.json
+docs/media-migration/mapping-state.json
+docs/media-migration/mapping-file.json
+docs/media-migration/entities-export.json
+docs/media-migration/source-inventory.json
+docs/media-migration/.serve-cache/
+docs/media-migration/thumbnails/
+docs/media-migration/reports/
+docs/media-migration/*-export.json
+docs/media-migration/visual-analysis.json
+docs/media-migration/visual-salads-temp.json
+docs/media-migration/r2-upload-manifest.json
+docs/media-migration/r2-upload-manifest*.json
+docs/media-migration/.env.r2
+docs/media-migration/.env.local
+docs/media-migration/.env.render
+docs/media-migration/.local-isolated-db.json
+docs/media-migration/.local-admin-credentials.txt
+docs/media-migration/.local-verify-report.json
+# Keep non-secret example tracked:
+!docs/media-migration/r2.env.example
+tools/media-mapper/.cache/
+tools/media-mapper/state/
+
+# ============================================
 # Keep These (if needed)
 # ============================================
 # Uncomment if you want to keep example files
 # !.env.example
 # !package.json.example
+docs/media-migration/image-url-backup.json
+docs/media-migration/image-url-backup*.json
+docs/media-migration/db-image-backup*.json
+docs/media-migration/workers-deploy-state.json
+docs/media-migration/full-media-backup*.json
+docs/media-migration/full-media-inventory-report*.json
+docs/media-migration/remaining-cloudinary-manifest*.json
+docs/media-migration/frontend-cloudinary-r2-map.json
+docs/media-migration/dup-fix-backup*.json
+docs/media-migration/remaining-cloudinary-db-backup*.json
+docs/media-migration/full-media-backup*.json
+docs/media-migration/full-media-inventory-report*.json
+workers/**/.wrangler/
+workers/**/.wrangler-logs/
+**/wrangler-deploy-out.txt

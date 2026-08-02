@@ -56,6 +56,13 @@ export interface AdminOrdersPageFilters {
   hasAdminNotes?: boolean;
 }
 
+export interface CheckoutCreationOptions {
+  isManual?: boolean;
+  paymentStatus?: 'paid' | 'unpaid';
+  paymentInitTokenHash?: string;
+  paymentInitTokenExpiresAt?: Date;
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -161,7 +168,10 @@ export class OrderService {
   }
 
   /** Create order from checkout payload (POST /api/orders). Saves to DB, sends admin email, returns saved order. */
-  async createOrderFromCheckout(payload: CreateCheckoutOrderRequest): Promise<IOrder> {
+  async createOrderFromCheckout(
+    payload: CreateCheckoutOrderRequest,
+    options: CheckoutCreationOptions = {}
+  ): Promise<IOrder> {
     const addressStr =
       typeof payload.address === 'string'
         ? payload.address
@@ -178,7 +188,7 @@ export class OrderService {
       imageUrl: (item as any).imageUrl || (item as any).image || undefined
     }));
 
-    const isManual = payload.manualOrder === true;
+    const isManual = options.isManual === true;
     const status = isManual ? 'processing' : 'pending';
     const customerDetails: Record<string, unknown> = {
       fullName: payload.customerName,
@@ -191,8 +201,8 @@ export class OrderService {
       subtotal: payload.subtotal,
       notes: payload.notes
     };
-    if (isManual && payload.paymentStatus) {
-      customerDetails.isPaid = payload.paymentStatus === 'paid';
+    if (isManual && options.paymentStatus) {
+      customerDetails.isPaid = options.paymentStatus === 'paid';
     }
     const marketingData = sanitizeMarketingData((payload as { marketingData?: unknown }).marketingData);
 
@@ -205,6 +215,12 @@ export class OrderService {
       subtotal: payload.subtotal ?? null,
       deliveryFee: payload.deliveryFee ?? null,
       status,
+      ...(!isManual && options.paymentInitTokenHash && options.paymentInitTokenExpiresAt
+        ? {
+            paymentInitTokenHash: options.paymentInitTokenHash,
+            paymentInitTokenExpiresAt: options.paymentInitTokenExpiresAt
+          }
+        : {}),
       ...(marketingData ? { marketingData } : {})
     });
 

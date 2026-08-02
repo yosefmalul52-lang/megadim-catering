@@ -37,27 +37,27 @@ export class FeaturedMenuComponent implements OnInit {
     {
       id: 'salads',
       name: 'סלטים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768237285/Salads-category_qyrqyf.png',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/da7e9eee1eeac5e2/original.png',
     },
     {
       id: 'fish',
       name: 'דגים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906619/IMG_9719_mmhoct.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/47e00b409d8842db/original.jpg',
     },
     {
       id: 'main',
       name: 'מנות עיקריות',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906616/IMG_9691_vlsp6w.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/370fefc6263ad915/original.jpg',
     },
     {
       id: 'sides',
       name: 'תוספות',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768906623/IMG_9705_voigt1.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/8b229cb94fc3112c/original.jpg',
     },
     {
       id: 'stuffed',
       name: 'ממולאים',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768169598/magadim-catering/zvaljwkf37merstx1wmx.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/bc6bab3016ae6a30/original.jpg',
     },
   ];
 

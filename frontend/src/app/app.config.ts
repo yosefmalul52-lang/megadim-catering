@@ -13,18 +13,27 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { AuthService } from './services/auth.service';
 
-const CLOUDINARY_CLOUD_NAME = 'dioklg7lx';
+const R2_PUBLIC_HOST = 'megadim-media.megadim.workers.dev';
 
-/** Image loader: full URLs and relative paths pass through; otherwise use Cloudinary with optional width. */
+/** In local Angular (localhost/127.0.0.1), serve R2 images via backend proxy to avoid browser/CDN flakes. */
+function rewriteR2ForLocalDev(src: string): string {
+  if (typeof window === 'undefined') return src;
+  const host = window.location.hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  if (!isLocal) return src;
+  const marker = `https://${R2_PUBLIC_HOST}/`;
+  if (!src.startsWith(marker)) return src;
+  const key = src.slice(marker.length);
+  return `http://127.0.0.1:4000/api/media/${key}`;
+}
+
+/** Image loader: absolute/R2/local assets pass through. No Cloudinary transform fallback. */
 function imageLoader(config: ImageLoaderConfig): string {
-  const src = config.src;
+  const src = rewriteR2ForLocalDev(config.src);
   if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/') || src.startsWith('assets')) {
     return src;
   }
-  const base = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-  const transform = config.width ? `w_${config.width},f_auto,q_auto` : 'f_auto,q_auto';
-  const path = src.replace(/^\/+/, '');
-  return `${base}/${transform}/${path}`;
+  return '/assets/images/placeholder-dish.jpg';
 }
 
 export class CustomHttpLoader implements TranslateLoader {

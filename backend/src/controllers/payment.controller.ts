@@ -15,7 +15,7 @@
  *   8. Admin reviews order in dashboard → POST /api/payment/capture/:orderId  (J capture)
  *   9. Admin cancels → POST /api/payment/void/:orderId         (releases hold)
  *
- * Mock mode (no TRANZILA_TERMINAL_NAME set):
+ * Mock mode (development/test only, with Tranzila configuration absent):
  *   initiate returns successUrl directly → skips Tranzila page entirely (useful for local dev)
  */
 import crypto from 'crypto';
@@ -61,6 +61,31 @@ function userCanAccessOrderPaymentStatus(order: Record<string, unknown>, user: R
   return false;
 }
 
+function paymentInitTokenIsValid(order: Record<string, any>, token: unknown): boolean {
+  if (typeof token !== 'string' || !token.trim()) return false;
+
+  const storedHash = String(order.paymentInitTokenHash || '');
+  if (!/^[a-f0-9]{64}$/i.test(storedHash)) return false;
+
+  const expiresAt = new Date(order.paymentInitTokenExpiresAt || 0).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return false;
+
+  const receivedHash = crypto.createHash('sha256').update(token).digest();
+  const expectedHash = Buffer.from(storedHash, 'hex');
+  return expectedHash.length === receivedHash.length &&
+    crypto.timingSafeEqual(expectedHash, receivedHash);
+}
+
+function buildPaymentSuccessUrl(orderId: string): string {
+  const backendBase = (
+    process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`
+  ).replace(/\/$/, '');
+  const successBase = (
+    process.env.TRANZILA_SUCCESS_URL || `${backendBase}/api/payment/success`
+  ).trim();
+  return `${successBase}?orderId=${encodeURIComponent(orderId)}`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTROLLER
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,81 +97,127 @@ export class PaymentController {
    * Generates the Tranzila HPP URL and returns it to the frontend.
    * The frontend does: window.location.href = redirectUrl
    *
-   * Mock mode (TRANZILA_TERMINAL_NAME not set):
+   * Mock mode (development/test only, with Tranzila configuration absent):
    *   Returns successUrl directly so local development works without credentials.
    */
   initiatePreAuth = asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = req.params;
     if (!orderId) throw createValidationError('orderId is required');
 
-    // Must use +paymentSecurityToken since it's select:false
-    const order = await Order.findById(orderId).select('+paymentSecurityToken');
+    const paymentFields =
+      '+paymentSecurityToken +paymentInitTokenHash +paymentInitTokenExpiresAt';
+    const order = await Order.findById(orderId).select(paymentFields);
     if (!order) throw createNotFoundError('Order');
 
     const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:4200').replace(/\/$/, '');
-
-    // Idempotency guards
-    if (order.paymentStatus === 'awaiting_payment') {
-      // Already initiated – rebuild the same URL without changing state
-      const ref = order.transactionId || `ORD-${orderId}`;
-      const redirectUrl = tranzilaService.isConfigured()
-        ? tranzilaService.generateAuthUrl({
-            _id: orderId,
-            totalPrice: order.totalPrice,
-            paymentSecurityToken: (order as any).paymentSecurityToken || ref
-          })
-        : `${frontendBase}/order-confirmation/${orderId}?mock=1`;
-      return res.status(200).json({ success: true, redirectUrl, alreadyInitiated: true });
-    }
-    if (order.paymentStatus === 'authorized') {
-      try {
-        await emailService.sendOrderConfirmationAfterPayment(orderId);
-      } catch (emailErr) {
-        console.error('[payment] confirmation email failed (already authorized):', { orderId }, emailErr);
-      }
-      return res.status(200).json({
-        success: true, alreadyAuthorized: true,
-        redirectUrl: `${frontendBase}/order-confirmation/${orderId}`
+    const user = (req as any).user as Record<string, unknown> | null | undefined;
+    const hasOwnership = !!user &&
+      userCanAccessOrderPaymentStatus(order as unknown as Record<string, unknown>, user);
+    if (!hasOwnership && !paymentInitTokenIsValid(order as any, req.body?.paymentInitToken)) {
+      return res.status(403).json({
+        success: false,
+        code: 'PAYMENT_INIT_FORBIDDEN',
+        message: 'Payment initiation is not permitted'
       });
     }
-    if (order.paymentStatus === 'captured') {
-      throw createValidationError('Order has already been captured');
-    }
-    if (order.paymentStatus === 'voided') {
-      throw createValidationError('Order was voided; start a new order to retry payment');
+
+    const providerConfigured = tranzilaService.isConfigured();
+    const environment = String(process.env.NODE_ENV || '');
+    const mockAllowed = !providerConfigured &&
+      (environment === 'development' || environment === 'test');
+    if (!providerConfigured && !mockAllowed) {
+      return res.status(503).json({
+        success: false,
+        code: 'PAYMENT_PROVIDER_NOT_CONFIGURED',
+        message: 'Payment provider is not configured'
+      });
     }
 
-    // Generate one-time security token (anti-spoofing)
-    const paymentSecurityToken = crypto.randomBytes(16).toString('hex');
-
-    // Persist before redirect so the token is available when Tranzila calls back
-    await Order.findByIdAndUpdate(orderId, {
-      $set: {
-        paymentStatus:        'awaiting_payment',
-        // NOTE: do NOT set `status` here — it uses a different enum for
-        // kitchen/operational tracking. Payment state lives in `paymentStatus`.
-        paymentSecurityToken,
-        authorizedAmount:     order.totalPrice,
-        transactionId:        `ORD-${orderId}` // placeholder; overwritten on paymentSuccess
-      }
+    const conflict = () => res.status(409).json({
+      success: false,
+      code: 'PAYMENT_STATE_CONFLICT',
+      message: 'Order cannot start payment in its current state'
     });
 
-    let redirectUrl: string;
+    const authorizeReloadedOrder = (current: any): boolean => {
+      const currentOwner = !!user &&
+        userCanAccessOrderPaymentStatus(current as Record<string, unknown>, user);
+      return currentOwner || paymentInitTokenIsValid(current, req.body?.paymentInitToken);
+    };
 
-    if (!tranzilaService.isConfigured()) {
-      // ── Mock mode ────────────────────────────────────────────────────────────
-      console.warn(
-        '[payment] TRANZILA_TERMINAL_NAME / TRANZILA_SUCCESS_URL not set.\n' +
-        '  → Running in MOCK mode: redirecting directly to order-confirmation.\n' +
-        '  → Add TRANZILA_TERMINAL_NAME and TRANZILA_SUCCESS_URL to backend/.env to enable real payments.'
-      );
-      redirectUrl = `${frontendBase}/order-confirmation/${orderId}?mock=1`;
-      // In mock mode, immediately mark as authorized so admin can see and capture
-      await Order.findByIdAndUpdate(orderId, {
-        $set: { paymentStatus: 'authorized', transactionId: `MOCK-${Date.now()}` }
-      });
+    const respondForSettledState = (current: any): Response | null => {
+      if (current.paymentStatus === 'awaiting_payment') {
+        const securityToken = String(current.paymentSecurityToken || '');
+        if (!providerConfigured) {
+          return res.status(200).json({
+            success: true,
+            redirectUrl: `${frontendBase}/order-confirmation/${orderId}?mock=1`,
+            alreadyInitiated: true
+          });
+        }
+        if (!securityToken) return conflict();
+        const redirectUrl = tranzilaService.generateAuthUrl({
+          _id: orderId,
+          totalPrice: current.totalPrice,
+          paymentSecurityToken: securityToken,
+          successUrl: buildPaymentSuccessUrl(orderId)
+        });
+        return res.status(200).json({ success: true, redirectUrl, alreadyInitiated: true });
+      }
+      if (current.paymentStatus === 'authorized') {
+        return res.status(200).json({
+          success: true,
+          alreadyAuthorized: true,
+          redirectUrl: `${frontendBase}/order-confirmation/${orderId}`
+        });
+      }
+      if (current.paymentStatus === 'captured' || current.paymentStatus === 'voided') {
+        return conflict();
+      }
+      return null;
+    };
+
+    const settledResponse = respondForSettledState(order);
+    if (settledResponse) return settledResponse;
+
+    if (
+      (order.paymentStatus !== 'pending' && order.paymentStatus !== 'failed') ||
+      order.status !== 'pending'
+    ) {
+      return conflict();
+    }
+
+    if (mockAllowed) {
+      const updated = await Order.findOneAndUpdate(
+        {
+          _id: orderId,
+          status: 'pending',
+          paymentStatus: order.paymentStatus
+        },
+        {
+          $set: {
+            paymentStatus: 'authorized',
+            authorizedAmount: order.totalPrice,
+            transactionId: order.transactionId || `MOCK-${Date.now()}`
+          }
+        },
+        { new: true }
+      ).select(paymentFields);
+
+      if (!updated) {
+        const reloaded = await Order.findById(orderId).select(paymentFields);
+        if (!reloaded || !authorizeReloadedOrder(reloaded)) {
+          return res.status(403).json({
+            success: false,
+            code: 'PAYMENT_INIT_FORBIDDEN',
+            message: 'Payment initiation is not permitted'
+          });
+        }
+        return respondForSettledState(reloaded) || conflict();
+      }
+
       try {
-        await upsertCustomerFromOrder(order.toObject ? order.toObject() : order);
+        await upsertCustomerFromOrder(updated.toObject ? updated.toObject() : updated);
       } catch (crmErr) {
         console.error('[crm] payment backup upsert failed (mock authorize):', { orderId }, crmErr);
       }
@@ -155,33 +226,63 @@ export class PaymentController {
       } catch (emailErr) {
         console.error('[payment] confirmation email failed (mock authorize):', { orderId }, emailErr);
       }
-    } else {
-      // ── Real Tranzila mode ───────────────────────────────────────────────────
-      try {
-        // Embed orderId in success_url so it arrives reliably regardless of which
-        // Tranzila params they echo back. Tranzila appends its own params to our URL.
-        const backendBase = (process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, '');
-        const tranzilaSuccessBase = (process.env.TRANZILA_SUCCESS_URL || `${backendBase}/api/payment/success`).trim();
-        const successUrl = `${tranzilaSuccessBase}?orderId=${encodeURIComponent(orderId)}`;
 
-        redirectUrl = tranzilaService.generateAuthUrl({
-          _id:                  orderId,
-          totalPrice:           order.totalPrice,
-          paymentSecurityToken,
-          successUrl
-        });
-        console.log(`[payment] Tranzila HPP URL built for order ${orderId}: ${redirectUrl.slice(0, 80)}…`);
-      } catch (err: any) {
-        console.error('[payment] Failed to generate Tranzila URL:', err.message);
-        throw createValidationError(`Cannot build payment URL: ${err.message}`);
-      }
+      return res.status(200).json({
+        success: true,
+        redirectUrl: `${frontendBase}/order-confirmation/${orderId}?mock=1`,
+        message: 'Payment page URL generated'
+      });
     }
 
-    return res.status(200).json({
-      success: true,
-      redirectUrl,
-      message: 'Payment page URL generated'
-    });
+    const paymentSecurityToken =
+      (order as any).paymentSecurityToken || crypto.randomBytes(16).toString('hex');
+    const transactionId = order.transactionId || `ORD-${orderId}`;
+    const updated = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        status: 'pending',
+        paymentStatus: order.paymentStatus
+      },
+      {
+        $set: {
+          paymentStatus: 'awaiting_payment',
+          paymentSecurityToken,
+          authorizedAmount: order.totalPrice,
+          transactionId
+        }
+      },
+      { new: true }
+    ).select(paymentFields);
+
+    if (!updated) {
+      const reloaded = await Order.findById(orderId).select(paymentFields);
+      if (!reloaded || !authorizeReloadedOrder(reloaded)) {
+        return res.status(403).json({
+          success: false,
+          code: 'PAYMENT_INIT_FORBIDDEN',
+          message: 'Payment initiation is not permitted'
+        });
+      }
+      return respondForSettledState(reloaded) || conflict();
+    }
+
+    try {
+      const redirectUrl = tranzilaService.generateAuthUrl({
+        _id: orderId,
+        totalPrice: updated.totalPrice,
+        paymentSecurityToken: (updated as any).paymentSecurityToken,
+        successUrl: buildPaymentSuccessUrl(orderId)
+      });
+      console.log(`[payment] Tranzila HPP URL built for order ${orderId}`);
+      return res.status(200).json({
+        success: true,
+        redirectUrl,
+        message: 'Payment page URL generated'
+      });
+    } catch (err: any) {
+      console.error('[payment] Failed to generate Tranzila URL:', err.message);
+      throw createValidationError(`Cannot build payment URL: ${err.message}`);
+    }
   });
 
   /**

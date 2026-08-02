@@ -148,6 +148,56 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
+ * Best-effort authentication for public endpoints that can also use an
+ * authenticated customer identity. Invalid or absent credentials continue as
+ * a guest; authorization remains the responsibility of the endpoint.
+ */
+export const optionalAuthenticate = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const cookieToken = (req as any).cookies?.token;
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7).trim() : null;
+  const token = cookieToken || bearerToken;
+
+  if (!token || !JWT_SECRET) {
+    (req as any).user = null;
+    next();
+    return;
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.id || decoded.userId || decoded._id;
+    if (!userId) {
+      (req as any).user = null;
+      next();
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (user && user.isActive) {
+      (req as any).user = {
+        _id: user._id,
+        id: user._id.toString(),
+        username: user.username,
+        role: user.role,
+        fullName: user.fullName,
+        phone: user.phone
+      };
+    } else {
+      (req as any).user = null;
+    }
+  } catch {
+    (req as any).user = null;
+  }
+
+  next();
+};
+
+/**
  * Role-based authorization middleware. Use after authenticate middleware.
  * Returns 403 with serverSeesRole for debugging production role mismatch.
  */
@@ -171,6 +221,7 @@ export const authorize = (...roles: string[]) => {
 // Also export as CommonJS for backward compatibility
 module.exports = {
   authenticate,
+  optionalAuthenticate,
   authorize
 };
 

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>אישור תמונות מקור — מגדים</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --surface: #fff;
+      --border: #d9d8d2;
+      --text: #1c1c1a;
+      --muted: #6b6960;
+      --accent: #1f4e79;
+      --ok: #0a7a2f;
+      --warn: #9a6700;
+      --danger: #a12622;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Heebo", "Assistant", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    select, input[type="text"], button, textarea {
+      font: inherit;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 4px;
+      padding: 6px 10px;
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.secondary { background: #fff; color: var(--text); border-color: var(--border); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .banner {
+      margin: 12px 20px 0;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: #fff8e8;
+      color: #5c4a12;
+      font-size: 0.9rem;
+    }
+    .stats {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin: 12px 20px;
+      font-size: 0.9rem;
+    }
+    .stats span b { font-weight: 600; }
+    main {
+      padding: 8px 20px 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card.status-approved { outline: 2px solid var(--ok); }
+    .card.status-rejected { outline: 2px solid var(--danger); }
+    .card.status-skip { outline: 2px solid var(--warn); }
+    .thumb {
+      background: #eceae4;
+      aspect-ratio: 1466 / 1073;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: auto;
+    }
+    .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+    .title { font-weight: 600; font-size: 0.95rem; word-break: break-word; }
+    .row { display: flex; gap: 6px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
+    .pill {
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 6px;
+      background: #f3f2ee;
+    }
+    .pill.warn { background: #fff3cd; border-color: #e6c200; color: #6b5300; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; }
+    .fields { display: grid; gap: 6px; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .actions button { flex: 1; min-width: 70px; font-size: 0.85rem; padding: 7px 8px; }
+    .actions .approve { background: var(--ok); border-color: var(--ok); }
+    .actions .reject { background: var(--danger); border-color: var(--danger); }
+    .actions .skip { background: #fff; color: var(--warn); border-color: #d4a017; }
+    footer {
+      margin: 0 20px 24px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    code { font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>מסך אישור תמונות מקור</h1>
+      <div class="meta" id="sourceMeta">טוען…</div>
+    </div>
+    <div class="toolbar">
+      <label>
+        סינון קטגוריה
+        <select id="filterCat"><option value="">הכל</option></select>
+      </label>
+      <label>
+        סטטוס
+        <select id="filterStatus">
+          <option value="">הכל</option>
+          <option value="pending">ממתין</option>
+          <option value="approved">אושר</option>
+          <option value="rejected">נדחה</option>
+          <option value="skip">דילוג</option>
+        </select>
+      </label>
+      <button type="button" class="secondary" id="btnSave">שמור החלטות</button>
+      <button type="button" class="secondary" id="btnExport">ייצוא JSON</button>
+    </div>
+  </header>
+
+  <div class="banner">
+    מדיניות איכות: מוצג ומתוכנן להעלאה <b>קובץ המקור בלבד, byte-for-byte</b>.
+    אין דחיסה, אין הקטנה, אין המרה ל־WebP, אין עיבוד AI.
+    אין העלאה ל־R2 ואין שינוי מסד עד אישור מפורש נוסף.
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <main id="grid"></main>
+
+  <footer>
+    <div>שרת מקומי בלבד (<code>node scripts/serve-media-approval.cjs</code>). התמונות מוגשות מהמקור ללא עיבוד.</div>
+    <div id="footerExtra"></div>
+  </footer>
+
+  <script>
+    const state = { inventory: null, mapping: null, decisions: {} };
+
+    const els = {
+      grid: document.getElementById('grid'),
+      stats: document.getElementById('stats'),
+      sourceMeta: document.getElementById('sourceMeta'),
+      filterCat: document.getElementById('filterCat'),
+      filterStatus: document.getElementById('filterStatus'),
+      footerExtra: document.getElementById('footerExtra'),
+    };
+
+    function fmtBytes(n) {
+      return (n / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function decisionFor(rel) {
+      if (!state.decisions[rel]) {
+        const img = state.inventory.images.find((i) => i.relativePath === rel);
+        const map = state.mapping.folderToSiteCategory[img.category] || {};
+        state.decisions[rel] = {
+          status: 'pending',
+          siteCategoryId: map.id || '',
+          siteCategoryName: map.name || img.category,
+          targetMenuItemId: '',
+          targetMenuItemName: '',
+          action: 'replace-menu-item-image',
+          notes: '',
+          uploadContentType: img.uploadContentType || img.detectedMime,
+          keepOriginalFilename: true,
+          useAsPrimaryDbUrl: true,
+        };
+      }
+      return state.decisions[rel];
+    }
+
+    function filteredImages() {
+      const cat = els.filterCat.value;
+      const st = els.filterStatus.value;
+      return state.inventory.images.filter((img) => {
+        if (cat && img.category !== cat) return false;
+        const d = decisionFor(img.relativePath);
+        if (st && d.status !== st) return false;
+        return true;
+      });
+    }
+
+    function renderStats() {
+      const all = state.inventory.images;
+      const counts = { pending: 0, approved: 0, rejected: 0, skip: 0 };
+      all.forEach((img) => {
+        counts[decisionFor(img.relativePath).status] = (counts[decisionFor(img.relativePath).status] || 0) + 1;
+      });
+      els.stats.innerHTML = `
+        <span>סה״כ: <b>${all.length}</b></span>
+        <span>ממתין: <b>${counts.pending || 0}</b></span>
+        <span>אושר: <b>${counts.approved || 0}</b></span>
+        <span>נדחה: <b>${counts.rejected || 0}</b></span>
+        <span>דילוג: <b>${counts.skip || 0}</b></span>
+        <span>סיומת≠MIME: <b>${state.inventory.misnamedExtensionCount || 0}</b></span>
+      `;
+    }
+
+    function render() {
+      const images = filteredImages();
+      els.grid.innerHTML = '';
+      images.forEach((img) => {
+        const d = decisionFor(img.relativePath);
+        const card = document.createElement('article');
+        card.className = 'card status-' + d.status;
+        card.dataset.rel = img.relativePath;
+        const src = '/original/' + img.relativePath.split('/').map(encodeURIComponent).join('/');
+        const warn = img.extensionMatchesMime === false
+          ? `<span class="pill warn">סיומת .${img.extension} אבל MIME ${img.detectedMime}</span>`
+          : '';
+        card.innerHTML = `
+          <div class="thumb"><img loading="lazy" alt="" src="${src}" /></div>
+          <div class="body">
+            <div class="title">${img.relativePath}</div>
+            <div class="row">
+              <span class="pill">${img.category}</span>
+              <span class="pill">${img.width}×${img.height}</span>
+              <span class="pill">${fmtBytes(img.bytes)}</span>
+              <span class="pill">${img.detectedMime || img.extension}</span>
+              ${warn}
+            </div>
+            <div class="row"><span>SHA-256: ${img.sha256.slice(0, 16)}…</span></div>
+            <div class="fields">
+              <label>קטגוריה באתר
+                <select data-field="siteCategoryId">
+                  ${Object.entries(state.mapping.folderToSiteCategory).map(([folder, c]) =>
+                    `<option value="${c.id}" ${d.siteCategoryId === c.id ? 'selected' : ''}>${c.name} (${folder})</option>`
+                  ).join('')}
+                </select>
+              </label>
+              <label>שם מוצר במסד (למיפוי ידני)
+                <input type="text" data-field="targetMenuItemName" value="${d.targetMenuItemName || ''}" placeholder="למשל: חומוס" />
+              </label>
+              <label>מזהה מוצר (אופציונלי)
+                <input type="text" data-field="targetMenuItemId" value="${d.targetMenuItemId || ''}" placeholder="Mongo ObjectId" dir="ltr" />
+              </label>
+              <label>הערות
+                <input type="text" data-field="notes" value="${d.notes || ''}" />
+              </label>
+            </div>
+            <div class="actions">
+              <button type="button" class="approve" data-status="approved">אשר</button>
+              <button type="button" class="skip" data-status="skip">דלג</button>
+              <button type="button" class="reject" data-status="rejected">דחה</button>
+            </div>
+          </div>
+        `;
+        card.querySelectorAll('[data-field]').forEach((el) => {
+          el.addEventListener('change', () => {
+            d[el.dataset.field] = el.value;
+            if (el.dataset.field === 'siteCategoryId') {
+              const hit = Object.values(state.mapping.folderToSiteCategory).find((c) => c.id === el.value);
+              if (hit) d.siteCategoryName = hit.name;
+            }
+          });
+          el.addEventListener('input', () => {
+            d[el.dataset.field] = el.value;
+          });
+        });
+        card.querySelectorAll('[data-status]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            d.status = btn.dataset.status;
+            renderStats();
+            card.className = 'card status-' + d.status;
+          });
+        });
+        els.grid.appendChild(card);
+      });
+      renderStats();
+    }
+
+    async function loadAll() {
+      const [inv, map, st] = await Promise.all([
+        fetch('/api/inventory').then((r) => r.json()),
+        fetch('/api/mapping').then((r) => r.json()),
+        fetch('/api/state').then((r) => r.json()),
+      ]);
+      state.inventory = inv;
+      state.mapping = map;
+      state.decisions = st.decisions || {};
+      els.sourceMeta.textContent = `מקור: ${inv.sourceRoot} · ${inv.totalImages} תמונות · ללא עיבוד`;
+      els.footerExtra.textContent = (map.notes || []).join(' · ');
+      const cats = [...new Set(inv.images.map((i) => i.category))].sort((a, b) => a.localeCompare(b, 'he'));
+      cats.forEach((c) => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        els.filterCat.appendChild(opt);
+      });
+      render();
+    }
+
+    async function saveState() {
+      const payload = {
+        savedAt: new Date().toISOString(),
+        qualityPolicy: state.mapping.qualityPolicy,
+        decisions: state.decisions,
+      };
+      const res = await fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        alert('שמירה נכשלה');
+        return;
+      }
+      alert('ההחלטות נשמרו מקומית (לא הועלה דבר ל-R2 / DB)');
+    }
+
+    function exportJson() {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        sourceRoot: state.inventory.sourceRoot,
+        qualityPolicy: state.mapping.qualityPolicy,
+        decisions: state.decisions,
+        images: state.inventory.images,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'megadim-media-approval-export.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    els.filterCat.addEventListener('change', render);
+    els.filterStatus.addEventListener('change', render);
+    document.getElementById('btnSave').addEventListener('click', saveState);
+    document.getElementById('btnExport').addEventListener('click', exportJson);
+
+    loadAll().catch((err) => {
+      els.sourceMeta.textContent = 'שגיאה בטעינה — האם השרת המקומי רץ?';
+      console.error(err);
+    });
+  </script>
+</body>
+</html>

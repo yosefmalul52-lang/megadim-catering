@@ -70,6 +70,7 @@ import searchRoutes from './routes/search.routes';
 import testimonialsRoutes from './routes/testimonials.routes';
 import agentRoutes from './routes/agent.routes';
 import uploadRoutes from './routes/upload.routes';
+import mediaRoutes from './routes/media.routes';
 import shoppingRoutes from './routes/shopping.routes';
 import employeeRoutes from './routes/employee.routes';
 import attendanceRoutes from './routes/attendance.routes';
@@ -154,7 +155,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com'],
+      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://*.workers.dev', 'https://*.r2.dev', 'http://127.0.0.1:4000', 'http://localhost:4000'],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
@@ -228,6 +229,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/testimonials', testimonialsRoutes);
 app.use('/api/agent', agentRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/media', mediaRoutes);
 app.use('/api/shopping', shoppingRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);

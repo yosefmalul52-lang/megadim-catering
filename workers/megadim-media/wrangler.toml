@@ -1,0 +1,10 @@
+name = "megadim-media"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+# account_id supplied via CLOUDFLARE_ACCOUNT_ID / wrangler login — do not commit secrets
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "megadim-media-prod"

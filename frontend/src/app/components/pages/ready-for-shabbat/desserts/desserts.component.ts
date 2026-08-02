@@ -32,7 +32,7 @@ export class DessertsComponent implements OnInit {
     this.seoService.updateTags({
       title: 'קינוחים לשבת - קייטרינג מגדים | עוגות ומתוקים',
       description: 'קינוחים ביתיים לשבת: עוגות, עוגיות ומתוקים בעבודת יד. הזמינו קינוחים כשרים למהדרין.',
-      image: 'https://res.cloudinary.com/dioklg7lx/image/upload/v1768914768/IMG_9679_ad0nxy.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       keywords: 'קינוחים לשבת, עוגות, קייטרינג מגדים, אוכל כשר'
     });
     this.settingsService.getSettings(true).subscribe(s => {

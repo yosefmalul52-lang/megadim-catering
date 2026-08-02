@@ -7,11 +7,7 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OptimizedImageComponent {
-  /** Cloudinary configuration */
-  private readonly cloudName = 'dioklg7lx';
-  private readonly baseUrl = `https://res.cloudinary.com/${this.cloudName}/image/upload`;
-
-  /** Cloudinary public ID or path (without the base URL) */
+  /** Full image URL (R2/workers.dev or absolute https). Legacy relative IDs fall back to placeholder. */
   @Input() publicId!: string;
 
   /** Accessible alt text for the image */
@@ -20,47 +16,21 @@ export class OptimizedImageComponent {
   /** Optional CSS class(es) applied to the img element */
   @Input() cssClass: string = '';
 
-  /**
-   * Default src (used as fallback and for browsers that ignore srcset).
-   * Uses the tablet/medium size (800px) as a good balance of quality and weight.
-   */
   get defaultSrc(): string {
-    return this.buildUrl('w_800,f_auto,q_auto');
+    return this.resolvedSrc;
   }
 
-  /**
-   * Responsive srcset with three standard widths for mobile, tablet, and desktop.
-   */
   get srcSet(): string {
-    const id = this.normalizedPublicId;
-    if (!id) {
-      return '';
-    }
-
-    const variants = [
-      { width: 400, transform: 'w_400,f_auto,q_auto' },
-      { width: 800, transform: 'w_800,f_auto,q_auto' },
-      { width: 1200, transform: 'w_1200,f_auto,q_auto' }
-    ];
-
-    return variants
-      .map(v => `${this.baseUrl}/${v.transform}/${id} ${v.width}w`)
-      .join(', ');
+    // R2 serves originals; no CDN width transforms — single URL is enough.
+    return '';
   }
 
-  /**
-   * Normalize the publicId to avoid leading slashes.
-   */
-  private get normalizedPublicId(): string {
-    return (this.publicId || '').replace(/^\/+/, '');
-  }
-
-  private buildUrl(transform: string): string {
-    const id = this.normalizedPublicId;
-    if (!id) {
-      return '';
+  private get resolvedSrc(): string {
+    const id = (this.publicId || '').trim();
+    if (!id) return '';
+    if (id.startsWith('http://') || id.startsWith('https://') || id.startsWith('/') || id.startsWith('assets')) {
+      return id;
     }
-    return `${this.baseUrl}/${transform}/${id}`;
+    return '/assets/images/placeholder-dish.jpg';
   }
 }
-

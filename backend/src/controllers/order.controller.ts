@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+import crypto from 'crypto';
+import { NextFunction, Request, Response } from 'express';
 import SiteSettings from '../models/siteSettings.model';
 import { OrderService } from '../services/order.service';
 import { emailService, OrderEmailData } from '../services/email.service';
@@ -10,9 +11,65 @@ import { calculateDeliveryFee } from '../services/delivery.service';
 import StoreSettings from '../models/store-settings.model';
 
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
+const FORBIDDEN_ORDER_FIELDS = 'FORBIDDEN_ORDER_FIELDS';
+const PAYMENT_INIT_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+type ManualPaymentStatus = 'paid' | 'unpaid';
+type ManualOrderContext = { paymentStatus?: ManualPaymentStatus };
+
+function hasOwn(value: unknown, key: string): boolean {
+  return !!value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, key);
+}
+
+export function getForbiddenPublicOrderFields(body: unknown): string[] {
+  const value = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  const forbidden = [
+    'manualOrder',
+    'paymentStatus',
+    'status',
+    'isPaid',
+    'paymentInitToken',
+    'paymentInitTokenHash',
+    'paymentInitTokenExpiresAt'
+  ].filter((key) =>
+    hasOwn(value, key)
+  );
+  if (hasOwn(value, 'customerDetails.isPaid') || hasOwn(value.customerDetails, 'isPaid')) {
+    forbidden.push('customerDetails.isPaid');
+  }
+  return forbidden;
+}
+
+export function getForbiddenManualOrderFields(body: unknown): string[] {
+  const value = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  const forbidden = [
+    'manualOrder',
+    'status',
+    'isPaid',
+    'paymentInitToken',
+    'paymentInitTokenHash',
+    'paymentInitTokenExpiresAt'
+  ].filter((key) => hasOwn(value, key));
+  if (hasOwn(value, 'customerDetails.isPaid') || hasOwn(value.customerDetails, 'isPaid')) {
+    forbidden.push('customerDetails.isPaid');
+  }
+  return forbidden;
+}
+
+export function isValidManualPaymentStatus(value: unknown): value is ManualPaymentStatus {
+  return value === 'paid' || value === 'unpaid';
+}
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function omitPaymentInitProof<T>(value: T): T {
+  if (!value || typeof value !== 'object') return value;
+  const clean = { ...(value as Record<string, unknown>) };
+  delete clean.paymentInitTokenHash;
+  delete clean.paymentInitTokenExpiresAt;
+  return clean as T;
 }
 
 function extractDeliveryCity(address: CreateCheckoutOrderRequest['address']): string {
@@ -163,9 +220,36 @@ export class OrderController {
     }
   });
 
-  /** POST /api/orders – create order from checkout (place order). Saves to DB, sends admin email, returns created order. */
+  /** POST /api/orders – public checkout order creation. */
   createOrder = asyncHandler(async (req: Request, res: Response) => {
-    const body = req.body as CreateCheckoutOrderRequest;
+    const manualContext = (req as any).manualOrderContext as ManualOrderContext | undefined;
+    const requestBody =
+      req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+
+    const forbiddenFields = manualContext
+      ? getForbiddenManualOrderFields(requestBody)
+      : getForbiddenPublicOrderFields(requestBody);
+    if (forbiddenFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: FORBIDDEN_ORDER_FIELDS,
+        message: 'The request contains fields that are not allowed for this endpoint'
+      });
+    }
+
+    if (
+      manualContext &&
+      hasOwn(requestBody, 'paymentStatus') &&
+      !isValidManualPaymentStatus(requestBody.paymentStatus)
+    ) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_PAYMENT_STATUS',
+        message: 'Invalid payment status'
+      });
+    }
+
+    const body = { ...requestBody } as unknown as CreateCheckoutOrderRequest;
 
     if (!body.customerName || typeof body.customerName !== 'string' || !body.customerName.trim()) {
       throw createValidationError('customerName is required');
@@ -198,7 +282,7 @@ export class OrderController {
     if (body.email && !isValidEmail(body.email)) {
       throw createValidationError('email must be a valid email address');
     }
-    if (body.eventDate && body.manualOrder !== true) {
+    if (body.eventDate && !manualContext) {
       try {
         await this.orderService.validateEventDateOpen(body.eventDate);
       } catch (err: any) {
@@ -225,9 +309,26 @@ export class OrderController {
     const userId = user ? (user._id || user.id) : null;
     (body as any).userId = userId;
 
-    const savedOrder = await this.orderService.createOrderFromCheckout(body);
+    const paymentInitToken = manualContext
+      ? undefined
+      : crypto.randomBytes(32).toString('hex');
+    const paymentInitTokenHash = paymentInitToken
+      ? crypto.createHash('sha256').update(paymentInitToken).digest('hex')
+      : undefined;
+    const paymentInitTokenExpiresAt = paymentInitToken
+      ? new Date(Date.now() + PAYMENT_INIT_TOKEN_TTL_MS)
+      : undefined;
 
-    const orderForWebhook = typeof (savedOrder as any).toObject === 'function' ? (savedOrder as any).toObject() : savedOrder;
+    const savedOrder = await this.orderService.createOrderFromCheckout(body, {
+      isManual: !!manualContext,
+      paymentStatus: manualContext?.paymentStatus,
+      paymentInitTokenHash,
+      paymentInitTokenExpiresAt
+    });
+
+    const orderForWebhook = omitPaymentInitProof(
+      typeof (savedOrder as any).toObject === 'function' ? (savedOrder as any).toObject() : savedOrder
+    );
     void fireWebhook(process.env.N8N_ORDER_WEBHOOK_URL, orderForWebhook);
 
     if (couponIdToIncrement) {
@@ -235,10 +336,10 @@ export class OrderController {
       await updateCouponRevenue(couponIdToIncrement, body.totalAmount);
     }
 
-    const plainOrder = savedOrder.toObject ? savedOrder.toObject() : savedOrder;
+    const plainOrder = omitPaymentInitProof(savedOrder.toObject ? savedOrder.toObject() : savedOrder);
 
     // Manual / offline orders: confirm immediately. Online checkout defers until payment success.
-    if (body.manualOrder === true) {
+    if (manualContext) {
       try {
         await emailService.sendOrderEmail(plainOrder as any);
         console.log('Manual order emails sent on creation');
@@ -252,9 +353,22 @@ export class OrderController {
       orderId: savedOrder._id.toString(),
       orderNumber: (plainOrder as any).orderNumber,
       order: plainOrder,
-      message: 'Order created successfully'
+      message: 'Order created successfully',
+      ...(paymentInitToken ? { paymentInitToken } : {})
     });
   });
+
+  /** POST /api/orders/manual – protected admin manual-order creation. */
+  createManualOrder = (req: Request, res: Response, next: NextFunction): void => {
+    const body =
+      req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+    (req as any).manualOrderContext = {
+      paymentStatus: isValidManualPaymentStatus(body.paymentStatus)
+        ? body.paymentStatus
+        : undefined
+    } satisfies ManualOrderContext;
+    this.createOrder(req, res, next);
+  };
 
   // Submit new order (checkout)
   submitOrder = asyncHandler(async (req: Request, res: Response) => {
