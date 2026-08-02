@@ -77,7 +77,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     {
       route: '/catering',
-      image: 'v1773064427/silvia-mara-y0u7nji4uXY-unsplash_pzymeb.jpg',
+      image: 'https://megadim-media.megadim.workers.dev/frontend/static/c3bad83038c1d880/original.jpg',
       alt: 'קייטרינג לאירועים – תפריט בשרי כשר למהדרין | קייטרינג מגדים',
       title: 'קייטרינג לאירועים',
       text: 'תפריט בשרי מלא לאירועים משפחתיים, עסקיים ומוסדיים.',
