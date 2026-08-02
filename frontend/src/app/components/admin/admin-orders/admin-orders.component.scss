@@ -2165,6 +2165,45 @@ $border: #e2e8f0;
   &.payment-failed         { background: #fef2f2; color: #dc2626; }
 }
 
+.test-order-badge {
+  display: inline-block;
+  margin-inline-start: 0.35rem;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  vertical-align: middle;
+}
+
+.btn-test-order {
+  appearance: none;
+  border: 1px solid #d97706;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 4px;
+  padding: 0.4rem 0.75rem;
+  min-height: 36px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-test-order:hover:not(:disabled) {
+  background: #fef3c7;
+}
+
+.btn-test-order:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.test-order-action-row {
+  margin-top: 0.35rem;
+}
+
 // ─── Payment actions row ─────────────────────────────────────────────────────
 .payment-action-row {
   display: flex;

@@ -1,0 +1,543 @@
+<div class="ops-dashboard" dir="rtl">
+  <div class="ops-shell">
+    <!-- Header -->
+    <header class="ops-header">
+      <div class="ops-header-text">
+        <p class="ops-eyebrow">מגדים · ניהול תפעול</p>
+        <h1>לוח עבודה יומי</h1>
+        <p class="ops-lead">
+          סקירה תפעולית לפי מועד אספקה, ומדדים כספיים לפי תאריך יצירת ההזמנה.
+        </p>
+        <p class="ops-updated">
+          @if (generatedAtLabel) {
+            <span><i class="fas fa-clock" aria-hidden="true"></i> עודכן {{ generatedAtLabel }}</span>
+          } @else {
+            <span>טוען נתונים עדכניים…</span>
+          }
+          <span class="ops-range-chip">
+            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+            טווח כספי: {{ financeRangeLabel }}
+          </span>
+          @if (staleWarning) {
+            <span class="stale-flag">לא הצלחנו לעדכן — מוצגים נתונים קודמים</span>
+          }
+        </p>
+      </div>
+      <button
+        type="button"
+        class="btn-refresh"
+        (click)="reload()"
+        [disabled]="isLoading && !overview"
+        [attr.aria-busy]="isRefreshing"
+      >
+        <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing" aria-hidden="true"></i>
+        רענון
+      </button>
+    </header>
+
+    <!-- Quick actions -->
+    <nav class="quick-actions" aria-label="פעולות מהירות">
+      <a class="qa-btn qa-primary" routerLink="/admin/orders" [queryParams]="{ create: '1' }">
+        <i class="fas fa-plus" aria-hidden="true"></i> הזמנה ידנית
+      </a>
+      <a class="qa-btn" routerLink="/admin/orders" [queryParams]="{ eventFrom: todayKey, eventTo: todayKey }">
+        <i class="fas fa-calendar-day" aria-hidden="true"></i> הזמנות היום
+      </a>
+      <a class="qa-btn" routerLink="/admin/orders" [queryParams]="{ kitchenReport: '1' }">
+        <i class="fas fa-utensils" aria-hidden="true"></i> דוח מטבח
+      </a>
+      <a class="qa-btn" routerLink="/admin/delivery">
+        <i class="fas fa-truck" aria-hidden="true"></i> סידור משלוחים
+      </a>
+      <a class="qa-btn" routerLink="/admin/menu">
+        <i class="fas fa-book-open" aria-hidden="true"></i> ניהול תפריט
+      </a>
+    </nav>
+
+    @if (isLoading && !overview) {
+      <div class="skeleton-stack" aria-busy="true" aria-label="טוען דשבורד">
+        <div class="sk sk-header"></div>
+        <div class="sk sk-actions"></div>
+        <div class="sk-row">
+          <div class="sk"></div><div class="sk"></div><div class="sk"></div>
+        </div>
+        <div class="sk sk-md"></div>
+        <div class="sk sk-lg"></div>
+      </div>
+    }
+
+    @if (errorMessage && !overview) {
+      <div class="state-box error" role="alert">
+        <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+        <div>
+          <strong>לא ניתן לטעון את לוח העבודה</strong>
+          <p>{{ errorMessage }}</p>
+          <button type="button" class="btn-refresh" (click)="reload()">נסה שוב</button>
+        </div>
+      </div>
+    }
+
+    @if (overview) {
+      @if (isRefreshing) {
+        <div class="refresh-banner" role="status">
+          <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+          מעדכן נתונים…
+        </div>
+      }
+
+      <!-- 1. Action items -->
+      <section class="ops-section action-section" [class.has-issues]="visibleActionItems.length > 0">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <span class="section-icon" [class.urgent]="visibleActionItems.length > 0" aria-hidden="true">
+              <i class="fas" [class.fa-exclamation-triangle]="visibleActionItems.length > 0" [class.fa-check]="visibleActionItems.length === 0"></i>
+            </span>
+            <div>
+              <h2>דורש טיפול עכשיו</h2>
+              <p class="section-sub">פעולות פתוחות שדורשות תגובה מהצוות</p>
+            </div>
+          </div>
+          @if (actionItems.length > 5) {
+            <button type="button" class="link-btn" (click)="showAllActions = !showAllActions">
+              {{ showAllActions ? 'הצג פחות' : 'הצג הכול (' + actionItems.length + ')' }}
+            </button>
+          }
+        </div>
+
+        @if (visibleActionItems.length === 0) {
+          <div class="all-clear" role="status">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <span>אין בעיות דחופות כרגע — אפשר להתמקד בהכנות.</span>
+          </div>
+        } @else {
+          <ul class="action-list">
+            @for (item of visibleActionItems; track item.id) {
+              <li class="action-card" [attr.data-severity]="item.severity">
+                <div class="action-body">
+                  <div class="action-top">
+                    <span class="sev-pill" [attr.data-severity]="item.severity">{{ severityLabel(item.severity) }}</span>
+                    <strong>{{ item.title }}</strong>
+                    <a class="action-cta" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
+                      {{ item.actionLabel }}
+                      <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    </a>
+                  </div>
+                  <p>{{ item.description }}</p>
+                  <div class="action-meta">
+                    @if (item.orderNumber || item.customerName) {
+                      <span>{{ item.orderNumber ? '#' + item.orderNumber : '' }}{{ item.orderNumber && item.customerName ? ' · ' : '' }}{{ item.customerName || '' }}</span>
+                    }
+                    @if (item.eventDate) {
+                      <span><i class="fas fa-truck" aria-hidden="true"></i> אספקה {{ item.eventDate }}</span>
+                    }
+                    @if (item.amount != null) {
+                      <span>{{ formatMoney(item.amount) }}</span>
+                    }
+                  </div>
+                  <a class="action-cta action-cta-mobile" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
+                    {{ item.actionLabel }}
+                  </a>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <!-- 2. Today / Tomorrow -->
+      <section class="ops-section day-section">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <span class="section-icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></span>
+            <div>
+              <h2>תמונת מצב</h2>
+              <p class="section-sub">הזמנות פעילות לפי מועד אספקה</p>
+            </div>
+          </div>
+          <div class="day-toggle" role="group" aria-label="בחירת יום">
+            <button type="button" class="preset-btn" [class.active]="dayView === 'today'" (click)="dayView = 'today'">היום</button>
+            <button type="button" class="preset-btn" [class.active]="dayView === 'tomorrow'" (click)="dayView = 'tomorrow'">מחר</button>
+          </div>
+        </div>
+
+        @if (activeDaySummary; as day) {
+          @if (day.ordersCount === 0) {
+            <div class="empty-compact" role="status">
+              <i class="fas fa-inbox" aria-hidden="true"></i>
+              <span>אין הזמנות למועד זה.</span>
+              <span class="empty-links">
+                <a routerLink="/admin/orders" [queryParams]="{ create: '1' }">הזמנה ידנית</a>
+                <a routerLink="/admin/orders">כל ההזמנות</a>
+              </span>
+            </div>
+          } @else {
+            <div class="day-grid">
+              <a class="day-metric" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date }">
+                <span class="dm-icon" aria-hidden="true"><i class="fas fa-receipt"></i></span>
+                <span class="dm-value">{{ formatCount(day.ordersCount) }}</span>
+                <span class="dm-label">הזמנות</span>
+              </a>
+              <div class="day-metric static">
+                <span class="dm-icon" aria-hidden="true"><i class="fas fa-shekel-sign"></i></span>
+                <span class="dm-value">{{ formatMoney(day.expectedRevenue) }}</span>
+                <span class="dm-label">הכנסות צפויות</span>
+              </div>
+              <div class="day-metric static">
+                <span class="dm-icon" aria-hidden="true"><i class="fas fa-utensils"></i></span>
+                <span class="dm-value">{{ formatCount(day.portionsTotal) }}</span>
+                <span class="dm-label">מנות</span>
+              </div>
+              <a class="day-metric" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, fulfillment: 'delivery' }">
+                <span class="dm-icon" aria-hidden="true"><i class="fas fa-truck"></i></span>
+                <span class="dm-value">{{ formatCount(day.deliveries) }}</span>
+                <span class="dm-label">משלוחים</span>
+              </a>
+              <a class="day-metric" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, fulfillment: 'pickup' }">
+                <span class="dm-icon" aria-hidden="true"><i class="fas fa-shopping-bag"></i></span>
+                <span class="dm-value">{{ formatCount(day.pickups) }}</span>
+                <span class="dm-label">איסופים</span>
+              </a>
+              <a class="day-metric warn" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, statusTab: 'pending' }">
+                <span class="dm-icon" aria-hidden="true"><i class="fas fa-hourglass-half"></i></span>
+                <span class="dm-value">{{ formatCount(day.awaitingApproval) }}</span>
+                <span class="dm-label">ממתינות לאישור</span>
+              </a>
+            </div>
+
+            <div class="day-footer">
+              @if (day.nearestOrderId) {
+                <a class="nearest-link" routerLink="/admin/orders" [queryParams]="{ orderId: day.nearestOrderId }">
+                  הזמנה קרובה: #{{ day.nearestOrderNumber || day.nearestOrderId.slice(-8) }}
+                  @if (day.nearestCustomerName) { · {{ day.nearestCustomerName }} }
+                </a>
+              }
+              @if ((day.unknownFulfillment || 0) > 0) {
+                <span class="status-chip warn-chip">סוג אספקה חסר {{ formatCount(day.unknownFulfillment || 0) }}</span>
+              }
+              @if (day.byStatus.length) {
+                <div class="status-chips">
+                  @for (s of day.byStatus; track s.status) {
+                    <span class="status-chip">{{ statusLabel(s.status) }} {{ formatCount(s.count) }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+      </section>
+
+      <!-- 3. Prep -->
+      <section class="ops-section prep-section">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <span class="section-icon" aria-hidden="true"><i class="fas fa-fire"></i></span>
+            <div>
+              <h2>הכנות קרובות</h2>
+              <p class="section-sub">המועד הבא עם הזמנות פעילות</p>
+            </div>
+          </div>
+          <a class="link-btn" routerLink="/admin/orders" [queryParams]="{ kitchenReport: '1' }">דוח מטבח</a>
+        </div>
+        @if (prep && prep.eventDate) {
+          <p class="prep-date">מועד אספקה: <strong>{{ prep.eventDate }}</strong></p>
+          <div class="prep-metrics">
+            <div><span class="dm-value">{{ formatCount(prep.ordersCount) }}</span><span class="dm-label">הזמנות</span></div>
+            <div><span class="dm-value">{{ formatCount(prep.portionsTotal) }}</span><span class="dm-label">מנות להכנה</span></div>
+            @if (prep.portionsEvening || prep.portionsMorning) {
+              <div><span class="dm-value">{{ formatCount(prep.portionsEvening) }}</span><span class="dm-label">ערב</span></div>
+              <div><span class="dm-value">{{ formatCount(prep.portionsMorning) }}</span><span class="dm-label">בוקר</span></div>
+            }
+          </div>
+          @if (prepTopItems.length) {
+            <h3 class="subhead">מנות להכנה</h3>
+            <ul class="prep-items">
+              @for (item of prepTopItems; track item.name) {
+                <li><span>{{ item.name }}</span><strong>{{ formatCount(item.quantity) }}</strong></li>
+              }
+            </ul>
+          }
+          @if (prep.notesOrders.length) {
+            <h3 class="subhead">הזמנות עם הערות</h3>
+            <ul class="notes-list">
+              @for (n of prep.notesOrders; track n.id) {
+                <li>
+                  <a routerLink="/admin/orders" [queryParams]="{ orderId: n.id }">
+                    #{{ n.orderNumber || n.id.slice(-8) }}
+                    @if (n.customerName) { · {{ n.customerName }} }
+                  </a>
+                  <span class="note-preview">{{ n.notePreview }}</span>
+                </li>
+              }
+            </ul>
+          }
+        } @else {
+          <div class="empty-compact">
+            <i class="fas fa-calendar-check" aria-hidden="true"></i>
+            אין מועד הכנה קרוב עם הזמנות פעילות
+          </div>
+        }
+      </section>
+
+      <!-- 4. Upcoming orders -->
+      <section class="ops-section upcoming-section">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <span class="section-icon" aria-hidden="true"><i class="fas fa-list"></i></span>
+            <div>
+              <h2>הזמנות קרובות</h2>
+              <p class="section-sub">לפי מועד אספקה הקרוב</p>
+            </div>
+          </div>
+          <a class="link-btn" routerLink="/admin/orders">כל ההזמנות</a>
+        </div>
+        @if (upcomingOrders.length) {
+          <div class="table-scroll desktop-only">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>מספר</th>
+                  <th>לקוח</th>
+                  <th>אספקה</th>
+                  <th>מילוי</th>
+                  <th>סכום</th>
+                  <th>תשלום</th>
+                  <th>סטטוס</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (o of upcomingOrders; track o.id) {
+                  <tr>
+                    <td>
+                      #{{ o.orderNumber || o.id.slice(-8) }}
+                      @if (o.isTestOrder) { <span class="test-badge">בדיקה</span> }
+                    </td>
+                    <td>{{ o.customerName || '—' }}</td>
+                    <td>{{ o.eventDate || '—' }}</td>
+                    <td>{{ fulfillmentLabel(o.fulfillment) }}</td>
+                    <td class="cell-strong">{{ formatMoney(o.totalPrice) }}</td>
+                    <td>
+                      <span class="tag" [attr.data-pay]="o.paymentStatus || ''">{{ paymentLabel(o.paymentStatus || '') }}</span>
+                    </td>
+                    <td>
+                      <span class="tag" [attr.data-status]="o.status">{{ statusLabel(o.status) }}</span>
+                    </td>
+                    <td>
+                      <a class="row-action" routerLink="/admin/orders" [queryParams]="{ orderId: o.id }">פתח</a>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="order-cards mobile-only">
+            @for (o of upcomingOrders; track o.id) {
+              <a class="mini-order" routerLink="/admin/orders" [queryParams]="{ orderId: o.id }">
+                <div class="mo-top">
+                  <strong>#{{ o.orderNumber || o.id.slice(-8) }}</strong>
+                  <span>{{ formatMoney(o.totalPrice) }}</span>
+                </div>
+                <div class="mo-mid">{{ o.customerName || '—' }} · {{ o.eventDate || 'ללא מועד' }}</div>
+                <div class="mo-bot">
+                  <span class="tag" [attr.data-pay]="o.paymentStatus || ''">{{ paymentLabel(o.paymentStatus || '') }}</span>
+                  <span class="tag" [attr.data-status]="o.status">{{ statusLabel(o.status) }}</span>
+                  <span>{{ fulfillmentLabel(o.fulfillment) }}</span>
+                </div>
+              </a>
+            }
+          </div>
+        } @else {
+          <div class="empty-compact">
+            <i class="fas fa-box-open" aria-hidden="true"></i>
+            אין הזמנות קרובות לפי מועד אספקה
+          </div>
+        }
+      </section>
+
+      <!-- 5. Top selling by category / month (all captured orders) -->
+      <section class="ops-section sales-section">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <span class="section-icon" aria-hidden="true"><i class="fas fa-trophy"></i></span>
+            <div>
+              <h2>מנות נמכרות</h2>
+              <p class="section-sub">3 המובילות בכל קטגוריה לפי חודש · מכל ההזמנות ששולמו עד היום</p>
+            </div>
+          </div>
+          @if (salesMonthOptions.length) {
+            <div class="day-toggle sales-month-toggle" role="group" aria-label="בחירת חודש מכירות">
+              @for (m of salesMonthOptions; track m.key) {
+                <button
+                  type="button"
+                  class="preset-btn"
+                  [class.active]="selectedSalesMonth === m.key"
+                  (click)="selectSalesMonth(m.key)"
+                >{{ m.label }}</button>
+              }
+            </div>
+          }
+        </div>
+
+        @if (!salesMonthOptions.length) {
+          <div class="empty-compact" role="status">
+            <i class="fas fa-utensils" aria-hidden="true"></i>
+            אין עדיין מנות נמכרות מהזמנות ששולמו
+          </div>
+        } @else if (!selectedSalesCategories.length) {
+          <div class="empty-compact" role="status">אין נתונים לחודש שנבחר</div>
+        } @else {
+          <div class="sales-categories">
+            @for (cat of selectedSalesCategories; track cat.category) {
+              <article class="sales-cat-card">
+                <h3 class="sales-cat-title">{{ cat.category }}</h3>
+                <ol class="sales-rank-list">
+                  @for (item of cat.items; track item.name; let i = $index) {
+                    <li>
+                      <span class="rank-num" aria-hidden="true">{{ i + 1 }}</span>
+                      <span class="rank-name">{{ item.name }}</span>
+                      <span class="rank-meta">
+                        <strong>{{ formatCount(item.quantity) }}</strong>
+                        <span class="muted">{{ formatMoney(item.revenue) }}</span>
+                      </span>
+                    </li>
+                  }
+                </ol>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- 6. Financial -->
+      <section class="ops-section finance-section">
+        <div class="section-head">
+          <div class="section-title-wrap">
+            <span class="section-icon" aria-hidden="true"><i class="fas fa-chart-line"></i></span>
+            <div>
+              <h2>מצב כספי</h2>
+              <p class="section-sub">הכנסות ששולמו והתראות תשלום בטווח שנבחר</p>
+            </div>
+          </div>
+        </div>
+        <div class="filters-bar" role="group" aria-label="סינון תאריכים כספי">
+          <div class="preset-row">
+            @for (p of presetOptions; track p.key) {
+              <button
+                type="button"
+                class="preset-btn"
+                [class.active]="selectedPreset === p.key"
+                (click)="selectPreset(p.key)"
+              >{{ p.label }}</button>
+            }
+          </div>
+          @if (selectedPreset === 'custom') {
+            <div class="custom-range">
+              <label>מתאריך <input type="date" [(ngModel)]="customFrom" [attr.max]="customTo || null" /></label>
+              <label>עד תאריך <input type="date" [(ngModel)]="customTo" [attr.min]="customFrom || null" /></label>
+              <button type="button" class="preset-btn apply-btn" (click)="applyCustomRange()">החל</button>
+            </div>
+          }
+          @if (rangeError) {
+            <div class="inline-error" role="alert">{{ rangeError }}</div>
+          }
+        </div>
+
+        <div class="finance-layout">
+          <div class="finance-hero">
+            <span class="kpi-icon" aria-hidden="true"><i class="fas fa-coins"></i></span>
+            <span class="dm-label">הכנסות ששולמו</span>
+            <span class="hero-value">{{ formatMoney(finance.capturedRevenue) }}</span>
+            <span class="stat-change" [ngClass]="'tone-' + revenueChange.tone">{{ revenueChange.label }}</span>
+          </div>
+          <div class="finance-metrics">
+            <div class="finance-card warn">
+              <span class="kpi-icon" aria-hidden="true"><i class="fas fa-hand-holding-usd"></i></span>
+              <span class="dm-label">ממתין לתשלום</span>
+              <span class="dm-value" data-testid="awaiting-amount">{{ formatMoney(finance.awaitingAmount) }}</span>
+              <span class="muted" data-testid="awaiting-count">{{ formatCount(finance.awaitingPayments) }} הזמנות</span>
+            </div>
+            <div class="finance-card danger">
+              <span class="kpi-icon" aria-hidden="true"><i class="fas fa-times-circle"></i></span>
+              <span class="dm-label">תשלומים שנכשלו</span>
+              <span class="dm-value">{{ formatMoney(finance.failedAmount) }}</span>
+              <span class="muted">{{ formatCount(finance.failedPayments) }} הזמנות</span>
+            </div>
+            <div class="finance-card">
+              <span class="kpi-icon" aria-hidden="true"><i class="fas fa-check-double"></i></span>
+              <span class="dm-label">הזמנות ששולמו</span>
+              <span class="dm-value">{{ formatCount(finance.paidOrders) }}</span>
+              <span class="stat-change" [ngClass]="'tone-' + paidChange.tone">{{ paidChange.label }}</span>
+            </div>
+            <div class="finance-card">
+              <span class="kpi-icon" aria-hidden="true"><i class="fas fa-balance-scale"></i></span>
+              <span class="dm-label">ממוצע להזמנה</span>
+              <span class="dm-value">{{ formatMoney(finance.averageOrderValue) }}</span>
+              <span class="stat-change" [ngClass]="'tone-' + aovChange.tone">{{ aovChange.label }}</span>
+            </div>
+            <div class="finance-card secondary">
+              <span class="kpi-icon" aria-hidden="true"><i class="fas fa-user-friends"></i></span>
+              <span class="dm-label">לקוחות חוזרים</span>
+              <span class="dm-value">{{ formatCount(finance.returningCustomers) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="finance-split" [class.chart-only]="!soldItems.length">
+          @if (soldItems.length) {
+            <div class="panel-lite">
+              <h3 class="subhead">מנות נמכרות (בטווח)</h3>
+              <ul class="prep-items">
+                @for (item of soldItems; track item.name) {
+                  <li>
+                    <span>{{ item.name }}</span>
+                    <strong>{{ formatCount(item.quantity) }} · {{ formatMoney(item.revenue) }}</strong>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+          <div class="panel-lite chart-lite">
+            <div class="chart-head-row">
+              <div>
+                <h3 class="subhead">מגמה</h3>
+                <p class="section-sub chart-sub">התפתחות לאורך הטווח שנבחר</p>
+              </div>
+              <div class="metric-toggle" role="group" aria-label="מדד מגמה">
+                <button type="button" class="preset-btn" [class.active]="trendMetric === 'revenue'" (click)="setTrendMetric('revenue')">הכנסות</button>
+                <button type="button" class="preset-btn" [class.active]="trendMetric === 'paidOrdersCount'" (click)="setTrendMetric('paidOrdersCount')">הזמנות</button>
+                <button type="button" class="preset-btn" [class.active]="trendMetric === 'averageOrderValue'" (click)="setTrendMetric('averageOrderValue')">ממוצע</button>
+              </div>
+            </div>
+            @if (hasTrendData) {
+              <div class="chart-wrapper-sm">
+                <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" [type]="'line'"></canvas>
+              </div>
+            } @else {
+              <div class="empty-compact">אין נתוני מגמה</div>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. Insights -->
+      @if (insights.length) {
+        <section class="ops-section insights-section">
+          <div class="section-head">
+            <div class="section-title-wrap">
+              <span class="section-icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span>
+              <div>
+                <h2>תובנות</h2>
+                <p class="section-sub">סיכום קצר מהנתונים בטווח</p>
+              </div>
+            </div>
+          </div>
+          <ul class="insights-list">
+            @for (ins of insights; track ins.id) {
+              <li>{{ ins.text }}</li>
+            }
+          </ul>
+        </section>
+      }
+    }
+  </div>
+</div>

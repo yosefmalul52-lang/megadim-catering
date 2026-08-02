@@ -293,6 +293,15 @@ test('PATCH test-order: admin can update via service mock', async () => {
   }
 });
 
+
+test('sold-item aggregations use $isNumber so BSON int quantities count', () => {
+  const svcSrc = readFileSync(join(__dirname, '../services/dashboard-overview.service.ts'), 'utf8');
+  assert.ok(svcSrc.includes('$isNumber'));
+  assert.ok(svcSrc.includes('topSellingByMonth'));
+  // Avoid regressing to $type === "number" which misses BSON int.
+  assert.equal(svcSrc.includes("$eq: [{ $type: '$items.quantity' }, 'number']"), false);
+});
+
 test('topItems line revenue: price×qty; selectedOption fallback; ignore total; missing qty→0', () => {
   assert.equal(computeOrderItemLineRevenue({ price: 10, quantity: 3 }), 30);
   assert.equal(computeOrderItemLineRevenue({ price: 0, quantity: 2 }), 0);
@@ -333,8 +342,11 @@ test('trend contract uses paidOrdersCount not ordersCount', () => {
   const svcSrc = readFileSync(join(__dirname, '../services/dashboard-overview.service.ts'), 'utf8');
   assert.ok(utilSrc.includes('paidOrdersCount'));
   assert.ok(svcSrc.includes('paidOrdersCount'));
+  // Trend/revenue util must not rename to ordersCount.
   assert.equal(utilSrc.includes('ordersCount'), false);
-  assert.equal(svcSrc.includes('ordersCount'), false);
+  // Aggregation field for captured trend remains paidOrdersCount (not ordersCount alias).
+  assert.ok(svcSrc.includes('paidOrdersCount: { $sum: 1 }'));
+  assert.equal(svcSrc.includes('ordersCount: { $sum: 1 }'), false);
 });
 
 test('requireAdmin blocks guest and customer; allows admin', async () => {

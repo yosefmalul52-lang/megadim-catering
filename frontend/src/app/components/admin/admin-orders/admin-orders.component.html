@@ -399,7 +399,12 @@
                       aria-label="בחר הזמנה"
                     />
                   </td>
-                  <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
+                  <td class="id-cell">
+                    {{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}
+                    @if (order.isTestOrder) {
+                      <span class="test-order-badge" title="הזמנת בדיקה — לא נכללת במדדים">בדיקה</span>
+                    }
+                  </td>
                   <td class="date-cell">{{ order.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
                   <td class="event-date-cell">{{ order.customerDetails?.eventDate ? (order.customerDetails.eventDate | date:'dd/MM/yyyy') : '—' }}</td>
                   <td class="customer-cell">
@@ -435,6 +440,11 @@
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
                           }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (isAdminUser) {
+                            <button type="button" (click)="toggleTestOrder(order)">
+                              {{ order.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
+                            </button>
+                          }
                           @if (!order.isDeleted) {
                             <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
                           } @else {
@@ -465,6 +475,9 @@
               </label>
               <div class="order-card-header">
                 <span class="order-card-total">₪{{ order.totalPrice | number:'1.2-2' }}</span>
+                @if (order.isTestOrder) {
+                  <span class="test-order-badge">בדיקה</span>
+                }
               </div>
               <div class="order-card-body">
                 <p class="order-card-customer">
@@ -603,7 +616,12 @@
                       aria-label="בחר הזמנה"
                     />
                   </td>
-                  <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
+                  <td class="id-cell">
+                    {{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}
+                    @if (order.isTestOrder) {
+                      <span class="test-order-badge" title="הזמנת בדיקה — לא נכללת במדדים">בדיקה</span>
+                    }
+                  </td>
                   <td class="customer-cell">
                     <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
                     @if (hasAnyOrderNotes(order)) {
@@ -636,6 +654,11 @@
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
                           }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (isAdminUser) {
+                            <button type="button" (click)="toggleTestOrder(order)">
+                              {{ order.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
+                            </button>
+                          }
                           @if (!order.isDeleted) {
                             <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
                           } @else {
@@ -665,7 +688,12 @@
                 />
               </label>
               <div class="order-card-header">
-                <span class="order-card-id">#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</span>
+                <span class="order-card-id">
+                  #{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}
+                  @if (order.isTestOrder) {
+                    <span class="test-order-badge">בדיקה</span>
+                  }
+                </span>
               </div>
               <div class="order-card-body">
                 <p class="order-card-customer">
@@ -806,7 +834,12 @@
                       aria-label="בחר הזמנה"
                     />
                   </td>
-                  <td class="id-cell">{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</td>
+                  <td class="id-cell">
+                    {{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}
+                    @if (order.isTestOrder) {
+                      <span class="test-order-badge" title="הזמנת בדיקה — לא נכללת במדדים">בדיקה</span>
+                    }
+                  </td>
                   <td class="customer-cell">
                     <span>{{ order.customerDetails?.fullName || 'לא צוין' }}</span>
                     @if (hasAnyOrderNotes(order)) {
@@ -840,6 +873,11 @@
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
                           }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (isAdminUser) {
+                            <button type="button" (click)="toggleTestOrder(order)">
+                              {{ order.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
+                            </button>
+                          }
                           @if (!order.isDeleted) {
                             <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
                           } @else {
@@ -869,7 +907,12 @@
                 />
               </label>
               <div class="order-card-header">
-                <span class="order-card-id">#{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}</span>
+                <span class="order-card-id">
+                  #{{ order.orderNumber || (order._id || order.id)?.toString()?.slice(-8) || '—' }}
+                  @if (order.isTestOrder) {
+                    <span class="test-order-badge">בדיקה</span>
+                  }
+                </span>
               </div>
               <div class="order-card-body">
                 <p class="order-card-customer">{{ order.customerDetails?.fullName || 'לא צוין' }}</p>
@@ -1508,6 +1551,24 @@
                     {{ getStatusLabel(selectedOrder.status) }}
                   </span>
                 </div>
+                @if (selectedOrder.isTestOrder) {
+                  <div class="summary-row">
+                    <span class="summary-label">סוג:</span>
+                    <span class="summary-value"><span class="test-order-badge">הזמנת בדיקה</span></span>
+                  </div>
+                }
+                @if (isAdminUser) {
+                  <div class="summary-row test-order-action-row">
+                    <button
+                      type="button"
+                      class="btn-test-order"
+                      [disabled]="statusUpdatingId === (selectedOrder._id || selectedOrder.id)"
+                      (click)="toggleTestOrder(selectedOrder)"
+                    >
+                      {{ selectedOrder.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
+                    </button>
+                  </div>
+                }
                 <!-- Payment status row – only shown when a payment field is present -->
                 @if (selectedOrder.paymentStatus) {
                   <div class="summary-row">

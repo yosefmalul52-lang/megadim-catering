@@ -1,10 +1,15 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { environment } from '../../environments/environment';
 import { CartItem } from './cart.service';
+import {
+  DashboardOverviewData,
+  DashboardQueryParams,
+  normalizeOverview
+} from '../utils/dashboard-overview.util';
 
 export interface OrderRequest {
   customerName: string;
@@ -128,6 +133,8 @@ export interface Order {
   authorizedAmount?: number;
   /** Internal admin notes — never overwrites customerDetails.notes. */
   adminNotes?: string;
+  /** Admin-only: exclude from business dashboard revenue when true. */
+  isTestOrder?: boolean;
 }
 
 export interface DriverOrderAssignmentPayload {
@@ -287,6 +294,57 @@ export class OrderService {
         catchError((err) => {
           console.error('Error fetching dashboard stats:', err);
           return this.handleDataLoadError(err);
+        })
+      );
+  }
+
+  /**
+   * Unified admin business dashboard (KPIs, trend, top items, payment alerts).
+   * GET /api/order/dashboard-overview
+   */
+  getDashboardOverview(query: DashboardQueryParams): Observable<DashboardOverviewData> {
+    let params = new HttpParams().set('timezone', query.timezone || 'Asia/Jerusalem');
+    if (query.preset) params = params.set('preset', query.preset);
+    if (query.from) params = params.set('from', query.from);
+    if (query.to) params = params.set('to', query.to);
+
+    return this.http
+      .get<{ success: boolean; data: DashboardOverviewData }>(
+        `${environment.apiUrl}/order/dashboard-overview`,
+        { params }
+      )
+      .pipe(
+        map((res) => {
+          const normalized = normalizeOverview(res?.data);
+          if (!normalized) {
+            throw new Error('Invalid dashboard overview response');
+          }
+          return normalized;
+        }),
+        catchError((err: unknown) => {
+          console.error('Error fetching dashboard overview:', err);
+          return throwError(() => err);
+        })
+      );
+  }
+
+  /**
+   * Admin-only: mark / unmark an order as test (excluded from business KPIs).
+   * PATCH /api/order/:id/test-order  body: { isTestOrder: boolean }
+   */
+  setOrderTestFlag(
+    orderId: string,
+    isTestOrder: boolean
+  ): Observable<{ success: boolean; data: Order; message?: string }> {
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/${orderId}/test-order`,
+        { isTestOrder }
+      )
+      .pipe(
+        catchError((err: unknown) => {
+          console.error('Error updating test-order flag:', err);
+          return throwError(() => err);
         })
       );
   }

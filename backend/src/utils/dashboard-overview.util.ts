@@ -234,6 +234,18 @@ export function formatTrendKey(date: Date, granularity: 'day' | 'month', timeZon
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
+/** Today and tomorrow as YYYY-MM-DD keys in the business timezone. */
+export function businessDayKeys(
+  now: Date,
+  timeZone: string
+): { today: string; tomorrow: string } {
+  const today = formatTrendKey(now, 'day', timeZone);
+  const p = zonedParts(now, timeZone);
+  const next = addCalendarDays(p.year, p.month, p.day, 1);
+  const tomorrow = `${next.year}-${String(next.month).padStart(2, '0')}-${String(next.day).padStart(2, '0')}`;
+  return { today, tomorrow };
+}
+
 /** Fill missing day/month buckets with zeros between from and to (inclusive). */
 export function fillTrendBuckets(
   range: DateRange,

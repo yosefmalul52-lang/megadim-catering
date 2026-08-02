@@ -7,6 +7,7 @@ import { startWith } from 'rxjs/operators';
 
 import { OrderService, Order, DashboardStats, OrderTabCounts, OrderSourceTabCounts, AdminOrdersSortBy } from '../../../services/order.service';
 import { MenuService, MenuItem } from '../../../services/menu.service';
+import { AuthService } from '../../../services/auth.service';
 import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
 import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-order-builder.component';
 
@@ -55,6 +56,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   orderService = inject(OrderService);
   menuService = inject(MenuService);
   private route = inject(ActivatedRoute);
+  private authService = inject(AuthService);
 
   /** When true, hide orders list and show full-page manual order builder */
   isCreatingOrder = false;
@@ -80,6 +82,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   listCreatedTo = '';
   listEventFrom = '';
   listEventTo = '';
+  /** Optional client-side fulfillment filter from dashboard deep-links. */
+  listFulfillmentFilter: '' | 'delivery' | 'pickup' = '';
   listHasCustomerNotes = false;
   listHasAdminNotes = false;
   openFilterColumn: OrdersColumnFilterKey | null = null;
@@ -182,14 +186,116 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadStats();
     this.loadTabCounts();
-    this.loadOrdersPage();
     this.startAutoRefresh();
     this.route.queryParams.subscribe((params) => {
+      this.applyDashboardQueryParams(params);
       this.customerFilter = {};
       if (params['customerEmail']) this.customerFilter.email = params['customerEmail'];
       if (params['customerPhone']) this.customerFilter.phone = params['customerPhone'];
       this.listPage = 1;
       this.loadOrdersPage();
+      if (params['orderId']) {
+        this.openOrderById(String(params['orderId']));
+      }
+      if (params['create'] === '1' || params['create'] === 'true') {
+        this.openManualOrderBuilder();
+      }
+      if (params['kitchenReport'] === '1' || params['kitchenReport'] === 'true') {
+        this.openKitchenReport();
+      }
+    });
+  }
+
+  /**
+   * Safe deep-link filters from the ops dashboard.
+   * Only applies known enum values; ignores unknown keys.
+   */
+  private applyDashboardQueryParams(params: Record<string, string>): void {
+    const source = String(params['source'] || '').toLowerCase();
+    if (source === 'shabbat' || source === 'catering' || source === 'events') {
+      this.orderSourceTab = source;
+    }
+
+    const statusTab = String(params['statusTab'] || '').toLowerCase();
+    if (
+      statusTab === 'pending' ||
+      statusTab === 'processing' ||
+      statusTab === 'ready' ||
+      statusTab === 'failed' ||
+      statusTab === 'archive'
+    ) {
+      this.currentTab = statusTab;
+    }
+
+    const eventFrom = String(params['eventFrom'] || '').trim();
+    const eventTo = String(params['eventTo'] || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(eventFrom)) this.listEventFrom = eventFrom;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(eventTo)) this.listEventTo = eventTo;
+
+    const fulfillment = String(params['fulfillment'] || '').toLowerCase();
+    if (fulfillment === 'delivery' || fulfillment === 'pickup') {
+      this.listFulfillmentFilter = fulfillment;
+    } else if (params['fulfillment'] != null) {
+      this.listFulfillmentFilter = '';
+    }
+  }
+
+  /** Admin role only — drivers/staff must not toggle test-order flag. */
+  get isAdminUser(): boolean {
+    return String(this.authService.currentUser?.role || '').toLowerCase() === 'admin';
+  }
+
+  private openOrderById(orderId: string): void {
+    if (!orderId) return;
+    this.orderService.getOrderById(orderId).subscribe({
+      next: (order) => {
+        if (order) this.viewOrderDetails(order);
+      },
+      error: () => {
+        this.errorMessage = 'לא ניתן לפתוח את ההזמנה מהקישור';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
+  /**
+   * Mark / unmark order as test. Admin only. Confirms before PATCH.
+   */
+  toggleTestOrder(order: Order): void {
+    if (!this.isAdminUser) {
+      this.errorMessage = 'רק מנהל יכול לשנות סימון הזמנת בדיקה';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+
+    const next = !order.isTestOrder;
+    const confirmMsg = next
+      ? 'לסמן הזמנה זו כהזמנת בדיקה? היא תוחרג ממדדי הדשבורד העסקי.'
+      : 'להסיר סימון הזמנת בדיקה? ההזמנה תחזור להיכלל במדדים העסקיים.';
+    if (!confirm(confirmMsg)) return;
+
+    this.statusUpdatingId = orderId;
+    this.orderService.setOrderTestFlag(orderId, next).subscribe({
+      next: (res) => {
+        const updated = res?.data
+          ? { ...res.data, id: res.data._id || res.data.id, isTestOrder: next }
+          : { isTestOrder: next };
+        this._patchOrderInLists(orderId, updated);
+        if (this.selectedOrder && (this.selectedOrder._id || this.selectedOrder.id)?.toString() === orderId) {
+          this.selectedOrder = { ...this.selectedOrder, ...updated };
+        }
+        this.successMessage = next ? 'ההזמנה סומנה כהזמנת בדיקה' : 'סימון הזמנת הבדיקה הוסר';
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.statusUpdatingId = null;
+        this.closeOrderMenu();
+      },
+      error: (err) => {
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון סימון הזמנת בדיקה';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+        this.statusUpdatingId = null;
+      }
     });
   }
 
@@ -751,7 +857,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   get displayOrders(): Order[] {
-    return this.orders.filter((o) => this.matchesCustomerFilter(o));
+    return this.orders.filter((o) => this.matchesCustomerFilter(o) && this.matchesFulfillmentFilter(o));
+  }
+
+  private matchesFulfillmentFilter(order: Order): boolean {
+    if (!this.listFulfillmentFilter) return true;
+    const cd = (order.customerDetails || {}) as Record<string, unknown>;
+    const raw = String(cd['deliveryType'] || cd['deliveryMethod'] || '')
+      .trim()
+      .toLowerCase();
+    const isPickup = raw === 'pickup' || raw === 'self-pickup' || raw === 'self_pickup';
+    const isDelivery = raw === 'delivery';
+    if (this.listFulfillmentFilter === 'pickup') return isPickup;
+    if (this.listFulfillmentFilter === 'delivery') return isDelivery;
+    return true;
   }
 
   private getOrderId(order: Order): string {
