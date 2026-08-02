@@ -912,7 +912,10 @@ export class OrderController {
       preset: req.query.preset as string | undefined,
       from: req.query.from as string | undefined,
       to: req.query.to as string | undefined,
-      timezone: req.query.timezone as string | undefined
+      timezone: req.query.timezone as string | undefined,
+      salesPreset: req.query.salesPreset as string | undefined,
+      salesFrom: req.query.salesFrom as string | undefined,
+      salesTo: req.query.salesTo as string | undefined
     });
     res.status(200).json({
       success: true,

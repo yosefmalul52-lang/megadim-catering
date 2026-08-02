@@ -3,7 +3,7 @@
  * Timezone-aware range resolution without external date libraries.
  */
 
-export type DashboardPreset = 'today' | 'week' | 'month';
+export type DashboardPreset = 'today' | 'week' | 'last30' | 'month';
 
 export type DateRange = {
   from: Date;
@@ -203,6 +203,18 @@ export function resolveDashboardRange(input: {
       timezone,
       dateBasis: 'createdAt',
       preset: 'week'
+    };
+  }
+
+  if (preset === 'last30') {
+    // Rolling 30 calendar days ending today (inclusive)
+    const startDay = addCalendarDays(parts.year, parts.month, parts.day, -29);
+    return {
+      from: zonedLocalToUtc(startDay.year, startDay.month, startDay.day, 0, 0, 0, timezone),
+      to: endOfZonedDay(now, timezone),
+      timezone,
+      dateBasis: 'createdAt',
+      preset: 'last30'
     };
   }
 

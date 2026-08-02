@@ -28,6 +28,7 @@ export interface TopSellingCategoryBlock {
   items: DashboardTopItem[];
 }
 
+/** @deprecated Kept for older payloads; prefer topSellingByCategory. */
 export interface TopSellingMonthBlock {
   month: string; // YYYY-MM
   categories: TopSellingCategoryBlock[];
@@ -141,7 +142,9 @@ export interface DashboardOverviewData {
   ordersByStatus: Array<{ status: string; count: number }>;
   ordersByType: Array<{ orderType: string; cateringKind: string; count: number }>;
   topItems: DashboardTopItem[];
-  /** Top 3 per category per month — independent of KPI date range. */
+  /** Top 3 per category for the selected KPI date range. */
+  topSellingByCategory?: TopSellingCategoryBlock[];
+  /** @deprecated Prefer topSellingByCategory. */
   topSellingByMonth?: TopSellingMonthBlock[];
   actionItems?: DashboardActionItem[];
   todaySummary?: DayOpsSummary;
@@ -173,6 +176,29 @@ export interface DashboardQueryParams {
   from?: string;
   to?: string;
   timezone: string;
+  salesPreset?: string;
+  salesFrom?: string;
+  salesTo?: string;
+}
+
+/** Stable tone (1–7) per category name for sales cards. */
+export function salesCategoryTone(category: string): number {
+  const key = String(category || '').trim();
+  const known: Record<string, number> = {
+    'מנות עיקריות': 1,
+    תוספות: 2,
+    ממולאים: 3,
+    דגים: 4,
+    סלטים: 5,
+    קינוחים: 6,
+    כללי: 7
+  };
+  if (known[key]) return known[key];
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 7) + 1;
 }
 
 const JERUSALEM_TZ = 'Asia/Jerusalem';
@@ -326,14 +352,11 @@ export function buildDashboardQuery(
   timezone: string = JERUSALEM_TZ
 ): DashboardQueryParams | { error: string } {
   const tz = timezone || JERUSALEM_TZ;
-  const today = toJerusalemDateKey();
 
   if (preset === 'today') return { preset: 'today', timezone: tz };
   if (preset === 'week') return { preset: 'week', timezone: tz };
+  if (preset === 'last30') return { preset: 'last30', timezone: tz };
   if (preset === 'month') return { preset: 'month', timezone: tz };
-  if (preset === 'last30') {
-    return { from: addDaysToDateKey(today, -29), to: today, timezone: tz };
-  }
   if (!isDateRangeValid(customFrom, customTo)) {
     return { error: 'טווח התאריכים אינו תקין: תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום' };
   }
@@ -433,6 +456,25 @@ export function emptyDaySummary(date: string): DayOpsSummary {
   };
 }
 
+export function normalizeTopSellingByCategory(
+  raw: TopSellingCategoryBlock[] | null | undefined
+): TopSellingCategoryBlock[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c) => ({
+      category: String(c?.category || '').trim() || 'כללי',
+      items: (c?.items || [])
+        .map((i) => ({
+          name: String(i?.name || '').trim(),
+          quantity: Number(i?.quantity) || 0,
+          revenue: Number(i?.revenue) || 0
+        }))
+        .filter((i) => i.name && i.quantity > 0)
+        .slice(0, 3)
+    }))
+    .filter((c) => c.items.length > 0);
+}
+
 export function normalizeTopSellingByMonth(
   raw: TopSellingMonthBlock[] | null | undefined
 ): TopSellingMonthBlock[] {
@@ -440,21 +482,7 @@ export function normalizeTopSellingByMonth(
   return raw
     .map((m) => ({
       month: String(m?.month || '').trim(),
-      categories: Array.isArray(m?.categories)
-        ? m.categories
-            .map((c) => ({
-              category: String(c?.category || '').trim() || 'כללי',
-              items: (c?.items || [])
-                .map((i) => ({
-                  name: String(i?.name || '').trim(),
-                  quantity: Number(i?.quantity) || 0,
-                  revenue: Number(i?.revenue) || 0
-                }))
-                .filter((i) => i.name && i.quantity > 0)
-                .slice(0, 3)
-            }))
-            .filter((c) => c.items.length > 0)
-        : []
+      categories: normalizeTopSellingByCategory(m?.categories)
     }))
     .filter((m) => /^\d{4}-\d{2}$/.test(m.month) && m.categories.length > 0);
 }
@@ -475,6 +503,11 @@ export function normalizeOverview(raw: DashboardOverviewData | null | undefined)
     ...raw,
     trend: Array.isArray(raw.trend) ? raw.trend : [],
     topItems: filterNamedTopItems(raw.topItems),
+    topSellingByCategory: normalizeTopSellingByCategory(
+      raw.topSellingByCategory?.length
+        ? raw.topSellingByCategory
+        : normalizeTopSellingByMonth(raw.topSellingByMonth)[0]?.categories
+    ),
     topSellingByMonth: normalizeTopSellingByMonth(raw.topSellingByMonth),
     paymentAlerts: {
       awaiting: Number(raw.paymentAlerts?.awaiting) || 0,

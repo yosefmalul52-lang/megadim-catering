@@ -164,6 +164,14 @@ test('resolveDashboardRange week is 7 inclusive days', () => {
   assert.ok(days > 6.9 && days < 7.1);
 });
 
+test('resolveDashboardRange last30 is 30 inclusive days', () => {
+  const now = zonedLocalToUtc(2026, 8, 15, 12, 0, 0, 'Asia/Jerusalem');
+  const range = resolveDashboardRange({ preset: 'last30', now, timezone: 'Asia/Jerusalem' });
+  assert.equal(range.preset, 'last30');
+  const days = (range.to.getTime() - range.from.getTime()) / (24 * 60 * 60 * 1000);
+  assert.ok(days > 29.9 && days < 30.1);
+});
+
 test('fillTrendBuckets inserts zero days', () => {
   const from = zonedLocalToUtc(2026, 8, 1, 0, 0, 0, 'Asia/Jerusalem');
   const to = zonedLocalToUtc(2026, 8, 3, 23, 59, 59, 'Asia/Jerusalem');
@@ -297,7 +305,9 @@ test('PATCH test-order: admin can update via service mock', async () => {
 test('sold-item aggregations use $isNumber so BSON int quantities count', () => {
   const svcSrc = readFileSync(join(__dirname, '../services/dashboard-overview.service.ts'), 'utf8');
   assert.ok(svcSrc.includes('$isNumber'));
-  assert.ok(svcSrc.includes('topSellingByMonth'));
+  assert.ok(svcSrc.includes('topSellingByCategory'));
+  assert.ok(svcSrc.includes('salesPreset') || svcSrc.includes('resolveSalesRange'));
+  assert.ok(svcSrc.includes('resolveSalesRange'));
   // Avoid regressing to $type === "number" which misses BSON int.
   assert.equal(svcSrc.includes("$eq: [{ $type: '$items.quantity' }, 'number']"), false);
 });

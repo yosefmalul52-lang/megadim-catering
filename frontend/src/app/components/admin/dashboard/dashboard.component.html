@@ -354,41 +354,49 @@
         }
       </section>
 
-      <!-- 5. Top selling by category / month (all captured orders) -->
+      <!-- 5. Top selling by category for selected date range (default: last 30 days) -->
       <section class="ops-section sales-section">
         <div class="section-head">
           <div class="section-title-wrap">
-            <span class="section-icon" aria-hidden="true"><i class="fas fa-trophy"></i></span>
+            <span class="section-icon sales-icon" aria-hidden="true"><i class="fas fa-trophy"></i></span>
             <div>
               <h2>מנות נמכרות</h2>
-              <p class="section-sub">3 המובילות בכל קטגוריה לפי חודש · מכל ההזמנות ששולמו עד היום</p>
+              <p class="section-sub">3 המובילות בכל קטגוריה · {{ salesRangeLabel }}</p>
             </div>
           </div>
-          @if (salesMonthOptions.length) {
-            <div class="day-toggle sales-month-toggle" role="group" aria-label="בחירת חודש מכירות">
-              @for (m of salesMonthOptions; track m.key) {
-                <button
-                  type="button"
-                  class="preset-btn"
-                  [class.active]="selectedSalesMonth === m.key"
-                  (click)="selectSalesMonth(m.key)"
-                >{{ m.label }}</button>
-              }
+        </div>
+        <div class="filters-bar" role="group" aria-label="סינון תאריכים למנות נמכרות">
+          <div class="preset-row">
+            @for (p of presetOptions; track p.key) {
+              <button
+                type="button"
+                class="preset-btn"
+                [class.active]="salesPreset === p.key"
+                (click)="selectSalesPreset(p.key)"
+              >{{ p.label }}</button>
+            }
+          </div>
+          @if (salesPreset === 'custom') {
+            <div class="custom-range">
+              <label>מתאריך <input type="date" [(ngModel)]="salesCustomFrom" [attr.max]="salesCustomTo || null" /></label>
+              <label>עד תאריך <input type="date" [(ngModel)]="salesCustomTo" [attr.min]="salesCustomFrom || null" /></label>
+              <button type="button" class="preset-btn apply-btn" (click)="applySalesCustomRange()">החל</button>
             </div>
+          }
+          @if (salesRangeError) {
+            <div class="inline-error" role="alert">{{ salesRangeError }}</div>
           }
         </div>
 
-        @if (!salesMonthOptions.length) {
+        @if (!selectedSalesCategories.length) {
           <div class="empty-compact" role="status">
             <i class="fas fa-utensils" aria-hidden="true"></i>
-            אין עדיין מנות נמכרות מהזמנות ששולמו
+            אין מנות נמכרות בטווח שנבחר
           </div>
-        } @else if (!selectedSalesCategories.length) {
-          <div class="empty-compact" role="status">אין נתונים לחודש שנבחר</div>
         } @else {
           <div class="sales-categories">
             @for (cat of selectedSalesCategories; track cat.category) {
-              <article class="sales-cat-card">
+              <article class="sales-cat-card" [attr.data-tone]="salesTone(cat.category)">
                 <h3 class="sales-cat-title">{{ cat.category }}</h3>
                 <ol class="sales-rank-list">
                   @for (item of cat.items; track item.name; let i = $index) {
@@ -482,40 +490,25 @@
           </div>
         </div>
 
-        <div class="finance-split" [class.chart-only]="!soldItems.length">
-          @if (soldItems.length) {
-            <div class="panel-lite">
-              <h3 class="subhead">מנות נמכרות (בטווח)</h3>
-              <ul class="prep-items">
-                @for (item of soldItems; track item.name) {
-                  <li>
-                    <span>{{ item.name }}</span>
-                    <strong>{{ formatCount(item.quantity) }} · {{ formatMoney(item.revenue) }}</strong>
-                  </li>
-                }
-              </ul>
+        <div class="panel-lite chart-lite finance-chart">
+          <div class="chart-head-row">
+            <div>
+              <h3 class="subhead">מגמה</h3>
+              <p class="section-sub chart-sub">התפתחות לאורך הטווח שנבחר</p>
             </div>
-          }
-          <div class="panel-lite chart-lite">
-            <div class="chart-head-row">
-              <div>
-                <h3 class="subhead">מגמה</h3>
-                <p class="section-sub chart-sub">התפתחות לאורך הטווח שנבחר</p>
-              </div>
-              <div class="metric-toggle" role="group" aria-label="מדד מגמה">
-                <button type="button" class="preset-btn" [class.active]="trendMetric === 'revenue'" (click)="setTrendMetric('revenue')">הכנסות</button>
-                <button type="button" class="preset-btn" [class.active]="trendMetric === 'paidOrdersCount'" (click)="setTrendMetric('paidOrdersCount')">הזמנות</button>
-                <button type="button" class="preset-btn" [class.active]="trendMetric === 'averageOrderValue'" (click)="setTrendMetric('averageOrderValue')">ממוצע</button>
-              </div>
+            <div class="metric-toggle" role="group" aria-label="מדד מגמה">
+              <button type="button" class="preset-btn" [class.active]="trendMetric === 'revenue'" (click)="setTrendMetric('revenue')">הכנסות</button>
+              <button type="button" class="preset-btn" [class.active]="trendMetric === 'paidOrdersCount'" (click)="setTrendMetric('paidOrdersCount')">הזמנות</button>
+              <button type="button" class="preset-btn" [class.active]="trendMetric === 'averageOrderValue'" (click)="setTrendMetric('averageOrderValue')">ממוצע</button>
             </div>
-            @if (hasTrendData) {
-              <div class="chart-wrapper-sm">
-                <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" [type]="'line'"></canvas>
-              </div>
-            } @else {
-              <div class="empty-compact">אין נתוני מגמה</div>
-            }
           </div>
+          @if (hasTrendData) {
+            <div class="chart-wrapper-sm">
+              <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" [type]="'line'"></canvas>
+            </div>
+          } @else {
+            <div class="empty-compact">אין נתוני מגמה</div>
+          }
         </div>
       </section>
 

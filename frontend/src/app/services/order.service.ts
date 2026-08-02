@@ -307,6 +307,9 @@ export class OrderService {
     if (query.preset) params = params.set('preset', query.preset);
     if (query.from) params = params.set('from', query.from);
     if (query.to) params = params.set('to', query.to);
+    if (query.salesPreset) params = params.set('salesPreset', query.salesPreset);
+    if (query.salesFrom) params = params.set('salesFrom', query.salesFrom);
+    if (query.salesTo) params = params.set('salesTo', query.salesTo);
 
     return this.http
       .get<{ success: boolean; data: DashboardOverviewData }>(

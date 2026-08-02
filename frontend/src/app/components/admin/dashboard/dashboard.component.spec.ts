@@ -34,18 +34,13 @@ function sampleOverview(overrides: Partial<DashboardOverviewData> = {}): Dashboa
     ordersByStatus: [],
     ordersByType: [],
     topItems: [{ name: 'חלות', quantity: 4, revenue: 80 }],
-    topSellingByMonth: [
+    topSellingByCategory: [
       {
-        month: '2026-08',
-        categories: [
-          {
-            category: 'סלטים',
-            items: [
-              { name: 'חומוס', quantity: 10, revenue: 100 },
-              { name: 'טחינה', quantity: 8, revenue: 80 },
-              { name: 'קולסלאו', quantity: 6, revenue: 60 }
-            ]
-          }
+        category: 'סלטים',
+        items: [
+          { name: 'חומוס', quantity: 10, revenue: 100 },
+          { name: 'טחינה', quantity: 8, revenue: 80 },
+          { name: 'קולסלאו', quantity: 6, revenue: 60 }
         ]
       }
     ],
@@ -213,12 +208,17 @@ describe('AdminDashboardComponent ops', () => {
     expect(html.querySelector('.day-grid')).toBeFalsy();
   }));
 
-  it('defaults sales month picker to current or latest month with data', fakeAsync(() => {
+  it('defaults sales range to last30 independent of finance preset', fakeAsync(() => {
     fixture.detectChanges();
     tick();
-    expect(component.selectedSalesMonth).toBe('2026-08');
+    expect(component.salesPreset).toBe('last30');
+    expect(component.selectedPreset).toBe('last30');
+    component.selectPreset('week');
+    tick();
+    expect(component.selectedPreset).toBe('week');
+    expect(component.salesPreset).toBe('last30');
     expect(component.selectedSalesCategories.length).toBe(1);
-    expect(component.selectedSalesCategories[0].items.length).toBe(3);
+    expect(component.salesTone('סלטים')).toBe(5);
   }));
 
   it('limits visible action items to 5 by default', fakeAsync(() => {

@@ -15,14 +15,11 @@ import {
   DashboardInsight,
   DashboardOverviewData,
   DashboardPresetKey,
-  DashboardTopItem,
   DayOpsSummary,
-  filterNamedTopItems,
   filterPrepItems,
   formatHeNumber,
   formatIls,
   formatKpiChange,
-  formatSalesMonthLabel,
   formatTrendPeriodLabel,
   fulfillmentLabelHe,
   mapHttpErrorToDashboardMessage,
@@ -30,10 +27,10 @@ import {
   orderStatusLabelHe,
   parseAdminHref,
   paymentStatusLabelHe,
+  salesCategoryTone,
   severityLabelHe,
   toJerusalemDateKey,
   TopSellingCategoryBlock,
-  TopSellingMonthBlock,
   UpcomingOrderRow,
   UpcomingPreparation
 } from '../../../utils/dashboard-overview.util';
@@ -67,6 +64,12 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   customTo = '';
   rangeError = '';
 
+  /** Independent range for top-selling dishes (not tied to finance). */
+  salesPreset: DashboardPresetKey = 'last30';
+  salesCustomFrom = '';
+  salesCustomTo = '';
+  salesRangeError = '';
+
   overview: DashboardOverviewData | null = null;
   isLoading = false;
   isRefreshing = false;
@@ -77,8 +80,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   dayView: 'today' | 'tomorrow' = 'today';
   showAllActions = false;
   todayKey = toJerusalemDateKey();
-  /** YYYY-MM for the independent top-selling section. */
-  selectedSalesMonth = '';
 
   trendMetric: TrendMetric = 'revenue';
   trendChartData: ChartData<'line'> = { labels: [], datasets: [] };
@@ -89,6 +90,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.todayKey = today;
     this.customTo = today;
     this.customFrom = today;
+    this.salesCustomTo = today;
+    this.salesCustomFrom = today;
     this.loadOverview();
   }
 
@@ -110,11 +113,15 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   get financeRangeLabel(): string {
-    const match = this.presetOptions.find((p) => p.key === this.selectedPreset);
-    if (this.selectedPreset === 'custom' && this.customFrom && this.customTo) {
-      return `${this.customFrom} – ${this.customTo}`;
-    }
-    return match?.label || '30 ימים';
+    return this.rangeLabelFor(this.selectedPreset, this.customFrom, this.customTo);
+  }
+
+  get salesRangeLabel(): string {
+    return this.rangeLabelFor(this.salesPreset, this.salesCustomFrom, this.salesCustomTo);
+  }
+
+  salesTone(category: string): number {
+    return salesCategoryTone(category);
   }
 
   get actionItems(): DashboardActionItem[] {
@@ -144,37 +151,12 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     return (this.overview?.upcomingOrders || []).filter((o) => !o.isTestOrder).slice(0, 8);
   }
 
-  get soldItems(): DashboardTopItem[] {
-    return filterNamedTopItems(this.overview?.topItems).slice(0, 8);
-  }
-
-  get topSellingByMonth(): TopSellingMonthBlock[] {
-    return this.overview?.topSellingByMonth || [];
-  }
-
-  get salesMonthOptions(): Array<{ key: string; label: string }> {
-    return this.topSellingByMonth.map((m) => ({
-      key: m.month,
-      label: formatSalesMonthLabel(m.month)
-    }));
-  }
-
   get selectedSalesCategories(): TopSellingCategoryBlock[] {
-    const month = this.topSellingByMonth.find((m) => m.month === this.selectedSalesMonth);
-    return month?.categories || [];
+    return this.overview?.topSellingByCategory || [];
   }
 
   get insights(): DashboardInsight[] {
     return this.overview?.insights || [];
-  }
-
-  selectSalesMonth(month: string): void {
-    if (!month || this.selectedSalesMonth === month) return;
-    this.selectedSalesMonth = month;
-  }
-
-  salesMonthLabel(monthKey: string): string {
-    return formatSalesMonthLabel(monthKey);
   }
 
   get finance() {
@@ -235,6 +217,26 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.loadOverview();
   }
 
+  selectSalesPreset(key: DashboardPresetKey): void {
+    if (this.salesPreset === key && key !== 'custom') return;
+    this.salesPreset = key;
+    this.salesRangeError = '';
+    if (key === 'custom') {
+      if (!this.salesCustomFrom || !this.salesCustomTo) {
+        const today = toJerusalemDateKey();
+        this.salesCustomTo = today;
+        this.salesCustomFrom = today;
+      }
+      return;
+    }
+    this.loadOverview();
+  }
+
+  applySalesCustomRange(): void {
+    this.salesPreset = 'custom';
+    this.loadOverview();
+  }
+
   reload(): void {
     this.loadOverview();
   }
@@ -278,13 +280,29 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     return parseAdminHref(href).queryParams;
   }
 
+  private rangeLabelFor(
+    preset: DashboardPresetKey,
+    from: string,
+    to: string
+  ): string {
+    const match = this.presetOptions.find((p) => p.key === preset);
+    if (preset === 'custom' && from && to) return `${from} – ${to}`;
+    return match?.label || '30 ימים';
+  }
+
   private loadOverview(): void {
-    const built = buildDashboardQuery(this.selectedPreset, this.customFrom, this.customTo);
-    if ('error' in built) {
-      this.rangeError = built.error;
+    const finance = buildDashboardQuery(this.selectedPreset, this.customFrom, this.customTo);
+    if ('error' in finance) {
+      this.rangeError = finance.error;
+      return;
+    }
+    const sales = buildDashboardQuery(this.salesPreset, this.salesCustomFrom, this.salesCustomTo);
+    if ('error' in sales) {
+      this.salesRangeError = sales.error;
       return;
     }
     this.rangeError = '';
+    this.salesRangeError = '';
 
     const seq = ++this.loadSeq;
     const hadData = !!this.overview;
@@ -292,6 +310,13 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.isRefreshing = hadData;
     this.errorMessage = '';
     this.staleWarning = false;
+
+    const built = {
+      ...finance,
+      salesPreset: sales.preset,
+      salesFrom: sales.from,
+      salesTo: sales.to
+    };
 
     this.orderService.getDashboardOverview(built).subscribe({
       next: (data) => {
@@ -302,7 +327,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         this.errorMessage = '';
         this.staleWarning = false;
         this.todayKey = toJerusalemDateKey();
-        this.syncSelectedSalesMonth();
         this.applyTrendChart();
       },
       error: (err: unknown) => {
@@ -330,21 +354,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         }
       }
     });
-  }
-
-  private syncSelectedSalesMonth(): void {
-    const months = this.topSellingByMonth.map((m) => m.month);
-    if (!months.length) {
-      this.selectedSalesMonth = '';
-      return;
-    }
-    const currentMonth = toJerusalemDateKey().slice(0, 7);
-    if (months.includes(this.selectedSalesMonth)) return;
-    if (months.includes(currentMonth)) {
-      this.selectedSalesMonth = currentMonth;
-      return;
-    }
-    this.selectedSalesMonth = months[0];
   }
 
   private applyTrendChart(): void {

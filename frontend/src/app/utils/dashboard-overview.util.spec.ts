@@ -9,8 +9,10 @@ import {
   formatSalesMonthLabel,
   mapHttpErrorToDashboardMessage,
   normalizeOverview,
+  normalizeTopSellingByCategory,
   normalizeTopSellingByMonth,
-  parseAdminHref
+  parseAdminHref,
+  salesCategoryTone
 } from './dashboard-overview.util';
 
 describe('dashboard-overview.util (ops)', () => {
@@ -36,7 +38,20 @@ describe('dashboard-overview.util (ops)', () => {
       preset: 'week',
       timezone: 'Asia/Jerusalem'
     });
+    expect(buildDashboardQuery('last30', '', '')).toEqual({
+      preset: 'last30',
+      timezone: 'Asia/Jerusalem'
+    });
     expect(isDateRangeValid('2026-08-01', '2026-08-10')).toBeTrue();
+  });
+
+  it('assigns a stable distinct tone per known sales category', () => {
+    expect(salesCategoryTone('מנות עיקריות')).toBe(1);
+    expect(salesCategoryTone('תוספות')).toBe(2);
+    expect(salesCategoryTone('דגים')).toBe(4);
+    expect(salesCategoryTone('קינוחים')).toBe(6);
+    expect(salesCategoryTone('מנות עיקריות')).toBe(salesCategoryTone('מנות עיקריות'));
+    expect(salesCategoryTone('קטגוריה-לא-ידועה')).toBeGreaterThan(0);
   });
 
   it('filters sold items requiring name quantity and revenue', () => {
@@ -67,25 +82,28 @@ describe('dashboard-overview.util (ops)', () => {
     expect(fulfillmentLabelHe('delivery')).toBe('משלוח');
   });
 
-  it('normalizes topSellingByMonth and formats Hebrew month labels', () => {
-    const blocks = normalizeTopSellingByMonth([
+  it('normalizes topSellingByCategory and legacy month payloads', () => {
+    const categories = normalizeTopSellingByCategory([
+      {
+        category: 'סלטים',
+        items: [
+          { name: 'חומוס', quantity: 3, revenue: 30 },
+          { name: '', quantity: 2, revenue: 2 },
+          { name: 'טחינה', quantity: 0, revenue: 0 }
+        ]
+      }
+    ]);
+    expect(categories.length).toBe(1);
+    expect(categories[0].items.map((i) => i.name)).toEqual(['חומוס']);
+
+    const months = normalizeTopSellingByMonth([
       {
         month: '2026-08',
-        categories: [
-          {
-            category: 'סלטים',
-            items: [
-              { name: 'חומוס', quantity: 3, revenue: 30 },
-              { name: '', quantity: 2, revenue: 2 },
-              { name: 'טחינה', quantity: 0, revenue: 0 }
-            ]
-          }
-        ]
+        categories: [{ category: 'סלטים', items: [{ name: 'חומוס', quantity: 3, revenue: 30 }] }]
       },
       { month: 'bad', categories: [{ category: 'x', items: [{ name: 'y', quantity: 1, revenue: 1 }] }] }
     ]);
-    expect(blocks.length).toBe(1);
-    expect(blocks[0].categories[0].items.map((i) => i.name)).toEqual(['חומוס']);
+    expect(months.length).toBe(1);
     expect(formatSalesMonthLabel('2026-08')).toContain('2026');
   });
 

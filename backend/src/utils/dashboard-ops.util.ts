@@ -306,6 +306,54 @@ export function normalizeItemCategory(raw: unknown): string {
 }
 
 /**
+ * Build per-category Top N (by quantity, then revenue).
+ * Input rows are already aggregated at (category, name) grain — or may contain duplicates.
+ */
+export function buildTopSellingByCategory(
+  rows: Array<{
+    category?: string;
+    name?: string;
+    quantity?: number;
+    revenue?: number;
+  }>,
+  topN = 3
+): TopSellingCategory[] {
+  type Agg = { name: string; quantity: number; revenue: number };
+  const byCat = new Map<string, Agg[]>();
+
+  for (const raw of rows || []) {
+    const name = String(raw?.name || '').trim();
+    const quantity = Number(raw?.quantity) || 0;
+    if (!name || quantity <= 0) continue;
+    const category = normalizeItemCategory(raw?.category);
+    const revenue = Number(raw?.revenue) || 0;
+    if (!byCat.has(category)) byCat.set(category, []);
+    byCat.get(category)!.push({ name, quantity, revenue });
+  }
+
+  return [...byCat.entries()]
+    .map(([category, items]) => {
+      const merged = new Map<string, Agg>();
+      for (const item of items) {
+        const prev = merged.get(item.name);
+        if (prev) {
+          prev.quantity += item.quantity;
+          prev.revenue += item.revenue;
+        } else {
+          merged.set(item.name, { ...item });
+        }
+      }
+      const ranked = [...merged.values()]
+        .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue || a.name.localeCompare(b.name, 'he'))
+        .slice(0, Math.max(1, topN));
+      const totalQty = ranked.reduce((s, i) => s + i.quantity, 0);
+      return { category, items: ranked, totalQty };
+    })
+    .sort((a, b) => b.totalQty - a.totalQty || a.category.localeCompare(b.category, 'he'))
+    .map(({ category, items }) => ({ category, items }));
+}
+
+/**
  * Build per-month → per-category Top 3 (by quantity, then revenue).
  * Input rows are already aggregated at (month, category, name) grain.
  */
@@ -319,49 +367,22 @@ export function buildTopSellingByMonth(
   }>,
   topN = 3
 ): TopSellingMonth[] {
-  type Agg = { name: string; quantity: number; revenue: number };
-  const byMonth = new Map<string, Map<string, Agg[]>>();
+  const byMonth = new Map<string, Array<{ category?: string; name?: string; quantity?: number; revenue?: number }>>();
 
   for (const raw of rows || []) {
     const month = String(raw?.month || '').trim();
     if (!/^\d{4}-\d{2}$/.test(month)) continue;
-    const name = String(raw?.name || '').trim();
-    const quantity = Number(raw?.quantity) || 0;
-    if (!name || quantity <= 0) continue;
-    const category = normalizeItemCategory(raw?.category);
-    const revenue = Number(raw?.revenue) || 0;
-    if (!byMonth.has(month)) byMonth.set(month, new Map());
-    const byCat = byMonth.get(month)!;
-    if (!byCat.has(category)) byCat.set(category, []);
-    byCat.get(category)!.push({ name, quantity, revenue });
+    if (!byMonth.has(month)) byMonth.set(month, []);
+    byMonth.get(month)!.push(raw);
   }
 
-  const months = [...byMonth.keys()].sort((a, b) => b.localeCompare(a));
-  return months.map((month) => {
-    const byCat = byMonth.get(month)!;
-    const categories: TopSellingCategory[] = [...byCat.entries()]
-      .map(([category, items]) => {
-        const merged = new Map<string, Agg>();
-        for (const item of items) {
-          const prev = merged.get(item.name);
-          if (prev) {
-            prev.quantity += item.quantity;
-            prev.revenue += item.revenue;
-          } else {
-            merged.set(item.name, { ...item });
-          }
-        }
-        const ranked = [...merged.values()]
-          .sort((a, b) => b.quantity - a.quantity || b.revenue - a.revenue || a.name.localeCompare(b.name, 'he'))
-          .slice(0, Math.max(1, topN));
-        const totalQty = ranked.reduce((s, i) => s + i.quantity, 0);
-        return { category, items: ranked, totalQty };
-      })
-      .sort((a, b) => b.totalQty - a.totalQty || a.category.localeCompare(b.category, 'he'))
-      .map(({ category, items }) => ({ category, items }));
-
-    return { month, categories };
-  });
+  return [...byMonth.keys()]
+    .sort((a, b) => b.localeCompare(a))
+    .map((month) => ({
+      month,
+      categories: buildTopSellingByCategory(byMonth.get(month) || [], topN)
+    }))
+    .filter((m) => m.categories.length > 0);
 }
 
 export function filterPrepTopItems(

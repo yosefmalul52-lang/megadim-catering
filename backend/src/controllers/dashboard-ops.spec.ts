@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import {
   buildDashboardInsights,
   buildDaySummaryFromOrders,
+  buildTopSellingByCategory,
   buildTopSellingByMonth,
   filterPrepTopItems,
   filterSoldTopItems,
@@ -177,6 +178,31 @@ test('normalizeItemCategory falls back to כללי', () => {
   assert.equal(normalizeItemCategory(''), 'כללי');
   assert.equal(normalizeItemCategory(null), 'כללי');
   assert.equal(normalizeItemCategory('  סלטים  '), 'סלטים');
+});
+
+test('buildTopSellingByCategory: top 3 per category by quantity', () => {
+  const out = buildTopSellingByCategory([
+    { category: 'סלטים', name: 'חומוס', quantity: 10, revenue: 100 },
+    { category: 'סלטים', name: 'טחינה', quantity: 8, revenue: 80 },
+    { category: 'סלטים', name: 'קולסלאו', quantity: 6, revenue: 60 },
+    { category: 'סלטים', name: 'טאבולה', quantity: 4, revenue: 40 },
+    { category: '', name: 'חלות', quantity: 12, revenue: 120 },
+    { category: 'סלטים', name: 'ריק', quantity: 0, revenue: 0 }
+  ]);
+
+  const salads = out.find((c) => c.category === 'סלטים');
+  assert.ok(salads);
+  assert.equal(salads!.items.length, 3);
+  assert.deepEqual(
+    salads!.items.map((i) => i.name),
+    ['חומוס', 'טחינה', 'קולסלאו']
+  );
+
+  const general = out.find((c) => c.category === 'כללי');
+  assert.ok(general);
+  assert.equal(general!.items[0].name, 'חלות');
+  // סלטים ranks first by total qty of top-3 (24 > 12)
+  assert.equal(out[0].category, 'סלטים');
 });
 
 test('buildTopSellingByMonth: top 3 per category by quantity, months desc', () => {

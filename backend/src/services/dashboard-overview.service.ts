@@ -18,7 +18,7 @@ import {
   extractCustomerName,
   extractCustomerPhone,
   extractEventDate,
-  buildTopSellingByMonth,
+  buildTopSellingByCategory,
   filterPrepTopItems,
   filterSoldTopItems,
   hasSpecialNotes,
@@ -28,7 +28,7 @@ import {
   resolveFulfillment,
   resolveOrderPortions,
   sortActionItems,
-  TopSellingMonth,
+  TopSellingCategory,
   UpcomingOrderRow,
   withAverageOrderValue
 } from '../utils/dashboard-ops.util';
@@ -38,6 +38,10 @@ export type DashboardOverviewQuery = {
   from?: string;
   to?: string;
   timezone?: string;
+  /** Independent date window for topSellingByCategory (defaults to last30). */
+  salesPreset?: string;
+  salesFrom?: string;
+  salesTo?: string;
 };
 
 function createdAtMatch(from: Date, to: Date) {
@@ -270,34 +274,20 @@ async function topItems(from: Date, to: Date, limit = 10) {
 }
 
 /**
- * Top 3 sold items per category per calendar month (Asia/Jerusalem).
- * Independent of the KPI date range — uses captured orders up to now (last 36 months).
+ * Top 3 sold items per category for the selected KPI date range (createdAt).
+ * Defaults to last 30 days when the client uses the last30 preset.
  */
-async function topSellingByMonthSeries(
-  timezone = 'Asia/Jerusalem',
-  monthsBack = 36
-): Promise<TopSellingMonth[]> {
-  const now = new Date();
-  const from = new Date(now);
-  from.setUTCMonth(from.getUTCMonth() - monthsBack);
-
+async function topSellingByCategorySeries(from: Date, to: Date): Promise<TopSellingCategory[]> {
   const rows = await Order.aggregate([
     {
       $match: {
         ...DASHBOARD_MATCH.capturedRevenue,
-        createdAt: { $gte: from, $lte: now }
+        ...createdAtMatch(from, to)
       }
     },
     { $unwind: { path: '$items', preserveNullAndEmptyArrays: false } },
     {
       $project: {
-        month: {
-          $dateToString: {
-            format: '%Y-%m',
-            date: '$createdAt',
-            timezone
-          }
-        },
         categoryRaw: {
           $trim: {
             input: { $toString: { $ifNull: ['$items.category', ''] } }
@@ -373,7 +363,7 @@ async function topSellingByMonthSeries(
     { $match: { name: { $ne: '' } } },
     {
       $group: {
-        _id: { month: '$month', category: '$category', name: '$name' },
+        _id: { category: '$category', name: '$name' },
         quantity: { $sum: '$qtyForSum' },
         revenue: { $sum: '$lineRevenue' }
       }
@@ -381,7 +371,6 @@ async function topSellingByMonthSeries(
     {
       $project: {
         _id: 0,
-        month: '$_id.month',
         category: '$_id.category',
         name: '$_id.name',
         quantity: 1,
@@ -390,9 +379,8 @@ async function topSellingByMonthSeries(
     }
   ]);
 
-  return buildTopSellingByMonth(
-    (rows || []).map((r: { month?: string; category?: string; name?: string; quantity?: number; revenue?: number }) => ({
-      month: r.month,
+  return buildTopSellingByCategory(
+    (rows || []).map((r: { category?: string; name?: string; quantity?: number; revenue?: number }) => ({
       category: normalizeItemCategory(r.category),
       name: r.name,
       quantity: r.quantity,
@@ -882,8 +870,24 @@ async function buildActionItems(todayKey: string, tomorrowKey: string): Promise<
  *
  * Operational sections (today/tomorrow/prep/upcoming) use customerDetails.eventDate.
  */
+function resolveSalesRange(query: DashboardOverviewQuery): DateRange {
+  const timezone = query.timezone;
+  const hasSalesBounds = Boolean(query.salesFrom && query.salesTo);
+  const hasSalesPreset = Boolean(query.salesPreset);
+  if (hasSalesBounds || hasSalesPreset) {
+    return resolveDashboardRange({
+      preset: query.salesPreset,
+      from: query.salesFrom,
+      to: query.salesTo,
+      timezone
+    });
+  }
+  return resolveDashboardRange({ preset: 'last30', timezone });
+}
+
 export async function getDashboardOverview(query: DashboardOverviewQuery) {
   const range = resolveDashboardRange(query);
+  const salesRange = resolveSalesRange(query);
   const prev = previousRange(range);
   const { today: todayKey, tomorrow: tomorrowKey } = businessDayKeys(new Date(), range.timezone);
 
@@ -910,7 +914,7 @@ export async function getDashboardOverview(query: DashboardOverviewQuery) {
     upcomingPreparation,
     upcomingOrders,
     actionItems,
-    topSellingByMonth
+    topSellingByCategory
   ] = await Promise.all([
     sumCaptured(range.from, range.to),
     sumCaptured(prev.from, prev.to),
@@ -934,7 +938,7 @@ export async function getDashboardOverview(query: DashboardOverviewQuery) {
     buildUpcomingPreparation(todayKey),
     loadUpcomingOrders(todayKey, 8),
     buildActionItems(todayKey, tomorrowKey),
-    topSellingByMonthSeries(range.timezone || 'Asia/Jerusalem', 36)
+    topSellingByCategorySeries(salesRange.from, salesRange.to)
   ]);
 
   const avg =
@@ -997,8 +1001,8 @@ export async function getDashboardOverview(query: DashboardOverviewQuery) {
     ordersByStatus,
     ordersByType,
     topItems: soldTopItems,
-    /** Top 3 per category per month from all captured orders (independent of KPI range). */
-    topSellingByMonth,
+    /** Top 3 per category for the selected date range (same createdAt window as KPIs). */
+    topSellingByCategory,
     /** Additive operational payload for the daily ops dashboard. */
     actionItems,
     todaySummary,
