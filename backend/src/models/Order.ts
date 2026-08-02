@@ -95,6 +95,11 @@ export interface IOrder extends Document {
   paymentInitTokenExpiresAt?: Date;
   /** Set when checkout confirmation emails (admin + customer) were sent after successful payment. */
   confirmationEmailSentAt?: Date;
+  /**
+   * Admin-only flag for sandbox / QA orders.
+   * Never set from public checkout or payment flows; excluded from dashboard revenue metrics.
+   */
+  isTestOrder?: boolean;
 }
 
 // Order Schema - userId MUST be at root level
@@ -218,7 +223,13 @@ const OrderSchema: Schema<IOrder> = new Schema({
   paymentSecurityToken: { type: String, required: false, select: false }, // excluded from default queries
   paymentInitTokenHash: { type: String, required: false, select: false },
   paymentInitTokenExpiresAt: { type: Date, required: false, select: false },
-  confirmationEmailSentAt: { type: Date, required: false, default: null }
+  confirmationEmailSentAt: { type: Date, required: false, default: null },
+  /** Admin-marked test/QA order — never controllable via public create/payment. */
+  isTestOrder: {
+    type: Boolean,
+    default: false,
+    index: true
+  }
 }, {
   timestamps: true,
   collection: 'orders',

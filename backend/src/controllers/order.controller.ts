@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { NextFunction, Request, Response } from 'express';
 import SiteSettings from '../models/siteSettings.model';
 import { OrderService } from '../services/order.service';
@@ -9,6 +10,10 @@ import { CreateOrderRequest, CreateCheckoutOrderRequest } from '../models/order.
 import { fireWebhook } from '../utils/webhook.util';
 import { calculateDeliveryFee } from '../services/delivery.service';
 import StoreSettings from '../models/store-settings.model';
+import {
+  getDashboardOverview as buildDashboardOverview,
+  setOrderTestFlag as updateOrderTestFlag
+} from '../services/dashboard-overview.service';
 
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
 const FORBIDDEN_ORDER_FIELDS = 'FORBIDDEN_ORDER_FIELDS';
@@ -28,6 +33,7 @@ export function getForbiddenPublicOrderFields(body: unknown): string[] {
     'paymentStatus',
     'status',
     'isPaid',
+    'isTestOrder',
     'paymentInitToken',
     'paymentInitTokenHash',
     'paymentInitTokenExpiresAt'
@@ -900,6 +906,52 @@ export class OrderController {
     });
   });
 
+  /** GET /api/order/dashboard-overview – unified business KPIs (admin). */
+  getDashboardOverview = asyncHandler(async (req: Request, res: Response) => {
+    const data = await buildDashboardOverview({
+      preset: req.query.preset as string | undefined,
+      from: req.query.from as string | undefined,
+      to: req.query.to as string | undefined,
+      timezone: req.query.timezone as string | undefined
+    });
+    res.status(200).json({
+      success: true,
+      data,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  /** PATCH /api/order/:id/test-order – admin-only test-order flag (no other fields). */
+  setOrderTestFlag = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw createValidationError('Invalid order id');
+    }
+
+    const body = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
+    const keys = Object.keys(body);
+    if (keys.length !== 1 || keys[0] !== 'isTestOrder') {
+      throw createValidationError('Only the isTestOrder boolean field is allowed');
+    }
+    if (typeof body.isTestOrder !== 'boolean') {
+      throw createValidationError('isTestOrder must be a boolean');
+    }
+
+    const updated = await updateOrderTestFlag(id, body.isTestOrder);
+    if (!updated) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updated,
+      message: body.isTestOrder ? 'Order marked as test order' : 'Test-order flag cleared',
+      timestamp: new Date().toISOString()
+    });
+  });
   /** GET /api/order/admin/tab-counts – per-source status counts for admin orders dashboard. */
   getAdminTabCounts = asyncHandler(async (req: Request, res: Response) => {
     const counts = await this.orderService.getAdminTabCounts();

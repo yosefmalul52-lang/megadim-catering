@@ -119,6 +119,12 @@ router.get('/recent', authenticate, requireCapability(CAP.ORDERS_RECENT), orderC
 router.get('/search', authenticate, requireCapability(CAP.ORDERS_SEARCH), orderController.searchOrders);
 router.get('/dashboard-stats', authenticate, requireCapability(CAP.ORDERS_DASHBOARD_STATS), orderController.getDashboardStats);
 router.get(
+  '/dashboard-overview',
+  authenticate,
+  requireAdmin,
+  orderController.getDashboardOverview
+);
+router.get(
   '/admin/tab-counts',
   authenticate,
   requireCapability(CAP.ORDERS_LIST),
@@ -126,6 +132,7 @@ router.get(
 );
 router.get('/driver/my', authenticate, requireCapability(CAP.DELIVERIES_MY_LIST), orderController.getDriverMyOrders);
 router.patch('/:id/assign-driver', authenticate, requireAdmin, orderController.assignOrderToDriver);
+router.patch('/:id/test-order', authenticate, requireAdmin, orderController.setOrderTestFlag);
 router.post('/bulk', authenticate, requireAdmin, orderController.bulkUpdateOrders);
 
 // Get order by ID (authenticate only; controller restricts to own order for non-admin)

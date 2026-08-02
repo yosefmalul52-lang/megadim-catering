@@ -127,7 +127,8 @@ export class OrderService {
         },
         items: orderItems,
         totalPrice: totalPrice,
-        status: 'new'
+        status: 'new',
+        isTestOrder: false
       });
 
       // Save order
@@ -215,6 +216,7 @@ export class OrderService {
       subtotal: payload.subtotal ?? null,
       deliveryFee: payload.deliveryFee ?? null,
       status,
+      isTestOrder: false,
       ...(!isManual && options.paymentInitTokenHash && options.paymentInitTokenExpiresAt
         ? {
             paymentInitTokenHash: options.paymentInitTokenHash,
