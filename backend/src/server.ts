@@ -171,12 +171,19 @@ app.use(helmet({
 // HTTP request logging (uses stdout directly so logs remain visible in production)
 app.use(morgan('[HTTP] :method :url - :status - :response-time ms'));
 
-// Lightweight health check for uptime monitors — no DB, no rate limit
+// Lightweight health check for uptime monitors — no DB, no rate limit, no secrets
 app.get('/api/health', (_req, res) => {
+  const { isR2Configured, isR2MockMode } = require('./services/r2-storage.service');
+  const r2Ready = isR2Configured() && !isR2MockMode();
   res.status(200).json({
     success: true,
     status: 'UP',
-    timestamp: new Date()
+    timestamp: new Date(),
+    media: {
+      imageUploads: r2Ready ? 'r2' : 'unavailable',
+      r2Configured: r2Ready,
+      videoUploads: 'cloudinary',
+    },
   });
 });
 
