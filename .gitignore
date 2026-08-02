@@ -301,3 +301,4 @@ docs/media-migration/full-media-inventory-report*.json
 workers/**/.wrangler/
 workers/**/.wrangler-logs/
 **/wrangler-deploy-out.txt
+docs/media-migration/frontend-critical-images-map.json
