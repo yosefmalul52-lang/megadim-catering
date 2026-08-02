@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { startWith } from 'rxjs/operators';
 
@@ -56,6 +56,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   orderService = inject(OrderService);
   menuService = inject(MenuService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private authService = inject(AuthService);
 
   /** When true, hide orders list and show full-page manual order builder */
@@ -2346,8 +2347,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   openKitchenReport(): void {
-    this.showKitchenReport = true;
     this.trackKpi('orders_kitchen_report_opened');
+    void this.router.navigate(['/admin/kitchen-report']);
   }
 
   closeKitchenReport(): void {

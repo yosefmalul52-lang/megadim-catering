@@ -815,6 +815,55 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
     );
   }
 
+  private kitchenQueryParams(query: import('../utils/kitchen-report.util').KitchenReportQuery): Record<string, string> {
+    const params: Record<string, string> = {
+      startDate: query.startDate,
+      endDate: query.endDate
+    };
+    if (query.meal) params['meal'] = query.meal;
+    if (query.fulfillmentType) params['fulfillmentType'] = query.fulfillmentType;
+    if (query.preparationSlot) params['preparationSlot'] = query.preparationSlot;
+    if (query.includeCancelled) params['includeCancelled'] = 'true';
+    if (query.changedOnly) params['changedOnly'] = 'true';
+    if (query.search) params['search'] = query.search;
+    if (query.includeCatering === false) params['includeCatering'] = 'false';
+    else params['includeCatering'] = 'true';
+    return params;
+  }
+
+  getAdvancedKitchenReport(
+    query: import('../utils/kitchen-report.util').KitchenReportQuery
+  ): Observable<import('../utils/kitchen-report.util').KitchenReportDTO> {
+    return this.http
+      .get<{
+        success: boolean;
+        report: import('../utils/kitchen-report.util').KitchenReportDTO;
+      }>(`${environment.apiUrl}/order/kitchen-report`, { params: this.kitchenQueryParams(query) })
+      .pipe(
+        map((res) => {
+          if (!res?.report) throw new Error('Invalid kitchen report response');
+          return res.report;
+        })
+      );
+  }
+
+  exportKitchenReport(
+    format: 'csv' | 'xlsx' | 'pdf' | 'print',
+    query: import('../utils/kitchen-report.util').KitchenReportQuery
+  ): Observable<Blob | string> {
+    const params = this.kitchenQueryParams(query);
+    if (format === 'print') {
+      return this.http.get(`${environment.apiUrl}/order/kitchen-report/export/print`, {
+        params,
+        responseType: 'text'
+      });
+    }
+    return this.http.get(`${environment.apiUrl}/order/kitchen-report/export/${format}`, {
+      params,
+      responseType: 'blob'
+    });
+  }
+
   // Get delivery report for a date range. Returns days keyed by YYYY-MM-DD.
   getDeliveryReport(fromDate: string, toDate?: string): Observable<{
     days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }>;

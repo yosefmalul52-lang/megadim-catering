@@ -14,6 +14,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { routerLink: '/admin/dashboard', iconClass: 'fas fa-chart-line', label: 'לוח בקרה', roles: ['admin'] },
   { routerLink: '/admin/menu', iconClass: 'fas fa-utensils', label: 'ניהול תפריט', roles: ['admin'] },
   { routerLink: '/admin/orders', iconClass: 'fas fa-shopping-cart', label: 'הזמנות', roles: ['admin'] },
+  { routerLink: '/admin/kitchen-report', iconClass: 'fas fa-clipboard-list', label: 'דוח מטבח', roles: ['admin'] },
   { routerLink: '/admin/leads', iconClass: 'fas fa-address-book', label: 'לידים', roles: ['admin'] },
   { routerLink: '/admin/marketing', iconClass: 'fas fa-bullhorn', label: 'ניהול קמפיינים', roles: ['admin'] },
   { routerLink: '/admin/customers', iconClass: 'fas fa-users', label: 'ניהול לקוחות (CRM)', roles: ['admin'] },

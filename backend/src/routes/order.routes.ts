@@ -114,6 +114,24 @@ router.get(
   orderController.getRevenueStats
 );
 router.get('/kitchen-report', authenticate, requireAdmin, orderController.getKitchenReport);
+router.get(
+  '/kitchen-report/export/:format',
+  authenticate,
+  requireAdmin,
+  orderController.exportKitchenReport
+);
+router.patch(
+  '/:id/kitchen-preparation',
+  authenticate,
+  requireAdmin,
+  orderController.setKitchenPreparation
+);
+router.patch(
+  '/:id/kitchen-allergies',
+  authenticate,
+  requireAdmin,
+  orderController.setKitchenAllergyInfo
+);
 router.get('/delivery-report', authenticate, requireCapability(CAP.DELIVERIES_MY_LIST), orderController.getDeliveryReport);
 router.get('/recent', authenticate, requireCapability(CAP.ORDERS_RECENT), orderController.getRecentOrders);
 router.get('/search', authenticate, requireCapability(CAP.ORDERS_SEARCH), orderController.searchOrders);

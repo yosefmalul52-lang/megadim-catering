@@ -43,7 +43,7 @@
       <a class="qa-btn" routerLink="/admin/orders" [queryParams]="{ eventFrom: todayKey, eventTo: todayKey }">
         <i class="fas fa-calendar-day" aria-hidden="true"></i> הזמנות היום
       </a>
-      <a class="qa-btn" routerLink="/admin/orders" [queryParams]="{ kitchenReport: '1' }">
+      <a class="qa-btn" routerLink="/admin/kitchen-report">
         <i class="fas fa-utensils" aria-hidden="true"></i> דוח מטבח
       </a>
       <a class="qa-btn" routerLink="/admin/delivery">
@@ -236,7 +236,7 @@
               <p class="section-sub">המועד הבא עם הזמנות פעילות</p>
             </div>
           </div>
-          <a class="link-btn" routerLink="/admin/orders" [queryParams]="{ kitchenReport: '1' }">דוח מטבח</a>
+          <a class="link-btn" routerLink="/admin/kitchen-report">דוח מטבח</a>
         </div>
         @if (prep && prep.eventDate) {
           <p class="prep-date">מועד אספקה: <strong>{{ prep.eventDate }}</strong></p>

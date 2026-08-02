@@ -740,6 +740,15 @@ export class OrderService {
         .select(ORDER_API_DETAIL_SELECT)
         .lean();
 
+      if (order && updates.status === 'cancelled') {
+        try {
+          const { appendKitchenChange } = await import('./kitchen-report.service');
+          await appendKitchenChange(orderId, 'cancelled', 'ההזמנה בוטלה');
+        } catch {
+          /* non-blocking */
+        }
+      }
+
       return order as IOrder | null;
     } catch (error: any) {
       console.error('Error updating order status:', error);
@@ -1064,6 +1073,13 @@ export class OrderService {
     );
     if (updateResult.matchedCount === 0) return null;
 
+    try {
+      const { appendKitchenChange } = await import('./kitchen-report.service');
+      await appendKitchenChange(orderId, 'items', 'עודכנו פריטים או כמויות בהזמנה');
+    } catch {
+      /* non-blocking */
+    }
+
     const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
     return updated as IOrder | null;
   }
@@ -1213,6 +1229,13 @@ export class OrderService {
         { $set: { 'customerDetails.eventDate': dateStr } }
       );
       if (updateResult.matchedCount === 0) return null;
+
+      try {
+        const { appendKitchenChange } = await import('./kitchen-report.service');
+        await appendKitchenChange(orderId, 'delivery', `עודכן מועד אספקה ל-${dateStr}`);
+      } catch {
+        /* non-blocking */
+      }
 
       const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
       return updated as IOrder | null;

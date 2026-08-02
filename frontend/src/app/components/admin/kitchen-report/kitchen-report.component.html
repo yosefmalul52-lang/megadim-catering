@@ -1,0 +1,248 @@
+<div class="kr-page" dir="rtl">
+  <header class="kr-header">
+    <div>
+      <p class="kr-eyebrow">תפעול מטבח</p>
+      <h1>דוח מטבח</h1>
+      <p class="kr-updated" *ngIf="generatedLabel">
+        <i class="fas fa-clock" aria-hidden="true"></i>
+        עודכן לאחרונה: {{ generatedLabel }}
+      </p>
+    </div>
+    <div class="kr-header-actions">
+      <button type="button" class="kr-btn" (click)="refresh()" [disabled]="isLoading">
+        <i class="fas fa-sync-alt" aria-hidden="true"></i> רענון
+      </button>
+      <a routerLink="/admin/orders" class="kr-btn ghost">חזרה להזמנות</a>
+    </div>
+  </header>
+
+  <section class="kr-filters" aria-label="סינון דוח מטבח">
+    <label>מתאריך
+      <input type="date" [(ngModel)]="startDate" />
+    </label>
+    <label>עד תאריך
+      <input type="date" [(ngModel)]="endDate" />
+    </label>
+    <label>ארוחה
+      <select [(ngModel)]="meal">
+        @for (m of mealOptions; track m.key) {
+          <option [value]="m.key">{{ m.label }}</option>
+        }
+      </select>
+    </label>
+    <label>אספקה
+      <select [(ngModel)]="fulfillmentType">
+        @for (f of fulfillmentOptions; track f.key) {
+          <option [value]="f.key">{{ f.label }}</option>
+        }
+      </select>
+    </label>
+    <label>שעת הכנה
+      <select [(ngModel)]="preparationSlot">
+        <option value="">הכל</option>
+        @for (slot of preparationSlotOptions; track slot) {
+          <option [value]="slot">{{ slot }}</option>
+        }
+      </select>
+    </label>
+    <label class="kr-check">
+      <input type="checkbox" [(ngModel)]="includeCancelled" /> ביטולים ושינויים
+    </label>
+    <label class="kr-check">
+      <input type="checkbox" [(ngModel)]="changedOnly" /> שינויים בלבד
+    </label>
+    <label class="kr-check">
+      <input type="checkbox" [(ngModel)]="includeCatering" /> כולל קייטרינג
+    </label>
+    <label class="kr-search">חיפוש
+      <input type="search" [(ngModel)]="search" placeholder="מספר הזמנה / לקוח" />
+    </label>
+    <button type="button" class="kr-btn primary" (click)="applyFilters()">החל סינון</button>
+  </section>
+
+  <div class="kr-exports" role="group" aria-label="ייצוא">
+    <button type="button" class="kr-btn" (click)="export('print')" [disabled]="!!exportBusy">הדפסה</button>
+    <button type="button" class="kr-btn" (click)="export('pdf')" [disabled]="!!exportBusy">PDF</button>
+    <button type="button" class="kr-btn" (click)="export('xlsx')" [disabled]="!!exportBusy">Excel</button>
+    <button type="button" class="kr-btn" (click)="export('csv')" [disabled]="!!exportBusy">CSV</button>
+  </div>
+
+  @if (errorMessage) {
+    <div class="kr-banner error" role="alert">{{ errorMessage }}</div>
+  }
+
+  @if (isLoading && !report) {
+    <div class="kr-loading" role="status">טוען דוח מטבח…</div>
+  } @else if (report) {
+    <section class="kr-summary" aria-label="סיכום">
+      <article><span>הזמנות פעילות</span><strong>{{ report.summary.activeOrders }}</strong></article>
+      <article><span>מנות כולל</span><strong>{{ report.summary.totalPortions }}</strong></article>
+      <article><span>סוגי מנות</span><strong>{{ report.summary.distinctDishes }}</strong></article>
+      <article><span>משלוחים</span><strong>{{ report.summary.deliveries }}</strong></article>
+      <article><span>איסופים</span><strong>{{ report.summary.pickups }}</strong></article>
+      <article class="warn"><span>אלרגיות</span><strong>{{ report.summary.allergyAlerts }}</strong></article>
+      <article><span>שונו</span><strong>{{ report.summary.changedOrders }}</strong></article>
+      <article><span>בוטלו</span><strong>{{ report.summary.cancelledOrders }}</strong></article>
+    </section>
+
+    @if (report.alerts.length) {
+      <section class="kr-alerts" aria-label="התראות תפעוליות">
+        <h2>התראות</h2>
+        <ul>
+          @for (a of report.alerts; track a.id) {
+            <li [class]="'sev-' + a.severity + ' kind-' + a.kind">
+              <i class="fas" [ngClass]="alertIcon(a.kind)" aria-hidden="true"></i>
+              <div>
+                <strong>{{ a.title }}</strong>
+                <span>{{ a.detail }}</span>
+                @if (a.orderNumber) {
+                  <em>{{ a.orderNumber }}</em>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (!report.preparationGroups.length) {
+      <div class="kr-empty" role="status">
+        <i class="fas fa-utensils" aria-hidden="true"></i>
+        אין הזמנות פעילות בטווח שנבחר
+      </div>
+    } @else {
+      @for (pg of report.preparationGroups; track pg.preparationKey) {
+        <section class="kr-slot">
+          <header class="kr-slot-head">
+            <div>
+              <h2>{{ pg.preparationLabel }}</h2>
+              @if (!pg.isManualPreparation) {
+                <p class="kr-hint">זמן לפי אספקה / איסוף — לא הוגדר ידנית</p>
+              }
+            </div>
+            <div class="kr-slot-meta">
+              <span>{{ pg.ordersCount }} הזמנות</span>
+              <span>משלוח {{ pg.deliveries }}</span>
+              <span>איסוף {{ pg.pickups }}</span>
+            </div>
+          </header>
+
+          @for (mg of pg.meals; track mg.meal) {
+            <div class="kr-meal">
+              <h3>{{ mg.meal }} · {{ mg.portionsTotal }} מנות</h3>
+              <div class="kr-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>מנה</th>
+                      <th>קטגוריה</th>
+                      <th>כמות</th>
+                      <th>הזמנות</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (d of mg.dishes; track d.key) {
+                      <tr>
+                        <td>
+                          <strong>{{ d.name }}</strong>
+                          @if (d.optionLabel || d.sizeLabel) {
+                            <small>{{ d.optionLabel }} {{ d.sizeLabel }}</small>
+                          }
+                        </td>
+                        <td>{{ d.category }}</td>
+                        <td class="qty">{{ d.quantity }} <span>{{ d.unit }}</span></td>
+                        <td>{{ d.orderCount }}</td>
+                        <td>
+                          <button type="button" class="kr-link" (click)="toggleDish(d.key)">
+                            {{ isDishExpanded(d.key) ? 'הסתר' : 'פירוט' }}
+                          </button>
+                        </td>
+                      </tr>
+                      @if (isDishExpanded(d.key)) {
+                        <tr class="kr-sources">
+                          <td colspan="5">
+                            <ul>
+                              @for (s of d.sources; track s.orderId + '-' + s.quantity) {
+                                <li>
+                                  {{ s.orderNumber || s.orderId }}
+                                  @if (s.customerName) { — {{ s.customerName }} }
+                                  · {{ s.quantity }}
+                                </li>
+                              }
+                            </ul>
+                          </td>
+                        </tr>
+                      }
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        </section>
+      }
+    }
+
+    <section class="kr-notes">
+      <header class="kr-notes-head">
+        <h2>הערות והזמנות</h2>
+        <button type="button" class="kr-link" (click)="expandedOrders = !expandedOrders">
+          {{ expandedOrders ? 'כווץ' : 'הצג הכל' }}
+        </button>
+      </header>
+      @if (expandedOrders) {
+        <div class="kr-notes-list">
+          @for (o of report.orderNotes; track o.orderId) {
+            <article [class.has-allergy]="!!o.allergies">
+              <header>
+                <strong>{{ o.orderNumber || o.orderId }}</strong>
+                <span>{{ o.customerName }}</span>
+                <span>{{ o.fulfillment }}</span>
+                @if (o.city) { <span>{{ o.city }}</span> }
+                @if (o.deliveryTime) { <span>{{ o.deliveryTime }}</span> }
+              </header>
+              @if (o.allergies) {
+                <p class="allergy"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> אלרגיה: {{ o.allergies }}</p>
+              }
+              @if (o.specialRequests) {
+                <p><strong>בקשות מיוחדות:</strong> {{ o.specialRequests }}</p>
+              }
+              @if (o.customerNotes) {
+                <p><strong>הערת לקוח:</strong> {{ o.customerNotes }}</p>
+              }
+              @if (o.adminNotes) {
+                <p><strong>הערה פנימית:</strong> {{ o.adminNotes }}</p>
+              }
+              @if (o.itemNotes.length) {
+                <ul>
+                  @for (n of o.itemNotes; track n.dishName + n.note) {
+                    <li>{{ n.dishName }}: {{ n.note }}</li>
+                  }
+                </ul>
+              }
+            </article>
+          }
+        </div>
+      }
+    </section>
+
+    @if (report.cancelledAndChanged.length) {
+      <section class="kr-changes">
+        <h2>ביטולים ושינויים</h2>
+        <ul>
+          @for (o of report.cancelledAndChanged; track o.orderId) {
+            <li>
+              <strong>{{ o.orderNumber || o.orderId }}</strong>
+              — {{ o.isCancelled ? 'בוטל' : 'עודכן' }}
+              @if (o.lastChange) {
+                · {{ o.lastChange.summary }}
+                <time>{{ o.lastChange.at | date: 'dd/MM HH:mm' }}</time>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+</div>

@@ -100,6 +100,26 @@ export interface IOrder extends Document {
    * Never set from public checkout or payment flows; excluded from dashboard revenue metrics.
    */
   isTestOrder?: boolean;
+  /**
+   * Optional kitchen preparation datetime (Asia/Jerusalem business use).
+   * When unset, kitchen report falls back to delivery/pickup timing.
+   * Does not replace customerDetails.eventDate / preferredDeliveryTime.
+   */
+  kitchenPreparationAt?: Date | null;
+  /** Structured allergy info for kitchen — never auto-derived from free-text notes. */
+  allergies?: string;
+  /** Structured special requests for kitchen. */
+  specialRequests?: string;
+  /**
+   * Compact kitchen-relevant change log (not a full audit trail).
+   * Old orders without this field are never treated as "changed".
+   */
+  kitchenChangeLog?: Array<{
+    at: Date;
+    type: string;
+    summary: string;
+    by?: string;
+  }>;
 }
 
 // Order Schema - userId MUST be at root level
@@ -229,6 +249,36 @@ const OrderSchema: Schema<IOrder> = new Schema({
     type: Boolean,
     default: false,
     index: true
+  },
+  kitchenPreparationAt: {
+    type: Date,
+    required: false,
+    default: null,
+    index: true
+  },
+  allergies: {
+    type: String,
+    trim: true,
+    default: '',
+    maxlength: 500
+  },
+  specialRequests: {
+    type: String,
+    trim: true,
+    default: '',
+    maxlength: 1000
+  },
+  kitchenChangeLog: {
+    type: [
+      {
+        at: { type: Date, required: true },
+        type: { type: String, required: true, trim: true },
+        summary: { type: String, required: true, trim: true, maxlength: 300 },
+        by: { type: String, required: false, trim: true, maxlength: 120 }
+      }
+    ],
+    default: undefined,
+    select: true
   }
 }, {
   timestamps: true,
@@ -241,6 +291,7 @@ OrderSchema.index({ userId: 1 });
 OrderSchema.index({ status: 1, createdAt: -1 });
 OrderSchema.index({ createdAt: -1 });
 OrderSchema.index({ orderType: 1 });
+OrderSchema.index({ 'customerDetails.eventDate': 1, status: 1, isDeleted: 1 });
 
 // Create and export the model
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', OrderSchema);

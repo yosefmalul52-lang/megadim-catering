@@ -1161,29 +1161,119 @@ export class OrderController {
     });
   });
 
-  // Get kitchen preparation report
+  // Get kitchen preparation report (advanced DTO + legacy items array)
   getKitchenReport = asyncHandler(async (req: Request, res: Response) => {
+    const {
+      getAdvancedKitchenReport
+    } = await import('../services/kitchen-report.service');
     try {
-      const targetDate = typeof req.query.date === 'string' ? req.query.date : undefined;
-      const includeCatering =
-        req.query.includeCatering === 'true' || req.query.includeCatering === '1';
-      const report = await this.orderService.getKitchenReport(targetDate, includeCatering);
-
+      const report = await getAdvancedKitchenReport(req.query as Record<string, unknown>);
       res.status(200).json({
         success: true,
-        data: report.items,
-        meta: report.meta
+        data: report.legacyItems,
+        meta: {
+          generatedAt: report.generatedAt,
+          activeOrdersCount: report.summary.activeOrders,
+          appliedDate:
+            report.range.startDate === report.range.endDate ? report.range.startDate : undefined,
+          range: report.range
+        },
+        report
       });
     } catch (error: any) {
+      const status = Number(error?.statusCode) || 500;
+      if (status < 500) {
+        res.status(status).json({ success: false, message: error.message || 'Invalid request' });
+        return;
+      }
       console.error('Controller error in getKitchenReport:', error);
-      
-      // Return detailed error to frontend
       res.status(500).json({
         success: false,
         message: error.message || 'Failed to generate kitchen report',
         error: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
+  });
+
+  exportKitchenReport = asyncHandler(async (req: Request, res: Response) => {
+    const {
+      getAdvancedKitchenReport,
+      buildKitchenCsvBuffer,
+      buildKitchenXlsxBuffer,
+      buildKitchenPdfBuffer,
+      buildKitchenPrintHtml
+    } = await import('../services/kitchen-report.service');
+    const format = String(req.params.format || req.query.format || '').toLowerCase();
+    const report = await getAdvancedKitchenReport(req.query as Record<string, unknown>);
+    const rangeLabel = `${report.range.startDate}_${report.range.endDate}`;
+
+    if (format === 'csv') {
+      const buf = buildKitchenCsvBuffer(report);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="kitchen-report_${rangeLabel}.csv"`);
+      res.send(buf);
+      return;
+    }
+    if (format === 'xlsx' || format === 'excel') {
+      const buf = await buildKitchenXlsxBuffer(report);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader('Content-Disposition', `attachment; filename="kitchen-report_${rangeLabel}.xlsx"`);
+      res.send(buf);
+      return;
+    }
+    if (format === 'pdf') {
+      const buf = await buildKitchenPdfBuffer(report);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="kitchen-report_${rangeLabel}.pdf"`);
+      res.send(buf);
+      return;
+    }
+    if (format === 'print' || format === 'html') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(buildKitchenPrintHtml(report));
+      return;
+    }
+    res.status(400).json({ success: false, message: 'Unsupported export format' });
+  });
+
+  setKitchenPreparation = asyncHandler(async (req: Request, res: Response) => {
+    const { setKitchenPreparationAt } = await import('../services/kitchen-report.service');
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw createValidationError('Invalid order id');
+    }
+    const by = String((req as any).user?.username || (req as any).user?.email || 'admin');
+    const updated = await setKitchenPreparationAt(id, req.body?.kitchenPreparationAt ?? null, by);
+    if (!updated) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated });
+  });
+
+  setKitchenAllergyInfo = asyncHandler(async (req: Request, res: Response) => {
+    const { setKitchenAllergyFields } = await import('../services/kitchen-report.service');
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw createValidationError('Invalid order id');
+    }
+    const by = String((req as any).user?.username || (req as any).user?.email || 'admin');
+    const updated = await setKitchenAllergyFields(
+      id,
+      {
+        allergies: req.body?.allergies,
+        specialRequests: req.body?.specialRequests
+      },
+      by
+    );
+    if (!updated) {
+      res.status(404).json({ success: false, message: 'Order not found' });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated });
   });
 
   // Get delivery/dispatch report - ?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD (range) or ?date=YYYY-MM-DD (single)
