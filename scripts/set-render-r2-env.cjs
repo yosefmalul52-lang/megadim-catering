@@ -125,28 +125,31 @@ async function main() {
 
   console.log(JSON.stringify({ serviceIdFound: true, serviceIdPrefix: String(serviceId).slice(0, 6) + '…' }));
 
-  const envPairs = [
-    ...needed.map((key) => ({ key, value: process.env[key] })),
-    { key: 'R2_MOCK', value: '' }, // clear mock if present
-  ];
-
-  // Render bulk update: PUT /v1/services/{serviceId}/env-vars
-  const body = envPairs.map(({ key, value }) => ({ key, value }));
-  const upd = await req('PUT', `/v1/services/${serviceId}/env-vars`, body);
-  if (upd.status >= 200 && upd.status < 300) {
-    console.log(JSON.stringify({ ok: true, updatedKeys: needed.concat(['R2_MOCK(clear)']), status: upd.status }));
-  } else {
-    // fallback: set one-by-one
-    const results = [];
-    for (const { key, value } of envPairs) {
-      const r = await req('PUT', `/v1/services/${serviceId}/env-vars/${encodeURIComponent(key)}`, {
-        value,
-      });
-      results.push({ key, status: r.status, ok: r.status >= 200 && r.status < 300 });
-    }
-    console.log(JSON.stringify({ ok: results.every((r) => r.ok), results: results.map((r) => ({ key: r.key, status: r.status })) }));
-    if (!results.every((r) => r.ok)) process.exit(1);
+  // IMPORTANT: never use bulk PUT /env-vars — that replaces ALL service env vars.
+  // Update R2 keys one-by-one only.
+  const results = [];
+  for (const key of needed) {
+    const r = await req('PUT', `/v1/services/${serviceId}/env-vars/${encodeURIComponent(key)}`, {
+      value: process.env[key],
+    });
+    results.push({ key, status: r.status, ok: r.status >= 200 && r.status < 300 });
   }
+
+  // Clear R2_MOCK if present (DELETE). Empty PUT would still leave a blank mock flag.
+  const delMock = await req('DELETE', `/v1/services/${serviceId}/env-vars/${encodeURIComponent('R2_MOCK')}`);
+  results.push({
+    key: 'R2_MOCK(delete)',
+    status: delMock.status,
+    ok: delMock.status >= 200 && delMock.status < 300 || delMock.status === 404,
+  });
+
+  console.log(
+    JSON.stringify({
+      ok: results.every((r) => r.ok),
+      results: results.map((r) => ({ key: r.key, status: r.status })),
+    })
+  );
+  if (!results.every((r) => r.ok)) process.exit(1);
 
   // Trigger deploy
   if (process.argv.includes('--deploy')) {
