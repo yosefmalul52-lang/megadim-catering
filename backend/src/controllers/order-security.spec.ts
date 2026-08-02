@@ -217,7 +217,7 @@ test('10. non-admin user is forbidden from manual route', async () => {
 
 test('manual route is registered with authenticate and requireAdmin', () => {
   const routeSource = readFileSync(
-    join(__dirname, '..', 'routes', 'orders.routes.ts'),
+    join(process.cwd(), 'src', 'routes', 'orders.routes.ts'),
     'utf8'
   );
   assert.match(

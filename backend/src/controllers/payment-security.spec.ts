@@ -489,7 +489,7 @@ test('checkout consumes the creation token only in the initiate request body', (
 
 test('payment route uses optional authentication without requiring login', () => {
   const source = readFileSync(
-    join(__dirname, '..', 'routes', 'payment.routes.ts'),
+    join(process.cwd(), 'src', 'routes', 'payment.routes.ts'),
     'utf8'
   );
   assert.match(
