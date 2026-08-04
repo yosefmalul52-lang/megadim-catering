@@ -2,7 +2,8 @@ export const environment = {
   production: false,
   /** Empty in dev so GA4 does not track local sessions. */
   googleAnalyticsId: '',
-  apiUrl: 'http://localhost:4000/api',
+  // Same-origin via angular proxy (proxy.conf.json → localhost:4000) so HttpOnly cookies work locally.
+  apiUrl: '/api',
   /** Optional key for admin chat summaries/stream (prefer cookie auth in production). */
   adminSummariesKey: '' as string,
   appName: 'Megadim Catering',

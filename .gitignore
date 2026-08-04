@@ -45,6 +45,13 @@ backend/.env
 frontend/.env
 server/.env
 
+# Local QA / verify artifacts (may contain session cookies)
+tmp-screenshots/
+**/tmp-screenshots/
+test-results/
+**/test-results/
+playwright-report/
+
 # Configuration files with secrets
 config/secrets.json
 secrets.json

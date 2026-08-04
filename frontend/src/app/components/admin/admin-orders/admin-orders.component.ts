@@ -3,18 +3,23 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
-import { startWith } from 'rxjs/operators';
 
-import { OrderService, Order, DashboardStats, OrderTabCounts, OrderSourceTabCounts, AdminOrdersSortBy } from '../../../services/order.service';
+import { OrderService, Order, DashboardStats, OrderTabCounts, OrderSourceTabCounts, AdminOrdersSortBy, AdminOrderStatusTab } from '../../../services/order.service';
 import { MenuService, MenuItem } from '../../../services/menu.service';
 import { AuthService } from '../../../services/auth.service';
-import { KitchenReportModalComponent } from '../../modals/kitchen-report-modal/kitchen-report-modal.component';
 import { ManualOrderBuilderComponent } from '../manual-order-builder/manual-order-builder.component';
 
 type SelectedOptionPayload = {
   label: string;
   amount?: string;
   price: number;
+  optionId?: string;
+  optionName?: string;
+  valueId?: string;
+  valueName?: string;
+  quantity?: number;
+  priceAdjustment?: number;
+  missingForReview?: boolean;
 };
 
 type EditableOrderItem = {
@@ -43,12 +48,19 @@ type SearchResultItem = {
   selectedOption?: SelectedOptionPayload;
 };
 
+type EditableSizeChoice = {
+  key: string;
+  label: string;
+  amount?: string;
+  price: number;
+};
+
 type OrdersColumnFilterKey = 'orderNumber' | 'customer' | 'createdAt' | 'eventDate' | 'notes';
 
 @Component({
   selector: 'app-admin-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, KitchenReportModalComponent, ManualOrderBuilderComponent],
+  imports: [CommonModule, FormsModule, DatePipe, ManualOrderBuilderComponent],
   templateUrl: './admin-orders.component.html',
   styleUrls: ['./admin-orders.component.scss']
 })
@@ -101,13 +113,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   sortDirection: 'asc' | 'desc' = 'asc';
   /** Top-level tab: Shabbat (e-commerce) vs Shabbat Catering form vs Events Catering. */
   orderSourceTab: 'shabbat' | 'catering' | 'events' = 'shabbat';
-  currentTab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive' = 'pending';
+  currentTab: AdminOrderStatusTab = 'pending';
   isLoading = true;
   isRefreshing = false;
   statusUpdatingId: string | null = null;
   selectedOrder: Order | null = null;
   orderToEditStatus: Order | null = null;
-  showKitchenReport = false;
   successMessage = '';
   errorMessage = '';
   /** When true, show date picker in order details modal for event/delivery date. */
@@ -169,20 +180,61 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   searchTerm = '';
   isSavingItems = false;
   activeOrderMenuId: string | null = null;
+  /** Order id whose payment-reason popover is open (failed/abandoned tab). */
+  paymentReasonOpenId: string | null = null;
+  paymentExceptionResolvingId: string | null = null;
+  readonly paymentExceptionResolutions: Array<{
+    value: NonNullable<Order['paymentExceptionResolution']>;
+    label: string;
+    closesException: boolean;
+  }> = [
+    {
+      value: 'approve_and_continue_billing',
+      label: 'אישור ההזמנה והמשך לחיוב',
+      closesException: true
+    },
+    {
+      value: 'paid_elsewhere_continue',
+      label: 'שולם בדרך אחרת והמשך לטיפול',
+      closesException: true
+    },
+    {
+      value: 'send_new_payment_link',
+      label: 'שליחת קישור תשלום חדש לפני אישור',
+      closesException: false
+    },
+    { value: 'cancel_order', label: 'ביטול ההזמנה', closesException: true }
+  ];
+  /** Required resolution modal when moving failed/awaiting order into ops status. */
+  statusResolutionModal: {
+    order: Order;
+    newStatus: Order['status'];
+    resolution: NonNullable<Order['paymentExceptionResolution']> | null;
+    manualPaymentNote: string;
+    isBulk?: boolean;
+    bulkOrderIds?: string[];
+  } | null = null;
   selectedOrderIds = new Set<string>();
   isBulkUpdating = false;
   bulkStatusTarget: Order['status'] = 'processing';
   private readonly KPI_STORAGE_KEY = 'admin_orders_kpi_v1';
+  private ordersLoadSeq = 0;
 
-  readonly statusOptions = [
+  /** Canonical ops statuses accepted by the server (Order.status enum). */
+  readonly statusOptions: Array<{ value: Order['status']; label: string }> = [
     { value: 'pending', label: 'ממתין' },
     { value: 'processing', label: 'בטיפול' },
-    { value: 'ready', label: 'מוכן' }
+    { value: 'ready', label: 'מוכן' },
+    { value: 'out_for_delivery', label: 'בדרך למשלוח' },
+    { value: 'delivered', label: 'נמסר' },
+    { value: 'delivery_failed', label: 'משלוח נכשל' },
+    { value: 'cancelled', label: 'בוטל' }
   ];
 
   private autoRefreshSubscription?: Subscription;
   autoRefreshEnabled = true;
-  private readonly REFRESH_INTERVAL = 30000;
+  /** Background sync only — local actions update the UI immediately without waiting. */
+  private readonly REFRESH_INTERVAL = 10 * 60 * 1000;
 
   ngOnInit(): void {
     this.loadStats();
@@ -223,9 +275,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       statusTab === 'processing' ||
       statusTab === 'ready' ||
       statusTab === 'failed' ||
+      statusTab === 'cancelled' ||
+      statusTab === 'completed' ||
       statusTab === 'archive'
     ) {
-      this.currentTab = statusTab;
+      this.currentTab = statusTab as AdminOrderStatusTab;
     }
 
     const eventFrom = String(params['eventFrom'] || '').trim();
@@ -383,10 +437,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   private startAutoRefresh(): void {
     if (!this.autoRefreshEnabled) return;
     this.autoRefreshSubscription = interval(this.REFRESH_INTERVAL)
-      .pipe(startWith(0))
       .subscribe({
         next: () => {
           if (this.isRefreshing || this.isLoading) return;
+          // Don't clobber an open detail/edit session with a silent list replace.
+          if (this.selectedOrder || this.isEditingItems || this.isSavingItems || this.isCreatingOrder) {
+            return;
+          }
+          if (this.currentTab === 'archive' || this.currentTab === 'failed') return;
           this.isRefreshing = true;
           this.loadTabCounts();
           this.loadOrdersPage(undefined, { silent: true });
@@ -429,9 +487,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   loadOrdersPage(page?: number, options?: { silent?: boolean }): void {
     const targetPage = page ?? this.listPage;
     if (!options?.silent && !this.isRefreshing) this.isLoading = true;
+    const seq = ++this.ordersLoadSeq;
 
     this.orderService.getAdminOrdersPage(this.buildOrdersPageParams(targetPage)).subscribe({
       next: (result) => {
+        if (seq !== this.ordersLoadSeq) return;
         const { orders, pagination } = result;
         if (
           orders.length === 0 &&
@@ -456,6 +516,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
+        if (seq !== this.ordersLoadSeq) return;
         this.errorMessage = 'שגיאה בטעינת ההזמנות';
         this.isLoading = false;
         this.isRefreshing = false;
@@ -682,6 +743,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   toggleOrderMenu(order: Order): void {
     const id = String(order._id || order.id || '');
     if (!id) return;
+    this.paymentReasonOpenId = null;
     this.activeOrderMenuId = this.activeOrderMenuId === id ? null : id;
   }
 
@@ -693,7 +755,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return this.activeOrderMenuId === String(order._id || order.id || '');
   }
 
-  setCurrentTab(tab: 'pending' | 'processing' | 'ready' | 'failed' | 'archive'): void {
+  setCurrentTab(tab: AdminOrderStatusTab): void {
     if (this.currentTab === tab) return;
     this.currentTab = tab;
     this.listPage = 1;
@@ -929,12 +991,29 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.selectedOrderIds = next;
   }
 
-  private executeBulkAction(action: 'status' | 'archive' | 'restore' | 'permanent_delete', status?: Order['status']): void {
+  private executeBulkAction(
+    action: 'status' | 'archive' | 'restore' | 'permanent_delete',
+    status?: Order['status'],
+    extras?: {
+      paymentExceptionResolution?: NonNullable<Order['paymentExceptionResolution']>;
+      manualPaymentMethod?: string;
+      manualPaymentNote?: string;
+    }
+  ): void {
     const orderIds = Array.from(this.selectedOrderIds);
     if (!orderIds.length || this.isBulkUpdating) return;
 
     this.isBulkUpdating = true;
-    this.orderService.bulkUpdateOrders({ orderIds, action, status }).subscribe({
+    this.orderService
+      .bulkUpdateOrders({
+        orderIds,
+        action,
+        status,
+        paymentExceptionResolution: extras?.paymentExceptionResolution,
+        manualPaymentMethod: extras?.manualPaymentMethod,
+        manualPaymentNote: extras?.manualPaymentNote
+      })
+      .subscribe({
       next: (result) => {
         const affectedCount = action === 'permanent_delete' ? result.deletedCount : result.modifiedCount;
         this.clearSelection();
@@ -944,7 +1023,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.isBulkUpdating = false;
       },
       error: (err) => {
-        this.errorMessage = err?.error?.message || 'שגיאה בביצוע פעולה קבוצתית';
+        this.errorMessage = err?.error?.message || err?.error?.error?.message || 'שגיאה בביצוע פעולה קבוצתית';
         setTimeout(() => (this.errorMessage = ''), 3000);
         this.isBulkUpdating = false;
       }
@@ -953,11 +1032,33 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   applyBulkStatus(): void {
     if (!this.selectedOrderIds.size) return;
-    this.executeBulkAction('status', this.bulkStatusTarget);
+    const target = this.bulkStatusTarget;
+    const selected = this.displayOrders.filter((o) => this.selectedOrderIds.has(this.getOrderId(o)));
+    const needsResolution = selected.some((o) => this.hasOpenPaymentException(o));
+    if (needsResolution && this.isOpsStatusRequiringResolution(target)) {
+      this.statusResolutionModal = {
+        order: selected[0],
+        newStatus: target,
+        resolution: null,
+        manualPaymentNote: '',
+        isBulk: true,
+        bulkOrderIds: Array.from(this.selectedOrderIds)
+      };
+      return;
+    }
+    this.executeBulkAction('status', target);
   }
 
   bulkArchiveSelected(): void {
     if (!this.selectedOrderIds.size) return;
+    const selected = this.orders.filter((o) =>
+      this.selectedOrderIds.has((o._id || o.id || '').toString())
+    );
+    if (selected.some((o) => !this.canArchiveOrder(o))) {
+      this.errorMessage = 'ניתן לארכב רק הזמנות שנמסרו או שבוטלו';
+      setTimeout(() => (this.errorMessage = ''), 4000);
+      return;
+    }
     if (!window.confirm(`להעביר ${this.selectedOrderIds.size} הזמנות לארכיון?`)) return;
     this.executeBulkAction('archive');
   }
@@ -998,6 +1099,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     if (c) return c.failed;
     return this.currentTab === 'failed' ? this.listTotal : 0;
   }
+  get countCancelled(): number {
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.cancelled ?? 0;
+    return this.currentTab === 'cancelled' ? this.listTotal : 0;
+  }
+  get countCompleted(): number {
+    const c = this.getCurrentSourceCounts();
+    if (c) return c.completed ?? 0;
+    return this.currentTab === 'completed' ? this.listTotal : 0;
+  }
 
   get emptyStateMessage(): string {
     if (this.hasActiveListFilters || this.customerFilter.email || this.customerFilter.phone) {
@@ -1008,6 +1119,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       processing: 'אין הזמנות בטיפול כרגע',
       ready: 'אין הזמנות מוכנות כרגע',
       failed: 'אין הזמנות שנכשלו או ננטשו',
+      cancelled: 'אין הזמנות שבוטלו',
+      completed: 'אין הזמנות שהושלמו',
       archive: 'אין פריטים בארכיון'
     };
     return messages[this.currentTab] || 'אין הזמנות';
@@ -1016,6 +1129,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   archiveOrder(order: Order): void {
     const orderId = (order._id || order.id)?.toString();
     if (!orderId) return;
+    if (!this.canArchiveOrder(order)) {
+      this.errorMessage = 'ניתן לארכב רק הזמנות שנמסרו או שבוטלו';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
     const confirmed = window.confirm('להעביר הזמנה זו לארכיון? לא תימחק לצמיתות.');
     if (!confirmed) return;
     this.statusUpdatingId = orderId;
@@ -1028,26 +1146,69 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.statusUpdatingId = null;
         this.reloadAfterMutation();
       },
-      error: () => {
-        this.errorMessage = 'שגיאה בהעברה לארכיון';
+      error: (err) => {
+        this.errorMessage = err?.error?.message || 'שגיאה בהעברה לארכיון';
         setTimeout(() => (this.errorMessage = ''), 3000);
         this.statusUpdatingId = null;
       }
     });
   }
 
+  /** Regular archive is only for delivered or cancelled. */
+  canArchiveOrder(order: Order | null | undefined): boolean {
+    if (!order) return false;
+    const status = String(order.status || '');
+    return status === 'delivered' || status === 'cancelled';
+  }
+
+  isPickupOrder(order: Order | null | undefined): boolean {
+    if (!order) return false;
+    const cd = (order.customerDetails || {}) as Record<string, unknown>;
+    const method = String(cd['deliveryType'] || cd['deliveryMethod'] || '').toLowerCase();
+    return (
+      method === 'pickup' ||
+      method === 'self-pickup' ||
+      method === 'self_pickup' ||
+      method === 'איסוף' ||
+      method === 'איסוף עצמי'
+    );
+  }
+
+  /** Mark ready order as delivered (pickup collected / delivery delivered). */
+  markOrderCompleted(order: Order): void {
+    if (String(order.status || '') !== 'ready') return;
+    const label = this.isPickupOrder(order) ? 'סמן כנאספה' : 'סמן כנמסרה';
+    if (!window.confirm(`${label}? ההזמנה תועבר להושלמו.`)) return;
+    this.applyStatusForOrder(order, 'delivered');
+  }
+
   restoreOrder(order: Order): void {
     const orderId = (order._id || order.id)?.toString();
     if (!orderId) return;
+    const preservedStatus = String(order.status || '');
     this.statusUpdatingId = orderId;
     this.trackKpi('orders_restored');
     this.orderService.restoreOrder(orderId).subscribe({
       next: () => {
         this.selectedOrderIds = new Set(Array.from(this.selectedOrderIds).filter((id) => id !== orderId));
-        this.successMessage = 'ההזמנה שוחזרה בהצלחה והועברה לטאב ממתינים';
+        this.successMessage = 'ההזמנה שוחזרה בהצלחה — הסטטוס נשמר';
         setTimeout(() => (this.successMessage = ''), 3000);
         this.statusUpdatingId = null;
-        this.currentTab = 'pending';
+        // Soft-delete cleared only — navigate to the ops tab matching preserved status.
+        if (preservedStatus === 'cancelled') this.currentTab = 'cancelled';
+        else if (preservedStatus === 'delivered' || preservedStatus === 'completed') {
+          this.currentTab = 'completed';
+        } else if (preservedStatus === 'ready' || preservedStatus === 'out_for_delivery') {
+          this.currentTab = 'ready';
+        } else if (
+          preservedStatus === 'processing' ||
+          preservedStatus === 'in-progress' ||
+          preservedStatus === 'delivery_failed'
+        ) {
+          this.currentTab = 'processing';
+        } else {
+          this.currentTab = 'pending';
+        }
         this.listPage = 1;
         this.reloadAfterMutation();
       },
@@ -1271,17 +1432,21 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const sourceItems = order.items || [];
     if (!sourceItems.length) return;
 
-    const payloadItems = sourceItems.map((item, index) => ({
-      productId: String((item as { productId?: string }).productId || ''),
-      name: String(item.name || ''),
-      quantity: Number(item.quantity || 1),
-      category: String((item as { category?: string }).category || ''),
-      price: Number((item as { price?: number }).price || 0),
-      description: (this.kitchenPrepLines[index]?.kitchenNotes || '').trim() || undefined
-    }));
+    const payloadItems = sourceItems.map((item, index) => {
+      // Notes-only: omit selectedOption so the server preserves the stored size/weight
+      // snapshot without re-matching catalog options (avoids collapsing 500→250).
+      return {
+        productId: String((item as { productId?: string }).productId || ''),
+        name: String(item.name || ''),
+        quantity: Number(item.quantity || 1),
+        category: String((item as { category?: string }).category || ''),
+        price: Number((item as { price?: number }).price || 0),
+        description: (this.kitchenPrepLines[index]?.kitchenNotes || '').trim() || undefined
+      };
+    });
 
     this.isSavingKitchenPrep = true;
-    this.orderService.updateOrderItems(orderId, payloadItems).subscribe({
+    this.orderService.updateOrderItems(orderId, payloadItems, { notifyCustomer: false }).subscribe({
       next: (updated) => {
         this.isSavingKitchenPrep = false;
         const normalized: Order = { ...updated, id: (updated._id || updated.id || '').toString() };
@@ -1470,7 +1635,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       });
     }
 
-    const itemsByCategory: Record<string, Array<{ name: string; notes: string }>> = {};
+    const itemsByCategory: Record<
+      string,
+      Array<{ name: string; sizeLabel: string; notes: string; missingChoice: boolean }>
+    > = {};
     (order.items || []).forEach((item) => {
       const cat = String((item as { category?: string }).category || 'כללי');
       const name = String(item.name || '');
@@ -1478,10 +1646,38 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       const notes =
         prepByKey.get(key) ||
         String((item as { description?: string }).description || '').trim();
+      const so = (item as { selectedOption?: { label?: string; amount?: string; missingForReview?: boolean } })
+        .selectedOption;
+      let sizeLabel = [so?.label, so?.amount && so.amount !== so.label ? so.amount : '']
+        .filter(Boolean)
+        .join(' · ');
+      if (!sizeLabel) {
+        const recovered = this.selectedOptionPayloadFromItem(item);
+        sizeLabel = recovered
+          ? [recovered.label, recovered.amount && recovered.amount !== recovered.label ? recovered.amount : '']
+              .filter(Boolean)
+              .join(' · ')
+          : this.inferSizeLabelFromMenu(item) || '';
+      }
+      const missingChoice = so?.missingForReview === true;
       if (!itemsByCategory[cat]) itemsByCategory[cat] = [];
-      itemsByCategory[cat].push({ name, notes });
+      itemsByCategory[cat].push({
+        name: this.displayItemBaseName({ name }),
+        sizeLabel,
+        notes,
+        missingChoice
+      });
     });
-
+    // Keep same dish / different sizes adjacent in the kitchen sheet.
+    for (const cat of Object.keys(itemsByCategory)) {
+      itemsByCategory[cat].sort((a, b) => {
+        const n = a.name.localeCompare(b.name, 'he');
+        if (n) return n;
+        const sa = Number(String(a.sizeLabel || '').match(/(\d+(?:\.\d+)?)/)?.[1] || Infinity);
+        const sb = Number(String(b.sizeLabel || '').match(/(\d+(?:\.\d+)?)/)?.[1] || Infinity);
+        return sa - sb;
+      });
+    }
     const categoryOrder = this.getCateringCategoryOrder(order);
     const sortedCategories = [
       ...categoryOrder.filter((c) => itemsByCategory[c]),
@@ -1497,7 +1693,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       other: 'פריטים נוספים / ללא סיווג'
     };
     const sectionOrder: MealSection[] = ['evening', 'morning', 'salads', 'third', 'other'];
-    const sectionItems: Record<MealSection, Array<{ category: string; name: string; notes: string }>> = {
+    const sectionItems: Record<
+      MealSection,
+      Array<{ category: string; name: string; sizeLabel: string; notes: string; missingChoice: boolean }>
+    > = {
       evening: [],
       morning: [],
       salads: [],
@@ -1508,7 +1707,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     sortedCategories.forEach((cat) => {
       const section = isShabbat ? this.classifyCateringCategory(cat) : 'other';
       (itemsByCategory[cat] || []).forEach((row) => {
-        sectionItems[section].push({ category: cat, name: row.name, notes: row.notes });
+        sectionItems[section].push({
+          category: cat,
+          name: row.name,
+          sizeLabel: row.sizeLabel,
+          notes: row.notes,
+          missingChoice: row.missingChoice
+        });
       });
     });
 
@@ -1525,12 +1730,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       const itemRows = rows
         .map((row) => {
           totalItemRows += 1;
-          const notesCell = row.notes
-            ? this.escapeKitchenHtml(row.notes)
-            : '<span class="muted">—</span>';
+          const notesCell = '';
           return `<tr>
             <td class="done-col">☐</td>
-            <td>${this.escapeKitchenHtml(row.name)}</td>
+            <td class="done-col">☐</td>
+            <td>${this.escapeKitchenHtml(row.name)}${row.missingChoice ? ' <strong style="color:#8a1f11">⚠ בחירה חסרה</strong>' : ''}</td>
+            <td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>
             <td class="qty-col">${qty}</td>
             <td class="notes-col">${notesCell}</td>
           </tr>`;
@@ -1541,7 +1746,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       if (!rows.length && section === 'third' && portions.seudaShlishit === true) {
         body = `<tr>
           <td class="done-col">☐</td>
-          <td colspan="3">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
+          <td class="done-col">☐</td>
+          <td colspan="4">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
         </tr>`;
         totalItemRows += 1;
       }
@@ -1553,8 +1759,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           <table>
             <thead>
               <tr>
-                <th class="done-col">בוצע</th>
+                <th class="done-col">הוכן</th>
+                <th class="done-col">נארז</th>
                 <th>שם מנה</th>
+                <th>גודל / אפשרות</th>
                 <th class="qty-col">כמות</th>
                 <th>הערות למטבח</th>
               </tr>
@@ -1571,17 +1779,17 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             .flatMap((cat) => {
               const catItems = itemsByCategory[cat] || [];
               if (!catItems.length) return [];
-              const header = `<tr class="cat-row"><td colspan="4"><strong>${this.escapeKitchenHtml(cat)}</strong></td></tr>`;
+              const header = `<tr class="cat-row"><td colspan="6"><strong>${this.escapeKitchenHtml(cat)}</strong></td></tr>`;
               const itemRows = catItems
                 .map((row) => {
                   totalItemRows += 1;
-                  const notesCell = row.notes
-                    ? this.escapeKitchenHtml(row.notes)
-                    : '<span class="muted">—</span>';
+                  const notesCell = '';
                   const qty = guestCount > 0 ? guestCount : 'לפי אורחים';
                   return `<tr>
                     <td class="done-col">☐</td>
-                    <td>${this.escapeKitchenHtml(row.name)}</td>
+                    <td class="done-col">☐</td>
+                    <td>${this.escapeKitchenHtml(row.name)}${row.missingChoice ? ' <strong style="color:#8a1f11">⚠ בחירה חסרה</strong>' : ''}</td>
+                    <td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>
                     <td class="qty-col">${qty}</td>
                     <td class="notes-col">${notesCell}</td>
                   </tr>`;
@@ -1593,7 +1801,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           if (rows) sectionsWithItems = 1;
           return rows
             ? `<div class="meal-section"><h2>פריטי האירוע</h2><table>
-              <thead><tr><th class="done-col">בוצע</th><th>שם מנה</th><th class="qty-col">כמות</th><th>הערות למטבח</th></tr></thead>
+              <thead><tr><th class="done-col">הוכן</th><th class="done-col">נארז</th><th>שם מנה</th><th>גודל / אפשרות</th><th class="qty-col">כמות</th><th>הערות למטבח</th></tr></thead>
               <tbody>${rows}</tbody></table></div>`
             : '';
         })();
@@ -1615,6 +1823,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const deliveryTypeLabel = this.formatKitchenDeliveryType(cd);
     const addressDisplay = this.formatKitchenDeliveryAddress(cd);
     const email = String(cd['email'] || '').trim();
+    const allergies = String((order as { allergies?: string }).allergies || '').trim();
+    const allergyBlock = allergies
+      ? `<div class="block" style="border-width:2px;border-color:#8a1f11"><div class="block-title" style="color:#8a1f11">אלרגיות</div><div style="font-weight:700;font-size:1.05rem">${this.escapeKitchenHtml(allergies)}</div></div>`
+      : '';
 
     let portionsBlock = '';
     if (isEvents) {
@@ -1682,12 +1894,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         .meal-section{margin:16px 0;page-break-inside:avoid}
         .meal-section h2{margin:0 0 8px;font-size:1.05rem;font-weight:800;border-bottom:1px solid #111;padding-bottom:4px}
         table{width:100%;border-collapse:collapse;margin-top:6px}
-        th,td{border:1px solid #111;padding:7px 8px;text-align:right;vertical-align:top;color:#000}
+        th,td{border:1px solid #111;padding:9px 8px;text-align:right;vertical-align:middle;color:#000}
         th{background:#f4f4f4;font-weight:700}
         tr.cat-row td{background:#f8f8f8;font-weight:700}
-        .done-col{width:42px;text-align:center}
+        .done-col{width:40px;text-align:center;font-size:16px;font-weight:700}
         .qty-col{width:72px;text-align:center;white-space:nowrap}
-        .notes-col{min-width:140px}
+        .notes-col{min-width:140px;min-height:28px;height:28px}
         .toolbar{margin:12px 0;display:flex;gap:8px}
         .toolbar button{padding:8px 14px;border:1px solid #111;background:#fff;cursor:pointer;font-family:inherit}
         @media print{
@@ -1713,6 +1925,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           <div><strong>כתובת:</strong> ${this.escapeKitchenHtml(addressDisplay)}</div>
           ${deliveryTypeLabel ? `<div><strong>סוג אספקה:</strong> ${deliveryTypeLabel}</div>` : ''}
         </div>
+        ${allergyBlock}
         ${portionsBlock}
         ${notesBlocks.join('')}
         <div class="toolbar no-print">
@@ -1721,6 +1934,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         </div>
         ${tablesHtml || '<p class="muted">אין פריטים</p>'}
         ${summaryBlock}
+        <div class="notes-block" style="min-height:72px;margin-top:18px"><div class="notes-title">הערות כלליות להזמנה</div><div style="min-height:48px"></div></div>
+        <div style="margin-top:28px;display:flex;gap:24px;flex-wrap:wrap">
+          <div style="flex:1;min-width:140px;border-top:1px solid #111;padding-top:6px">הוכן</div>
+          <div style="flex:1;min-width:140px;border-top:1px solid #111;padding-top:6px">נארז</div>
+          <div style="flex:1;min-width:140px;border-top:1px solid #111;padding-top:6px">יצא</div>
+        </div>
       </body></html>`;
   }
 
@@ -1733,39 +1952,161 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   isCompleted(status: string): boolean {
-    return status === 'ready' || status === 'delivered' || status === 'cancelled';
+    return status === 'delivered' || status === 'completed';
   }
 
   changeStatus(order: Order, newStatus: Order['status']): void {
     this.applyStatusForOrder(order, newStatus);
   }
 
-  private applyStatusForOrder(order: Order, newStatus: Order['status']): void {
+  hasOpenPaymentException(order: Order | null | undefined): boolean {
+    if (!order) return false;
+    const pay = String(order.paymentStatus || '');
+    if (pay !== 'failed' && pay !== 'awaiting_payment') return false;
+    return !order.paymentExceptionResolvedAt;
+  }
+
+  isOpsStatusRequiringResolution(status: string): boolean {
+    return [
+      'pending',
+      'new',
+      'processing',
+      'in-progress',
+      'ready',
+      'delivered',
+      'out_for_delivery',
+      'completed'
+    ].includes(status);
+  }
+
+  hasManualPaymentRecord(order: Order | null | undefined): boolean {
+    if (!order) return false;
+    return !!(order.manualPaymentRecordedAt || (order.customerDetails as any)?.isPaid === true);
+  }
+
+  private applyStatusForOrder(
+    order: Order,
+    newStatus: Order['status'],
+    extras?: {
+      paymentExceptionResolution?: NonNullable<Order['paymentExceptionResolution']>;
+      manualPaymentMethod?: string;
+      manualPaymentNote?: string;
+    }
+  ): void {
     const orderId = (order._id || order.id)?.toString();
     if (!orderId) return;
+    if (this.statusUpdatingId === orderId) return;
+
+    if (
+      this.hasOpenPaymentException(order) &&
+      this.isOpsStatusRequiringResolution(newStatus) &&
+      !extras?.paymentExceptionResolution
+    ) {
+      this.statusResolutionModal = {
+        order,
+        newStatus,
+        resolution: null,
+        manualPaymentNote: ''
+      };
+      this.closeStatusEdit();
+      return;
+    }
+
     this.statusUpdatingId = orderId;
     const prev = order.status;
     order.status = newStatus;
-    this.orderService.updateOrderStatus(orderId, newStatus).subscribe({
-      next: (updated) => {
-        const idx = this.orders.findIndex((o) => (o._id || o.id) === orderId);
-        if (idx > -1) this.orders[idx] = updated;
-        this.successMessage =
-          newStatus === 'processing'
-            ? 'ההזמנה אושרה ומייל נשלח ללקוח'
-            : `סטטוס עודכן ל-${this.getStatusLabel(newStatus)}`;
-        setTimeout(() => (this.successMessage = ''), 3000);
-        this.statusUpdatingId = null;
-        this.trackKpi('orders_status_updated');
-        this.reloadAfterMutation();
-      },
-      error: () => {
-        order.status = prev;
-        this.errorMessage = 'שגיאה בעדכון סטטוס';
-        setTimeout(() => (this.errorMessage = ''), 3000);
-        this.statusUpdatingId = null;
+    this.orderService
+      .updateOrderStatus(orderId, newStatus, {
+        paymentExceptionResolution: extras?.paymentExceptionResolution,
+        manualPaymentMethod: extras?.manualPaymentMethod,
+        manualPaymentNote: extras?.manualPaymentNote
+      })
+      .subscribe({
+        next: (res) => {
+          const updated = res.order;
+          const tab = res.adminStatusTab;
+          this.orders = this.orders.filter((o) => (o._id || o.id)?.toString() !== orderId);
+          if (tab && tab === this.currentTab) {
+            this.orders = [updated, ...this.orders];
+          }
+          if (this.selectedOrder && (this.selectedOrder._id || this.selectedOrder.id) === orderId) {
+            this.selectedOrder = updated;
+          }
+          this.successMessage = `סטטוס עודכן ל-${this.getStatusLabel(updated.status || newStatus)}`;
+          setTimeout(() => (this.successMessage = ''), 3000);
+          this.statusUpdatingId = null;
+          this.statusResolutionModal = null;
+          this.trackKpi('orders_status_updated');
+          this.reloadAfterMutation();
+        },
+        error: (err) => {
+          order.status = prev;
+          this.errorMessage =
+            err?.error?.message ||
+            err?.error?.error?.message ||
+            'שגיאה בעדכון סטטוס';
+          setTimeout(() => (this.errorMessage = ''), 4000);
+          this.statusUpdatingId = null;
+        }
+      });
+  }
+
+  closeStatusResolutionModal(): void {
+    this.statusResolutionModal = null;
+  }
+
+  confirmStatusWithPaymentResolution(): void {
+    const modal = this.statusResolutionModal;
+    if (!modal?.resolution) {
+      this.errorMessage = 'יש לבחור אופן טיפול בחריגת התשלום';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+
+    if (modal.resolution === 'send_new_payment_link') {
+      this.statusResolutionModal = null;
+      this.resolvePaymentException(modal.order, 'send_new_payment_link');
+      const orderId = (modal.order._id || modal.order.id || '').toString();
+      if (orderId) {
+        this.orderService.initiatePaymentLink(orderId).subscribe({
+          next: (res: any) => {
+            const url = res?.redirectUrl || res?.data?.redirectUrl;
+            if (url) {
+              window.open(url, '_blank', 'noopener');
+              this.successMessage = 'נפתח קישור תשלום חדש — ההזמנה נשארת בחריגות עד להחלטה';
+            } else {
+              this.successMessage = 'בקשת קישור תשלום נשלחה — ההזמנה נשארת בחריגות';
+            }
+            setTimeout(() => (this.successMessage = ''), 4000);
+          },
+          error: (err) => {
+            this.errorMessage = err?.error?.message || 'שגיאה ביצירת קישור תשלום';
+            setTimeout(() => (this.errorMessage = ''), 4000);
+          }
+        });
       }
-    });
+      return;
+    }
+
+    const targetStatus =
+      modal.resolution === 'cancel_order' ? ('cancelled' as Order['status']) : 'processing';
+    const extras = {
+      paymentExceptionResolution: modal.resolution,
+      manualPaymentMethod:
+        modal.resolution === 'paid_elsewhere_continue' ? 'שולם בדרך אחרת' : undefined,
+      manualPaymentNote:
+        modal.resolution === 'paid_elsewhere_continue'
+          ? modal.manualPaymentNote.trim() || undefined
+          : undefined
+    };
+
+    if (modal.isBulk && modal.bulkOrderIds?.length) {
+      this.statusResolutionModal = null;
+      this.executeBulkAction('status', targetStatus, extras);
+      return;
+    }
+
+    this.applyStatusForOrder(modal.order, targetStatus, extras);
   }
 
   openStatusEdit(order: Order): void {
@@ -1793,9 +2134,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   viewOrderDetails(order: Order): void {
+    this.paymentReasonOpenId = null;
     this.selectedOrder = order;
     this.editAdminNotesValue = order.adminNotes || '';
     this.refreshKitchenPrepLines();
+    if (!this.availableMenuItems.length) {
+      this.menuService.getMenuItems().subscribe({
+        next: (items) => {
+          this.availableMenuItems = Array.isArray(items) ? items.filter((i) => i._id || i.id) : [];
+        },
+        error: () => {
+          /* size inference falls back to selectedOption / name only */
+        }
+      });
+    }
   }
 
   hasCustomerNotes(order: Order | null): boolean {
@@ -1860,6 +2212,127 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }));
   }
 
+  /** Round-trip selectedOption; recover from legacy name encoding when snapshot missing. */
+  private selectedOptionPayloadFromItem(item: unknown): SelectedOptionPayload | undefined {
+    const raw = item as {
+      name?: string;
+      price?: number;
+      productId?: string;
+      id?: string;
+      selectedOption?: SelectedOptionPayload & Record<string, unknown>;
+    };
+    const so = raw?.selectedOption;
+    if (so && (String(so.label || '').trim() || String(so.amount || '').trim())) {
+      const label = String(so.label || so.amount || '').trim();
+      const amountRaw = String(so.amount || so.valueName || '').trim();
+      // Legacy rows sometimes store numeric amounts as numbers; keep label when amount empty.
+      const amount = amountRaw || (label && /\d/.test(label) ? label : '') || undefined;
+      return {
+        label,
+        amount: amount || undefined,
+        price: Number(so.price ?? raw.price ?? 0),
+        optionId: so.optionId != null ? String(so.optionId) : undefined,
+        optionName: so.optionName != null ? String(so.optionName) : undefined,
+        valueId: so.valueId != null ? String(so.valueId) : undefined,
+        valueName: so.valueName != null ? String(so.valueName) : amount || label || undefined,
+        quantity: so.quantity != null && Number(so.quantity) > 0 ? Number(so.quantity) : undefined,
+        priceAdjustment:
+          so.priceAdjustment != null && Number.isFinite(Number(so.priceAdjustment))
+            ? Number(so.priceAdjustment)
+            : undefined,
+        missingForReview: so.missingForReview === true ? true : undefined
+      };
+    }
+
+    // Composite cart id `…-size-N` is authoritative when present.
+    const fromComposite = this.optionFromCompositeProductId(raw);
+    if (fromComposite) return fromComposite;
+
+    const fullName = String(raw?.name || '').trim();
+    const trailingParen = fullName.match(/^(.*)\s*\(([^)]+)\)\s*$/);
+    if (trailingParen) {
+      const inside = trailingParen[2].trim();
+      if (this.looksLikeSizeToken(inside)) {
+        const parts = inside.split(/\s*-\s*/).map((p) => p.trim()).filter(Boolean);
+        const label = parts[0] || inside;
+        const amount = parts.length >= 2 ? parts.slice(1).join(' - ') : inside;
+        return {
+          label,
+          amount: amount || undefined,
+          price: Number(raw?.price || 0),
+          optionName: label,
+          valueName: amount || label
+        };
+      }
+      // Nickname only (e.g. טירשי) — not a size; fall through to menu price match.
+    } else {
+      const dash = fullName.match(/^(.*?)\s+-\s+(.+)$/);
+      if (dash && this.looksLikeSizeToken(dash[2])) {
+        const label = dash[2].trim();
+        return {
+          label,
+          price: Number(raw?.price || 0),
+          optionName: label,
+          valueName: label
+        };
+      }
+    }
+
+    const inferred = this.inferSizeLabelFromMenu(raw);
+    if (!inferred) return undefined;
+    return {
+      label: inferred,
+      amount: inferred,
+      price: Number(raw?.price || 0),
+      optionName: inferred,
+      valueName: inferred
+    };
+  }
+
+  private looksLikeSizeToken(text: string): boolean {
+    const raw = String(text || '').trim();
+    if (!raw) return false;
+    if (/\d/.test(raw)) {
+      if (/מ"?ל|ml\b|ליטר|liter|\bl\b|גר(?:ם)?|gram|\bg\b|ק"?ג|kg\b|יח'?|unit/i.test(raw)) return true;
+      if (/^\d+(?:[.,]\d+)?(?:\s*(?:מ"?ל|ml|ל|גרם?|g|ק"?ג|kg))?$/i.test(raw)) return true;
+      if (/\s-\s/.test(raw)) return true;
+    }
+    return /^(קטן|קטנה|בינוני|בינונית|גדול|גדולה|רגיל|רגילה|אישי|משפחתי|XL|L|M|S)$/i.test(raw);
+  }
+
+  private optionFromCompositeProductId(item: {
+    productId?: string;
+    id?: string;
+    price?: number;
+  }): SelectedOptionPayload | undefined {
+    const productId = String(item.productId || item.id || '').trim();
+    const m = productId.match(/^[a-fA-F0-9]{24}-size-(\d+)$/i);
+    if (!m) return undefined;
+    const idx = Number(m[1]);
+    const baseId = this.extractBaseProductId(productId);
+    if (!baseId || !this.availableMenuItems.length) return undefined;
+    const product = this.availableMenuItems.find(
+      (p) => String(p._id || p.id || '').trim() === baseId
+    );
+    const options = Array.isArray(product?.pricingOptions)
+      ? product!.pricingOptions!
+      : Array.isArray(product?.pricingVariants)
+        ? product!.pricingVariants!
+        : [];
+    if (!Number.isInteger(idx) || idx < 0 || idx >= options.length) return undefined;
+    const o = options[idx] as { label?: string; amount?: string; size?: string; price?: number };
+    const label = String(o.label || o.amount || o.size || '').trim();
+    const amount = String(o.amount || o.size || o.label || '').trim();
+    if (!label && !amount) return undefined;
+    return {
+      label: label || amount,
+      amount: amount || label,
+      price: Number(o.price ?? item.price ?? 0),
+      optionName: label || amount,
+      valueName: amount || label
+    };
+  }
+
   closeModal(): void {
     this.selectedOrder = null;
     this.isEditingEventDate = false;
@@ -1879,22 +2352,21 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     if (!this.selectedOrder) return;
     this.isEditingItems = true;
     this.searchTerm = '';
-    this.editableItems = (this.selectedOrder.items || []).map((item) => ({
-      productId: String((item as any).productId || (item as any).id || ''),
-      baseName: String((item as any).name || '').split(' - ')[0].trim(),
-      name: String(item.name || ''),
-      quantity: Number(item.quantity || 1),
-      category: String((item as any).category || ''),
-      unitPrice: Number((item as any).price || 0),
-      kitchenNotes: String((item as any).description || '').trim(),
-      selectedOption: (item as any).selectedOption
-        ? {
-            label: String((item as any).selectedOption.label || '').trim(),
-            amount: String((item as any).selectedOption.amount || '').trim() || undefined,
-            price: Number((item as any).selectedOption.price ?? (item as any).price ?? 0)
-          }
-        : undefined
-    }));
+    this.editableItems = (this.selectedOrder.items || []).map((item) => {
+      const selectedOption = this.selectedOptionPayloadFromItem(item);
+      const fullName = String(item.name || '');
+      const baseName = this.displayItemBaseName(item);
+      return {
+        productId: String((item as any).productId || (item as any).id || ''),
+        baseName,
+        name: fullName,
+        quantity: Number(item.quantity || 1),
+        category: String((item as any).category || ''),
+        unitPrice: Number((item as any).price || 0),
+        kitchenNotes: String((item as any).description || '').trim(),
+        selectedOption
+      };
+    });
 
     if (!this.availableMenuItems.length) {
       this.menuService.getMenuItems().subscribe({
@@ -1916,6 +2388,184 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.isSavingItems = false;
     this.cateringNewItemName = '';
     this.cateringNewItemCategory = 'סלטים';
+  }
+
+  /** Strip composite cart suffix `…-size-N` to match catalog product ids. */
+  private extractBaseProductId(productId: unknown): string {
+    const raw = String(productId || '').trim();
+    if (!raw) return '';
+    const m = raw.match(/^([a-fA-F0-9]{24})/);
+    return m ? m[1] : raw;
+  }
+
+  private sizeChoiceKey(label: string, amount?: string, price?: number): string {
+    return [
+      String(label || '').trim().toLowerCase(),
+      String(amount || '').trim().toLowerCase(),
+      String(Number(price) || 0)
+    ].join('|');
+  }
+
+  private normalizeAmountDigits(raw: unknown): string {
+    return String(raw || '')
+      .trim()
+      .replace(/[^\d.]/g, '');
+  }
+
+  /** Catalog size/weight choices for an editable line (empty when product has a fixed price). */
+  getEditableItemSizeChoices(item: EditableOrderItem): EditableSizeChoice[] {
+    const baseId = this.extractBaseProductId(item.productId);
+    if (!baseId || !this.availableMenuItems.length) {
+      return this.legacySizeChoiceFallback(item);
+    }
+    const product = this.availableMenuItems.find(
+      (p) => String(p._id || p.id || '').trim() === baseId
+    );
+    if (!product) return this.legacySizeChoiceFallback(item);
+
+    const options = Array.isArray(product.pricingOptions) ? product.pricingOptions : [];
+    let choices: EditableSizeChoice[] = [];
+    if (options.length > 0) {
+      choices = options.map((opt) => ({
+        key: this.sizeChoiceKey(String(opt.label || ''), String(opt.amount || ''), Number(opt.price)),
+        label: String(opt.label || '').trim(),
+        amount: String(opt.amount || '').trim() || undefined,
+        price: Number(opt.price) || 0
+      }));
+    } else {
+      const variants = Array.isArray(product.pricingVariants) ? product.pricingVariants : [];
+      choices = variants.map((v) => {
+        const label = String(v.label || v.size || '').trim();
+        const amount = String(v.size || '').trim() || undefined;
+        return {
+          key: this.sizeChoiceKey(label, amount, Number(v.price)),
+          label,
+          amount,
+          price: Number(v.price) || 0
+        };
+      });
+    }
+
+    return this.ensureCurrentSizeInChoices(item, choices);
+  }
+
+  private legacySizeChoiceFallback(item: EditableOrderItem): EditableSizeChoice[] {
+    return this.ensureCurrentSizeInChoices(item, []);
+  }
+
+  /** Keep the stored size visible even if the catalog no longer lists it. */
+  private ensureCurrentSizeInChoices(
+    item: EditableOrderItem,
+    choices: EditableSizeChoice[]
+  ): EditableSizeChoice[] {
+    const so = item.selectedOption;
+    if (!so?.label && !so?.amount) return choices;
+    const label = String(so.label || so.amount || '').trim();
+    const amount = String(so.amount || '').trim() || undefined;
+    const price = Number(so.price ?? item.unitPrice ?? 0) || 0;
+    const key = this.sizeChoiceKey(label, amount, price);
+    if (choices.some((c) => c.key === key)) return choices;
+    if (this.findSizeChoiceForItem(item, choices)) return choices;
+    return [{ key, label, amount, price }, ...choices];
+  }
+
+  private findSizeChoiceForItem(
+    item: EditableOrderItem,
+    choices: EditableSizeChoice[]
+  ): EditableSizeChoice | undefined {
+    const so = item.selectedOption;
+    if (!choices.length) return undefined;
+    if (so) {
+      const exact = choices.find(
+        (c) =>
+          c.label === String(so.label || '').trim() &&
+          String(c.amount || '') === String(so.amount || '')
+      );
+      if (exact) return exact;
+      const byAmount = choices.find(
+        (c) =>
+          !!so.amount &&
+          !!c.amount &&
+          (String(c.amount) === String(so.amount) ||
+            this.normalizeAmountDigits(c.amount) === this.normalizeAmountDigits(so.amount))
+      );
+      if (byAmount) return byAmount;
+      const byLabel = choices.find((c) => c.label === String(so.label || '').trim());
+      if (byLabel) return byLabel;
+    }
+    const byPrice = choices.find((c) => c.price === Number(item.unitPrice || 0));
+    return byPrice;
+  }
+
+  getEditableItemSizeKey(item: EditableOrderItem): string {
+    const choices = this.getEditableItemSizeChoices(item);
+    if (!choices.length) return '';
+    return this.findSizeChoiceForItem(item, choices)?.key || choices[0].key;
+  }
+
+  /** Admin changes salad/side size (or any pricing option) on an existing line. */
+  onEditableItemSizeChange(item: EditableOrderItem, key: string): void {
+    const choicesBefore = this.getEditableItemSizeChoices(item);
+    const choice = choicesBefore.find((c) => c.key === key);
+    if (!choice) return;
+
+    const baseName =
+      String(item.baseName || '').trim() ||
+      String(item.name || '')
+        .replace(/\s*\([^)]*\)\s*$/, '')
+        .replace(/\s+-\s+.+$/, '')
+        .trim() ||
+      String(item.name || '').trim();
+
+    const baseId = this.extractBaseProductId(item.productId);
+    let catalogSizeIndex: number | null = null;
+    if (baseId) {
+      const product = this.availableMenuItems.find(
+        (p) => String(p._id || p.id || '').trim() === baseId
+      );
+      const options = Array.isArray(product?.pricingOptions) ? product!.pricingOptions! : [];
+      const variants = Array.isArray(product?.pricingVariants) ? product!.pricingVariants! : [];
+      if (options.length > 0) {
+        catalogSizeIndex = options.findIndex(
+          (o) =>
+            String(o.label || '').trim() === choice.label &&
+            String(o.amount || '').trim() === String(choice.amount || '')
+        );
+        if (catalogSizeIndex < 0) {
+          catalogSizeIndex = options.findIndex(
+            (o) =>
+              this.normalizeAmountDigits(o.amount) === this.normalizeAmountDigits(choice.amount) &&
+              !!choice.amount
+          );
+        }
+      } else if (variants.length > 0) {
+        catalogSizeIndex = variants.findIndex(
+          (v) => String(v.label || v.size || '').trim() === choice.label
+        );
+      }
+      if (catalogSizeIndex != null && catalogSizeIndex < 0) catalogSizeIndex = null;
+    }
+
+    item.baseName = baseName;
+    item.unitPrice = choice.price;
+    item.selectedOption = {
+      label: choice.label,
+      amount: choice.amount,
+      price: choice.price,
+      optionId: catalogSizeIndex != null ? String(catalogSizeIndex) : undefined,
+      optionName: choice.label,
+      valueName: choice.amount || choice.label
+    };
+    item.name =
+      choice.amount && choice.amount !== choice.label
+        ? `${baseName} (${choice.label} - ${choice.amount})`
+        : `${baseName} (${choice.label})`;
+
+    if (baseId && catalogSizeIndex != null) {
+      item.productId = `${baseId}-size-${catalogSizeIndex}`;
+    } else if (baseId) {
+      item.productId = baseId;
+    }
   }
 
   /** Public getter so the template can check if the selected order is a catering order. */
@@ -1963,20 +2613,41 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   /**
    * Returns selectedOrder.items grouped by category for the VIEW (read-only) mode.
    */
-  getCateringViewItemsByCategory(): { category: string; items: { name: string; kitchenNotes?: string }[] }[] {
+  getCateringViewItemsByCategory(): {
+    category: string;
+    items: { name: string; sizeLabel?: string; kitchenNotes?: string }[];
+  }[] {
     if (!this.selectedOrder) return [];
     const categoryOrder = this.getCateringCategoryOrder(this.selectedOrder);
-    const grouped: Record<string, { name: string; kitchenNotes?: string }[]> = {};
+    const grouped: Record<string, { name: string; sizeLabel?: string; kitchenNotes?: string }[]> = {};
     (this.selectedOrder.items || []).forEach((item) => {
       const cat = (item as any).category || 'כללי';
       if (!grouped[cat]) grouped[cat] = [];
       const kitchenNotes = String((item as any).description || '').trim();
+      const so = this.selectedOptionPayloadFromItem(item);
+      const sizeLabel = so
+        ? [so.label, so.amount && so.amount !== so.label ? so.amount : ''].filter(Boolean).join(' · ') ||
+          undefined
+        : this.inferSizeLabelFromMenu(item);
       grouped[cat].push({
-        name: item.name,
+        name: this.displayItemBaseName(item),
+        sizeLabel,
         kitchenNotes: kitchenNotes || undefined
       });
     });
-    const result: { category: string; items: { name: string; kitchenNotes?: string }[] }[] = [];
+    for (const cat of Object.keys(grouped)) {
+      grouped[cat].sort((a, b) => {
+        const n = a.name.localeCompare(b.name, 'he');
+        if (n) return n;
+        const sa = Number(String(a.sizeLabel || '').match(/(\d+(?:\.\d+)?)/)?.[1] || Infinity);
+        const sb = Number(String(b.sizeLabel || '').match(/(\d+(?:\.\d+)?)/)?.[1] || Infinity);
+        return sa - sb;
+      });
+    }
+    const result: {
+      category: string;
+      items: { name: string; sizeLabel?: string; kitchenNotes?: string }[];
+    }[] = [];
     categoryOrder.forEach((cat) => {
       if (grouped[cat]) result.push({ category: cat, items: grouped[cat] });
     });
@@ -1986,12 +2657,64 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return result;
   }
 
+  /** Recover size from menu pricing when the order line has no selectedOption. */
+  private inferSizeLabelFromMenu(item: unknown): string | undefined {
+    const raw = item as { name?: string; price?: number; productId?: string; id?: string };
+    const baseId = this.extractBaseProductId(String(raw.productId || raw.id || ''));
+    if (!baseId || !this.availableMenuItems.length) return undefined;
+    const product = this.availableMenuItems.find(
+      (p) => String(p._id || p.id || '').trim() === baseId
+    );
+    const options = Array.isArray(product?.pricingOptions)
+      ? product!.pricingOptions!
+      : Array.isArray(product?.pricingVariants)
+        ? product!.pricingVariants!
+        : [];
+    if (!options.length) return undefined;
+    if (options.length === 1) {
+      const o = options[0] as { label?: string; amount?: string; size?: string };
+      return String(o.label || o.amount || o.size || '').trim() || undefined;
+    }
+    const unitPrice = Number(raw.price);
+    if (!Number.isFinite(unitPrice)) return undefined;
+    const matches = options.filter((o: any) => Number(o?.price) === unitPrice);
+    if (matches.length !== 1) return undefined;
+    const o = matches[0] as { label?: string; amount?: string; size?: string };
+    return String(o.label || o.amount || o.size || '').trim() || undefined;
+  }
+
+  displayItemBaseName(item: unknown): string {
+    const raw = item as { name?: string };
+    const full = String(raw?.name || '').trim();
+    const trailingParen = full.match(/^(.*)\s*\(([^)]+)\)\s*$/);
+    if (trailingParen && this.looksLikeSizeToken(trailingParen[2])) {
+      return trailingParen[1].trim() || full;
+    }
+    const dash = full.match(/^(.*?)\s+-\s+(.+)$/);
+    if (dash && this.looksLikeSizeToken(dash[2])) {
+      return dash[1].trim() || full;
+    }
+    return full;
+  }
+
+  displayItemSize(item: unknown): string {
+    const so = this.selectedOptionPayloadFromItem(item);
+    if (so?.label || so?.amount) {
+      const label = String(so.label || '').trim();
+      const amount = String(so.amount || '').trim();
+      if (label && /\d/.test(label)) return label;
+      if (label && amount && label !== amount) return `${label} · ${amount}`;
+      return label || amount;
+    }
+    return this.inferSizeLabelFromMenu(item) || '';
+  }
+
   /** Shabbat catering detail panel — grouped by meal (evening / morning / salads / legacy). */
   getCateringDetailSections(): Array<{
     title: string;
     portions?: number | null;
     legacy?: boolean;
-    categories: { category: string; items: { name: string; kitchenNotes?: string }[] }[];
+    categories: { category: string; items: { name: string; sizeLabel?: string; kitchenNotes?: string }[] }[];
   }> {
     if (!this.selectedOrder || !this.isShabbatCateringOrder(this.selectedOrder)) return [];
 
@@ -2201,6 +2924,22 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const orderId = (order._id || order.id || '').toString();
     if (!orderId) return;
 
+    const mapOption = (item: EditableOrderItem) =>
+      item.selectedOption
+        ? {
+            label: String(item.selectedOption.label || '').trim(),
+            amount: String(item.selectedOption.amount || '').trim() || undefined,
+            price: Number(item.selectedOption.price || item.unitPrice || 0),
+            optionId: item.selectedOption.optionId,
+            optionName: item.selectedOption.optionName,
+            valueId: item.selectedOption.valueId,
+            valueName: item.selectedOption.valueName,
+            quantity: item.selectedOption.quantity,
+            priceAdjustment: item.selectedOption.priceAdjustment,
+            missingForReview: item.selectedOption.missingForReview
+          }
+        : undefined;
+
     const payloadItems = this.isCateringOrder(order)
       ? this.editableItems
           .filter((item) => item.name.trim() && item.quantity > 0)
@@ -2209,21 +2948,21 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             name: item.name.trim(),
             quantity: Number(item.quantity),
             category: item.category || '',
-            price: 0,
-            description: (item.kitchenNotes || '').trim() || undefined
+            // Send the unit price from the editor when set; backend recalculates
+            // catering totals from portion×rate / admin override when price is 0.
+            price: Number(item.unitPrice || item.selectedOption?.price || 0),
+            description: (item.kitchenNotes || '').trim() || undefined,
+            selectedOption: mapOption(item)
           }))
       : this.editableItems
           .map((item) => ({
             productId: String(item.productId || '').trim(),
             name: String(item.name || '').trim(),
             quantity: Number(item.quantity || 0),
-            selectedOption: item.selectedOption
-              ? {
-                  label: String(item.selectedOption.label || '').trim(),
-                  amount: String(item.selectedOption.amount || '').trim() || undefined,
-                  price: Number(item.selectedOption.price || item.unitPrice || 0)
-                }
-              : undefined
+            category: item.category || '',
+            price: Number(item.unitPrice || item.selectedOption?.price || 0),
+            description: (item.kitchenNotes || '').trim() || undefined,
+            selectedOption: mapOption(item)
           }))
           .filter((item) => item.productId && item.quantity > 0);
 
@@ -2234,7 +2973,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
 
     this.isSavingItems = true;
-    this.orderService.updateOrderItems(orderId, payloadItems).subscribe({
+    this.orderService.updateOrderItems(orderId, payloadItems, { notifyCustomer: false }).subscribe({
       next: (updated) => {
         const normalizedUpdated: Order = {
           ...updated,
@@ -2351,9 +3090,6 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/admin/kitchen-report']);
   }
 
-  closeKitchenReport(): void {
-    this.showKitchenReport = false;
-  }
 
   formatDate(date: string | Date | undefined): string {
     if (!date) return 'לא צוין';
@@ -2373,10 +3109,23 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       processing: 'בטיפול',
       'in-progress': 'בטיפול',
       ready: 'מוכן',
+      out_for_delivery: 'בדרך למשלוח',
+      delivery_failed: 'משלוח נכשל',
       delivered: 'נמסר',
+      completed: 'הושלם',
       cancelled: 'בוטל'
     };
     return labels[status] || status;
+  }
+
+  /** Highlight current status in the edit modal (including legacy aliases). */
+  isStatusOptionActive(orderStatus: string | undefined, optionValue: string): boolean {
+    const current = String(orderStatus || '').trim();
+    if (current === optionValue) return true;
+    if (optionValue === 'pending' && current === 'new') return true;
+    if (optionValue === 'processing' && current === 'in-progress') return true;
+    if (optionValue === 'delivered' && current === 'completed') return true;
+    return false;
   }
 
   /** True when order has explicit evening/morning portion breakdown. */
@@ -2512,13 +3261,200 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   getPaymentStatusLabel(status: Order['paymentStatus']): string {
     const labels: Record<string, string> = {
       pending: 'ממתין לתשלום',
-      awaiting_payment: 'ננטש (לא הושלם תשלום)',
+      awaiting_payment: 'ננטש — לא הושלם תשלום באתר',
       authorized: 'מאושר (טרם חויב)',
       captured: 'חויב',
       voided: 'בוטל (הסכום שוחרר)',
-      failed: 'נכשל'
+      failed: 'תשלום נכשל בסליקה'
     };
     return labels[status ?? 'pending'] ?? status ?? '—';
+  }
+
+  /** True when transactionId looks like a real gateway reference (not ORD-/MOCK- placeholder). */
+  private hasGatewayPaymentReference(order: Order): boolean {
+    const tx = String(order.transactionId || '').trim();
+    if (!tx) return false;
+    if (tx.startsWith('ORD-') || tx.startsWith('MOCK-')) return false;
+    return true;
+  }
+
+  /**
+   * Full attention explanation for failed/abandoned payments.
+   * Only states what our system can know — no invented Tranzila internals.
+   */
+  getPaymentAttentionDetails(order: Order | null | undefined): {
+    titleHe: string;
+    buttonLabelHe: string;
+    summaryHe: string;
+    cardEnteredLabel: string;
+    cardEnteredValue: string;
+    cardEnteredTone: 'yes' | 'no' | 'unknown';
+    chargedLabel: string;
+    chargedValue: string;
+    chargedTone: 'yes' | 'no' | 'hold' | 'unknown';
+    bullets: string[];
+  } | null {
+    if (!order?.paymentStatus) return null;
+    const status = order.paymentStatus;
+    const hasRef = this.hasGatewayPaymentReference(order);
+
+    if (status === 'awaiting_payment') {
+      return {
+        titleHe: 'ננטש בתשלום',
+        buttonLabelHe: 'סיבת נטישה',
+        summaryHe:
+          'הלקוח יצר הזמנה והתחיל תהליך תשלום, אך לא חזר לאתר עם אישור מספק הסליקה.',
+        cardEnteredLabel: 'האם הזין אשראי?',
+        cardEnteredValue:
+          'לא ידוע בוודאות — ייתכן שהתחיל להזין בדף הסליקה החיצוני, אבל אין אישור במערכת שלנו שהושלמה הזנת כרטיס.',
+        cardEnteredTone: 'unknown',
+        chargedLabel: 'האם חויב?',
+        chargedValue: 'לא — לא התקבל אישור חיוב או אישור (authorize) במערכת.',
+        chargedTone: 'no',
+        bullets: [
+          'סטטוס תשלום: ממתין להשלמה (awaiting_payment)',
+          hasRef
+            ? 'קיימת אסמכתת סליקה במערכת — מומלץ לבדוק ידנית מול ספק הסליקה'
+            : 'אין אסמכתת סליקה אמיתית (רק מזהה הזמנה פנימי) — סימן שלא הושלם תשלום אצלנו',
+          'אין אימייל אישור תשלום שנשלח על בסיס הצלחת סליקה'
+        ]
+      };
+    }
+
+    if (status === 'failed') {
+      return {
+        titleHe: 'תשלום נכשל',
+        buttonLabelHe: 'סיבת כישלון',
+        summaryHe: 'תהליך התשלום סומן כנכשל במערכת. לא התקבל אישור חיוב מוצלח.',
+        cardEnteredLabel: 'האם הזין אשראי?',
+        cardEnteredValue:
+          'סביר שניסה להזין פרטי אשראי (או שהסליקה נכשלה אחרי ניסיון), אבל אין אישור שהעסקה הצליחה.',
+        cardEnteredTone: 'unknown',
+        chargedLabel: 'האם חויב?',
+        chargedValue: 'לא — אין חיוב מוצלח במערכת.',
+        chargedTone: 'no',
+        bullets: [
+          'סטטוס תשלום: נכשל (failed)',
+          hasRef
+            ? 'קיימת אסמכתה — אפשר לבדוק מול ספק הסליקה מה הייתה תשובת השער'
+            : 'אין אסמכתת סליקה מאושרת במערכת',
+          'מומלץ ליצור קשר עם הלקוח ולהציע ניסיון תשלום מחדש או הזמנה ידנית'
+        ]
+      };
+    }
+
+    if (status === 'authorized') {
+      return {
+        titleHe: 'אושר וטרם חויב',
+        buttonLabelHe: 'פרטי תשלום',
+        summaryHe: 'הכרטיס אושר (הקפאת סכום / pre-auth), אך טרם בוצע חיוב סופי (capture).',
+        cardEnteredLabel: 'האם הזין אשראי?',
+        cardEnteredValue: 'כן — התקבל אישור הרשאה על הכרטיס במערכת.',
+        cardEnteredTone: 'yes',
+        chargedLabel: 'האם חויב?',
+        chargedValue: 'לא עדיין — קיימת הרשאה בלבד, בלי חיוב סופי.',
+        chargedTone: 'hold',
+        bullets: [
+          'סטטוס תשלום: מאושר (authorized)',
+          order.authorizedAmount != null
+            ? `סכום שהוסמך: ₪${Number(order.authorizedAmount).toFixed(2)}`
+            : 'סכום הרשאה לא מתועד בשדה ייעודי',
+          'חיוב סופי מתבצע רק בפעולת capture נפרדת (לא ממסך זה אם הוא לקריאה בלבד)'
+        ]
+      };
+    }
+
+    if (status === 'voided') {
+      return {
+        titleHe: 'הרשאה בוטלה',
+        buttonLabelHe: 'פרטי תשלום',
+        summaryHe: 'ההרשאה על הכרטיס בוטלה / שוחררה. אין חיוב סופי פעיל.',
+        cardEnteredLabel: 'האם הזין אשראי?',
+        cardEnteredValue: 'כן בעבר (הייתה הרשאה), ואז בוטלה.',
+        cardEnteredTone: 'yes',
+        chargedLabel: 'האם חויב?',
+        chargedValue: 'לא — ההרשאה שוחררה / בוטלה.',
+        chargedTone: 'no',
+        bullets: ['סטטוס תשלום: בוטל (voided)']
+      };
+    }
+
+    if (status === 'captured') {
+      return {
+        titleHe: 'שולם',
+        buttonLabelHe: 'פרטי תשלום',
+        summaryHe: 'התקבל אישור חיוב במערכת.',
+        cardEnteredLabel: 'האם הזין אשראי?',
+        cardEnteredValue: 'כן.',
+        cardEnteredTone: 'yes',
+        chargedLabel: 'האם חויב?',
+        chargedValue: 'כן — לפי סטטוס captured במערכת.',
+        chargedTone: 'yes',
+        bullets: ['סטטוס תשלום: חויב (captured)']
+      };
+    }
+
+    return null;
+  }
+
+  /** Short one-liner kept for older call sites. */
+  getPaymentAttentionReason(order: Order): string {
+    return this.getPaymentAttentionDetails(order)?.summaryHe || '';
+  }
+
+  togglePaymentReason(order: Order, event?: Event): void {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const id = (order._id || order.id || '').toString();
+    if (!id) return;
+    this.activeOrderMenuId = null;
+    this.paymentReasonOpenId = this.paymentReasonOpenId === id ? null : id;
+  }
+
+  isPaymentReasonOpen(order: Order): boolean {
+    const id = (order._id || order.id || '').toString();
+    return !!id && this.paymentReasonOpenId === id;
+  }
+
+  closePaymentReason(): void {
+    this.paymentReasonOpenId = null;
+  }
+
+  resolvePaymentException(
+    order: Order,
+    resolution: NonNullable<Order['paymentExceptionResolution']>
+  ): void {
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId || !resolution) return;
+    if (this.paymentExceptionResolvingId === orderId) return;
+    this.paymentExceptionResolvingId = orderId;
+    this.orderService.resolvePaymentException(orderId, resolution).subscribe({
+      next: (res) => {
+        this.paymentExceptionResolvingId = null;
+        this.closePaymentReason();
+        const tab = res.adminStatusTab;
+        this.orders = this.orders.filter(
+          (o) => (o._id || o.id || '').toString() !== orderId
+        );
+        if (tab && tab === this.currentTab && resolution !== 'send_new_payment_link') {
+          this.orders = [res.order, ...this.orders];
+        }
+        if (resolution === 'send_new_payment_link') {
+          this.successMessage = 'ההזמנה נשארת בחריגות — ניתן לשלוח קישור תשלום מחדש';
+        } else {
+          this.successMessage =
+            'ההחלטה נשמרה — ההזמנה עברה לטאב המתאים (היסטוריית התשלום נשמרה)';
+        }
+        setTimeout(() => (this.successMessage = ''), 4000);
+        this.loadTabCounts();
+        this.reloadAfterMutation();
+      },
+      error: (err) => {
+        this.paymentExceptionResolvingId = null;
+        this.errorMessage = err?.error?.message || 'שגיאה בטיפול בחריגת תשלום';
+        setTimeout(() => (this.errorMessage = ''), 4000);
+      }
+    });
   }
 
   /**

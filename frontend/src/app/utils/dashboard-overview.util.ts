@@ -2,12 +2,136 @@
  * Pure helpers for admin business dashboard (GET /api/order/dashboard-overview).
  */
 
-export type DashboardPresetKey = 'today' | 'week' | 'last30' | 'month' | 'custom';
+export type DashboardPresetKey = 'today' | 'week' | 'last30' | 'month' | 'year' | 'custom';
+
+/** Primary range presets (aligned with admin-payments). */
+export type PrimaryDatePreset =
+  | 'today'
+  | 'last7'
+  | 'last30'
+  | 'this_month'
+  | 'last_month'
+  | 'custom';
 
 export interface DashboardKpiTriple {
   value: number;
   previousValue: number;
   changePercent: number | null;
+}
+
+export type BusinessReviewAlertSeverity = 'critical' | 'warning' | 'info';
+
+export interface BusinessReviewKpi {
+  value: number;
+  previousValue?: number;
+  changePercent?: number | null;
+  tooltipHe?: string;
+  dateBasis?: string;
+  cancelledCount?: number;
+  deletedExcluded?: boolean;
+  methodHe?: string;
+  insufficientData?: boolean;
+  windowDays?: number;
+  basisHe?: string;
+}
+
+export interface BusinessReviewAlert {
+  id: string;
+  severity: BusinessReviewAlertSeverity;
+  type: string;
+  titleHe: string;
+  explanationHe: string;
+  orderId: string;
+  orderNumber?: string;
+  customerName?: string;
+  relevantDate: string | null;
+  href: string;
+}
+
+export interface BusinessReviewUpcomingItem {
+  id: string;
+  orderNumber?: string;
+  customerName?: string;
+  eventDate?: string | null;
+  fulfillment: 'delivery' | 'pickup' | 'unknown';
+  status: string;
+  paymentStatus?: string;
+  totalPrice: number;
+  orderKind?: string;
+  window: 'today' | 'tomorrow' | 'next7';
+  hasException?: boolean;
+  requiresManualReview?: boolean;
+}
+
+export interface BusinessReviewTopDish {
+  name: string;
+  category?: string;
+  quantity: number;
+  orderCount?: number;
+  revenue: number | null;
+  revenueReliable?: boolean;
+}
+
+export interface BusinessReviewReturningCustomer {
+  identityKeyHash: string;
+  displayName: string;
+  orderCount: number;
+  paidTotal: number;
+  lastOrderAt: string | null;
+  commonOrderKind: string;
+}
+
+export interface BusinessReviewBreakdownRow {
+  key: string;
+  labelHe: string;
+  count: number;
+  percent: number;
+}
+
+export interface BusinessReviewActivityPoint {
+  date: string;
+  revenue: number;
+  paidCount: number;
+  ordersCreated: number;
+}
+
+export interface BusinessReviewData {
+  generatedAt?: string;
+  range?: {
+    dateFrom: string;
+    dateTo: string;
+    preset: string;
+    timezone: string;
+    dateBasis: string;
+  };
+  previousRange?: { dateFrom: string; dateTo: string } | null;
+  kpis?: {
+    paidRevenue?: BusinessReviewKpi;
+    paidOrders?: BusinessReviewKpi;
+    ordersCreated?: BusinessReviewKpi;
+    averagePaidOrder?: BusinessReviewKpi;
+    returningCustomers?: BusinessReviewKpi;
+    upcomingOrders?: BusinessReviewKpi;
+    needsAttention?: BusinessReviewKpi;
+  };
+  activitySeries?: {
+    granularity: 'day' | 'month';
+    points: BusinessReviewActivityPoint[];
+    previousPoints?: BusinessReviewActivityPoint[] | null;
+  };
+  alerts?: BusinessReviewAlert[];
+  upcoming?: {
+    window: 'next7' | string;
+    items: BusinessReviewUpcomingItem[];
+  };
+  topDishes?: BusinessReviewTopDish[];
+  returningCustomersList?: BusinessReviewReturningCustomer[];
+  breakdown?: {
+    byOrderKind?: BusinessReviewBreakdownRow[];
+    byFulfillment?: BusinessReviewBreakdownRow[];
+    byStatus?: BusinessReviewBreakdownRow[];
+  };
+  notes?: Record<string, string>;
 }
 
 export interface DashboardTrendPoint {
@@ -37,15 +161,22 @@ export interface TopSellingMonthBlock {
 export interface DashboardPaymentAlertItem {
   id: string;
   orderNumber?: string;
+  customerName?: string;
   paymentStatus: string;
   status: string;
   totalPrice: number;
   createdAt: string | null;
+  reasonCode?: string;
+  reasonLabelHe?: string;
+  reasonDetailHe?: string;
+  cardEnteredHe?: string;
+  chargedHe?: string;
 }
 
 export type ActionSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type ActionItemType =
   | 'payment_failed'
+  | 'payment_abandoned'
   | 'payment_awaiting'
   | 'new_pending'
   | 'upcoming_not_ready'
@@ -125,13 +256,24 @@ export interface DashboardOverviewData {
     preset: string | null;
     previous: { from: string; to: string };
   };
+  filters?: {
+    orderKind?: string;
+    orderKindLabel?: string;
+    status?: string | null;
+    paymentStatus?: string | null;
+  };
   kpis: {
     capturedRevenue: DashboardKpiTriple;
+    actualRevenue?: DashboardKpiTriple;
+    expectedRevenue?: DashboardKpiTriple;
     paidOrders: DashboardKpiTriple;
     averageOrderValue: DashboardKpiTriple;
     totalOrders: DashboardKpiTriple;
     activeOrders: DashboardKpiTriple;
     returningCustomers: DashboardKpiTriple;
+    newCustomers?: DashboardKpiTriple;
+    cancelledOrders?: DashboardKpiTriple;
+    awaitingPayments?: DashboardKpiTriple;
   };
   paymentAlerts: {
     awaiting: number;
@@ -140,7 +282,14 @@ export interface DashboardOverviewData {
   };
   trend: DashboardTrendPoint[];
   ordersByStatus: Array<{ status: string; count: number }>;
-  ordersByType: Array<{ orderType: string; cateringKind: string; count: number }>;
+  ordersByType: Array<{
+    orderType?: string;
+    cateringKind?: string;
+    orderKind?: string;
+    orderKindLabel?: string;
+    count: number;
+    revenue?: number;
+  }>;
   topItems: DashboardTopItem[];
   /** Top 3 per category for the selected KPI date range. */
   topSellingByCategory?: TopSellingCategoryBlock[];
@@ -152,6 +301,8 @@ export interface DashboardOverviewData {
   upcomingPreparation?: UpcomingPreparation;
   financialSummary?: {
     capturedRevenue: number;
+    actualRevenue?: number;
+    expectedRevenue?: number;
     paidOrders: number;
     averageOrderValue: number;
     awaitingPayments: number;
@@ -161,13 +312,27 @@ export interface DashboardOverviewData {
     failedCount?: number;
     failedAmount: number;
     returningCustomers: number;
+    newCustomers?: number;
+    cancelledOrders?: number;
+    zeroPriceOrders?: number;
+    zeroPriceWarning?: string | null;
+    externalInvoices?: { amount: number; count: number; note?: string };
     capturedRevenueChange: DashboardKpiTriple;
     paidOrdersChange: DashboardKpiTriple;
     averageOrderValueChange: DashboardKpiTriple;
+    newCustomersChange?: DashboardKpiTriple;
+    returningCustomersChange?: DashboardKpiTriple;
   };
+  alerts?: {
+    zeroPriceOrders?: number;
+    zeroPriceWarning?: string | null;
+  };
+  externalInvoices?: { amount: number; count: number; note?: string };
   upcomingOrders?: UpcomingOrderRow[];
   insights?: DashboardInsight[];
   insightsData?: Record<string, unknown>;
+  /** Nested business review (admin-payments paid definition + ops alerts). */
+  businessReview?: BusinessReviewData | null;
   generatedAt?: string;
 }
 
@@ -179,6 +344,9 @@ export interface DashboardQueryParams {
   salesPreset?: string;
   salesFrom?: string;
   salesTo?: string;
+  orderKind?: string;
+  status?: string;
+  paymentStatus?: string;
 }
 
 /** Stable tone (1–7) per category name for sales cards. */
@@ -349,18 +517,129 @@ export function buildDashboardQuery(
   preset: DashboardPresetKey,
   customFrom: string,
   customTo: string,
-  timezone: string = JERUSALEM_TZ
+  timezone: string = JERUSALEM_TZ,
+  extra?: { orderKind?: string; status?: string; paymentStatus?: string }
 ): DashboardQueryParams | { error: string } {
   const tz = timezone || JERUSALEM_TZ;
+  const filters: Partial<DashboardQueryParams> = {};
+  if (extra?.orderKind && extra.orderKind !== 'all') filters.orderKind = extra.orderKind;
+  if (extra?.status && extra.status !== 'all') filters.status = extra.status;
+  if (extra?.paymentStatus && extra.paymentStatus !== 'all') {
+    filters.paymentStatus = extra.paymentStatus;
+  }
 
-  if (preset === 'today') return { preset: 'today', timezone: tz };
-  if (preset === 'week') return { preset: 'week', timezone: tz };
-  if (preset === 'last30') return { preset: 'last30', timezone: tz };
-  if (preset === 'month') return { preset: 'month', timezone: tz };
+  if (preset === 'today') return { preset: 'today', timezone: tz, ...filters };
+  if (preset === 'week') return { preset: 'week', timezone: tz, ...filters };
+  if (preset === 'last30') return { preset: 'last30', timezone: tz, ...filters };
+  if (preset === 'month') return { preset: 'month', timezone: tz, ...filters };
+  if (preset === 'year') return { preset: 'year', timezone: tz, ...filters };
   if (!isDateRangeValid(customFrom, customTo)) {
     return { error: 'טווח התאריכים אינו תקין: תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום' };
   }
-  return { from: customFrom, to: customTo, timezone: tz };
+  return { from: customFrom, to: customTo, timezone: tz, ...filters };
+}
+
+/** Previous calendar month bounds (Jerusalem YYYY-MM-DD). */
+export function previousCalendarMonthBounds(todayKey: string = toJerusalemDateKey()): {
+  from: string;
+  to: string;
+} {
+  const [y, m] = todayKey.split('-').map(Number);
+  const prevM = m === 1 ? 12 : m - 1;
+  const prevY = m === 1 ? y - 1 : y;
+  const lastDay = new Date(Date.UTC(prevY, prevM, 0)).getUTCDate();
+  return {
+    from: `${prevY}-${String(prevM).padStart(2, '0')}-01`,
+    to: `${prevY}-${String(prevM).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  };
+}
+
+/**
+ * Map primary (admin-payments) presets onto overview query params.
+ * Finance range helpers understand today/week/last30/month/year/custom;
+ * businessReview remaps month→this_month and week→last7.
+ */
+export function buildPrimaryRangeQuery(
+  preset: PrimaryDatePreset,
+  customFrom: string,
+  customTo: string,
+  timezone: string = JERUSALEM_TZ,
+  extra?: { orderKind?: string; status?: string; paymentStatus?: string }
+): DashboardQueryParams | { error: string } {
+  const tz = timezone || JERUSALEM_TZ;
+  const filters: Partial<DashboardQueryParams> = {};
+  if (extra?.orderKind && extra.orderKind !== 'all') filters.orderKind = extra.orderKind;
+  if (extra?.status && extra.status !== 'all') filters.status = extra.status;
+  if (extra?.paymentStatus && extra.paymentStatus !== 'all') {
+    filters.paymentStatus = extra.paymentStatus;
+  }
+
+  if (preset === 'today') return { preset: 'today', timezone: tz, ...filters };
+  if (preset === 'last7') return { preset: 'week', timezone: tz, ...filters };
+  if (preset === 'last30') return { preset: 'last30', timezone: tz, ...filters };
+  if (preset === 'this_month') return { preset: 'month', timezone: tz, ...filters };
+  if (preset === 'last_month') {
+    const bounds = previousCalendarMonthBounds();
+    return { from: bounds.from, to: bounds.to, timezone: tz, ...filters };
+  }
+  if (!isDateRangeValid(customFrom, customTo)) {
+    return { error: 'טווח התאריכים אינו תקין: תאריך ההתחלה חייב להיות לפני או שווה לתאריך הסיום' };
+  }
+  return { from: customFrom, to: customTo, timezone: tz, ...filters };
+}
+
+export function mapPrimaryToFinancePreset(preset: PrimaryDatePreset): DashboardPresetKey {
+  if (preset === 'last7') return 'week';
+  if (preset === 'this_month') return 'month';
+  if (preset === 'last_month') return 'custom';
+  if (preset === 'today' || preset === 'last30' || preset === 'custom') return preset;
+  return 'month';
+}
+
+export function mapFinanceToPrimaryPreset(preset: DashboardPresetKey): PrimaryDatePreset {
+  if (preset === 'week') return 'last7';
+  if (preset === 'month') return 'this_month';
+  if (preset === 'today' || preset === 'last30' || preset === 'custom') return preset;
+  if (preset === 'year') return 'custom';
+  return 'this_month';
+}
+
+export function normalizeBusinessReview(
+  raw: BusinessReviewData | null | undefined
+): BusinessReviewData | null {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    ...raw,
+    alerts: Array.isArray(raw.alerts) ? raw.alerts : [],
+    upcoming: raw.upcoming
+      ? {
+          window: raw.upcoming.window || 'next7',
+          items: Array.isArray(raw.upcoming.items) ? raw.upcoming.items : []
+        }
+      : undefined,
+    topDishes: Array.isArray(raw.topDishes) ? raw.topDishes : [],
+    returningCustomersList: Array.isArray(raw.returningCustomersList)
+      ? raw.returningCustomersList
+      : [],
+    breakdown: raw.breakdown
+      ? {
+          byOrderKind: Array.isArray(raw.breakdown.byOrderKind) ? raw.breakdown.byOrderKind : [],
+          byFulfillment: Array.isArray(raw.breakdown.byFulfillment)
+            ? raw.breakdown.byFulfillment
+            : [],
+          byStatus: Array.isArray(raw.breakdown.byStatus) ? raw.breakdown.byStatus : []
+        }
+      : undefined,
+    activitySeries: raw.activitySeries
+      ? {
+          granularity: raw.activitySeries.granularity === 'month' ? 'month' : 'day',
+          points: Array.isArray(raw.activitySeries.points) ? raw.activitySeries.points : [],
+          previousPoints: Array.isArray(raw.activitySeries.previousPoints)
+            ? raw.activitySeries.previousPoints
+            : null
+        }
+      : undefined
+  };
 }
 
 export function formatTrendPeriodLabel(period: string): string {
@@ -395,11 +674,11 @@ export function filterPrepItems(
 export function paymentStatusLabelHe(status: string): string {
   const map: Record<string, string> = {
     pending: 'ממתין',
-    awaiting_payment: 'ממתין לתשלום',
+    awaiting_payment: 'ננטש בתשלום',
     authorized: 'אושר — טרם נלכד',
     captured: 'חויב',
     voided: 'בוטל',
-    failed: 'נכשל'
+    failed: 'תשלום נכשל'
   };
   return map[status] || status || 'לא ידוע';
 }
@@ -530,7 +809,8 @@ export function normalizeOverview(raw: DashboardOverviewData | null | undefined)
       ? raw.upcomingOrders.filter((o) => !o.isTestOrder)
       : [],
     insights: Array.isArray(raw.insights) ? raw.insights.slice(0, 3) : [],
-    financialSummary: raw.financialSummary
+    financialSummary: raw.financialSummary,
+    businessReview: normalizeBusinessReview(raw.businessReview)
   };
 }
 

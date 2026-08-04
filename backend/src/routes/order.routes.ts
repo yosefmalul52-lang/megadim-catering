@@ -120,6 +120,18 @@ router.get(
   requireAdmin,
   orderController.exportKitchenReport
 );
+router.get(
+  '/kitchen-report/print-pack',
+  authenticate,
+  requireAdmin,
+  orderController.getKitchenPrintPack
+);
+router.post(
+  '/kitchen-report/mark-printed',
+  authenticate,
+  requireAdmin,
+  orderController.markKitchenPrinted
+);
 router.patch(
   '/:id/kitchen-preparation',
   authenticate,
@@ -165,6 +177,13 @@ router.patch('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE)
 router.put('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), orderController.updateOrderDate);
 router.put('/admin/:id/items', authenticate, requireAdmin, orderController.updateOrderItems);
 router.patch('/admin/:id/portions', authenticate, requireAdmin, orderController.updateOrderPortions);
+router.patch(
+  '/admin/:id/resolve-payment-exception',
+  authenticate,
+  requireAdmin,
+  orderController.resolvePaymentException
+);
+router.patch('/admin/:id/price-override', authenticate, requireAdmin, orderController.setAdminPriceOverride);
 router.patch('/admin/:id/admin-notes', authenticate, requireAdmin, orderController.updateOrderAdminNotes);
 router.patch('/:id/shipping-cost', authenticate, requireAdmin, orderController.updateOrderShippingCost);
 router.delete('/:id', authenticate, requireAdmin, orderController.deleteOrder);

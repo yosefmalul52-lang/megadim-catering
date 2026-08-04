@@ -101,6 +101,7 @@ export class SettingsController {
           cholentForceOpen: !!settings.cholentForceOpen,
           cholentCustomMessage: settings.cholentCustomMessage || '',
           cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          kitchenPrepListsEnabled: settings.kitchenPrepListsEnabled !== false,
           pageAnnouncements
         },
         timestamp: new Date().toISOString()
@@ -148,6 +149,12 @@ export class SettingsController {
       }
       if (updateData.cholentClosedMessage !== undefined && typeof updateData.cholentClosedMessage !== 'string') {
         throw createValidationError('cholentClosedMessage must be a string');
+      }
+      if (
+        updateData.kitchenPrepListsEnabled !== undefined &&
+        typeof updateData.kitchenPrepListsEnabled !== 'boolean'
+      ) {
+        throw createValidationError('kitchenPrepListsEnabled must be a boolean');
       }
       if (updateData.pageAnnouncements !== undefined) {
         if (typeof updateData.pageAnnouncements !== 'object' || updateData.pageAnnouncements === null) {
@@ -249,6 +256,7 @@ export class SettingsController {
           cholentForceOpen: !!result.cholentForceOpen,
           cholentCustomMessage: result.cholentCustomMessage || '',
           cholentClosedMessage: result.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          kitchenPrepListsEnabled: result.kitchenPrepListsEnabled !== false,
           pageAnnouncements
         },
         message: 'Site settings updated successfully',

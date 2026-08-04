@@ -55,6 +55,8 @@ export interface SiteSettings {
   cholentForceOpen?: boolean;
   cholentCustomMessage?: string;
   cholentClosedMessage?: string;
+  /** When true, kitchen report shows aggregated prep lists. Default true. */
+  kitchenPrepListsEnabled?: boolean;
   pageAnnouncements?: Record<string, PageAnnouncement>;
 }
 
@@ -146,6 +148,7 @@ export class SiteSettingsService {
           cholentForceOpen: !!settings.cholentForceOpen,
           cholentCustomMessage: settings.cholentCustomMessage || '',
           cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          kitchenPrepListsEnabled: settings.kitchenPrepListsEnabled !== false,
           pageAnnouncements: normalizePageAnnouncements(settings.pageAnnouncements)
         };
       }),
@@ -169,6 +172,7 @@ export class SiteSettingsService {
           cholentForceOpen: false,
           cholentCustomMessage: '',
           cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+          kitchenPrepListsEnabled: true,
           pageAnnouncements: defaultPageAnnouncements()
         };
         this.settingsSubject.next(defaultSettings);

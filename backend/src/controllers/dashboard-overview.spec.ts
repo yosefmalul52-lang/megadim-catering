@@ -189,11 +189,15 @@ test('fillTrendBuckets inserts zero days', () => {
   assert.equal(filled[2].revenue, 0);
 });
 
-test('DASHBOARD_MATCH revenue excludes authorized and missing payment; archive allowed', () => {
-  assert.equal(DASHBOARD_MATCH.capturedRevenue.paymentStatus, 'captured');
-  assert.deepEqual(DASHBOARD_MATCH.capturedRevenue.status, { $ne: 'cancelled' });
+test('DASHBOARD_MATCH revenue uses SSOT payment proof; archive allowed; cancelled allowed', () => {
   assert.deepEqual(DASHBOARD_MATCH.capturedRevenue.isTestOrder, { $ne: true });
+  assert.equal('status' in DASHBOARD_MATCH.capturedRevenue, false);
   assert.equal('isDeleted' in DASHBOARD_MATCH.capturedRevenue, false);
+  const and = (DASHBOARD_MATCH.capturedRevenue as any).$and;
+  assert.ok(Array.isArray(and));
+  const proof = and.find((c: any) => Array.isArray(c?.$or));
+  assert.ok(proof.$or.some((x: any) => x.paymentStatus === 'captured'));
+  assert.ok(proof.$or.some((x: any) => x['customerDetails.isPaid'] === true));
 });
 
 test('public checkout forbids isTestOrder field', () => {
@@ -391,21 +395,46 @@ test('authenticate without token rejects (guest blocked from overview chain)', a
 
 // ─── Aggregation match semantics (documented contract tests) ───────────────
 
-test('revenue match semantics: archived captured included; test/cancelled/authorized/missing excluded', () => {
-  const match = DASHBOARD_MATCH.capturedRevenue as Record<string, unknown>;
-  // Simulate documents against the match object rules
+test('revenue match semantics: archived+cancelled captured included; test excluded; isPaid included', () => {
+  const { orderContributesActualRevenue } = require('../utils/order-actual-revenue.util');
   function matches(doc: Record<string, unknown>): boolean {
-    if (doc.isTestOrder === true) return false;
-    if (doc.paymentStatus !== 'captured') return false;
-    if (doc.status === 'cancelled') return false;
-    return true;
+    return orderContributesActualRevenue(doc);
   }
-  assert.equal(matches({ paymentStatus: 'captured', status: 'ready', isDeleted: true, isTestOrder: false }), true);
-  assert.equal(matches({ paymentStatus: 'captured', status: 'ready', isTestOrder: true }), false);
-  assert.equal(matches({ paymentStatus: 'captured', status: 'cancelled' }), false);
-  assert.equal(matches({ paymentStatus: 'authorized', status: 'ready' }), false);
-  assert.equal(matches({ status: 'ready' }), false); // missing paymentStatus
-  assert.ok(match);
+  assert.equal(
+    matches({
+      paymentStatus: 'captured',
+      status: 'ready',
+      isDeleted: true,
+      isTestOrder: false,
+      totalPrice: 10
+    }),
+    true
+  );
+  assert.equal(
+    matches({
+      paymentStatus: 'pending',
+      status: 'processing',
+      totalPrice: 40,
+      customerDetails: { isPaid: true }
+    }),
+    true
+  );
+  assert.equal(matches({ paymentStatus: 'captured', status: 'ready', isTestOrder: true, totalPrice: 10 }), false);
+  assert.equal(matches({ paymentStatus: 'captured', status: 'cancelled', totalPrice: 10 }), true);
+  // Ops-implied SSOT (order-actual-revenue): admin ready/completed/archive ⇒ paid offline.
+  assert.equal(matches({ paymentStatus: 'authorized', status: 'ready', totalPrice: 10 }), true);
+  assert.equal(matches({ status: 'ready', totalPrice: 10 }), true);
+  // Still unpaid without classic proof or ops-implied status:
+  assert.equal(matches({ paymentStatus: 'authorized', status: 'processing', totalPrice: 10 }), false);
+  // Driver-reachable statuses alone must not imply revenue:
+  assert.equal(
+    matches({ paymentStatus: 'awaiting_payment', status: 'delivered', totalPrice: 10 }),
+    false
+  );
+  assert.equal(
+    matches({ paymentStatus: 'awaiting_payment', status: 'out_for_delivery', totalPrice: 10 }),
+    false
+  );
 });
 
 test('average order value: revenue / paid orders; zero when none', () => {

@@ -57,7 +57,7 @@
       @if (autoRefreshEnabled && currentTab !== 'archive' && currentTab !== 'failed') {
         <div class="auto-refresh-indicator">
           <i class="fas fa-circle pulse"></i>
-          <span>עדכון אוטומטי פעיל (כל 30 שניות)</span>
+          <span>סנכרון רקע כל 10 דקות · שינויים במסך מתעדכנים מיד · ניתן לרענן ידנית</span>
         </div>
       }
     </div>
@@ -120,6 +120,9 @@
           <option value="pending">ממתין</option>
           <option value="processing">בטיפול</option>
           <option value="ready">מוכן</option>
+          <option value="out_for_delivery">בדרך למשלוח</option>
+          <option value="delivered">נמסר</option>
+          <option value="delivery_failed">משלוח נכשל</option>
           <option value="cancelled">בוטל</option>
         </select>
         <button type="button" class="btn-bulk" (click)="applyBulkStatus()" [disabled]="isBulkUpdating || selectedVisibleCount === 0">עדכן סטטוס</button>
@@ -176,6 +179,26 @@
       >
         נכשלו / ננטשו
         <span class="tab-badge">{{ countFailed }}</span>
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="currentTab === 'cancelled'"
+        (click)="setCurrentTab('cancelled')"
+        role="tab"
+      >
+        בוטלו
+        <span class="tab-badge">{{ countCancelled }}</span>
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        [class.active]="currentTab === 'completed'"
+        (click)="setCurrentTab('completed')"
+        role="tab"
+      >
+        הושלמו
+        <span class="tab-badge">{{ countCompleted }}</span>
       </button>
       <button
         type="button"
@@ -423,6 +446,59 @@
                     <span class="status-badge" [ngClass]="'status-' + order.status">
                       {{ getStatusLabel(order.status) }}
                     </span>
+                    @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
+                      <div class="payment-reason-wrap">
+                        <button
+                          type="button"
+                          class="btn-payment-reason"
+                          [attr.data-pay]="order.paymentStatus"
+                          [attr.aria-expanded]="isPaymentReasonOpen(order)"
+                          (click)="togglePaymentReason(order, $event)"
+                        >
+                          <i class="fas fa-info-circle" aria-hidden="true"></i>
+                          {{ details.buttonLabelHe }}
+                        </button>
+                        @if (isPaymentReasonOpen(order)) {
+                          <div class="payment-reason-popover" role="dialog" [attr.aria-label]="details.titleHe" (click)="$event.stopPropagation()">
+                            <div class="pr-head">
+                              <strong>{{ details.titleHe }}</strong>
+                              <button type="button" class="pr-close" (click)="closePaymentReason()" aria-label="סגור">×</button>
+                            </div>
+                            <p class="pr-summary">{{ details.summaryHe }}</p>
+                            <div class="pr-grid">
+                              <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                                <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                                <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                              </div>
+                              <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                                <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                                <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                              </div>
+                            </div>
+                            <ul class="pr-bullets">
+                              @for (b of details.bullets; track b) {
+                                <li>{{ b }}</li>
+                              }
+                            </ul>
+                            <div class="pr-resolve">
+                              <p class="pr-resolve-title">טיפול בחריגה (ללא שינוי היסטוריית תשלום)</p>
+                              <div class="pr-resolve-actions">
+                                @for (opt of paymentExceptionResolutions; track opt.value) {
+                                  <button
+                                    type="button"
+                                    class="btn-resolve-exception"
+                                    [disabled]="paymentExceptionResolvingId === (order._id || order.id)"
+                                    (click)="resolvePaymentException(order, opt.value)"
+                                  >
+                                    {{ opt.label }}
+                                  </button>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
                   </td>
                   <td class="actions-cell">
                     <div class="row-actions">
@@ -435,6 +511,11 @@
                       @if (isOrderMenuOpen(order)) {
                         <div class="order-action-menu">
                           <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
+                          @if (order.status === 'ready') {
+                            <button type="button" (click)="markOrderCompleted(order)">
+                              {{ isPickupOrder(order) ? 'סמן כנאספה' : 'סמן כנמסרה' }}
+                            </button>
+                          }
                           <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
                           @if (supportsKitchenPrepSheet(order)) {
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
@@ -446,7 +527,9 @@
                             </button>
                           }
                           @if (!order.isDeleted) {
-                            <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                            @if (canArchiveOrder(order)) {
+                              <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                            }
                           } @else {
                             <button type="button" (click)="restoreOrder(order)">שחזר הזמנה</button>
                             <button type="button" class="danger" (click)="permanentlyDeleteOrder(order)">מחיקה לצמיתות</button>
@@ -487,6 +570,35 @@
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
+                  <button
+                    type="button"
+                    class="btn-payment-reason"
+                    [attr.data-pay]="order.paymentStatus"
+                    (click)="togglePaymentReason(order, $event)"
+                  >
+                    {{ details.buttonLabelHe }}
+                  </button>
+                  @if (isPaymentReasonOpen(order)) {
+                    <div class="payment-reason-popover mobile" role="dialog" (click)="$event.stopPropagation()">
+                      <div class="pr-head">
+                        <strong>{{ details.titleHe }}</strong>
+                        <button type="button" class="pr-close" (click)="closePaymentReason()" aria-label="סגור">×</button>
+                      </div>
+                      <p class="pr-summary">{{ details.summaryHe }}</p>
+                      <div class="pr-grid">
+                        <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                          <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                          <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                        </div>
+                        <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                          <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                          <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                }
               </div>
               <div class="order-card-links">
                 <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
@@ -637,6 +749,59 @@
                   <td class="meal-types-cell">{{ getMealTypesLabel(order) }}</td>
                   <td class="status-cell">
                     <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                    @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
+                      <div class="payment-reason-wrap">
+                        <button
+                          type="button"
+                          class="btn-payment-reason"
+                          [attr.data-pay]="order.paymentStatus"
+                          [attr.aria-expanded]="isPaymentReasonOpen(order)"
+                          (click)="togglePaymentReason(order, $event)"
+                        >
+                          <i class="fas fa-info-circle" aria-hidden="true"></i>
+                          {{ details.buttonLabelHe }}
+                        </button>
+                        @if (isPaymentReasonOpen(order)) {
+                          <div class="payment-reason-popover" role="dialog" [attr.aria-label]="details.titleHe" (click)="$event.stopPropagation()">
+                            <div class="pr-head">
+                              <strong>{{ details.titleHe }}</strong>
+                              <button type="button" class="pr-close" (click)="closePaymentReason()" aria-label="סגור">×</button>
+                            </div>
+                            <p class="pr-summary">{{ details.summaryHe }}</p>
+                            <div class="pr-grid">
+                              <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                                <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                                <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                              </div>
+                              <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                                <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                                <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                              </div>
+                            </div>
+                            <ul class="pr-bullets">
+                              @for (b of details.bullets; track b) {
+                                <li>{{ b }}</li>
+                              }
+                            </ul>
+                            <div class="pr-resolve">
+                              <p class="pr-resolve-title">טיפול בחריגה (ללא שינוי היסטוריית תשלום)</p>
+                              <div class="pr-resolve-actions">
+                                @for (opt of paymentExceptionResolutions; track opt.value) {
+                                  <button
+                                    type="button"
+                                    class="btn-resolve-exception"
+                                    [disabled]="paymentExceptionResolvingId === (order._id || order.id)"
+                                    (click)="resolvePaymentException(order, opt.value)"
+                                  >
+                                    {{ opt.label }}
+                                  </button>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
                   </td>
                   <td class="actions-cell">
                     <div class="row-actions">
@@ -649,6 +814,11 @@
                       @if (isOrderMenuOpen(order)) {
                         <div class="order-action-menu">
                           <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
+                          @if (order.status === 'ready') {
+                            <button type="button" (click)="markOrderCompleted(order)">
+                              {{ isPickupOrder(order) ? 'סמן כנאספה' : 'סמן כנמסרה' }}
+                            </button>
+                          }
                           <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
                           @if (supportsKitchenPrepSheet(order)) {
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
@@ -660,7 +830,9 @@
                             </button>
                           }
                           @if (!order.isDeleted) {
-                            <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                            @if (canArchiveOrder(order)) {
+                              <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                            }
                           } @else {
                             <button type="button" (click)="restoreOrder(order)">שחזר הזמנה</button>
                             <button type="button" class="danger" (click)="permanentlyDeleteOrder(order)">מחיקה לצמיתות</button>
@@ -704,6 +876,35 @@
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
+                  <button
+                    type="button"
+                    class="btn-payment-reason"
+                    [attr.data-pay]="order.paymentStatus"
+                    (click)="togglePaymentReason(order, $event)"
+                  >
+                    {{ details.buttonLabelHe }}
+                  </button>
+                  @if (isPaymentReasonOpen(order)) {
+                    <div class="payment-reason-popover mobile" role="dialog" (click)="$event.stopPropagation()">
+                      <div class="pr-head">
+                        <strong>{{ details.titleHe }}</strong>
+                        <button type="button" class="pr-close" (click)="closePaymentReason()" aria-label="סגור">×</button>
+                      </div>
+                      <p class="pr-summary">{{ details.summaryHe }}</p>
+                      <div class="pr-grid">
+                        <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                          <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                          <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                        </div>
+                        <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                          <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                          <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                }
               </div>
               <div class="order-card-links">
                 <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
@@ -856,6 +1057,59 @@
                   <td class="venue-cell">{{ order.venue || order.customerDetails?.address || '—' }}</td>
                   <td class="status-cell">
                     <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                    @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
+                      <div class="payment-reason-wrap">
+                        <button
+                          type="button"
+                          class="btn-payment-reason"
+                          [attr.data-pay]="order.paymentStatus"
+                          [attr.aria-expanded]="isPaymentReasonOpen(order)"
+                          (click)="togglePaymentReason(order, $event)"
+                        >
+                          <i class="fas fa-info-circle" aria-hidden="true"></i>
+                          {{ details.buttonLabelHe }}
+                        </button>
+                        @if (isPaymentReasonOpen(order)) {
+                          <div class="payment-reason-popover" role="dialog" [attr.aria-label]="details.titleHe" (click)="$event.stopPropagation()">
+                            <div class="pr-head">
+                              <strong>{{ details.titleHe }}</strong>
+                              <button type="button" class="pr-close" (click)="closePaymentReason()" aria-label="סגור">×</button>
+                            </div>
+                            <p class="pr-summary">{{ details.summaryHe }}</p>
+                            <div class="pr-grid">
+                              <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                                <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                                <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                              </div>
+                              <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                                <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                                <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                              </div>
+                            </div>
+                            <ul class="pr-bullets">
+                              @for (b of details.bullets; track b) {
+                                <li>{{ b }}</li>
+                              }
+                            </ul>
+                            <div class="pr-resolve">
+                              <p class="pr-resolve-title">טיפול בחריגה (ללא שינוי היסטוריית תשלום)</p>
+                              <div class="pr-resolve-actions">
+                                @for (opt of paymentExceptionResolutions; track opt.value) {
+                                  <button
+                                    type="button"
+                                    class="btn-resolve-exception"
+                                    [disabled]="paymentExceptionResolvingId === (order._id || order.id)"
+                                    (click)="resolvePaymentException(order, opt.value)"
+                                  >
+                                    {{ opt.label }}
+                                  </button>
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
                   </td>
                   <td class="actions-cell">
                     <div class="row-actions">
@@ -868,6 +1122,11 @@
                       @if (isOrderMenuOpen(order)) {
                         <div class="order-action-menu">
                           <button type="button" (click)="openStatusEdit(order)">שנה סטטוס</button>
+                          @if (order.status === 'ready') {
+                            <button type="button" (click)="markOrderCompleted(order)">
+                              {{ isPickupOrder(order) ? 'סמן כנאספה' : 'סמן כנמסרה' }}
+                            </button>
+                          }
                           <button type="button" (click)="printOrder(order)">הדפס הזמנה</button>
                           @if (supportsKitchenPrepSheet(order)) {
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
@@ -879,7 +1138,9 @@
                             </button>
                           }
                           @if (!order.isDeleted) {
-                            <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                            @if (canArchiveOrder(order)) {
+                              <button type="button" class="danger" (click)="archiveOrder(order)">העבר לארכיון</button>
+                            }
                           } @else {
                             <button type="button" (click)="restoreOrder(order)">שחזר הזמנה</button>
                             <button type="button" class="danger" (click)="permanentlyDeleteOrder(order)">מחיקה לצמיתות</button>
@@ -921,6 +1182,35 @@
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
+                  <button
+                    type="button"
+                    class="btn-payment-reason"
+                    [attr.data-pay]="order.paymentStatus"
+                    (click)="togglePaymentReason(order, $event)"
+                  >
+                    {{ details.buttonLabelHe }}
+                  </button>
+                  @if (isPaymentReasonOpen(order)) {
+                    <div class="payment-reason-popover mobile" role="dialog" (click)="$event.stopPropagation()">
+                      <div class="pr-head">
+                        <strong>{{ details.titleHe }}</strong>
+                        <button type="button" class="pr-close" (click)="closePaymentReason()" aria-label="סגור">×</button>
+                      </div>
+                      <p class="pr-summary">{{ details.summaryHe }}</p>
+                      <div class="pr-grid">
+                        <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                          <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                          <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                        </div>
+                        <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                          <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                          <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                }
               </div>
               <div class="order-card-links">
                 <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer" class="btn-action btn-whatsapp"><i class="fab fa-whatsapp"></i></a>
@@ -968,6 +1258,8 @@
               @if (orderSourceTab === 'catering') { הזמנות קייטרינג שבת וחג יופיעו כאן כאשר יישמרו במערכת. }
               @else if (orderSourceTab === 'events') { הזמנות קייטרינג לאירועים יופיעו כאן כאשר יישמרו במערכת. }
               @else if (currentTab === 'failed') { הזמנות עם תשלום שנכשל או שננטש לפני השלמתו יופיעו כאן }
+              @else if (currentTab === 'cancelled') { הזמנות שבוטלו יופיעו כאן }
+              @else if (currentTab === 'completed') { הזמנות שהושלמו יופיעו כאן }
               @else if (currentTab === 'archive') { הזמנות שהועברו לארכיון יופיעו כאן }
               @else { ההזמנות יופיעו כאן לפי הסטטוס שבחרת }
             </p>
@@ -1232,12 +1524,38 @@
                       <div class="catering-edit-category">
                         <div class="catering-edit-category-title">{{ group.category }}</div>
                         @for (item of group.items; track $index) {
-                          <div class="editable-item-row">
-                            <span class="editable-item-name">{{ item.name }}</span>
+                          <div
+                            class="editable-item-row"
+                            [class.editable-item-row--with-size]="getEditableItemSizeChoices(item).length > 0"
+                          >
+                            <span class="editable-item-name" [title]="item.name">{{ item.baseName || item.name }}</span>
+                            @if (getEditableItemSizeChoices(item).length > 0) {
+                              <select
+                                class="input-item-size"
+                                [ngModel]="getEditableItemSizeKey(item)"
+                                (ngModelChange)="onEditableItemSizeChange(item, $event)"
+                                [attr.aria-label]="'גודל או אפשרות עבור ' + (item.baseName || item.name)"
+                              >
+                                @for (opt of getEditableItemSizeChoices(item); track opt.key) {
+                                  <option [value]="opt.key">
+                                    {{ opt.label }}@if (opt.amount && opt.amount !== opt.label) { · {{ opt.amount }}} · ₪{{ opt.price }}
+                                  </option>
+                                }
+                              </select>
+                            }
+                            <input
+                              type="number"
+                              min="1"
+                              class="input-item-qty"
+                              [ngModel]="item.quantity"
+                              (ngModelChange)="item.quantity = +$event"
+                              [attr.aria-label]="'כמות עבור ' + (item.baseName || item.name)"
+                            />
                             <button
                               type="button"
                               class="btn-remove-item"
                               (click)="removeEditableItem(getCateringItemGlobalIndex(getCateringItemsByCategory().indexOf(group), $index))"
+                              title="הסר פריט"
                             >
                               <i class="fas fa-times"></i>
                             </button>
@@ -1280,16 +1598,36 @@
                 <div class="items-edit-panel">
                   <div class="items-edit-list">
                     @for (item of editableItems; track item.productId + '-' + $index; let i = $index) {
-                      <div class="editable-item-row">
-                        <div class="editable-item-name">{{ item.name }}</div>
+                      <div
+                        class="editable-item-row"
+                        [class.editable-item-row--with-size]="getEditableItemSizeChoices(item).length > 0"
+                      >
+                        <div class="editable-item-name" [title]="item.name">
+                          {{ item.baseName || item.name }}
+                        </div>
+                        @if (getEditableItemSizeChoices(item).length > 0) {
+                          <select
+                            class="input-item-size"
+                            [ngModel]="getEditableItemSizeKey(item)"
+                            (ngModelChange)="onEditableItemSizeChange(item, $event)"
+                            [attr.aria-label]="'גודל או אפשרות עבור ' + (item.baseName || item.name)"
+                          >
+                            @for (opt of getEditableItemSizeChoices(item); track opt.key) {
+                              <option [value]="opt.key">
+                                {{ opt.label }}@if (opt.amount && opt.amount !== opt.label) { · {{ opt.amount }}} · ₪{{ opt.price }}
+                              </option>
+                            }
+                          </select>
+                        }
                         <input
                           type="number"
                           min="1"
                           class="input-item-qty"
                           [ngModel]="item.quantity"
                           (ngModelChange)="item.quantity = +$event"
+                          [attr.aria-label]="'כמות עבור ' + (item.baseName || item.name)"
                         />
-                        <button type="button" class="btn-remove-item" (click)="removeEditableItem(i)">
+                        <button type="button" class="btn-remove-item" (click)="removeEditableItem(i)" title="הסר פריט">
                           <i class="fas fa-trash"></i>
                         </button>
                       </div>
@@ -1362,7 +1700,7 @@
                                 <div class="catering-view-item">
                                   <i class="fas fa-check catering-check-icon"></i>
                                   <div class="catering-view-item-text">
-                                    <span>{{ item.name }}</span>
+                                    <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }</span>
                                     @if (item.kitchenNotes) {
                                       <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
                                     }
@@ -1384,7 +1722,7 @@
                             <div class="catering-view-item">
                               <i class="fas fa-check catering-check-icon"></i>
                               <div class="catering-view-item-text">
-                                <span>{{ item.name }}</span>
+                                <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }</span>
                                 @if (item.kitchenNotes) {
                                   <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
                                 }
@@ -1404,10 +1742,10 @@
                     @for (item of selectedOrder.items; track $index) {
                       <div class="order-item">
                         <div class="item-info">
-                          <span class="item-name">{{ item.name }}</span>
+                          <span class="item-name">{{ displayItemBaseName(item) }}</span>
                           <span class="item-quantity">x{{ item.quantity }}</span>
-                          @if (item.selectedOption) {
-                            <span class="item-price">({{ item.selectedOption.label }} - {{ item.selectedOption.amount }})</span>
+                          @if (displayItemSize(item); as size) {
+                            <span class="item-price">({{ size }})</span>
                           }
                         </div>
                         <div class="item-total">₪{{ (item.price * item.quantity) | number:'1.2-2' }}</div>
@@ -1551,6 +1889,18 @@
                     {{ getStatusLabel(selectedOrder.status) }}
                   </span>
                 </div>
+                @if (selectedOrder.status === 'ready') {
+                  <div class="summary-row">
+                    <button
+                      type="button"
+                      class="btn-test-order"
+                      [disabled]="statusUpdatingId === (selectedOrder._id || selectedOrder.id)"
+                      (click)="markOrderCompleted(selectedOrder)"
+                    >
+                      {{ isPickupOrder(selectedOrder) ? 'סמן כנאספה' : 'סמן כנמסרה' }}
+                    </button>
+                  </div>
+                }
                 @if (selectedOrder.isTestOrder) {
                   <div class="summary-row">
                     <span class="summary-label">סוג:</span>
@@ -1578,7 +1928,66 @@
                       [ngClass]="'payment-' + selectedOrder.paymentStatus"
                     >
                       {{ getPaymentStatusLabel(selectedOrder.paymentStatus) }}
+                      @if (hasManualPaymentRecord(selectedOrder)) {
+                        <span> · נרשם ידנית</span>
+                      }
                     </span>
+                  </div>
+                }
+                @if (getPaymentAttentionDetails(selectedOrder); as details) {
+                  <div class="payment-reason-panel" [attr.data-pay]="selectedOrder.paymentStatus">
+                    <h3 class="pr-panel-title">{{ details.titleHe }}</h3>
+                    <p class="pr-summary">{{ details.summaryHe }}</p>
+                    <div class="pr-grid">
+                      <div class="pr-fact" [attr.data-tone]="details.cardEnteredTone">
+                        <span class="pr-fact-label">{{ details.cardEnteredLabel }}</span>
+                        <span class="pr-fact-value">{{ details.cardEnteredValue }}</span>
+                      </div>
+                      <div class="pr-fact" [attr.data-tone]="details.chargedTone">
+                        <span class="pr-fact-label">{{ details.chargedLabel }}</span>
+                        <span class="pr-fact-value">{{ details.chargedValue }}</span>
+                      </div>
+                    </div>
+                    <ul class="pr-bullets">
+                      @for (b of details.bullets; track b) {
+                        <li>{{ b }}</li>
+                      }
+                    </ul>
+                    @if (
+                      selectedOrder.paymentStatus === 'failed' ||
+                      selectedOrder.paymentStatus === 'awaiting_payment'
+                    ) {
+                      @if (!selectedOrder.paymentExceptionResolvedAt) {
+                        <div class="pr-resolve">
+                          <p class="pr-resolve-title">טיפול בחריגה (ללא שינוי היסטוריית תשלום)</p>
+                          <div class="pr-resolve-actions">
+                            @for (opt of paymentExceptionResolutions; track opt.value) {
+                              <button
+                                type="button"
+                                class="btn-resolve-exception"
+                                [disabled]="paymentExceptionResolvingId === (selectedOrder._id || selectedOrder.id)"
+                                (click)="resolvePaymentException(selectedOrder, opt.value)"
+                              >
+                                {{ opt.label }}
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      } @else {
+                        <p class="pr-summary">חריגת התשלום טופלה וסומנה כסגורה.</p>
+                        @if (hasManualPaymentRecord(selectedOrder)) {
+                          <p class="pr-summary">
+                            תשלום נרשם ידנית
+                            @if (selectedOrder.manualPaymentMethod) {
+                              ({{ selectedOrder.manualPaymentMethod }})
+                            }
+                            @if (selectedOrder.manualPaymentNote) {
+                              — {{ selectedOrder.manualPaymentNote }}
+                            }
+                          </p>
+                        }
+                      }
+                    }
                   </div>
                 }
                 @if (selectedOrder.authorizedAmount != null) {
@@ -1656,12 +2065,70 @@
                 <button
                   type="button"
                   class="btn-status-option"
-                  [class.active]="orderToEditStatus.status === s.value"
+                  [class.active]="isStatusOptionActive(orderToEditStatus.status, s.value)"
+                  [disabled]="statusUpdatingId === (orderToEditStatus._id || orderToEditStatus.id)?.toString()"
                   (click)="applyStatus(s.value)"
                 >
                   {{ s.label }}
                 </button>
               }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Required payment-exception resolution when moving to ops status -->
+    @if (statusResolutionModal) {
+      <div class="modal-overlay" (click)="closeStatusResolutionModal()">
+        <div class="modal-content modal-status" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>אופן טיפול בתשלום</h2>
+            <button type="button" class="btn-close" (click)="closeStatusResolutionModal()" aria-label="סגור">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="order-ref">
+              לפני העברה ל״{{ getStatusLabel(statusResolutionModal.newStatus) }}״ יש לבחור כיצד ממשיכים עם חריגת התשלום.
+              מצב התשלום המקורי ({{ statusResolutionModal.order.paymentStatus }}) יישמר ללא שינוי.
+            </p>
+            <div class="status-edit-actions">
+              @for (opt of paymentExceptionResolutions; track opt.value) {
+                <button
+                  type="button"
+                  class="btn-status-option"
+                  [class.active]="statusResolutionModal.resolution === opt.value"
+                  (click)="statusResolutionModal.resolution = opt.value"
+                >
+                  {{ opt.label }}
+                </button>
+              }
+            </div>
+            @if (statusResolutionModal.resolution === 'paid_elsewhere_continue') {
+              <label class="form-label" style="display:block;margin-top:1rem;">
+                הערת תשלום ידני (אופציונלי)
+                <input
+                  type="text"
+                  class="form-control"
+                  [(ngModel)]="statusResolutionModal.manualPaymentNote"
+                  placeholder="למשל: העברה בנקאית / מזומן"
+                />
+              </label>
+              <p class="muted" style="margin-top:0.5rem;font-size:0.9rem;">
+                יירשם תשלום ידני (לא captured/authorized). היסטוריית paymentStatus תישמר.
+              </p>
+            }
+            <div style="display:flex;gap:0.75rem;margin-top:1.25rem;justify-content:flex-end;">
+              <button type="button" class="btn-bulk subtle" (click)="closeStatusResolutionModal()">ביטול</button>
+              <button
+                type="button"
+                class="btn-bulk"
+                [disabled]="!statusResolutionModal.resolution || statusUpdatingId !== null || isBulkUpdating"
+                (click)="confirmStatusWithPaymentResolution()"
+              >
+                אשר והעבר
+              </button>
             </div>
           </div>
         </div>
@@ -1682,8 +2149,5 @@
     }
   </div>
 
-  @if (showKitchenReport) {
-    <app-kitchen-report-modal (closeModal)="closeKitchenReport()"></app-kitchen-report-modal>
-  }
   }
 </div>

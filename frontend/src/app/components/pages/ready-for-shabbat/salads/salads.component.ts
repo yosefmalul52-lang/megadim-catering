@@ -488,6 +488,14 @@ export class SaladsComponent implements OnInit {
     let itemName = item.name;
     let price = this.getSelectedPrice(item);
     let cartLineId = itemId;
+    let selectedOption: {
+      label: string;
+      amount?: string;
+      price: number;
+      optionId?: string;
+      optionName?: string;
+      valueName?: string;
+    } | undefined;
 
     if (this.hasPricingOptions(item)) {
       const optionIndex = this.getSelectedOptionIndex(itemId);
@@ -497,6 +505,14 @@ export class SaladsComponent implements OnInit {
         itemName = `${item.name} (${option.label} - ${option.amount})`;
         price = option.price;
         cartLineId = `${itemId}-size-${optionIndex}`;
+        selectedOption = {
+          label: String(option.label || '').trim(),
+          amount: String(option.amount || '').trim() || undefined,
+          price: Number(option.price) || 0,
+          optionId: String(optionIndex),
+          optionName: String(option.label || '').trim() || undefined,
+          valueName: String(option.amount || option.label || '').trim() || undefined
+        };
       }
     } else if (this.hasPricingVariants(item)) {
       const variantIndex = this.getSelectedVariantIndex(itemId);
@@ -506,6 +522,14 @@ export class SaladsComponent implements OnInit {
         itemName = `${item.name} (${variant.label})`;
         price = variant.price;
         cartLineId = `${itemId}-size-${variantIndex}`;
+        selectedOption = {
+          label: String(variant.label || '').trim(),
+          amount: String(variant.label || '').trim() || undefined,
+          price: Number(variant.price) || 0,
+          optionId: String(variantIndex),
+          optionName: String(variant.label || '').trim() || undefined,
+          valueName: String(variant.label || '').trim() || undefined
+        };
       }
     }
 
@@ -516,7 +540,8 @@ export class SaladsComponent implements OnInit {
         price,
         imageUrl: item.imageUrl ?? '',
         description: item.description,
-        category: item.category
+        category: item.category,
+        selectedOption
       },
       1
     );

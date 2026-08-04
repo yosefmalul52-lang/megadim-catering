@@ -1,7 +1,15 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import Order from '../models/Order';
 import ExternalInvoice from '../models/ExternalInvoice';
 import { asyncHandler } from '../middleware/errorHandler';
+import {
+  buildActualRevenueInRangeMatch,
+  buildActualRevenueMatch,
+  effectivePaidAtMongoExpr,
+  getEffectivePaidAt,
+  getOrderRevenueAmount,
+  revenueAmountMongoExpr
+} from '../utils/order-actual-revenue.util';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -35,38 +43,32 @@ export const getSummary = asyncHandler(async (_req: Request, res: Response) => {
   twelveMonthsAgo.setDate(1);
   twelveMonthsAgo.setHours(0, 0, 0, 0);
 
-  // Aggregate captured orders
+  // Order component uses SSOT actual revenue; external invoices stay separate.
   const [onlineAgg, externalAgg] = await Promise.all([
     Order.aggregate([
-      { $match: { paymentStatus: 'captured', isDeleted: { $ne: true } } },
-      { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+      { $match: buildActualRevenueMatch() },
+      { $group: { _id: null, total: { $sum: revenueAmountMongoExpr() } } }
     ]),
-    ExternalInvoice.aggregate([
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ])
+    ExternalInvoice.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }])
   ]);
 
-  const onlineTotal   = round2(onlineAgg[0]?.total   ?? 0);
+  const onlineTotal = round2(onlineAgg[0]?.total ?? 0);
   const externalTotal = round2(externalAgg[0]?.total ?? 0);
-  const grandTotal    = round2(onlineTotal + externalTotal);
+  const grandTotal = round2(onlineTotal + externalTotal);
 
-  // Monthly breakdown for the last 12 months
+  // Monthly breakdown for the last 12 months (orders by effectivePaidAt)
   const [onlineMonthly, externalMonthly] = await Promise.all([
     Order.aggregate([
       {
-        $match: {
-          paymentStatus: 'captured',
-          isDeleted: { $ne: true },
-          createdAt: { $gte: twelveMonthsAgo }
-        }
+        $match: buildActualRevenueInRangeMatch(twelveMonthsAgo, new Date())
       },
       {
         $group: {
           _id: {
-            year:  { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
+            year: { $year: effectivePaidAtMongoExpr() },
+            month: { $month: effectivePaidAtMongoExpr() }
           },
-          total: { $sum: '$totalPrice' }
+          total: { $sum: revenueAmountMongoExpr() }
         }
       }
     ]),
@@ -75,7 +77,7 @@ export const getSummary = asyncHandler(async (_req: Request, res: Response) => {
       {
         $group: {
           _id: {
-            year:  { $year: '$issueDate' },
+            year: { $year: '$issueDate' },
             month: { $month: '$issueDate' }
           },
           total: { $sum: '$amount' }
@@ -97,66 +99,89 @@ export const getSummary = asyncHandler(async (_req: Request, res: Response) => {
   }
 
   const periods = last12Months();
-  const breakdown = periods.map(m => ({
-    month:    m,
-    online:   onlineMap.get(m)   ?? 0,
+  const breakdown = periods.map((m) => ({
+    month: m,
+    online: onlineMap.get(m) ?? 0,
     external: externalMap.get(m) ?? 0,
-    total:    round2((onlineMap.get(m) ?? 0) + (externalMap.get(m) ?? 0))
+    total: round2((onlineMap.get(m) ?? 0) + (externalMap.get(m) ?? 0))
   }));
 
   return res.status(200).json({
     success: true,
-    data: { grandTotal, onlineTotal, externalTotal, breakdown }
+    data: {
+      grandTotal,
+      onlineTotal,
+      externalTotal,
+      breakdown,
+      notes: {
+        online:
+          'רכיב הזמנות = הכנסה שנגבתה (SSOT). ExternalInvoice ללא orderId — סיכון כפל אם הוזנה ידנית לאותה עסקה.',
+        dateBasis: 'effectivePaidAt = paidAt ?? capturedAt ?? createdAt'
+      }
+    }
   });
 });
 
 // ─── GET /transactions ───────────────────────────────────────────────────────
 
 export const getTransactions = asyncHandler(async (req: Request, res: Response) => {
-  const page   = Math.max(1, Number(req.query['page'])  || 1);
-  const limit  = Math.min(100, Math.max(1, Number(req.query['limit']) || 25));
+  const page = Math.max(1, Number(req.query['page']) || 1);
+  const limit = Math.min(100, Math.max(1, Number(req.query['limit']) || 25));
   const source = req.query['source'] as string | undefined; // 'online' | 'external'
   const dateFrom = req.query['dateFrom'] ? new Date(req.query['dateFrom'] as string) : undefined;
-  const dateTo   = req.query['dateTo']   ? new Date(req.query['dateTo']   as string) : undefined;
+  const dateTo = req.query['dateTo'] ? new Date(req.query['dateTo'] as string) : undefined;
 
   const items: Array<{
-    id:          string;
-    date:        Date;
-    clientName:  string;
-    source:      'online' | 'external';
-    amount:      number;
-    fileUrl?:    string;
-    orderId?:    string;
+    id: string;
+    date: Date;
+    clientName: string;
+    source: 'online' | 'external';
+    amount: number;
+    fileUrl?: string;
+    orderId?: string;
     invoiceNum?: string;
   }> = [];
 
-  // Online orders
+  // Online orders — SSOT actual revenue
   if (!source || source === 'online') {
-    const orderQuery: Record<string, unknown> = {
-      paymentStatus: 'captured',
-      isDeleted:     { $ne: true }
-    };
-    if (dateFrom || dateTo) {
-      const range: Record<string, Date> = {};
-      if (dateFrom) range['$gte'] = dateFrom;
-      if (dateTo)   range['$lte'] = dateTo;
-      orderQuery['createdAt'] = range;
-    }
+    const orderQuery: Record<string, unknown> =
+      dateFrom && dateTo
+        ? buildActualRevenueInRangeMatch(dateFrom, dateTo)
+        : dateFrom || dateTo
+          ? {
+              $and: [
+                buildActualRevenueMatch(),
+                {
+                  $expr: {
+                    $and: [
+                      ...(dateFrom
+                        ? [{ $gte: [effectivePaidAtMongoExpr(), dateFrom] }]
+                        : []),
+                      ...(dateTo ? [{ $lte: [effectivePaidAtMongoExpr(), dateTo] }] : [])
+                    ]
+                  }
+                }
+              ]
+            }
+          : buildActualRevenueMatch();
 
     const orders = await Order.find(orderQuery)
-      .select('_id totalPrice createdAt customerDetails')
+      .select(
+        '_id totalPrice adminPriceOverride createdAt paidAt capturedAt customerDetails paymentStatus status isDeleted isTestOrder'
+      )
       .sort({ createdAt: -1 })
       .lean();
 
     for (const o of orders) {
       const details = (o as any).customerDetails || {};
+      const at = getEffectivePaidAt(o as any) || (o as any).createdAt;
       items.push({
-        id:         String(o._id),
-        date:       (o as any).createdAt,
+        id: String(o._id),
+        date: at,
         clientName: details.fullName || details.name || details.customerName || 'לקוח',
-        source:     'online',
-        amount:     round2((o as any).totalPrice),
-        orderId:    String(o._id)
+        source: 'online',
+        amount: round2(getOrderRevenueAmount(o as any)),
+        orderId: String(o._id)
       });
     }
   }
@@ -167,39 +192,34 @@ export const getTransactions = asyncHandler(async (req: Request, res: Response) 
     if (dateFrom || dateTo) {
       const range: Record<string, Date> = {};
       if (dateFrom) range['$gte'] = dateFrom;
-      if (dateTo)   range['$lte'] = dateTo;
+      if (dateTo) range['$lte'] = dateTo;
       extQuery['issueDate'] = range;
     }
 
-    const invoices = await ExternalInvoice.find(extQuery)
-      .sort({ issueDate: -1 })
-      .lean();
+    const invoices = await ExternalInvoice.find(extQuery).sort({ issueDate: -1 }).lean();
 
     for (const inv of invoices) {
       items.push({
-        id:          String(inv._id),
-        date:        inv.issueDate,
-        clientName:  inv.clientName,
-        source:      'external',
-        amount:      round2(inv.amount),
-        fileUrl:     inv.fileUrl,
-        invoiceNum:  inv.invoiceNumber
+        id: String(inv._id),
+        date: (inv as any).issueDate,
+        clientName: (inv as any).clientName || 'לקוח',
+        source: 'external',
+        amount: round2((inv as any).amount),
+        fileUrl: (inv as any).fileUrl,
+        invoiceNum: (inv as any).invoiceNumber
       });
     }
   }
 
-  // Sort merged list by date descending, then paginate in memory
-  items.sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  const total      = items.length;
+  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const total = items.length;
   const totalPages = Math.ceil(total / limit);
-  const start      = (page - 1) * limit;
-  const pageItems  = items.slice(start, start + limit);
+  const pageItems = items.slice((page - 1) * limit, page * limit);
 
   return res.status(200).json({
     success: true,
-    data:    pageItems,
-    meta:    { total, page, limit, totalPages }
+    data: pageItems,
+    meta: { total, page, limit, totalPages }
   });
 });
 
@@ -217,13 +237,13 @@ export const createExternal = asyncHandler(async (req: Request, res: Response) =
   }
 
   const invoice = new ExternalInvoice({
-    clientName:    clientName.trim(),
-    amount:        round2(parsedAmount),
-    issueDate:     issueDate ? new Date(issueDate) : new Date(),
-    description:   description?.trim() || undefined,
+    clientName: clientName.trim(),
+    amount: round2(parsedAmount),
+    issueDate: issueDate ? new Date(issueDate) : new Date(),
+    description: description?.trim() || undefined,
     invoiceNumber: invoiceNumber?.trim() || undefined,
-    fileUrl:       fileUrl   || undefined,
-    fileKey:       fileKey   || undefined
+    fileUrl: fileUrl || undefined,
+    fileKey: fileKey || undefined
   });
 
   await invoice.save();
@@ -241,7 +261,7 @@ export const uploadDocument = asyncHandler(async (req: Request, res: Response) =
 
   return res.status(200).json({
     success: true,
-    fileUrl: file.path     || (file as any).secure_url || '',
-    fileKey: file.filename || (file as any).public_id  || ''
+    fileUrl: file.path || (file as any).secure_url || '',
+    fileKey: file.filename || (file as any).public_id || ''
   });
 });

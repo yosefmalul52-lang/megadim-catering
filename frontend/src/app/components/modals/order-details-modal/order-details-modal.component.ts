@@ -230,10 +230,13 @@ export class OrderDetailsModalComponent implements OnInit {
 
   getItemDisplayName(item: OrderItem): string {
     const name = item.name || (item as any).productName || (item as any).product?.name || '';
-    const variant = (item as any).variant ?? (item as any).size ?? (item as any).selectedOption?.label ?? '';
-    if (!variant) return name;
-    if (name.includes('(') && name.includes(')')) return name;
-    return String(name).trim() + ' (' + String(variant).trim() + ')';
+    if (String(name).includes('(') && String(name).includes(')')) return name;
+    const so = (item as any).selectedOption;
+    const label = String((item as any).variant ?? (item as any).size ?? so?.label ?? '').trim();
+    const amount = String(so?.amount || '').trim();
+    if (!label && !amount) return name;
+    if (label && amount && label !== amount) return `${String(name).trim()} (${label} - ${amount})`;
+    return `${String(name).trim()} (${label || amount})`;
   }
 
   handleImageError(event: Event): void {

@@ -85,9 +85,11 @@ import holidayEventRoutes from './routes/holiday-event.routes';
 import customerRoutes from './routes/customer.routes';
 import paymentRoutes      from './routes/payment.routes';
 import accountingRoutes   from './routes/accounting.routes';
+import adminPaymentsRoutes from './routes/admin-payments.routes';
 import institutionRoutes  from './routes/institution.routes';
 import b2bDictionaryRoutes from './routes/b2b-dictionary.routes';
 import portalRoutes       from './routes/portal.routes';
+import kitchenRoutes      from './routes/kitchen.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -132,7 +134,12 @@ const allowedOrigins: string[] = [
 ];
 
 if (process.env.NODE_ENV !== 'production') {
-  allowedOrigins.push('http://localhost:4200');
+  allowedOrigins.push(
+    'http://localhost:4200',
+    'http://127.0.0.1:4200',
+    'http://localhost:4201',
+    'http://127.0.0.1:4201'
+  );
 }
 
 // CORS – strict: only allowed origins, credentials enabled
@@ -152,6 +159,9 @@ app.use(helmet({
   frameguard: { action: 'deny' },
   noSniff: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  // API is consumed by SPA on another origin (localhost:4200 / Vercel → Render).
+  // Helmet default "same-origin" blocks the browser from reading those responses.
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -249,9 +259,11 @@ app.use('/api/campaign', campaignRoutes);
 app.use('/api/holiday-events', holidayEventRoutes);
 app.use('/api/payment',           paymentRoutes);
 app.use('/api/admin/accounting',  accountingRoutes);
+app.use('/api/admin/payments',    adminPaymentsRoutes);
 app.use('/api/admin/institutions', institutionRoutes);
 app.use('/api/admin/b2b-dictionary', b2bDictionaryRoutes);
 app.use('/api/portal', portalRoutes);
+app.use('/api/kitchen', kitchenRoutes);
 
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler);

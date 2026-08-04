@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from 'express';
 import SiteSettings from '../models/siteSettings.model';
 import { OrderService } from '../services/order.service';
 import { emailService, OrderEmailData } from '../services/email.service';
+import { shouldSendOrderApprovedEmail, isTranzilaCheckoutOrder, resolveAdminStatusTab } from '../utils/order-admin-status.util';
 import { validateAndApplyCoupon, incrementCouponUsage, updateCouponRevenue } from '../services/coupon.service';
 import { asyncHandler, createValidationError, createNotFoundError } from '../middleware/errorHandler';
 import { CreateOrderRequest, CreateCheckoutOrderRequest } from '../models/order.model';
@@ -36,7 +37,16 @@ export function getForbiddenPublicOrderFields(body: unknown): string[] {
     'isTestOrder',
     'paymentInitToken',
     'paymentInitTokenHash',
-    'paymentInitTokenExpiresAt'
+    'paymentInitTokenExpiresAt',
+    'kitchenChangeLog',
+    'kitchenPreparationAt',
+    'allergies',
+    'specialRequests',
+    'adminNotes',
+    'isDeleted',
+    'assignedDriverId',
+    'assignedDriverName',
+    'assignedAt'
   ].filter((key) =>
     hasOwn(value, key)
   );
@@ -344,13 +354,23 @@ export class OrderController {
 
     const plainOrder = omitPaymentInitProof(savedOrder.toObject ? savedOrder.toObject() : savedOrder);
 
-    // Manual / offline orders: confirm immediately. Online checkout defers until payment success.
+    // Manual / offline orders: confirm immediately with existing path.
+    // Public website orders: durable order_received (once), independent of payment.
     if (manualContext) {
       try {
         await emailService.sendOrderEmail(plainOrder as any);
         console.log('Manual order emails sent on creation');
       } catch (emailErr: any) {
         console.error('Email failed to send for manual order, but order was saved:', emailErr?.message || emailErr);
+      }
+    } else {
+      try {
+        await emailService.sendOrderReceivedForPublicOrder(plainOrder as any);
+      } catch (emailErr: any) {
+        console.error(
+          'order_received email failed after public create (order saved):',
+          emailErr?.message || emailErr
+        );
       }
     }
 
@@ -547,7 +567,15 @@ export class OrderController {
 
     if (usesAdminPage) {
       const validSources = ['shabbat', 'catering', 'events'] as const;
-      const validStatusTabs = ['pending', 'processing', 'ready', 'failed', 'archive'] as const;
+      const validStatusTabs = [
+        'pending',
+        'processing',
+        'ready',
+        'failed',
+        'cancelled',
+        'completed',
+        'archive'
+      ] as const;
       const validSortBy = [
         'createdAt',
         'eventDate',
@@ -672,6 +700,10 @@ export class OrderController {
   updateOrderStatus = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, deliveryDate, notes } = req.body;
+    const paymentExceptionResolution =
+      req.body?.paymentExceptionResolution ?? req.body?.resolution;
+    const manualPaymentMethod = req.body?.manualPaymentMethod;
+    const manualPaymentNote = req.body?.manualPaymentNote;
     if ((req.body as any)?.customerDetails?.email || (req.body as any)?.email) {
       console.warn('Ignoring customer email fields in admin status update payload');
     }
@@ -686,12 +718,19 @@ export class OrderController {
 
     const role = String((req as any).user?.role || '');
     let updatedOrder: any;
+    let previousStatus: string | null = null;
+    let adminStatusTab: string | null = null;
+    let idempotent = false;
+    let shouldSendApproval = false;
     if (role === 'driver') {
       updatedOrder = await this.orderService.updateOrderStatusForDriver(
         id,
         String((req as any).user?.id || (req as any).user?._id),
         status
       );
+      if (updatedOrder) {
+        adminStatusTab = resolveAdminStatusTab(updatedOrder);
+      }
     } else {
       const validStatuses = [
         'pending',
@@ -707,32 +746,86 @@ export class OrderController {
       if (!validStatuses.includes(status)) {
         throw createValidationError('Invalid status value');
       }
-      updatedOrder = await this.orderService.updateOrderStatus(id, {
-        status,
-        deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
-        notes
-      });
+      try {
+        const result = await this.orderService.updateOrderStatus(
+          id,
+          {
+            status,
+            deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
+            notes,
+            paymentExceptionResolution,
+            manualPaymentMethod,
+            manualPaymentNote
+          },
+          {
+            changedBy: String((req as any).user?.id || (req as any).user?._id || 'admin'),
+            notificationSent: false
+          }
+        );
+        updatedOrder = result.order;
+        previousStatus = result.previousStatus;
+        adminStatusTab = result.adminStatusTab;
+        idempotent = result.idempotent;
+        shouldSendApproval = result.shouldSendApprovalEmail;
+      } catch (err: any) {
+        if (
+          err?.statusCode === 422 ||
+          err?.code === 'PAYMENT_EXCEPTION_RESOLUTION_REQUIRED' ||
+          err?.code === 'PAYMENT_LINK_DOES_NOT_CHANGE_STATUS'
+        ) {
+          const e: any = new Error(
+            err?.message || 'נדרשת בחירת אופן טיפול בחריגת התשלום לפני העברה לסטטוס תפעולי'
+          );
+          e.statusCode = 422;
+          e.isOperational = true;
+          e.code = err?.code || 'PAYMENT_EXCEPTION_RESOLUTION_REQUIRED';
+          throw e;
+        }
+        throw err;
+      }
     }
 
     if (!updatedOrder) {
       throw createNotFoundError('Order');
     }
 
-    if (status === 'processing') {
+    let approvalEmailSent = false;
+    if (
+      role !== 'driver' &&
+      !idempotent &&
+      shouldSendApproval &&
+      shouldSendOrderApprovedEmail(previousStatus, status) &&
+      isTranzilaCheckoutOrder(updatedOrder)
+    ) {
       try {
         const freshOrder = await this.orderService.getOrderByIdForEmail(id);
         if (freshOrder) {
-          await emailService.sendOrderApprovedToCustomer(freshOrder);
+          const mailResult = await emailService.sendOrderApprovedToCustomer(freshOrder);
+          approvalEmailSent = Boolean(mailResult.sent);
         }
       } catch (emailErr: any) {
-        console.error('Order status updated to processing but approval email failed:', emailErr?.message || emailErr);
+        console.error(
+          'Order status updated to processing but approval email failed:',
+          emailErr?.message || emailErr
+        );
+      }
+      try {
+        await this.orderService.markLatestStatusChangeNotification(id, approvalEmailSent);
+      } catch {
+        /* non-blocking */
       }
     }
 
     res.status(200).json({
       success: true,
       data: updatedOrder,
-      message: status === 'processing' ? 'Order approved and customer notified' : 'Order status updated successfully',
+      order: updatedOrder,
+      adminStatusTab,
+      message: approvalEmailSent
+        ? 'Order approved and customer notified'
+        : 'Order status updated successfully',
+      notificationSent: approvalEmailSent,
+      idempotent,
       timestamp: new Date().toISOString()
     });
   });
@@ -779,6 +872,7 @@ export class OrderController {
       console.warn('Ignoring customer email fields in admin items update payload');
     }
     const items = req.body?.items;
+    const notifyCustomer = req.body?.notifyCustomer === true;
 
     if (!id) {
       throw createValidationError('Order ID is required');
@@ -799,10 +893,13 @@ export class OrderController {
       throw createNotFoundError('Order');
     }
 
-    try {
-      await emailService.sendOrderUpdateEmail(updatedOrder);
-    } catch (emailErr: any) {
-      console.error('Order items updated but update email failed:', emailErr?.message || emailErr);
+    // Default: no customer email on items/kitchen/price edits. Opt-in only via notifyCustomer=true.
+    if (notifyCustomer) {
+      try {
+        await emailService.sendOrderUpdateEmail(updatedOrder);
+      } catch (emailErr: any) {
+        console.error('Order items updated but update email failed:', emailErr?.message || emailErr);
+      }
     }
 
     res.status(200).json({
@@ -871,6 +968,93 @@ export class OrderController {
     });
   });
 
+  /** PATCH /api/order/admin/:id/resolve-payment-exception – explicit payment exception handling. */
+  resolvePaymentException = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+
+    let result: { order: any; adminStatusTab: string | null };
+    try {
+      result = await this.orderService.resolvePaymentException(id, {
+        resolution: req.body?.resolution ?? req.body?.paymentExceptionResolution,
+        adminUserId: (req as any).user?.id || (req as any).user?._id,
+        manualPaymentMethod: req.body?.manualPaymentMethod,
+        manualPaymentNote: req.body?.manualPaymentNote,
+        exceptionNote: req.body?.exceptionNote || req.body?.note
+      });
+    } catch (err: any) {
+      if (err?.statusCode === 422) {
+        const e: any = new Error(err?.message || 'Invalid payment exception resolution');
+        e.statusCode = 422;
+        e.isOperational = true;
+        e.code = err?.code;
+        throw e;
+      }
+      throw createValidationError(err?.message || 'Failed to resolve payment exception');
+    }
+    if (!result.order) {
+      throw createNotFoundError('Order');
+    }
+
+    let approvalEmailSent = false;
+    if (
+      result.adminStatusTab === 'processing' &&
+      isTranzilaCheckoutOrder(result.order) &&
+      shouldSendOrderApprovedEmail('pending', 'processing')
+    ) {
+      try {
+        const freshOrder = await this.orderService.getOrderByIdForEmail(id);
+        if (freshOrder) {
+          const mailResult = await emailService.sendOrderApprovedToCustomer(freshOrder);
+          approvalEmailSent = Boolean(mailResult.sent);
+        }
+      } catch (emailErr: any) {
+        console.error('resolvePaymentException approval email failed:', emailErr?.message || emailErr);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.order,
+      order: result.order,
+      adminStatusTab: result.adminStatusTab,
+      message: 'Payment exception handled',
+      notificationSent: approvalEmailSent,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  /** PATCH /api/order/admin/:id/price-override – set explicit admin special price. */
+  setAdminPriceOverride = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.setAdminPriceOverride(id, {
+        amount: req.body?.amount ?? req.body?.adminPriceOverride,
+        reason: req.body?.reason ?? req.body?.adminPriceOverrideReason,
+        adminUserId: (req as any).user?.id || (req as any).user?._id
+      });
+    } catch (err: any) {
+      throw createValidationError(err?.message || 'Failed to set admin price override');
+    }
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Admin price override saved',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   /** PATCH /api/order/admin/:id/admin-notes – update internal admin notes only (Admin). */
   updateOrderAdminNotes = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -915,7 +1099,10 @@ export class OrderController {
       timezone: req.query.timezone as string | undefined,
       salesPreset: req.query.salesPreset as string | undefined,
       salesFrom: req.query.salesFrom as string | undefined,
-      salesTo: req.query.salesTo as string | undefined
+      salesTo: req.query.salesTo as string | undefined,
+      orderKind: req.query.orderKind as string | undefined,
+      status: req.query.status as string | undefined,
+      paymentStatus: req.query.paymentStatus as string | undefined
     });
     res.status(200).json({
       success: true,
@@ -1011,7 +1198,7 @@ export class OrderController {
     });
   });
 
-  // Restore order (Admin only) – set isDeleted: false, status: 'pending'
+  // Restore order (Admin only) – clear isDeleted only; preserve status/payment/timestamps
   restoreOrder = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
@@ -1095,18 +1282,36 @@ export class OrderController {
       throw createValidationError('status is required for bulk status update');
     }
 
-    const result = await this.orderService.bulkApplyAction({
-      orderIds,
-      action: action as 'status' | 'archive' | 'restore' | 'permanent_delete',
-      status
-    });
+    try {
+      const result = await this.orderService.bulkApplyAction({
+        orderIds,
+        action: action as 'status' | 'archive' | 'restore' | 'permanent_delete',
+        status,
+        paymentExceptionResolution:
+          req.body?.paymentExceptionResolution ?? req.body?.resolution,
+        manualPaymentMethod: req.body?.manualPaymentMethod,
+        manualPaymentNote: req.body?.manualPaymentNote,
+        changedBy: String((req as any).user?.id || (req as any).user?._id || 'admin')
+      });
 
-    res.status(200).json({
-      success: true,
-      data: result,
-      message: 'Bulk order action completed successfully',
-      timestamp: new Date().toISOString()
-    });
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Bulk order action completed successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      if (err?.statusCode === 422 || err?.code === 'PAYMENT_EXCEPTION_RESOLUTION_REQUIRED') {
+        const e: any = new Error(
+          err?.message || 'נדרשת בחירת אופן טיפול בחריגת התשלום לפני העברה קבוצתית לסטטוס תפעולי'
+        );
+        e.statusCode = 422;
+        e.isOperational = true;
+        e.code = 'PAYMENT_EXCEPTION_RESOLUTION_REQUIRED';
+        throw e;
+      }
+      throw createValidationError(err?.message || 'Bulk order action failed');
+    }
   });
 
   // Get revenue statistics
@@ -1201,7 +1406,7 @@ export class OrderController {
       buildKitchenCsvBuffer,
       buildKitchenXlsxBuffer,
       buildKitchenPdfBuffer,
-      buildKitchenPrintHtml
+      buildKitchenPrintPack
     } = await import('../services/kitchen-report.service');
     const format = String(req.params.format || req.query.format || '').toLowerCase();
     const report = await getAdvancedKitchenReport(req.query as Record<string, unknown>);
@@ -1232,11 +1437,80 @@ export class OrderController {
       return;
     }
     if (format === 'print' || format === 'html') {
+      const allowMissingDraft = String(req.query.allowMissingDraft || '') === 'true';
+      const { buildKitchenPrintPack } = await import('../services/kitchen-report.service');
+      const pack = buildKitchenPrintPack(report, 'full', { allowMissingDraft });
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(buildKitchenPrintHtml(report));
+      if (pack.blocked) res.status(409);
+      res.send(pack.html);
       return;
     }
     res.status(400).json({ success: false, message: 'Unsupported export format' });
+  });
+
+  /** GET print pack: prep | orders | order | deltas | full — SSOT HTML for kitchen. */
+  getKitchenPrintPack = asyncHandler(async (req: Request, res: Response) => {
+    const {
+      getAdvancedKitchenReport,
+      buildKitchenPrintPack
+    } = await import('../services/kitchen-report.service');
+    const packRaw = String(req.query.pack || 'prep').toLowerCase();
+    const packKind = (
+      ['prep', 'orders', 'order', 'deltas', 'full'].includes(packRaw) ? packRaw : 'prep'
+    ) as 'prep' | 'orders' | 'order' | 'deltas' | 'full';
+    const allowMissingDraft = String(req.query.allowMissingDraft || '') === 'true';
+    const report = await getAdvancedKitchenReport(req.query as Record<string, unknown>);
+    const printedAtCandidates = (report.orderNotes || [])
+      .map((o) => o.lastKitchenPrintAt)
+      .filter(Boolean)
+      .sort();
+    const printedAt = printedAtCandidates.length
+      ? printedAtCandidates[printedAtCandidates.length - 1]
+      : null;
+    const pack = buildKitchenPrintPack(report, packKind, {
+      allowMissingDraft,
+      orderId: String(req.query.orderId || ''),
+      printedAt
+    });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('X-Kitchen-Missing-Choices', String(pack.missingChoiceLines));
+    res.setHeader('X-Kitchen-Snapshot', pack.snapshot);
+    if (pack.blocked) {
+      res.status(409);
+    }
+    res.send(pack.html);
+  });
+
+  /** POST mark kitchen print cut on orders included in the day report. No customer email. */
+  markKitchenPrinted = asyncHandler(async (req: Request, res: Response) => {
+    const {
+      getAdvancedKitchenReport,
+      buildKitchenPrintPack,
+      markKitchenReportPrinted
+    } = await import('../services/kitchen-report.service');
+    const report = await getAdvancedKitchenReport(req.query as Record<string, unknown>);
+    const pack = buildKitchenPrintPack(report, 'prep', {
+      allowMissingDraft: String(req.body?.allowMissingDraft || '') === 'true'
+    });
+    if (pack.blocked) {
+      res.status(409).json({
+        success: false,
+        message: 'Cannot mark print while missing size/option choices remain',
+        missingChoiceLines: pack.missingChoiceLines
+      });
+      return;
+    }
+    const orderIds =
+      Array.isArray(req.body?.orderIds) && req.body.orderIds.length
+        ? req.body.orderIds.map((id: unknown) => String(id))
+        : (report.orderNotes || []).map((o) => o.orderId);
+    const result = await markKitchenReportPrinted(orderIds, pack.snapshot);
+    res.status(200).json({
+      success: true,
+      data: result,
+      snapshot: pack.snapshot,
+      message: 'Kitchen print cut recorded (no customer email)'
+    });
   });
 
   setKitchenPreparation = asyncHandler(async (req: Request, res: Response) => {

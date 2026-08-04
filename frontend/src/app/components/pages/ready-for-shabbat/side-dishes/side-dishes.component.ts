@@ -120,6 +120,14 @@ export class SideDishesComponent implements OnInit {
     let itemName = item.name;
     let price = this.getSelectedPrice(item);
     let cartLineId = itemId;
+    let selectedOption: {
+      label: string;
+      amount?: string;
+      price: number;
+      optionId?: string;
+      optionName?: string;
+      valueName?: string;
+    } | undefined;
 
     if (this.hasPricingOptions(item)) {
       const optionIndex = this.getSelectedOptionIndex(itemId);
@@ -129,6 +137,14 @@ export class SideDishesComponent implements OnInit {
         itemName = `${item.name} (${opt.label} - ${opt.amount})`;
         price = opt.price;
         cartLineId = `${itemId}-size-${optionIndex}`;
+        selectedOption = {
+          label: String(opt.label || '').trim(),
+          amount: String(opt.amount || '').trim() || undefined,
+          price: Number(opt.price) || 0,
+          optionId: String(optionIndex),
+          optionName: String(opt.label || '').trim() || undefined,
+          valueName: String(opt.amount || opt.label || '').trim() || undefined
+        };
       }
     } else if (this.hasPricingVariants(item)) {
       const variantIndex = this.getSelectedVariantIndex(itemId);
@@ -138,6 +154,14 @@ export class SideDishesComponent implements OnInit {
         itemName = `${item.name} (${v.label})`;
         price = v.price;
         cartLineId = `${itemId}-size-${variantIndex}`;
+        selectedOption = {
+          label: String(v.label || '').trim(),
+          amount: String(v.label || '').trim() || undefined,
+          price: Number(v.price) || 0,
+          optionId: String(variantIndex),
+          optionName: String(v.label || '').trim() || undefined,
+          valueName: String(v.label || '').trim() || undefined
+        };
       }
     }
 
@@ -148,7 +172,8 @@ export class SideDishesComponent implements OnInit {
         price,
         imageUrl: item.imageUrl ?? '',
         description: item.description,
-        category: item.category || 'sides'
+        category: item.category || 'sides',
+        selectedOption
       },
       1
     );

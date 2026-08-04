@@ -19,6 +19,10 @@ export interface KitchenReportQuery {
   changedOnly?: boolean;
   search?: string;
   includeCatering?: boolean;
+  /** Canonical: all | events | shabbat_ready | catering_shabbat | institutions */
+  orderKind?: string;
+  /** delivery = eventDate; prep = kitchenPreparationAt / prep day */
+  dateBasis?: 'delivery' | 'prep';
 }
 
 export interface KitchenReportDTO {
@@ -36,6 +40,7 @@ export interface KitchenReportDTO {
     allergyAlerts: number;
     changedOrders: number;
     cancelledOrders: number;
+    missingChoiceLines?: number;
   };
   alerts: Array<{
     id: string;
@@ -46,6 +51,27 @@ export interface KitchenReportDTO {
     orderId?: string;
     orderNumber?: string;
   }>;
+  /** Open catering events across a look-ahead window (independent of selected range). */
+  openEventsAlert?: {
+    window: { from: string; to: string; today: string };
+    total: number;
+    overdueCount: number;
+    upcomingCount: number;
+    eventsCount?: number;
+    byDate: Array<{
+      date: string;
+      overdue: boolean;
+      count: number;
+      orders: Array<{
+        orderId: string;
+        orderNumber?: string;
+        customerName?: string;
+        status: string;
+        orderKind?: string;
+        orderKindLabel?: string;
+      }>;
+    }>;
+  } | null;
   preparationGroups: Array<{
     preparationKey: string;
     preparationLabel: string;
@@ -82,20 +108,47 @@ export interface KitchenReportDTO {
     orderId: string;
     orderNumber?: string;
     customerName?: string;
+    phone?: string;
+    address?: string;
     meal: string;
+    meals?: string[];
     fulfillment: string;
     preparationLabel: string;
+    deliveryDate?: string | null;
+    preparationDate?: string | null;
+    orderKind?: string;
+    orderKindLabel?: string;
+    orderType?: string;
+    cateringKind?: string;
     deliveryTime?: string;
     city?: string;
     customerNotes?: string;
     adminNotes?: string;
     allergies?: string;
     specialRequests?: string;
+    items?: Array<{
+      productId?: string;
+      name: string;
+      optionLabel?: string;
+      sizeLabel?: string;
+      category: string;
+      unit: string;
+      quantity: number;
+      missingChoice?: boolean;
+    }>;
     itemNotes: Array<{ dishName: string; note: string }>;
-    lastChange?: { at: string; summary: string; by?: string } | null;
+    lastChange?: {
+      at: string;
+      summary: string;
+      by?: string;
+      type?: string;
+      previousValue?: string;
+      newValue?: string;
+    } | null;
     status: string;
     isCancelled: boolean;
     isChanged: boolean;
+    lastKitchenPrintAt?: string | null;
   }>;
   cancelledAndChanged: Array<{
     orderId: string;
@@ -103,7 +156,14 @@ export interface KitchenReportDTO {
     customerName?: string;
     isCancelled: boolean;
     isChanged: boolean;
-    lastChange?: { at: string; summary: string } | null;
+    lastChange?: {
+      at: string;
+      summary: string;
+      by?: string;
+      type?: string;
+      previousValue?: string;
+      newValue?: string;
+    } | null;
     status: string;
   }>;
 }
@@ -127,13 +187,24 @@ export function addDaysToDateKey(key: string, days: number): string {
 export function formatKitchenGeneratedAt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('he-IL', {
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Jerusalem',
     day: '2-digit',
     month: '2-digit',
+    year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
-  });
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value || '';
+  const day = get('day');
+  const month = get('month');
+  const year = get('year');
+  const hour = get('hour');
+  const minute = get('minute');
+  if (!day || !month || !hour || !minute) return '';
+  return `${day}.${month}.${year} · ${hour}:${minute}`;
 }
 
 export const KITCHEN_MEAL_OPTIONS: Array<{ key: string; label: string }> = [

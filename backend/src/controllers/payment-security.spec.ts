@@ -49,6 +49,25 @@ function asDocument(value: Record<string, any>) {
   };
 }
 
+function matchesOrderFilter(filter: Record<string, any>, state: Record<string, any>): boolean {
+  if (String(filter._id) !== String(state._id)) return false;
+  if (filter.status != null) {
+    if (typeof filter.status === 'object' && Array.isArray(filter.status.$in)) {
+      if (!filter.status.$in.includes(state.status)) return false;
+    } else if (filter.status !== state.status) {
+      return false;
+    }
+  }
+  if (filter.paymentStatus != null) {
+    if (typeof filter.paymentStatus === 'object' && Array.isArray(filter.paymentStatus.$in)) {
+      if (!filter.paymentStatus.$in.includes(state.paymentStatus)) return false;
+    } else if (filter.paymentStatus !== state.paymentStatus) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function createHarness(options: {
   order?: Record<string, any>;
   configured?: boolean;
@@ -81,19 +100,19 @@ function createHarness(options: {
     select: async () => asDocument(state),
     lean: async () => ({ ...state })
   });
-  (Order as any).findOneAndUpdate = (_filter: Record<string, any>, update: any) => ({
-    select: async () => {
+  (Order as any).findOneAndUpdate = (_filter: Record<string, any>, update: any) => {
+    const run = async () => {
       updateCalls += 1;
-      const filterMatches =
-        String(_filter._id) === String(state._id) &&
-        _filter.status === state.status &&
-        _filter.paymentStatus === state.paymentStatus;
-      if (!filterMatches) return null;
+      if (!matchesOrderFilter(_filter, state)) return null;
       state = { ...state, ...(update.$set || {}) };
       atomicWins += 1;
       return asDocument(state);
-    }
-  });
+    };
+    const promise = run();
+    return Object.assign(promise, {
+      select: () => promise
+    });
+  };
   (Order as any).findByIdAndUpdate = async (_id: string, update: any) => {
     state = { ...state, ...(update.$set || {}) };
     return asDocument(state);
@@ -414,7 +433,8 @@ for (const nodeEnv of ['development', 'test'] as const) {
       assert.match(result.body.redirectUrl, /\?mock=1$/);
       assert.equal(harness.getState().paymentStatus, 'authorized');
       assert.equal(harness.getAtomicWins(), 1);
-      assert.equal(harness.getEmailCalls(), 1);
+      // Payment success/mock authorize no longer sends order_received (create-time only).
+      assert.equal(harness.getEmailCalls(), 0);
       assert.equal(harness.getCrmCalls(), 1);
     } finally {
       harness.restore();
@@ -422,7 +442,7 @@ for (const nodeEnv of ['development', 'test'] as const) {
   });
 }
 
-test('parallel mock initiations execute email and CRM side effects once', async () => {
+test('parallel mock initiations execute CRM side effects once without payment emails', async () => {
   const harness = createHarness({ configured: false, nodeEnv: 'test' });
   try {
     const results = await Promise.all([
@@ -431,7 +451,7 @@ test('parallel mock initiations execute email and CRM side effects once', async 
     ]);
     assert.deepEqual(results.map((result) => result.status), [200, 200]);
     assert.equal(harness.getAtomicWins(), 1);
-    assert.equal(harness.getEmailCalls(), 1);
+    assert.equal(harness.getEmailCalls(), 0);
     assert.equal(harness.getCrmCalls(), 1);
   } finally {
     harness.restore();

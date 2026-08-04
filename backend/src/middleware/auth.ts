@@ -95,9 +95,11 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     const user = await User.findById(userId);
 
     if (!user) {
-      res.status(404).json({
+      // Stale JWT (e.g. cookie from another DB/environment) — treat as unauthenticated.
+      res.clearCookie('token', { path: '/' });
+      res.status(401).json({
         success: false,
-        message: 'משתמש לא נמצא'
+        message: 'החיבור לא תקף — התחבר מחדש'
       });
       return;
     }

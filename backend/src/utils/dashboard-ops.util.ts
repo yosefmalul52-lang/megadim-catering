@@ -8,6 +8,7 @@ export type ActionSeverity = 'critical' | 'high' | 'medium' | 'low';
 
 export type ActionItemType =
   | 'payment_failed'
+  | 'payment_abandoned'
   | 'payment_awaiting'
   | 'new_pending'
   | 'upcoming_not_ready'
@@ -416,12 +417,13 @@ export function buildDashboardInsights(input: {
 
   if (
     !covered.has('payment_awaiting') &&
+    !covered.has('payment_abandoned') &&
     Number(input.awaitingPayments) > 0 &&
     out.length < 3
   ) {
     out.push({
       id: 'awaiting_payments',
-      text: `${formatHe(input.awaitingPayments!)} תשלומים ממתינים לטיפול.`
+      text: `${formatHe(input.awaitingPayments!)} תשלומים ממתינים או ננטשו ודורשים בדיקה.`
     });
   }
 

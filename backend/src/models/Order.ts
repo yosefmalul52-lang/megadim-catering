@@ -68,6 +68,60 @@ export interface IOrder extends Document {
   expireYear?: number;
   /** Amount that was authorized — used to warn admin if totalPrice changed after auth. */
   authorizedAmount?: number;
+  /**
+   * Explicit admin special price. When set, preferred over totalPrice for alerts/reports
+   * (getEffectiveOrderAmount). Does not alter Tranzila payloads by itself.
+   */
+  adminPriceOverride?: number | null;
+  adminPriceOverrideReason?: string | null;
+  priceOverriddenAt?: Date | null;
+  priceOverriddenBy?: string | null;
+  /**
+   * Explicit admin resolution of failed/abandoned payment exception.
+   * Does not rewrite paymentStatus — only removes the order from the exceptions tab.
+   */
+  paymentExceptionResolvedAt?: Date | null;
+  paymentExceptionResolvedBy?: string | null;
+  paymentExceptionResolution?: string | null;
+  /** Optional note/reason captured when resolving a payment exception. */
+  paymentExceptionNote?: string | null;
+  /** Server time when paymentStatus first became awaiting_payment (abandon clock). */
+  paymentAwaitingStartedAt?: Date | null;
+  /**
+   * Set when payment fails; kept across new payment-link attempts until paid or exception resolved.
+   * Keeps the order on the failed/abandoned admin tab after send_new_payment_link.
+   */
+  paymentFailedAt?: Date | null;
+  /** Manual payment recorded when resolving paid_elsewhere — does not set captured/authorized. */
+  manualPaymentRecordedAt?: Date | null;
+  manualPaymentRecordedBy?: string | null;
+  manualPaymentMethod?: string | null;
+  manualPaymentNote?: string | null;
+  /**
+   * Lifecycle timestamps (first-write wins; optional for legacy docs).
+   * readyAt — first transition to ready
+   * completedAt — first transition to delivered
+   * cancelledAt — first transition to cancelled
+   * paidAt — business date money is considered collected
+   * capturedAt — technical gateway capture time
+   * serviceDate — delivery/pickup/event date (mirrors eventDate on create; does not replace it)
+   */
+  readyAt?: Date | null;
+  completedAt?: Date | null;
+  cancelledAt?: Date | null;
+  paidAt?: Date | null;
+  capturedAt?: Date | null;
+  serviceDate?: Date | null;
+  /** Append-only ops status change audit. */
+  statusChangeHistory?: Array<{
+    previousStatus: string;
+    newStatus: string;
+    previousPaymentStatus?: string | null;
+    paymentExceptionResolution?: string | null;
+    changedBy: string;
+    changedAt: Date;
+    notificationSent: boolean;
+  }>;
   /** Internal admin notes — never overwrites customerDetails.notes. */
   adminNotes?: string;
   /** Shabbat catering — selected salads (order-level). */
@@ -105,6 +159,8 @@ export interface IOrder extends Document {
    * When unset, kitchen report falls back to delivery/pickup timing.
    * Does not replace customerDetails.eventDate / preferredDeliveryTime.
    */
+  isDemo?: boolean;
+  demoBatchId?: string;
   kitchenPreparationAt?: Date | null;
   /** Structured allergy info for kitchen — never auto-derived from free-text notes. */
   allergies?: string;
@@ -119,7 +175,13 @@ export interface IOrder extends Document {
     type: string;
     summary: string;
     by?: string;
+    previousValue?: string;
+    newValue?: string;
   }>;
+  /** Last time kitchen printed this order / day cut that included it. */
+  lastKitchenPrintAt?: Date | null;
+  /** Snapshot hash of quantities at last kitchen print (change detection). */
+  lastKitchenPrintSnapshot?: string | null;
 }
 
 // Order Schema - userId MUST be at root level
@@ -150,7 +212,14 @@ const OrderSchema: Schema<IOrder> = new Schema({
     selectedOption: {
       label: String,
       amount: String,
-      price: Number
+      price: Number,
+      optionId: String,
+      optionName: String,
+      valueId: String,
+      valueName: String,
+      quantity: Number,
+      priceAdjustment: Number,
+      missingForReview: Boolean
     },
     imageUrl: String,
     description: String
@@ -230,6 +299,37 @@ const OrderSchema: Schema<IOrder> = new Schema({
   expireMonth:   { type: Number, required: false, select: false },
   expireYear:    { type: Number, required: false, select: false },
   authorizedAmount: { type: Number, required: false, default: null },
+  adminPriceOverride: { type: Number, required: false, default: null },
+  adminPriceOverrideReason: { type: String, required: false, trim: true, maxlength: 500, default: null },
+  priceOverriddenAt: { type: Date, required: false, default: null },
+  priceOverriddenBy: { type: String, required: false, trim: true, default: null },
+  paymentExceptionResolvedAt: { type: Date, required: false, default: null, index: true },
+  paymentExceptionResolvedBy: { type: String, required: false, trim: true, default: null },
+  paymentExceptionResolution: { type: String, required: false, trim: true, default: null },
+  paymentExceptionNote: { type: String, required: false, trim: true, maxlength: 500, default: null },
+  paymentAwaitingStartedAt: { type: Date, required: false, default: null, index: true },
+  paymentFailedAt: { type: Date, required: false, default: null, index: true },
+  manualPaymentRecordedAt: { type: Date, required: false, default: null },
+  manualPaymentRecordedBy: { type: String, required: false, trim: true, default: null },
+  manualPaymentMethod: { type: String, required: false, trim: true, maxlength: 120, default: null },
+  manualPaymentNote: { type: String, required: false, trim: true, maxlength: 500, default: null },
+  readyAt: { type: Date, required: false, default: null },
+  completedAt: { type: Date, required: false, default: null },
+  cancelledAt: { type: Date, required: false, default: null },
+  paidAt: { type: Date, required: false, default: null },
+  capturedAt: { type: Date, required: false, default: null },
+  serviceDate: { type: Date, required: false, default: null },
+  statusChangeHistory: [
+    {
+      previousStatus: { type: String, required: true },
+      newStatus: { type: String, required: true },
+      previousPaymentStatus: { type: String, required: false, default: null },
+      paymentExceptionResolution: { type: String, required: false, default: null },
+      changedBy: { type: String, required: true, trim: true },
+      changedAt: { type: Date, required: true, default: Date.now },
+      notificationSent: { type: Boolean, required: true, default: false }
+    }
+  ],
   adminNotes: { type: String, trim: true, default: '', maxlength: 1000 },
   salads: [{ type: String, trim: true }],
   firstCourses: [{ type: String, trim: true }],
@@ -248,6 +348,19 @@ const OrderSchema: Schema<IOrder> = new Schema({
   isTestOrder: {
     type: Boolean,
     default: false,
+    index: true
+  },
+  /** Local kitchen-report demo seed only — never set on real customer orders. */
+  isDemo: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  demoBatchId: {
+    type: String,
+    trim: true,
+    maxlength: 80,
+    sparse: true,
     index: true
   },
   kitchenPreparationAt: {
@@ -274,11 +387,26 @@ const OrderSchema: Schema<IOrder> = new Schema({
         at: { type: Date, required: true },
         type: { type: String, required: true, trim: true },
         summary: { type: String, required: true, trim: true, maxlength: 300 },
-        by: { type: String, required: false, trim: true, maxlength: 120 }
+        by: { type: String, required: false, trim: true, maxlength: 120 },
+        previousValue: { type: String, required: false, trim: true, maxlength: 500 },
+        newValue: { type: String, required: false, trim: true, maxlength: 500 }
       }
     ],
     default: undefined,
     select: true
+  },
+  lastKitchenPrintAt: {
+    type: Date,
+    required: false,
+    default: null,
+    index: true
+  },
+  lastKitchenPrintSnapshot: {
+    type: String,
+    required: false,
+    default: null,
+    trim: true,
+    maxlength: 120
   }
 }, {
   timestamps: true,

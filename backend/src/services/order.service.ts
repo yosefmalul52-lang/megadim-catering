@@ -13,6 +13,43 @@ import { ORDER_ADMIN_LIST_SELECT, ORDER_API_DETAIL_SELECT } from '../utils/order
 import { validateAdminNotesPayload } from '../utils/portal-week';
 import StoreSettings from '../models/store-settings.model';
 import { assertEventDateOpen, normalizeOpenDateRules, normalizeOpenDates } from '../utils/open-date-rules';
+import {
+  computeAdminRecalculatedTotals,
+  isGatewayLockedPaymentStatus
+} from '../utils/order-admin-pricing.util';
+import {
+  buildAdminArchiveTabFilter,
+  buildAdminFailedTabFilter,
+  buildAdminStatusChangeUpdate,
+  buildAdminStatusTabFilter,
+  hasOpenPaymentException,
+  isOpsStatusRequiringExceptionResolution,
+  normalizePaymentExceptionResolution,
+  resolveAdminStatusTab,
+  RESOLUTIONS_THAT_CLOSE_EXCEPTION,
+  RESOLUTIONS_TO_PROCESSING,
+  type AdminStatusTab
+} from '../utils/order-admin-status.util';
+import {
+  applyOpsStatusTimestamps,
+  canArchiveOrderByStatus,
+  parseServiceDateFromEventDate
+} from '../utils/order-lifecycle-timestamps.util';
+import OrderNotificationClaim from '../models/OrderNotificationClaim';
+import {
+  extractBaseProductId,
+  findMatchingPricingOption,
+  findMatchingPricingVariant,
+  formatItemDisplayName,
+  itemVariantFingerprint,
+  amountsEquivalent,
+  looksLikeSizeToken,
+  normalizeSelectedOption,
+  parseCompositeSizeIndex,
+  parseOptionFromItemName,
+  resolveSelectedOptionForUpdate,
+  SelectedOptionSnapshot
+} from '../utils/order-item-options.util';
 
 export interface AdminSourceTabCounts {
   total: number;
@@ -20,11 +57,20 @@ export interface AdminSourceTabCounts {
   processing: number;
   ready: number;
   failed: number;
+  cancelled: number;
+  completed: number;
   archive: number;
 }
 
 export type AdminOrderSource = 'shabbat' | 'catering' | 'events';
-export type AdminOrderStatusTab = 'pending' | 'processing' | 'ready' | 'failed' | 'archive';
+export type AdminOrderStatusTab =
+  | 'pending'
+  | 'processing'
+  | 'ready'
+  | 'failed'
+  | 'cancelled'
+  | 'completed'
+  | 'archive';
 export type AdminOrdersSortBy =
   | 'createdAt'
   | 'eventDate'
@@ -97,13 +143,33 @@ export class OrderService {
         if (!category || category.trim() === '') {
           category = this.detectCategoryFromName(item.name);
         }
+        const selectedOption = normalizeSelectedOption((item as any).selectedOption, {
+          name: item.name,
+          price: item.price
+        });
         return {
           productId: item.id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
           category,
-          imageUrl: (item as any).imageUrl || (item as any).image || undefined
+          imageUrl: (item as any).imageUrl || (item as any).image || undefined,
+          description: (item as any).description
+            ? String((item as any).description).trim()
+            : undefined,
+          selectedOption: selectedOption
+            ? {
+                label: selectedOption.label,
+                amount: selectedOption.amount,
+                price: selectedOption.price,
+                optionId: selectedOption.optionId,
+                optionName: selectedOption.optionName,
+                valueId: selectedOption.valueId,
+                valueName: selectedOption.valueName,
+                quantity: selectedOption.quantity,
+                priceAdjustment: selectedOption.priceAdjustment
+              }
+            : undefined
         };
       });
 
@@ -180,14 +246,34 @@ export class OrderService {
           ? [payload.address.city, payload.address.street, payload.address.apartment].filter(Boolean).join(', ')
           : '';
 
-    const orderItems = payload.items.map(item => ({
-      productId: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      category: (item as any).category || this.detectCategoryFromName(item.name),
-      imageUrl: (item as any).imageUrl || (item as any).image || undefined
-    }));
+    const orderItems = payload.items.map(item => {
+      const selectedOption = normalizeSelectedOption((item as any).selectedOption, {
+        name: item.name,
+        price: item.price
+      });
+      return {
+        productId: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        category: (item as any).category || this.detectCategoryFromName(item.name),
+        imageUrl: (item as any).imageUrl || (item as any).image || undefined,
+        description: (item as any).description ? String((item as any).description).trim() : undefined,
+        selectedOption: selectedOption
+          ? {
+              label: selectedOption.label,
+              amount: selectedOption.amount,
+              price: selectedOption.price,
+              optionId: selectedOption.optionId,
+              optionName: selectedOption.optionName,
+              valueId: selectedOption.valueId,
+              valueName: selectedOption.valueName,
+              quantity: selectedOption.quantity,
+              priceAdjustment: selectedOption.priceAdjustment
+            }
+          : undefined
+      };
+    });
 
     const isManual = options.isManual === true;
     const status = isManual ? 'processing' : 'pending';
@@ -206,6 +292,10 @@ export class OrderService {
       customerDetails.isPaid = options.paymentStatus === 'paid';
     }
     const marketingData = sanitizeMarketingData((payload as { marketingData?: unknown }).marketingData);
+    const serviceDate = parseServiceDateFromEventDate(payload.eventDate);
+    const now = new Date();
+    const paidAt =
+      isManual && options.paymentStatus === 'paid' ? now : undefined;
 
     const order = new Order({
       userId: (payload as any).userId ?? null,
@@ -217,6 +307,8 @@ export class OrderService {
       deliveryFee: payload.deliveryFee ?? null,
       status,
       isTestOrder: false,
+      ...(serviceDate ? { serviceDate } : {}),
+      ...(paidAt ? { paidAt } : {}),
       ...(!isManual && options.paymentInitTokenHash && options.paymentInitTokenExpiresAt
         ? {
             paymentInitTokenHash: options.paymentInitTokenHash,
@@ -254,7 +346,7 @@ export class OrderService {
   }
 
   // Get all orders with filters (Admin). archive=true => isDeleted or cancelled; otherwise active only (isDeleted false).
-  // paymentFilter: 'valid' (default) excludes failed/abandoned online payments; 'failed' returns only those.
+  // paymentFilter=failed => unresolved failed/awaiting_payment exceptions tab.
   async getAllOrders(filters: {
     status?: string;
     limit?: number;
@@ -269,13 +361,10 @@ export class OrderService {
 
       if (filters.archive === true) {
         query.$or = [{ isDeleted: true }, { status: 'cancelled' }];
+      } else if (filters.paymentFilter === 'failed') {
+        Object.assign(query, buildAdminFailedTabFilter());
       } else {
         query.isDeleted = { $ne: true };
-        if (filters.paymentFilter === 'failed') {
-          query.paymentStatus = { $in: ['failed', 'awaiting_payment'] as const };
-        } else {
-          query.paymentStatus = { $nin: ['failed', 'awaiting_payment'] as const };
-        }
       }
 
       if (filters.status) {
@@ -339,49 +428,26 @@ export class OrderService {
   }
 
   private buildAdminActiveOrdersFilter(): Record<string, unknown> {
+    // Active (non-archive) base — tab exclusivity is applied per statusTab filter.
     return {
       isDeleted: { $ne: true },
-      paymentStatus: { $nin: ['failed', 'awaiting_payment'] }
+      status: { $ne: 'cancelled' }
     };
   }
 
-  private buildAdminFailedOrdersFilter(): Record<string, unknown> {
-    return {
-      isDeleted: { $ne: true },
-      paymentStatus: { $in: ['failed', 'awaiting_payment'] }
-    };
+  private buildAdminFailedOrdersFilter(now: Date = new Date()): Record<string, unknown> {
+    return buildAdminFailedTabFilter(now);
   }
 
   private buildAdminArchiveOrdersFilter(): Record<string, unknown> {
-    return {
-      $or: [{ isDeleted: true }, { status: 'cancelled' }]
-    };
+    return buildAdminArchiveTabFilter();
   }
 
-  private buildAdminStatusTabFilter(statusTab: AdminOrderStatusTab): Record<string, unknown> {
-    switch (statusTab) {
-      case 'pending':
-        return {
-          ...this.buildAdminActiveOrdersFilter(),
-          status: { $in: ['pending', 'new'] }
-        };
-      case 'processing':
-        return {
-          ...this.buildAdminActiveOrdersFilter(),
-          status: { $in: ['processing', 'in-progress'] }
-        };
-      case 'ready':
-        return {
-          ...this.buildAdminActiveOrdersFilter(),
-          status: { $in: ['ready', 'delivered'] }
-        };
-      case 'failed':
-        return this.buildAdminFailedOrdersFilter();
-      case 'archive':
-        return this.buildAdminArchiveOrdersFilter();
-      default:
-        return {};
-    }
+  private buildAdminStatusTabFilter(
+    statusTab: AdminOrderStatusTab,
+    now: Date = new Date()
+  ): Record<string, unknown> {
+    return buildAdminStatusTabFilter(statusTab as AdminStatusTab, now);
   }
 
   private mergeMongoQueryParts(...parts: Record<string, unknown>[]): Record<string, unknown> {
@@ -599,37 +665,49 @@ export class OrderService {
     catering: AdminSourceTabCounts;
     events: AdminSourceTabCounts;
   }> {
+    const now = new Date();
     const sources = ['shabbat', 'catering', 'events'] as const;
     const entries = await Promise.all(
       sources.map(async (source) => {
         const sourceFilter = this.buildAdminOrderSourceFilter(source);
-        const [pending, processing, ready, failed, archive] = await Promise.all([
-          Order.countDocuments({
-            ...sourceFilter,
-            ...this.buildAdminActiveOrdersFilter(),
-            status: { $in: ['pending', 'new'] }
-          }),
-          Order.countDocuments({
-            ...sourceFilter,
-            ...this.buildAdminActiveOrdersFilter(),
-            status: { $in: ['processing', 'in-progress'] }
-          }),
-          Order.countDocuments({
-            ...sourceFilter,
-            ...this.buildAdminActiveOrdersFilter(),
-            status: { $in: ['ready', 'delivered'] }
-          }),
-          Order.countDocuments({
-            ...sourceFilter,
-            ...this.buildAdminFailedOrdersFilter()
-          }),
-          Order.countDocuments({
-            ...sourceFilter,
-            ...this.buildAdminArchiveOrdersFilter()
-          })
-        ]);
-        const total = pending + processing + ready + failed;
-        return [source, { total, pending, processing, ready, failed, archive }] as const;
+        const [pending, processing, ready, failed, cancelled, completed, archive] =
+          await Promise.all([
+            Order.countDocuments(
+              this.mergeMongoQueryParts(sourceFilter, this.buildAdminStatusTabFilter('pending', now))
+            ),
+            Order.countDocuments(
+              this.mergeMongoQueryParts(
+                sourceFilter,
+                this.buildAdminStatusTabFilter('processing', now)
+              )
+            ),
+            Order.countDocuments(
+              this.mergeMongoQueryParts(sourceFilter, this.buildAdminStatusTabFilter('ready', now))
+            ),
+            Order.countDocuments(
+              this.mergeMongoQueryParts(sourceFilter, this.buildAdminStatusTabFilter('failed', now))
+            ),
+            Order.countDocuments(
+              this.mergeMongoQueryParts(
+                sourceFilter,
+                this.buildAdminStatusTabFilter('cancelled', now)
+              )
+            ),
+            Order.countDocuments(
+              this.mergeMongoQueryParts(
+                sourceFilter,
+                this.buildAdminStatusTabFilter('completed', now)
+              )
+            ),
+            Order.countDocuments(
+              this.mergeMongoQueryParts(sourceFilter, this.buildAdminStatusTabFilter('archive', now))
+            )
+          ]);
+        const total = pending + processing + ready + failed + cancelled + completed;
+        return [
+          source,
+          { total, pending, processing, ready, failed, cancelled, completed, archive }
+        ] as const;
       })
     );
     return Object.fromEntries(entries) as {
@@ -721,38 +799,280 @@ export class OrderService {
   }
 
   // Update order status
-  async updateOrderStatus(orderId: string, updates: {
-    status?: string;
-    deliveryDate?: Date;
-    notes?: string;
-  }): Promise<IOrder | null> {
+  async updateOrderStatus(
+    orderId: string,
+    updates: {
+      status?: string;
+      deliveryDate?: Date;
+      notes?: string;
+      paymentExceptionResolution?: unknown;
+      manualPaymentMethod?: string;
+      manualPaymentNote?: string;
+      exceptionNote?: string;
+    },
+    meta?: { changedBy?: string; notificationSent?: boolean; now?: Date }
+  ): Promise<{
+    order: IOrder | null;
+    previousStatus: string | null;
+    adminStatusTab: AdminStatusTab | null;
+    idempotent: boolean;
+    shouldSendApprovalEmail: boolean;
+  }> {
     try {
-      const updateData: any = {};
-      if (updates.status) updateData.status = updates.status;
-      if (updates.deliveryDate) updateData.deliveryDate = updates.deliveryDate;
-      if (updates.notes !== undefined) updateData['customerDetails.notes'] = updates.notes;
+      const now = meta?.now || new Date();
+      const prior = await Order.findById(orderId)
+        .select(
+          'status paymentStatus paymentExceptionResolvedAt paymentExceptionResolution paymentAwaitingStartedAt paymentFailedAt readyAt completedAt cancelledAt paidAt capturedAt serviceDate createdAt updatedAt transactionId paymentInitTokenHash isManual isDeleted'
+        )
+        .lean();
+      if (!prior) {
+        return {
+          order: null,
+          previousStatus: null,
+          adminStatusTab: null,
+          idempotent: false,
+          shouldSendApprovalEmail: false
+        };
+      }
 
-      const order = await Order.findByIdAndUpdate(
-        orderId,
-        { $set: updateData },
-        { returnDocument: 'after' }
-      )
+      const previousStatus = String((prior as any).status || '') || null;
+      const previousPaymentStatus = String((prior as any).paymentStatus || '') || null;
+      let nextStatus = String(updates.status || '').trim();
+      const changedBy = String(meta?.changedBy || 'system').trim() || 'system';
+      const notificationSent = Boolean(meta?.notificationSent);
+      const resolution = normalizePaymentExceptionResolution(updates.paymentExceptionResolution);
+
+      // Map explicit business resolutions onto status when status omitted.
+      if (resolution && RESOLUTIONS_TO_PROCESSING.has(resolution) && !nextStatus) {
+        nextStatus = 'processing';
+      }
+      if (resolution === 'cancel_order') {
+        nextStatus = 'cancelled';
+      }
+
+      // Idempotent: already at target with exception already closed (when required).
+      if (
+        nextStatus &&
+        previousStatus === nextStatus &&
+        (!hasOpenPaymentException(prior as any) ||
+          (resolution &&
+            String((prior as any).paymentExceptionResolution || '') === resolution &&
+            (prior as any).paymentExceptionResolvedAt != null))
+      ) {
+        const full = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+        return {
+          order: full as IOrder | null,
+          previousStatus,
+          adminStatusTab: full ? resolveAdminStatusTab(full as any, now) : null,
+          idempotent: true,
+          shouldSendApprovalEmail: false
+        };
+      }
+
+      // IMPORTANT: never rewrite paymentStatus here — ops status and payment are independent.
+      let updateOps: Record<string, unknown> = { $set: {} as Record<string, unknown> };
+      let shouldSendApprovalEmail = false;
+      let filterNeedsOpenException = false;
+
+      if (nextStatus) {
+        const built = buildAdminStatusChangeUpdate({
+          previousStatus,
+          nextStatus,
+          previousPaymentStatus,
+          changedBy,
+          notificationSent,
+          paymentExceptionResolution: updates.paymentExceptionResolution,
+          orderHasOpenPaymentException: hasOpenPaymentException(prior as any),
+          manualPaymentMethod: updates.manualPaymentMethod,
+          manualPaymentNote: updates.manualPaymentNote,
+          exceptionNote: updates.exceptionNote,
+          now,
+          priorTimestamps: {
+            readyAt: (prior as any).readyAt,
+            completedAt: (prior as any).completedAt,
+            cancelledAt: (prior as any).cancelledAt,
+            paidAt: (prior as any).paidAt,
+            capturedAt: (prior as any).capturedAt,
+            serviceDate: (prior as any).serviceDate
+          }
+        });
+        updateOps = { $set: { ...built.$set } };
+        if (built.$push) updateOps.$push = built.$push;
+        if (built.$unset) updateOps.$unset = built.$unset;
+        shouldSendApprovalEmail = built.shouldSendApprovalEmail;
+
+        // Closing exception (explicit or implied by move to processing) — race-safe filter.
+        const closingResolution =
+          built.resolution && RESOLUTIONS_THAT_CLOSE_EXCEPTION.has(built.resolution)
+            ? built.resolution
+            : null;
+        if (closingResolution && hasOpenPaymentException(prior as any)) {
+          filterNeedsOpenException = true;
+        }
+      }
+
+      const $set = updateOps.$set as Record<string, unknown>;
+      if (updates.deliveryDate) $set.deliveryDate = updates.deliveryDate;
+      if (updates.notes !== undefined) $set['customerDetails.notes'] = updates.notes;
+
+      // Conditional write: if closing exception, require it still open (race / double-tab safe).
+      const filter: Record<string, unknown> = { _id: orderId };
+      if (
+        filterNeedsOpenException ||
+        (resolution &&
+          RESOLUTIONS_THAT_CLOSE_EXCEPTION.has(resolution) &&
+          hasOpenPaymentException(prior as any))
+      ) {
+        filter.$or = [
+          { paymentExceptionResolvedAt: null },
+          { paymentExceptionResolvedAt: { $exists: false } }
+        ];
+      }
+
+      const order = await Order.findOneAndUpdate(filter, updateOps, { returnDocument: 'after' })
         .select(ORDER_API_DETAIL_SELECT)
         .lean();
 
-      if (order && updates.status === 'cancelled') {
+      if (!order && nextStatus) {
+        // Lost the race — return current state idempotently.
+        const current = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+        return {
+          order: current as IOrder | null,
+          previousStatus,
+          adminStatusTab: current ? resolveAdminStatusTab(current as any, now) : null,
+          idempotent: true,
+          shouldSendApprovalEmail: false
+        };
+      }
+
+      if (order && String((order as any).status) === 'cancelled') {
         try {
           const { appendKitchenChange } = await import('./kitchen-report.service');
-          await appendKitchenChange(orderId, 'cancelled', 'ההזמנה בוטלה');
+          await appendKitchenChange(orderId, 'cancelled', 'ההזמנה בוטלה', undefined);
+          const kitchenOpsPath = './kitchen-ops' + '.service';
+          const { onOrderKitchenRelevantChange } = await import(kitchenOpsPath);
+          await onOrderKitchenRelevantChange(orderId, {
+            type: 'cancelled',
+            summary: 'ההזמנה בוטלה',
+            previousValue: String(previousStatus || ''),
+            newValue: 'cancelled'
+          });
         } catch {
           /* non-blocking */
         }
       }
 
-      return order as IOrder | null;
+      return {
+        order: order as IOrder | null,
+        previousStatus,
+        adminStatusTab: order ? resolveAdminStatusTab(order as any, now) : null,
+        idempotent: false,
+        shouldSendApprovalEmail
+      };
     } catch (error: any) {
+      if (error?.statusCode === 422 || error?.code === 'PAYMENT_EXCEPTION_RESOLUTION_REQUIRED') {
+        throw error;
+      }
+      if (error?.code === 'PAYMENT_LINK_DOES_NOT_CHANGE_STATUS') {
+        throw error;
+      }
       console.error('Error updating order status:', error);
       throw error;
+    }
+  }
+
+  /** Mark the latest statusChangeHistory entry's notificationSent flag. */
+  async markLatestStatusChangeNotification(
+    orderId: string,
+    notificationSent: boolean
+  ): Promise<void> {
+    const order = await Order.findById(orderId).select('statusChangeHistory').lean();
+    if (!order) return;
+    const history = Array.isArray((order as any).statusChangeHistory)
+      ? ((order as any).statusChangeHistory as any[])
+      : [];
+    if (!history.length) return;
+    const lastIdx = history.length - 1;
+    await Order.updateOne(
+      { _id: orderId },
+      { $set: { [`statusChangeHistory.${lastIdx}.notificationSent`]: Boolean(notificationSent) } }
+    );
+  }
+
+  /**
+   * Explicit payment-exception decision. Closing resolutions update status atomically
+   * via updateOrderStatus. send_new_payment_link does not close or change status.
+   */
+  async resolvePaymentException(
+    orderId: string,
+    payload: {
+      resolution: unknown;
+      adminUserId?: unknown;
+      manualPaymentMethod?: string;
+      manualPaymentNote?: string;
+      exceptionNote?: string;
+    }
+  ): Promise<{ order: IOrder | null; adminStatusTab: AdminStatusTab | null }> {
+    const resolution = normalizePaymentExceptionResolution(payload.resolution);
+    if (!resolution) {
+      throw Object.assign(new Error('סוג טיפול בחריגת תשלום לא תקין'), {
+        statusCode: 422,
+        code: 'INVALID_PAYMENT_EXCEPTION_RESOLUTION'
+      });
+    }
+
+    if (resolution === 'send_new_payment_link') {
+      const order = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+      if (!order) return { order: null, adminStatusTab: null };
+      const pay = String((order as any).paymentStatus || '');
+      if (pay !== 'failed' && pay !== 'awaiting_payment') {
+        throw Object.assign(new Error('ניתן לטפל רק בהזמנות עם תשלום נכשל או נטוש'), {
+          statusCode: 422
+        });
+      }
+      // Does not close exception and does not change ops status.
+      return {
+        order: order as IOrder,
+        adminStatusTab: resolveAdminStatusTab(order as any)
+      };
+    }
+
+    const nextStatus = resolution === 'cancel_order' ? 'cancelled' : 'processing';
+    const result = await this.updateOrderStatus(
+      orderId,
+      {
+        status: nextStatus,
+        paymentExceptionResolution: resolution,
+        manualPaymentMethod: payload.manualPaymentMethod,
+        manualPaymentNote: payload.manualPaymentNote,
+        exceptionNote: payload.exceptionNote
+      },
+      { changedBy: payload.adminUserId != null ? String(payload.adminUserId) : 'admin' }
+    );
+    return { order: result.order, adminStatusTab: result.adminStatusTab };
+  }
+
+  /**
+   * @deprecated Prefer acquireEmailSendClaim with recipient. Kept for transitional callers.
+   */
+  async claimOrderNotification(
+    orderId: string,
+    notificationType: string,
+    recipient = 'system'
+  ): Promise<boolean> {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) return false;
+    try {
+      await OrderNotificationClaim.create({
+        orderId: new mongoose.Types.ObjectId(orderId),
+        emailEventType: String(notificationType || '').trim(),
+        recipient: String(recipient || 'system').trim().toLowerCase(),
+        status: 'pending',
+        attemptCount: 0
+      });
+      return true;
+    } catch (err: any) {
+      if (err?.code === 11000) return false;
+      throw err;
     }
   }
 
@@ -761,17 +1081,60 @@ export class OrderService {
     driverUserId: string,
     status: string
   ): Promise<IOrder | null> {
+    const nextStatus = String(status || '').trim().toLowerCase();
     const allowed = new Set(['out_for_delivery', 'delivered', 'delivery_failed']);
-    if (!allowed.has(String(status || '').trim().toLowerCase())) {
+    if (!allowed.has(nextStatus)) {
       throw new Error('Driver status is not allowed');
     }
+
+    const prior = await Order.findOne({
+      _id: orderId,
+      assignedDriverId: driverUserId,
+      isDeleted: { $ne: true }
+    })
+      .select('status paymentStatus readyAt completedAt cancelledAt paidAt capturedAt')
+      .lean();
+    if (!prior) return null;
+
+    const previousStatus = String((prior as any).status || '') || null;
+    const now = new Date();
+    const $set: Record<string, unknown> = { status: nextStatus };
+    applyOpsStatusTimestamps({
+      $set,
+      previousStatus,
+      nextStatus,
+      prior: {
+        readyAt: (prior as any).readyAt,
+        completedAt: (prior as any).completedAt,
+        cancelledAt: (prior as any).cancelledAt,
+        paidAt: (prior as any).paidAt,
+        capturedAt: (prior as any).capturedAt
+      },
+      now
+    });
+
+    const updateOps: Record<string, unknown> = { $set };
+    if (previousStatus !== nextStatus) {
+      updateOps.$push = {
+        statusChangeHistory: {
+          previousStatus: previousStatus || '',
+          newStatus: nextStatus,
+          previousPaymentStatus: String((prior as any).paymentStatus || '') || null,
+          paymentExceptionResolution: null,
+          changedBy: `driver:${driverUserId}`,
+          changedAt: now,
+          notificationSent: false
+        }
+      };
+    }
+
     const updated = await Order.findOneAndUpdate(
       {
         _id: orderId,
         assignedDriverId: driverUserId,
         isDeleted: { $ne: true }
       },
-      { $set: { status } },
+      updateOps,
       { returnDocument: 'after' }
     )
       .select(ORDER_API_DETAIL_SELECT)
@@ -822,43 +1185,147 @@ export class OrderService {
 
   /**
    * Update order items securely (Admin):
-   * - Uses MenuItem as the single source of truth for price/name/category.
-   * - Recalculates totalPrice on the server from authenticated product prices.
+   * - Round-trips selectedOption / size / kitchen notes.
+   * - Omitting selectedOption preserves the existing snapshot (does not wipe).
+   * - Does not mutate subtotal, totalPrice, paymentStatus, or Tranzila fields.
    */
   async updateOrderItems(orderId: string, newItems: any[]): Promise<IOrder | null> {
     if (!Array.isArray(newItems) || newItems.length === 0) {
       throw new Error('items array is required and must not be empty');
     }
 
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+    const existingItems = Array.isArray((order as any).items) ? ((order as any).items as any[]) : [];
+
+    const findExistingForIncoming = (incoming: any, index: number) => {
+      const pid = extractBaseProductId(incoming?.productId || incoming?.id);
+      const inName = String(incoming?.name || '').trim();
+      const atIndex = existingItems[index];
+      if (atIndex) {
+        const atPid = extractBaseProductId(atIndex?.productId);
+        if (!pid || !atPid || atPid === pid) return atIndex;
+      }
+      if (pid) {
+        const incomingFp = itemVariantFingerprint({
+          productId: incoming?.productId || incoming?.id,
+          name: incoming?.name,
+          category: incoming?.category,
+          selectedOption: incoming?.selectedOption
+        });
+        const byFingerprint = existingItems.find(
+          (ex) =>
+            extractBaseProductId(ex?.productId) === pid && itemVariantFingerprint(ex) === incomingFp
+        );
+        if (byFingerprint) return byFingerprint;
+
+        const byIdAndName = existingItems.find(
+          (ex) => extractBaseProductId(ex?.productId) === pid && String(ex?.name || '').trim() === inName
+        );
+        if (byIdAndName) return byIdAndName;
+
+        const samePid = existingItems.filter((ex) => extractBaseProductId(ex?.productId) === pid);
+        // Only safe when a single line shares the product — never collapse 250/500 twins.
+        if (samePid.length === 1) return samePid[0];
+        return null;
+      }
+      return existingItems.find((ex) => String(ex?.name || '').trim() === inName) || null;
+    };
+
+    const toStoredOption = (opt?: SelectedOptionSnapshot) => {
+      if (!opt?.label && !opt?.amount) return undefined;
+      return {
+        label: opt.label,
+        amount: opt.amount,
+        price: opt.price,
+        optionId: opt.optionId,
+        optionName: opt.optionName,
+        valueId: opt.valueId,
+        valueName: opt.valueName,
+        quantity: opt.quantity,
+        priceAdjustment: opt.priceAdjustment,
+        missingForReview: opt.missingForReview === true ? true : undefined
+      };
+    };
+
     const normalizedItems = await Promise.all(
       newItems.map(async (rawItem: any, index: number) => {
         const item = rawItem || {};
-        const productId = String(item.productId || item.id || '').trim();
+        const productIdRaw = String(item.productId || item.id || '').trim();
         const productName = String(item.name || '').trim();
         const quantity = Number(item.quantity);
-
-        if (!productId) {
-          // Allow free-text catering menu items — no productId, no DB price lookup.
-          if (!productName) {
-            throw new Error(`items[${index}] must have either productId or name`);
-          }
-          const freePrice = Number(item.price);
-          return {
-            productId: '',
-            name: productName,
-            price: Number.isFinite(freePrice) && freePrice >= 0 ? freePrice : 0,
-            quantity,
-            category: String(item.category || '').trim(),
-            imageUrl: String(item.imageUrl || '').trim(),
-            description: String(item.description || '').trim()
-          };
-        }
         if (!Number.isFinite(quantity) || quantity <= 0) {
           throw new Error(`items[${index}].quantity must be a positive number`);
         }
 
-        if (isHolidayOrderProductId(productId)) {
-          const holidayProduct = await resolveHolidayOrderProduct(productId, {
+        const existing = findExistingForIncoming(item, index);
+        const hasSelectedOptionKey = Object.prototype.hasOwnProperty.call(item, 'selectedOption');
+        let selectedOption = resolveSelectedOptionForUpdate({
+          incoming: item,
+          existing,
+          hasSelectedOptionKey
+        });
+
+        // Recover option from composite cart id `…-size-N` when still missing.
+        const sizeIdx = parseCompositeSizeIndex(productIdRaw);
+
+        // Qty / kitchen-notes only: preserve name, price, and option snapshot exactly.
+        if (existing && !hasSelectedOptionKey) {
+          const description =
+            item.description !== undefined
+              ? String(item.description || '').trim()
+              : String(existing?.description || '').trim();
+          // Prefer existing structured option; else keep recovered snapshot from name/id.
+          if (!selectedOption && sizeIdx != null) {
+            // leave selectedOption for catalog path below when we have size index but no existing
+          }
+          if (selectedOption || existing.selectedOption || parseOptionFromItemName(existing.name).label) {
+            const preservedOption =
+              selectedOption ||
+              normalizeSelectedOption(existing.selectedOption, {
+                name: existing.name,
+                price: existing.price
+              });
+            return {
+              productId: String(existing.productId || productIdRaw || ''),
+              name: String(existing.name || productName),
+              price: Number(existing.price) || 0,
+              quantity,
+              category: String(existing.category || item.category || '').trim(),
+              imageUrl: String(existing.imageUrl || item.imageUrl || '').trim(),
+              description,
+              selectedOption: toStoredOption(preservedOption)
+            };
+          }
+        }
+
+        if (!productIdRaw) {
+          if (!productName) {
+            throw new Error(`items[${index}] must have either productId or name`);
+          }
+          const freePrice = Number(item.price);
+          const price =
+            Number.isFinite(freePrice) && freePrice >= 0
+              ? freePrice
+              : Number(existing?.price) || 0;
+          const description =
+            item.description !== undefined
+              ? String(item.description || '').trim()
+              : String(existing?.description || '').trim();
+          return {
+            productId: '',
+            name: productName,
+            price,
+            quantity,
+            category: String(item.category || existing?.category || '').trim(),
+            imageUrl: String(item.imageUrl || existing?.imageUrl || '').trim(),
+            description,
+            selectedOption: toStoredOption(selectedOption)
+          };
+        }
+
+        if (isHolidayOrderProductId(productIdRaw)) {
+          const holidayProduct = await resolveHolidayOrderProduct(productIdRaw, {
             name: productName,
             price: item.price,
             description: item.description,
@@ -866,57 +1333,48 @@ export class OrderService {
             category: item.category
           });
           if (!holidayProduct) {
-            throw new Error(
-              `Holiday product not found for items[${index}] (id=${productId})`
-            );
+            throw new Error(`Holiday product not found for items[${index}] (id=${productIdRaw})`);
           }
           const authenticPrice = Number(holidayProduct.price);
           if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
             throw new Error(`Invalid holiday product price for items[${index}]`);
           }
+          if (!selectedOption && item?.selectedOption?.label) {
+            selectedOption = normalizeSelectedOption(item.selectedOption, {
+              name: productName,
+              price: authenticPrice
+            });
+          }
+          const description =
+            item.description !== undefined
+              ? String(item.description || '').trim()
+              : String(existing?.description || holidayProduct.description || '').trim();
           return {
-            productId,
-            name: holidayProduct.name,
+            productId: productIdRaw,
+            name: formatItemDisplayName(holidayProduct.name, selectedOption) || holidayProduct.name,
             price: authenticPrice,
             quantity,
             category: holidayProduct.category,
-            selectedOption: item?.selectedOption?.label
-              ? {
-                  label: String(item.selectedOption.label).trim(),
-                  amount: String(item.selectedOption.amount || '').trim() || undefined,
-                  price: Number(item.selectedOption.price ?? authenticPrice)
-                }
-              : undefined,
+            selectedOption: toStoredOption(selectedOption),
             imageUrl: holidayProduct.imageUrl,
-            description: holidayProduct.description
+            description
           };
         }
 
-        // Prevent CastError crash on invalid ObjectId values.
-        // Some legacy/cart flows send composite ids like "<objectId>-<timestamp>".
-        // In that case, safely extract the ObjectId prefix.
-        let lookupProductId = productId;
+        let lookupProductId = extractBaseProductId(productIdRaw) || productIdRaw;
         let product: any = null;
 
         const escapedRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const normalizedBaseName = productName
-          ? productName
-              // Remove variant suffix in parentheses: "סלט חומוס (500 מ"ל - 500)" -> "סלט חומוס"
-              .replace(/\s*\([^)]*\)\s*$/, '')
-              // Remove variant suffix in dash format: "סלט חומוס - קטן" -> "סלט חומוס"
-              .replace(/\s*-\s*[^-]+$/, '')
-              .trim()
-          : '';
+        const parsedName = parseOptionFromItemName(productName);
+        const normalizedBaseName = parsedName.baseName || productName;
 
         const findByNameFallback = async () => {
           if (!productName && !normalizedBaseName) return null;
           const nameCandidates = [productName, normalizedBaseName].filter(Boolean);
-          // Try exact match first (fast + deterministic)
           for (const candidate of nameCandidates) {
             const exact = await MenuItem.findOne({ name: candidate }).lean();
             if (exact) return exact;
           }
-          // Then prefix match on normalized base name (handles extra suffixes/formatting)
           if (normalizedBaseName) {
             return MenuItem.findOne({
               name: { $regex: `^${escapedRegex(normalizedBaseName)}(?:\\s|\\(|$)`, $options: 'i' }
@@ -931,151 +1389,214 @@ export class OrderService {
             lookupProductId = objectIdPrefix;
             product = await MenuItem.findById(lookupProductId).lean();
           } else {
-            // Legacy compatibility: non-ObjectId ids (e.g. "6")
             product = await findByNameFallback();
             if (!product) {
-              throw new Error(`Invalid product id format at items[${index}] (${productId})`);
+              throw new Error(`Invalid product id format at items[${index}] (${productIdRaw})`);
             }
           }
         } else {
-          // Security: fetch authentic product data (especially price) from DB.
           product = await MenuItem.findById(lookupProductId).lean();
         }
 
-        // If id looked valid but no DB row found (deleted/legacy mismatch), fallback by name.
         if (!product) {
           product = await findByNameFallback();
         }
-
         if (!product) {
           throw new Error(
             `Product not found for items[${index}] (id=${lookupProductId}${productName ? `, name=${productName}` : ''})`
           );
         }
 
-        const requestedVariantLabel = String(
-          item?.selectedOption?.label || item?.variant || item?.size || ''
-        ).trim();
-        const requestedVariantAmount = String(item?.selectedOption?.amount || '').trim();
+        const pricingOptions = Array.isArray((product as any).pricingOptions)
+          ? (product as any).pricingOptions
+          : [];
+        const pricingVariants = Array.isArray((product as any).pricingVariants)
+          ? (product as any).pricingVariants
+          : [];
 
-        let selectedOptionToSave:
-          | { label: string; amount?: string; price: number }
-          | undefined;
+        // From composite id size index
+        if (!selectedOption && sizeIdx != null && pricingOptions[sizeIdx]) {
+          const matchedOption = pricingOptions[sizeIdx];
+          selectedOption = {
+            label: String(matchedOption.label || '').trim(),
+            amount: String(matchedOption.amount || '').trim() || undefined,
+            price: Number(matchedOption.price),
+            optionId: String(sizeIdx),
+            optionName: String(matchedOption.label || '').trim() || undefined,
+            valueName: String(matchedOption.amount || matchedOption.label || '').trim() || undefined
+          };
+        }
+
         let authenticPrice = Number((product as any).price);
+        const requestedVariantLabel = String(
+          selectedOption?.label || item?.selectedOption?.label || item?.variant || item?.size || ''
+        ).trim();
+        const requestedVariantAmount = String(
+          selectedOption?.amount || item?.selectedOption?.amount || ''
+        ).trim();
 
-        if (requestedVariantLabel) {
-          const pricingOptions = Array.isArray((product as any).pricingOptions)
-            ? (product as any).pricingOptions
-            : [];
-          const pricingVariants = Array.isArray((product as any).pricingVariants)
-            ? (product as any).pricingVariants
-            : [];
-
-          const normalizedRequestedLabel = requestedVariantLabel.toLowerCase();
-          const normalizedRequestedAmount = requestedVariantAmount.toLowerCase();
-
-          const matchedOption = pricingOptions.find((opt: any) => {
-            const label = String(opt?.label || '').trim().toLowerCase();
-            const amount = String(opt?.amount || '').trim().toLowerCase();
-            if (!label) return false;
-            const byLabel = label === normalizedRequestedLabel;
-            const byAmount = normalizedRequestedAmount ? amount === normalizedRequestedAmount : false;
-            return byLabel || byAmount;
+        if (requestedVariantLabel || requestedVariantAmount) {
+          const matched = findMatchingPricingOption(pricingOptions, {
+            label: requestedVariantLabel,
+            amount: requestedVariantAmount
           });
 
-          if (matchedOption) {
+          if (matched) {
+            const matchedOption = matched.option;
             authenticPrice = Number(matchedOption.price);
-            selectedOptionToSave = {
+            selectedOption = {
               label: String(matchedOption.label || requestedVariantLabel).trim(),
-              amount: String(matchedOption.amount || requestedVariantAmount).trim() || undefined,
-              price: authenticPrice
+              amount:
+                String(matchedOption.amount || requestedVariantAmount).trim() || undefined,
+              price: authenticPrice,
+              optionId: String(matched.index),
+              optionName: String(matchedOption.label || requestedVariantLabel).trim(),
+              valueName:
+                String(matchedOption.amount || matchedOption.label || '').trim() || undefined
             };
           } else {
-            const matchedVariant = pricingVariants.find((variant: any) => {
-              const label = String(variant?.label || '').trim().toLowerCase();
-              const size = String(variant?.size || '').trim().toLowerCase();
-              if (!label && !size) return false;
-              return label === normalizedRequestedLabel || size === normalizedRequestedLabel;
+            const matchedVariant = findMatchingPricingVariant(pricingVariants, {
+              label: requestedVariantLabel,
+              amount: requestedVariantAmount
             });
 
             if (matchedVariant) {
-              authenticPrice = Number(matchedVariant.price);
-              selectedOptionToSave = {
-                label: String(
-                  matchedVariant.label || matchedVariant.size || requestedVariantLabel
-                ).trim(),
-                amount: String(matchedVariant.size || requestedVariantAmount).trim() || undefined,
-                price: authenticPrice
+              const variant = matchedVariant.option;
+              authenticPrice = Number(variant.price);
+              selectedOption = {
+                label: String(variant.label || variant.size || requestedVariantLabel).trim(),
+                amount: String(variant.size || requestedVariantAmount).trim() || undefined,
+                price: authenticPrice,
+                optionId: String(matchedVariant.index),
+                optionName: String(variant.label || variant.size || '').trim() || undefined,
+                valueName: String(variant.size || variant.label || '').trim() || undefined
               };
+            } else if (selectedOption?.label || selectedOption?.amount) {
+              // Menu changed / ambiguous catalog labels — keep the historical snapshot;
+              // never invent the catalog minimum.
+              selectedOption = {
+                ...selectedOption,
+                missingForReview: selectedOption.missingForReview ?? true
+              };
+              if (Number.isFinite(Number(selectedOption.price))) {
+                authenticPrice = Number(selectedOption.price);
+              } else if (Number.isFinite(Number(existing?.price))) {
+                authenticPrice = Number(existing.price);
+              }
             } else {
               throw new Error(
-                `Variant "${requestedVariantLabel}" not found in DB for items[${index}] (product=${String(
+                `Variant "${requestedVariantLabel || requestedVariantAmount}" not found in DB for items[${index}] (product=${String(
                   (product as any).name || lookupProductId
                 )})`
               );
             }
           }
-        } else if (item?.selectedOption?.label) {
-          // Preserve legacy payload shape if it already includes selectedOption details.
-          selectedOptionToSave = {
-            label: String(item.selectedOption.label).trim(),
-            amount: String(item.selectedOption.amount || '').trim() || undefined,
-            price: Number(item.selectedOption.price ?? authenticPrice)
-          };
+        } else if (selectedOption?.label) {
+          if (Number.isFinite(Number(selectedOption.price))) {
+            authenticPrice = Number(selectedOption.price);
+          }
         }
 
         if (!Number.isFinite(authenticPrice) || authenticPrice < 0) {
           throw new Error(`Invalid product price in DB for product ${lookupProductId}`);
         }
 
-        const canonicalProductName = String((product as any).name || item.name || '').trim();
-        const canonicalItemName = selectedOptionToSave?.label
-          ? `${canonicalProductName} - ${selectedOptionToSave.label}`
-          : canonicalProductName;
+        const canonicalProductName = String((product as any).name || parsedName.baseName || item.name || '').trim();
+        // Prefer the admin/customer display name when it already encodes a REAL size choice.
+        // Product nicknames like (טירשי) must not count as size encoding.
+        const incomingName = productName;
+        const parsedIncoming = parseOptionFromItemName(incomingName);
+        const nameAlreadyEncoded =
+          !!selectedOption &&
+          !!parsedIncoming.label &&
+          looksLikeSizeToken(parsedIncoming.label) &&
+          (!!selectedOption.label || !!selectedOption.amount) &&
+          (amountsEquivalent(parsedIncoming.label, selectedOption.label) ||
+            amountsEquivalent(parsedIncoming.amount, selectedOption.amount) ||
+            amountsEquivalent(parsedIncoming.label, selectedOption.amount) ||
+            (!!selectedOption.label && incomingName.includes(String(selectedOption.label))));
+        const nameToSave = nameAlreadyEncoded
+          ? incomingName
+          : formatItemDisplayName(canonicalProductName, selectedOption) || canonicalProductName;
+
+        const description =
+          item.description !== undefined
+            ? String(item.description || '').trim()
+            : String(existing?.description || '').trim();
+
+        const baseProductId = String((product as any)._id || lookupProductId);
+        // Preserve composite `…-size-N` when stable; rewrite only when matched size disagrees.
+        let productIdToSave = baseProductId;
+        const existingPid = String(existing?.productId || '');
+        const matchedSizeIdx =
+          selectedOption?.optionId != null && /^\d+$/.test(String(selectedOption.optionId))
+            ? Number(selectedOption.optionId)
+            : sizeIdx;
+        if (existingPid && extractBaseProductId(existingPid) === baseProductId) {
+          const existingSize = parseCompositeSizeIndex(existingPid);
+          if (
+            matchedSizeIdx != null &&
+            Number.isInteger(matchedSizeIdx) &&
+            matchedSizeIdx >= 0 &&
+            existingSize != null &&
+            existingSize !== matchedSizeIdx
+          ) {
+            productIdToSave = `${baseProductId}-size-${matchedSizeIdx}`;
+          } else {
+            productIdToSave = existingPid;
+          }
+        } else if (
+          matchedSizeIdx != null &&
+          Number.isInteger(matchedSizeIdx) &&
+          matchedSizeIdx >= 0 &&
+          pricingOptions.length > 0
+        ) {
+          productIdToSave = `${baseProductId}-size-${matchedSizeIdx}`;
+        }
 
         return {
-          productId: String((product as any)._id || lookupProductId),
-          name: canonicalItemName,
+          productId: productIdToSave,
+          name: nameToSave,
           price: authenticPrice,
           quantity,
-          category: (product as any).category,
-          selectedOption: selectedOptionToSave,
-          imageUrl: (product as any).imageUrl,
-          description: (product as any).description
+          category: String(item.category || (product as any).category || existing?.category || '').trim(),
+          selectedOption: toStoredOption(selectedOption),
+          imageUrl: String(item.imageUrl || (product as any).imageUrl || existing?.imageUrl || '').trim(),
+          description
         };
       })
     );
 
-    const order = await Order.findById(orderId).lean();
-    if (!order) return null;
+    // Items/kitchen edits must not mutate paymentStatus, Tranzila fields, subtotal, or totalPrice.
+    // Price overrides use dedicated admin endpoints.
+    const $set: Record<string, unknown> = {
+      items: normalizedItems
+    };
 
-    const existingDiscount = Math.max(
-      0,
-      (Number(order.subtotal || 0) + (order.deliveryFee || 0)) - Number(order.totalPrice || 0)
-    );
-    const newSubtotal = Math.round(
-      normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 100
-    ) / 100;
-    const newTotalPrice = Math.max(
-      0,
-      Math.round((newSubtotal + (order.deliveryFee || 0) - existingDiscount) * 100) / 100
-    );
-
-    const updateResult = await Order.updateOne(
-      { _id: orderId },
-      {
-        $set: {
-          items: normalizedItems,
-          subtotal: newSubtotal,
-          totalPrice: newTotalPrice
-        }
-      }
-    );
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set });
     if (updateResult.matchedCount === 0) return null;
 
     try {
       const { appendKitchenChange } = await import('./kitchen-report.service');
-      await appendKitchenChange(orderId, 'items', 'עודכנו פריטים או כמויות בהזמנה');
+      const summarizeItems = (rows: any[]) =>
+        (rows || [])
+          .map((it) => {
+            const opt = it?.selectedOption?.label || it?.selectedOption?.amount || '';
+            return `${it?.name || '?'}${opt ? `/${opt}` : ''}×${it?.quantity ?? 0}`;
+          })
+          .join('; ')
+          .slice(0, 500);
+      await appendKitchenChange(orderId, 'items', 'עודכנו פריטים, כמויות או וריאציות בהזמנה', undefined, {
+        previousValue: summarizeItems((order as any).items || []),
+        newValue: summarizeItems(normalizedItems)
+      });
+      const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+      await onOrderKitchenRelevantChange(orderId, {
+        type: 'items',
+        summary: 'עודכנו פריטים, כמויות או וריאציות בהזמנה',
+        previousValue: summarizeItems((order as any).items || []),
+        newValue: summarizeItems(normalizedItems)
+      });
     } catch {
       /* non-blocking */
     }
@@ -1100,42 +1621,35 @@ export class OrderService {
       throw new Error('Shipping cost cannot be updated for catering orders');
     }
 
-    const items = Array.isArray(order.items) ? order.items : [];
-    const itemsSubtotal = items.reduce((sum, item) => {
-      const price = Number((item as any).price) || 0;
-      const qty = Number((item as any).quantity) || 0;
-      return sum + price * qty;
-    }, 0);
-    const roundedSubtotal = Math.round(itemsSubtotal * 100) / 100;
+    if (isGatewayLockedPaymentStatus((order as any).paymentStatus)) {
+      throw new Error(
+        'לא ניתן לשנות סכום הזמנה שאושרה או שחויבה ללא מנגנון פיננסי מתאים (authorized/captured)'
+      );
+    }
+
+    const newShipping = Math.round(Number(shippingCost) * 100) / 100;
+    if (!Number.isFinite(newShipping) || newShipping < 0) {
+      throw new Error('shippingCost must be a non-negative number');
+    }
+
+    const totals = computeAdminRecalculatedTotals(order as unknown as Record<string, unknown>, {
+      deliveryFee: newShipping
+    });
 
     const cd = (order.customerDetails || {}) as Record<string, unknown>;
-    const previousSubtotal = Number(order.subtotal ?? cd.subtotal ?? roundedSubtotal);
-    const previousDelivery = Number(order.deliveryFee ?? cd.deliveryFee ?? 0);
-    const previousTotal = Number(order.totalPrice) || 0;
-    const discountAmount = Math.max(
-      0,
-      Math.round((previousSubtotal + previousDelivery - previousTotal) * 100) / 100
-    );
-
-    const newShipping = Math.round(shippingCost * 100) / 100;
-    const newTotal = Math.max(
-      0,
-      Math.round((roundedSubtotal + newShipping - discountAmount) * 100) / 100
-    );
-
     const customerDetails = {
       ...cd,
-      deliveryFee: newShipping,
-      subtotal: roundedSubtotal
+      deliveryFee: totals.deliveryFee,
+      subtotal: totals.subtotal
     };
 
     const updateResult = await Order.updateOne(
       { _id: orderId },
       {
         $set: {
-          deliveryFee: newShipping,
-          subtotal: roundedSubtotal,
-          totalPrice: newTotal,
+          deliveryFee: totals.deliveryFee,
+          subtotal: totals.subtotal,
+          totalPrice: totals.totalPrice,
           customerDetails
         }
       }
@@ -1191,12 +1705,123 @@ export class OrderService {
       throw new Error('יש להזין לפחות מנה אחת');
     }
 
-    const updateResult = await Order.updateOne(
-      { _id: orderId },
-      { $set: { portionsEvening, portionsMorning, numberOfPortions } }
-    );
+    const prev = {
+      evening: Number(row.portionsEvening) || 0,
+      morning: Number(row.portionsMorning) || 0,
+      total: Number(row.numberOfPortions) || 0
+    };
+
+    const totals = computeAdminRecalculatedTotals(order as unknown as Record<string, unknown>, {
+      portionsEvening,
+      portionsMorning,
+      numberOfPortions
+    });
+
+    const $set: Record<string, unknown> = {
+      portionsEvening,
+      portionsMorning,
+      numberOfPortions
+    };
+    if (!totals.locked) {
+      $set.subtotal = totals.subtotal;
+      $set.totalPrice = totals.totalPrice;
+    }
+
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set });
     if (updateResult.matchedCount === 0) return null;
 
+    try {
+      const { appendKitchenChange } = await import('./kitchen-report.service');
+      await appendKitchenChange(orderId, 'quantity', 'עודכנו כמויות מנות (portions)', undefined, {
+        previousValue: `ערב=${prev.evening},בוקר=${prev.morning},סה״כ=${prev.total}`,
+        newValue: `ערב=${portionsEvening},בוקר=${portionsMorning},סה״כ=${numberOfPortions}`
+      });
+      const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+      await onOrderKitchenRelevantChange(orderId, {
+        type: 'quantity',
+        summary: 'עודכנו כמויות מנות (portions)',
+        previousValue: `ערב=${prev.evening},בוקר=${prev.morning},סה״כ=${prev.total}`,
+        newValue: `ערב=${portionsEvening},בוקר=${portionsMorning},סה״כ=${numberOfPortions}`
+      });
+    } catch {
+      /* non-blocking */
+    }
+
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return updated as IOrder | null;
+  }
+
+  /**
+   * Admin: set an explicit special price (adminPriceOverride*).
+   * - pending/awaiting/failed/voided: also writes totalPrice (= override) as source of truth.
+   * - authorized/captured: stores override for alerts/reports only — does NOT change totalPrice.
+   */
+  async setAdminPriceOverride(
+    orderId: string,
+    payload: { amount: unknown; reason?: unknown; adminUserId?: unknown }
+  ): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    const amount = Number(payload.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error('סכום המנהל חייב להיות מספר שאינו שלילי');
+    }
+    const reason = String(payload.reason ?? '').trim();
+    if (!reason) {
+      throw new Error('חובה לציין סיבה למחיר מיוחד');
+    }
+    if (reason.length > 500) {
+      throw new Error('סיבת מחיר מיוחד ארוכה מדי');
+    }
+
+    const rounded = Math.round(amount * 100) / 100;
+    const locked = isGatewayLockedPaymentStatus((order as any).paymentStatus);
+    const $set: Record<string, unknown> = {
+      adminPriceOverride: rounded,
+      adminPriceOverrideReason: reason,
+      priceOverriddenAt: new Date(),
+      priceOverriddenBy: payload.adminUserId != null ? String(payload.adminUserId) : null
+    };
+    if (!locked) {
+      $set.totalPrice = rounded;
+      if (!(Number((order as any).subtotal) > 0)) {
+        $set.subtotal = rounded;
+      }
+    }
+
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set });
+    if (updateResult.matchedCount === 0) return null;
+
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return updated as IOrder | null;
+  }
+
+  /** Admin: clear admin price override (does not invent a new total — recalculates when unlocked). */
+  async clearAdminPriceOverride(orderId: string): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    const locked = isGatewayLockedPaymentStatus((order as any).paymentStatus);
+    const cleared = {
+      ...((order as unknown) as Record<string, unknown>),
+      adminPriceOverride: null
+    };
+    const totals = computeAdminRecalculatedTotals(cleared);
+
+    const $set: Record<string, unknown> = {
+      adminPriceOverride: null,
+      adminPriceOverrideReason: null,
+      priceOverriddenAt: null,
+      priceOverriddenBy: null
+    };
+    if (!locked) {
+      $set.subtotal = totals.subtotal;
+      $set.totalPrice = totals.totalPrice;
+    }
+
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set });
+    if (updateResult.matchedCount === 0) return null;
     const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
     return updated as IOrder | null;
   }
@@ -1223,16 +1848,35 @@ export class OrderService {
         throw new Error('Invalid date');
       }
       const dateStr = dateValue.toISOString().slice(0, 10);
+      const prior = await Order.findById(orderId).select('customerDetails.eventDate serviceDate').lean();
+      if (!prior) return null;
+      const previousDate = String((prior as any)?.customerDetails?.eventDate || '').slice(0, 10);
+      const serviceDate = parseServiceDateFromEventDate(dateStr);
 
       const updateResult = await Order.updateOne(
         { _id: orderId },
-        { $set: { 'customerDetails.eventDate': dateStr } }
+        {
+          $set: {
+            'customerDetails.eventDate': dateStr,
+            ...(serviceDate ? { serviceDate } : {})
+          }
+        }
       );
       if (updateResult.matchedCount === 0) return null;
 
       try {
         const { appendKitchenChange } = await import('./kitchen-report.service');
-        await appendKitchenChange(orderId, 'delivery', `עודכן מועד אספקה ל-${dateStr}`);
+        await appendKitchenChange(orderId, 'delivery', `עודכן מועד אספקה ל-${dateStr}`, undefined, {
+          previousValue: previousDate,
+          newValue: dateStr
+        });
+        const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+        await onOrderKitchenRelevantChange(orderId, {
+          type: 'delivery',
+          summary: `עודכן מועד אספקה ל-${dateStr}`,
+          previousValue: previousDate,
+          newValue: dateStr
+        });
       } catch {
         /* non-blocking */
       }
@@ -1256,69 +1900,42 @@ export class OrderService {
       isDeleted: { $ne: true },
       paymentStatus: { $nin: ['failed', 'awaiting_payment'] as const }
     };
-    const [pendingCount, eventsTodayCount, monthlyRevenueResult] = await Promise.all([
+    const { sumActualRevenueInRange } = await import('./business-metrics.service');
+    const [pendingCount, eventsTodayCount, monthly] = await Promise.all([
       Order.countDocuments({ ...activeQuery, status: { $in: ['pending', 'new'] } }),
       Order.countDocuments({ ...activeQuery, 'customerDetails.eventDate': todayStr }),
-      Order.aggregate([
-        {
-          $match: {
-            isDeleted: { $ne: true },
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-            status: { $ne: 'cancelled' },
-            paymentStatus: { $in: ['authorized', 'captured'] as const }
-          }
-        },
-        { $group: { _id: null, total: { $sum: '$totalPrice' } } }
-      ])
+      sumActualRevenueInRange(startOfMonth, endOfMonth)
     ]);
 
-    const monthlyRevenue = monthlyRevenueResult[0]?.total ?? 0;
-    return { pendingCount, eventsTodayCount, monthlyRevenue };
+    return {
+      pendingCount,
+      eventsTodayCount,
+      monthlyRevenue: monthly.revenue
+    };
   }
 
   // Get order statistics
   async getOrderStatistics(period: string = 'month'): Promise<any> {
     try {
-      const now = new Date();
-      let startDate: Date;
-
-      switch (period) {
-        case 'week':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case 'month':
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case 'year':
-          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      }
+      const { resolveBusinessMetricsRange, buildActualRevenueMatch, createdAtRangeMatch } =
+        await import('../utils/business-metrics.util');
+      const preset =
+        period === 'week' ? 'week' : period === 'year' ? 'year' : period === 'month' ? 'last30' : 'last30';
+      const range = resolveBusinessMetricsRange({ preset });
 
       const totalOrders = await Order.countDocuments({
-        createdAt: { $gte: startDate }
+        isTestOrder: { $ne: true },
+        ...createdAtRangeMatch(range.from, range.to)
       });
 
-      const totalRevenue = await Order.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: startDate },
-            status: { $ne: 'cancelled' }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: { $sum: '$totalPrice' }
-          }
-        }
-      ]);
+      const { sumActualRevenueInRange } = await import('./business-metrics.service');
+      const revenue = await sumActualRevenueInRange(range.from, range.to);
 
       const ordersByStatus = await Order.aggregate([
         {
           $match: {
-            createdAt: { $gte: startDate }
+            isTestOrder: { $ne: true },
+            ...createdAtRangeMatch(range.from, range.to)
           }
         },
         {
@@ -1332,7 +1949,7 @@ export class OrderService {
       return {
         period,
         totalOrders,
-        totalRevenue: totalRevenue[0]?.total || 0,
+        totalRevenue: revenue.revenue,
         ordersByStatus: ordersByStatus.reduce((acc: any, item: any) => {
           acc[item._id] = item.count;
           return acc;
@@ -1361,9 +1978,20 @@ export class OrderService {
   }
 
   // Delete order
-  // Soft delete: set isDeleted = true
+  // Soft delete: set isDeleted = true (only delivered or cancelled)
   async deleteOrder(orderId: string): Promise<IOrder | null> {
     try {
+      const prior = await Order.findById(orderId).select('status isDeleted').lean();
+      if (!prior) return null;
+      if (!canArchiveOrderByStatus((prior as any).status)) {
+        const err = new Error(
+          'ניתן לארכב רק הזמנות שנמסרו (delivered) או שבוטלו (cancelled)'
+        ) as Error & { statusCode: number; code: string };
+        err.statusCode = 422;
+        err.code = 'ARCHIVE_STATUS_NOT_ALLOWED';
+        throw err;
+      }
+
       const order = await Order.findByIdAndUpdate(
         orderId,
         { $set: { isDeleted: true } },
@@ -1371,23 +1999,63 @@ export class OrderService {
       )
         .select(ORDER_API_DETAIL_SELECT)
         .lean();
+      if (order) {
+        try {
+          const { appendKitchenChange } = await import('./kitchen-report.service');
+          await appendKitchenChange(orderId, 'cancelled', 'הזמנה נמחקה (soft delete)', undefined, {
+            previousValue: 'active',
+            newValue: 'isDeleted'
+          });
+          const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+          await onOrderKitchenRelevantChange(orderId, {
+            type: 'soft_delete',
+            summary: 'הזמנה נמחקה (soft delete)',
+            previousValue: 'active',
+            newValue: 'isDeleted'
+          });
+        } catch {
+          /* non-blocking */
+        }
+      }
       return order as IOrder | null;
     } catch (error: any) {
+      if (error?.statusCode === 422 || error?.code === 'ARCHIVE_STATUS_NOT_ALLOWED') {
+        throw error;
+      }
       console.error('Error deleting order:', error);
       throw error;
     }
   }
 
-  // Restore order: set isDeleted = false and status = 'pending'
+  // Restore order: set isDeleted = false only (preserve status, payment, timestamps)
   async restoreOrder(orderId: string): Promise<IOrder | null> {
     try {
+      const prior = await Order.findById(orderId).select('status').lean();
       const order = await Order.findByIdAndUpdate(
         orderId,
-        { $set: { isDeleted: false, status: 'pending' } },
+        { $set: { isDeleted: false } },
         { returnDocument: 'after' }
       )
         .select(ORDER_API_DETAIL_SELECT)
         .lean();
+      if (order) {
+        try {
+          const { appendKitchenChange } = await import('./kitchen-report.service');
+          await appendKitchenChange(orderId, 'other', 'הזמנה שוחזרה מארכיון', undefined, {
+            previousValue: 'isDeleted',
+            newValue: String((prior as any)?.status || (order as any).status || '')
+          });
+          const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+          await onOrderKitchenRelevantChange(orderId, {
+            type: 'restored',
+            summary: 'הזמנה שוחזרה מארכיון — הסטטוס נשמר',
+            previousValue: 'isDeleted',
+            newValue: String((order as any).status || '')
+          });
+        } catch {
+          /* non-blocking */
+        }
+      }
       return order as IOrder | null;
     } catch (error: any) {
       console.error('Error restoring order:', error);
@@ -1410,6 +2078,10 @@ export class OrderService {
     orderIds: string[];
     action: 'status' | 'archive' | 'restore' | 'permanent_delete';
     status?: string;
+    paymentExceptionResolution?: unknown;
+    manualPaymentMethod?: string;
+    manualPaymentNote?: string;
+    changedBy?: string;
   }): Promise<{ matchedCount: number; modifiedCount: number; deletedCount: number }> {
     const uniqueIds = Array.from(
       new Set(
@@ -1443,14 +2115,63 @@ export class OrderService {
         if (!validStatuses.has(status)) {
           throw new Error('Invalid status value');
         }
-        const result = await Order.updateMany(baseFilter, { $set: { status } });
+
+        // Block bulk move into ops statuses when any selected order has an open payment exception
+        // without an explicit resolution (same rule as single-order API).
+        if (isOpsStatusRequiringExceptionResolution(status)) {
+          const openExceptions = await Order.countDocuments({
+            _id: { $in: objectIds },
+            paymentStatus: { $in: ['failed', 'awaiting_payment'] },
+            $or: [
+              { paymentExceptionResolvedAt: null },
+              { paymentExceptionResolvedAt: { $exists: false } }
+            ]
+          });
+          if (openExceptions > 0 && !normalizePaymentExceptionResolution((input as any).paymentExceptionResolution)) {
+            const err = new Error(
+              'נדרשת בחירת אופן טיפול בחריגת התשלום לפני העברה קבוצתית לסטטוס תפעולי'
+            ) as Error & { statusCode: number; code: string };
+            err.statusCode = 422;
+            err.code = 'PAYMENT_EXCEPTION_RESOLUTION_REQUIRED';
+            throw err;
+          }
+        }
+
+        // Apply per-order so status + resolution stay atomic (no partial split state).
+        let modifiedCount = 0;
+        const changedBy = String((input as any).changedBy || 'admin').trim() || 'admin';
+        for (const id of uniqueIds) {
+          const result = await this.updateOrderStatus(
+            id,
+            {
+              status,
+              paymentExceptionResolution: (input as any).paymentExceptionResolution,
+              manualPaymentMethod: (input as any).manualPaymentMethod,
+              manualPaymentNote: (input as any).manualPaymentNote
+            },
+            { changedBy, notificationSent: false }
+          );
+          if (result.order) modifiedCount += 1;
+        }
         return {
-          matchedCount: Number(result.matchedCount || 0),
-          modifiedCount: Number(result.modifiedCount || 0),
+          matchedCount: uniqueIds.length,
+          modifiedCount,
           deletedCount: 0
         };
       }
       case 'archive': {
+        const notAllowed = await Order.countDocuments({
+          _id: { $in: objectIds },
+          status: { $nin: ['delivered', 'cancelled'] }
+        });
+        if (notAllowed > 0) {
+          const err = new Error(
+            'ניתן לארכב רק הזמנות שנמסרו (delivered) או שבוטלו (cancelled)'
+          ) as Error & { statusCode: number; code: string };
+          err.statusCode = 422;
+          err.code = 'ARCHIVE_STATUS_NOT_ALLOWED';
+          throw err;
+        }
         const result = await Order.updateMany(baseFilter, { $set: { isDeleted: true } });
         return {
           matchedCount: Number(result.matchedCount || 0),
@@ -1460,7 +2181,7 @@ export class OrderService {
       }
       case 'restore': {
         const result = await Order.updateMany(baseFilter, {
-          $set: { isDeleted: false, status: 'pending' }
+          $set: { isDeleted: false }
         });
         return {
           matchedCount: Number(result.matchedCount || 0),
@@ -1505,22 +2226,25 @@ export class OrderService {
   // Get revenue statistics for chart
   async getRevenueStats(): Promise<{ date: string; total: number }[]> {
     try {
+      const {
+        buildActualRevenueInRangeMatch,
+        effectivePaidAtMongoExpr,
+        revenueAmountMongoExpr
+      } = await import('../utils/order-actual-revenue.util');
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const now = new Date();
 
       const revenueStats = await Order.aggregate([
         {
-          $match: {
-            createdAt: { $gte: sevenDaysAgo },
-            status: { $ne: 'cancelled' }
-          }
+          $match: buildActualRevenueInRangeMatch(sevenDaysAgo, now)
         },
         {
           $group: {
             _id: {
-              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+              $dateToString: { format: '%Y-%m-%d', date: effectivePaidAtMongoExpr() }
             },
-            total: { $sum: '$totalPrice' }
+            total: { $sum: revenueAmountMongoExpr() }
           }
         },
         {
@@ -1552,23 +2276,44 @@ export class OrderService {
     includeArchived?: boolean;
   }): Promise<Array<{ source: string; totalRevenue: number; ordersCount: number }>> {
     try {
-      const match: Record<string, any> = {
-        status: { $ne: 'cancelled' }
-      };
-      if (!filters?.includeArchived) {
-        match.isDeleted = { $ne: true };
-      }
-      if (filters?.startDate || filters?.endDate) {
-        match.createdAt = {};
-        if (filters.startDate) match.createdAt.$gte = filters.startDate;
-        if (filters.endDate) match.createdAt.$lte = filters.endDate;
+      const {
+        buildActualRevenueMatch,
+        buildActualRevenueInRangeMatch,
+        revenueAmountMongoExpr
+      } = await import('../utils/order-actual-revenue.util');
+      // includeArchived ignored — isDeleted does not affect actual revenue (SSOT).
+      void filters?.includeArchived;
+      let match: Record<string, any>;
+      if (filters?.startDate && filters?.endDate) {
+        match = buildActualRevenueInRangeMatch(filters.startDate, filters.endDate);
+      } else if (filters?.startDate || filters?.endDate) {
+        const { effectivePaidAtMongoExpr } = await import('../utils/order-actual-revenue.util');
+        match = {
+          $and: [
+            buildActualRevenueMatch(),
+            {
+              $expr: {
+                $and: [
+                  ...(filters.startDate
+                    ? [{ $gte: [effectivePaidAtMongoExpr(), filters.startDate] }]
+                    : []),
+                  ...(filters.endDate
+                    ? [{ $lte: [effectivePaidAtMongoExpr(), filters.endDate] }]
+                    : [])
+                ]
+              }
+            }
+          ]
+        };
+      } else {
+        match = buildActualRevenueMatch();
       }
 
       const rows = await Order.aggregate([
         { $match: match },
         {
           $project: {
-            totalPrice: 1,
+            amount: revenueAmountMongoExpr(),
             source: {
               $let: {
                 vars: { src: { $ifNull: ['$marketingData.utm_source', ''] } },
@@ -1586,7 +2331,7 @@ export class OrderService {
         {
           $group: {
             _id: '$source',
-            totalRevenue: { $sum: '$totalPrice' },
+            totalRevenue: { $sum: '$amount' },
             ordersCount: { $sum: 1 }
           }
         },
@@ -1617,16 +2362,36 @@ export class OrderService {
     includeArchived?: boolean;
   }): Promise<Array<{ month: string; totalRevenue: number; ordersCount: number }>> {
     try {
-      const match: Record<string, any> = {
-        status: { $ne: 'cancelled' }
-      };
-      if (!filters?.includeArchived) {
-        match.isDeleted = { $ne: true };
-      }
-      if (filters?.startDate || filters?.endDate) {
-        match.createdAt = {};
-        if (filters.startDate) match.createdAt.$gte = filters.startDate;
-        if (filters.endDate) match.createdAt.$lte = filters.endDate;
+      const {
+        buildActualRevenueMatch,
+        buildActualRevenueInRangeMatch,
+        effectivePaidAtMongoExpr,
+        revenueAmountMongoExpr
+      } = await import('../utils/order-actual-revenue.util');
+      void filters?.includeArchived;
+      let match: Record<string, any>;
+      if (filters?.startDate && filters?.endDate) {
+        match = buildActualRevenueInRangeMatch(filters.startDate, filters.endDate);
+      } else if (filters?.startDate || filters?.endDate) {
+        match = {
+          $and: [
+            buildActualRevenueMatch(),
+            {
+              $expr: {
+                $and: [
+                  ...(filters.startDate
+                    ? [{ $gte: [effectivePaidAtMongoExpr(), filters.startDate] }]
+                    : []),
+                  ...(filters.endDate
+                    ? [{ $lte: [effectivePaidAtMongoExpr(), filters.endDate] }]
+                    : [])
+                ]
+              }
+            }
+          ]
+        };
+      } else {
+        match = buildActualRevenueMatch();
       }
 
       const rows = await Order.aggregate([
@@ -1634,9 +2399,9 @@ export class OrderService {
         {
           $group: {
             _id: {
-              $dateToString: { format: '%Y-%m', date: '$createdAt' }
+              $dateToString: { format: '%Y-%m', date: effectivePaidAtMongoExpr() }
             },
-            totalRevenue: { $sum: '$totalPrice' },
+            totalRevenue: { $sum: revenueAmountMongoExpr() },
             ordersCount: { $sum: 1 }
           }
         },
@@ -1658,430 +2423,6 @@ export class OrderService {
     }
   }
 
-  // Get kitchen preparation report - using aggregation pipeline with $lookup (like Order Management dashboard)
-  // Uses Mongoose aggregation to populate product details, ensuring exact same data structure
-  async getKitchenReport(
-    targetDate?: string,
-    includeCatering = false
-  ): Promise<{
-    items: Array<{
-      productName: string;
-      category: string;
-      totalPackages: number;
-      totalWeightRaw: number;
-      displayWeight: string;
-      unit?: string;
-      isUnitOnly?: boolean;
-      prepWindow?: 'now' | 'soon' | 'later';
-      prepWindowLabel?: string;
-      prepSortOrder?: number;
-    }>;
-    meta: {
-      generatedAt: string;
-      activeOrdersCount: number;
-      appliedDate?: string;
-    };
-  }> {
-    try {
-      // Kitchen report should include only pending/in-progress kitchen work.
-      const activeStatuses = ['pending', 'new', 'processing', 'in-progress'];
-
-      const normalizedTargetDate =
-        typeof targetDate === 'string' && targetDate.trim()
-          ? (targetDate.includes('T') ? targetDate.slice(0, 10) : targetDate.trim())
-          : '';
-
-      const matchStage: Record<string, any> = {
-        status: { $in: activeStatuses },
-        isDeleted: { $ne: true }
-      };
-
-      if (!includeCatering) {
-        matchStage.$nor = [
-          { orderType: 'catering' },
-          { numberOfPortions: { $exists: true, $nin: [null, ''] } },
-          { mealTime: { $exists: true, $nin: [null, ''] } }
-        ];
-      }
-
-      // Kitchen prep should use the intended delivery/pickup date (customerDetails.eventDate).
-      // Match exact YYYY-MM-DD and also tolerate values that include a time suffix.
-      if (normalizedTargetDate) {
-        const escapedDate = normalizedTargetDate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const dateRegex = new RegExp(`^${escapedDate}`);
-        matchStage.$or = [
-          { 'customerDetails.eventDate': normalizedTargetDate },
-          { 'customerDetails.eventDate': dateRegex }
-        ];
-      }
-      const activeOrdersCount = await Order.countDocuments(matchStage);
-
-      // Use aggregation pipeline with $lookup to populate product details
-      const aggregationResult: any[] = await Order.aggregate([
-        // Step 1: Match active orders
-        {
-          $match: matchStage
-        },
-        
-        // Step 2: Unwind items array
-        {
-          $unwind: '$items'
-        },
-        
-        // Step 3: Lookup product details from menuitems collection
-        // Handle both ObjectId and string productId formats safely
-        // Use string comparison only to avoid ObjectId conversion errors
-        {
-          $lookup: {
-            from: 'menuitems',
-            let: { productIdString: { $toString: { $ifNull: ['$items.productId', ''] } } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    // Match if productId matches _id as string (works for both ObjectId and non-ObjectId)
-                    $eq: [
-                      { $toString: '$_id' },
-                      '$$productIdString'
-                    ]
-                  }
-                }
-              }
-            ],
-            as: 'productDetails'
-          }
-        },
-        
-        // Step 4: Unwind productDetails (returns array, we want object)
-        {
-          $unwind: {
-            path: '$productDetails',
-            preserveNullAndEmptyArrays: true // Keep items even if product not found
-          }
-        },
-        
-        // Step 5: Project fields we need
-        {
-          $project: {
-            productName: {
-              $ifNull: ['$items.name', 'Unknown Product']
-            },
-            productId: '$items.productId',
-            quantity: { $ifNull: ['$items.quantity', 0] },
-            orderType: { $ifNull: ['$orderType', ''] },
-            mealTime: { $ifNull: ['$mealTime', ''] },
-            numberOfPortions: { $ifNull: ['$numberOfPortions', 0] },
-            portionsEvening: { $ifNull: ['$portionsEvening', 0] },
-            portionsMorning: { $ifNull: ['$portionsMorning', 0] },
-            // CRITICAL: Use category from populated productDetails, NOT from order item
-            category: {
-              $ifNull: [
-                '$productDetails.category', // First priority: from DB lookup
-                { $ifNull: ['$items.category', 'תוספות'] } // Fallback: from order item or default
-              ]
-            },
-            productNameForWeight: {
-              $ifNull: ['$items.name', 'Unknown Product']
-            },
-            hasProductDetails: {
-              $cond: {
-                if: { $ne: ['$productDetails', null] },
-                then: true,
-                else: false
-              }
-            },
-            eventDateRaw: { $ifNull: ['$customerDetails.eventDate', ''] }
-          }
-        },
-
-        // Step 5b: Catering lines store quantity=1 per dish; scale by portions for kitchen prep totals
-        {
-          $addFields: {
-            effectiveQuantity: {
-              $let: {
-                vars: {
-                  baseQty: { $ifNull: ['$quantity', 0] },
-                  cat: { $ifNull: ['$category', ''] },
-                  portionsEvening: {
-                    $convert: { input: '$portionsEvening', to: 'int', onError: 0, onNull: 0 }
-                  },
-                  portionsMorning: {
-                    $convert: { input: '$portionsMorning', to: 'int', onError: 0, onNull: 0 }
-                  },
-                  numberOfPortions: {
-                    $convert: { input: '$numberOfPortions', to: 'int', onError: 0, onNull: 0 }
-                  },
-                  isCateringOrder: {
-                    $or: [
-                      { $eq: ['$orderType', 'catering'] },
-                      {
-                        $and: [
-                          { $ne: ['$mealTime', ''] },
-                          { $gt: [{ $convert: { input: '$numberOfPortions', to: 'int', onError: 0, onNull: 0 } }, 0] }
-                        ]
-                      }
-                    ]
-                  }
-                },
-                in: {
-                  $cond: {
-                    if: '$$isCateringOrder',
-                    then: {
-                      $multiply: [
-                        '$$baseQty',
-                        {
-                          $switch: {
-                            branches: [
-                              {
-                                case: { $regexMatch: { input: '$$cat', regex: 'ערב' } },
-                                then: {
-                                  $cond: {
-                                    if: { $gt: ['$$portionsEvening', 0] },
-                                    then: '$$portionsEvening',
-                                    else: { $max: ['$$numberOfPortions', 1] }
-                                  }
-                                }
-                              },
-                              {
-                                case: { $regexMatch: { input: '$$cat', regex: 'בוקר' } },
-                                then: {
-                                  $cond: {
-                                    if: { $gt: ['$$portionsMorning', 0] },
-                                    then: '$$portionsMorning',
-                                    else: { $max: ['$$numberOfPortions', 1] }
-                                  }
-                                }
-                              }
-                            ],
-                            default: { $max: ['$$numberOfPortions', 1] }
-                          }
-                        }
-                      ]
-                    },
-                    else: '$$baseQty'
-                  }
-                }
-              }
-            }
-          }
-        },
-        
-        // Step 6: Filter out items with zero or negative quantity
-        {
-          $match: {
-            effectiveQuantity: { $gt: 0 }
-          }
-        },
-        
-        // Step 7: Group by category and product name
-        {
-          $group: {
-            _id: {
-              category: '$category',
-              productName: '$productName'
-            },
-            totalPackages: { $sum: '$effectiveQuantity' },
-            productName: { $first: '$productName' },
-            category: { $first: '$category' },
-            weightString: { $first: '$productNameForWeight' },
-            hasProductDetails: { $first: '$hasProductDetails' },
-            eventDateMin: { $min: '$eventDateRaw' }
-          }
-        },
-        
-        // Step 8: Project final output
-        {
-          $project: {
-            _id: 0,
-            productName: 1,
-            category: 1,
-            totalPackages: 1,
-            weightString: 1,
-            hasProductDetails: 1,
-            eventDateMin: 1
-          }
-        },
-        
-        // Step 9: Sort by category and product name
-        {
-          $sort: {
-            category: 1,
-            productName: 1
-          }
-        }
-      ]);
-
-      if (aggregationResult.length === 0) {
-        return {
-          items: [],
-          meta: {
-            generatedAt: new Date().toISOString(),
-            activeOrdersCount,
-            ...(normalizedTargetDate ? { appliedDate: normalizedTargetDate } : {})
-          }
-        };
-      }
-
-      const kitchenReportItems: Array<{
-        productName: string;
-        category: string;
-        totalPackages: number;
-        totalWeightRaw: number;
-        displayWeight: string;
-        unit?: string;
-        isUnitOnly: boolean;
-        prepWindow: 'now' | 'soon' | 'later';
-        prepWindowLabel: string;
-        prepSortOrder: number;
-      }> = [];
-
-      const parsePrepAt = (eventDateRaw: unknown): Date | null => {
-        const datePart = String(eventDateRaw || '').trim().slice(0, 10);
-        if (!datePart || !/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
-        const parsed = new Date(`${datePart}T12:00:00`);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-      };
-
-      const derivePrepWindow = (eventDateRaw: unknown): { key: 'now' | 'soon' | 'later'; label: string; sortOrder: number } => {
-        const now = Date.now();
-        const prepAt = parsePrepAt(eventDateRaw);
-        if (!prepAt) {
-          return { key: 'later', label: 'לתכנון מאוחר יותר', sortOrder: 2 };
-        }
-        const earliestTs = prepAt.getTime();
-        const diffHours = (earliestTs - now) / (1000 * 60 * 60);
-        if (diffHours <= 12) return { key: 'now', label: 'עכשיו להכנה', sortOrder: 0 };
-        if (diffHours <= 30) return { key: 'soon', label: 'להכין בקרוב', sortOrder: 1 };
-        return { key: 'later', label: 'לתכנון מאוחר יותר', sortOrder: 2 };
-      };
-
-      for (const item of aggregationResult) {
-        try {
-          if (!item || !item.productName) {
-            continue;
-          }
-
-          const productName = item.productName || 'Unknown Product';
-          const category = item.category || 'תוספות';
-          const totalPackages = item.totalPackages || 0;
-          
-          // Validate totalPackages is a valid number
-          if (isNaN(totalPackages) || totalPackages <= 0) {
-            continue;
-          }
-          
-          // Check if this category should be calculated by units only
-          const isUnitOnlyCategory = this.UNIT_ONLY_CATEGORIES.some(cat => 
-            category.toLowerCase().includes(cat.toLowerCase()) || 
-            cat.toLowerCase().includes(category.toLowerCase())
-          );
-
-          // Extract weight/volume from product name (only if not unit-only category)
-          const weightInfo = isUnitOnlyCategory 
-            ? { value: 0, unit: null as 'g' | 'ml' | 'kg' | 'l' | null }
-            : this.extractWeightFromName(productName);
-          
-          // Calculate total weight: weight per unit × total packages
-          const totalWeightRaw = isUnitOnlyCategory ? 0 : (weightInfo.value * totalPackages);
-          
-          // Format weight for display
-          const displayWeight = isUnitOnlyCategory 
-            ? '-' 
-            : this.formatWeight(totalWeightRaw, weightInfo.unit);
-          const prepWindow = derivePrepWindow(item.eventDateMin);
-          
-          kitchenReportItems.push({
-            productName: productName,
-            category: category,
-            totalPackages: totalPackages,
-            totalWeightRaw: totalWeightRaw,
-            displayWeight: displayWeight,
-            unit: weightInfo.unit || undefined,
-            isUnitOnly: isUnitOnlyCategory,
-            prepWindow: prepWindow.key,
-            prepWindowLabel: prepWindow.label,
-            prepSortOrder: prepWindow.sortOrder
-          });
-        } catch (itemError: any) {
-          console.error('Error processing kitchen item:', itemError?.message || itemError);
-        }
-      }
-
-      // Merge near-duplicate rows from legacy naming/casing differences.
-      const merged = new Map<
-        string,
-        {
-          productName: string;
-          category: string;
-          totalPackages: number;
-          totalWeightRaw: number;
-          displayWeight: string;
-          unit?: string;
-          isUnitOnly: boolean;
-          prepWindow: 'now' | 'soon' | 'later';
-          prepWindowLabel: string;
-          prepSortOrder: number;
-        }
-      >();
-
-      for (const row of kitchenReportItems) {
-        const category = String(row.category || 'תוספות').trim();
-        const productName = String(row.productName || '').trim();
-        if (!productName) continue;
-        const key = `${category.toLowerCase()}::${productName.toLowerCase()}`;
-        const prev = merged.get(key);
-        if (!prev) {
-          merged.set(key, { ...row, category, productName });
-          continue;
-        }
-        const nextTotalPackages = Number(prev.totalPackages || 0) + Number(row.totalPackages || 0);
-        const nextTotalWeightRaw = Number(prev.totalWeightRaw || 0) + Number(row.totalWeightRaw || 0);
-        merged.set(key, {
-          ...prev,
-          totalPackages: nextTotalPackages,
-          totalWeightRaw: nextTotalWeightRaw,
-          displayWeight: prev.isUnitOnly
-            ? '-'
-            : this.formatWeight(nextTotalWeightRaw, (prev.unit as any) || null)
-        });
-      }
-
-      const finalItems = Array.from(merged.values());
-
-      // Final sort by category order
-      const categoryOrder = ['מנות עיקריות', 'סלטים', 'דגים', 'קינוחים'];
-      finalItems.sort((a, b) => {
-        if (a.prepSortOrder !== b.prepSortOrder) {
-          return a.prepSortOrder - b.prepSortOrder;
-        }
-        const categoryAIndex = categoryOrder.indexOf(a.category);
-        const categoryBIndex = categoryOrder.indexOf(b.category);
-
-        if (categoryAIndex !== categoryBIndex) {
-          if (categoryAIndex === -1 && categoryBIndex === -1) {
-            return a.category.localeCompare(b.category);
-          }
-          if (categoryAIndex === -1) return 1;
-          if (categoryBIndex === -1) return -1;
-          return categoryAIndex - categoryBIndex;
-        }
-        return a.productName.localeCompare(b.productName);
-      });
-      return {
-        items: finalItems,
-        meta: {
-          generatedAt: new Date().toISOString(),
-          activeOrdersCount,
-          ...(normalizedTargetDate ? { appliedDate: normalizedTargetDate } : {})
-        }
-      };
-    } catch (error: any) {
-      console.error('Error generating kitchen report:', error);
-      throw new Error(`Failed to generate kitchen report: ${error.message}`);
-    }
-  }
-
-  // Helper: Detect category from product name
   private detectCategoryFromName(productName: string): string {
     const name = productName.toLowerCase();
     
@@ -2247,7 +2588,7 @@ export class OrderService {
     return { deliveryByCity, pickupByTime };
   }
 
-  /** Get delivery report for a single day or a date range. Returns days keyed by YYYY-MM-DD. */
+
   async getDeliveryReport(fromDate?: string, toDate?: string, assignedDriverId?: string): Promise<{
     days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }>;
   }> {

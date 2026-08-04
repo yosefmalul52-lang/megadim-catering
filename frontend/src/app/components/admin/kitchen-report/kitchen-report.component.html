@@ -1,225 +1,348 @@
 <div class="kr-page" dir="rtl">
-  <header class="kr-header">
-    <div>
-      <p class="kr-eyebrow">תפעול מטבח</p>
-      <h1>דוח מטבח</h1>
-      <p class="kr-updated" *ngIf="generatedLabel">
-        <i class="fas fa-clock" aria-hidden="true"></i>
-        עודכן לאחרונה: {{ generatedLabel }}
-      </p>
+  <div class="kr-shell">
+
+  <header class="kr-topbar no-print">
+    <div class="kr-title-wrap">
+      <h1>יום מטבח</h1>
+      <p>הזמנות · הכנות · הדפסות</p>
     </div>
-    <div class="kr-header-actions">
-      <button type="button" class="kr-btn" (click)="refresh()" [disabled]="isLoading">
-        <i class="fas fa-sync-alt" aria-hidden="true"></i> רענון
-      </button>
-      <a routerLink="/admin/orders" class="kr-btn ghost">חזרה להזמנות</a>
+    <div class="kr-topbar-controls" role="group" aria-label="פעולות כותרת">
+      @if (generatedLabel) {
+        <div class="kr-updated" title="זמן עדכון אחרון של הנתונים">
+          <span class="kr-updated-icon" aria-hidden="true"><i class="fas fa-clock"></i></span>
+          <time class="kr-updated-time">{{ generatedLabel }}</time>
+        </div>
+      }
+      <div class="kr-topbar-actions">
+        <button type="button" class="kr-btn icon" (click)="refresh()" [disabled]="isLoading" title="רענון נתונים" aria-label="רענון נתונים">
+          <i class="fas fa-sync-alt" aria-hidden="true"></i>
+        </button>
+        <label class="kr-select-wrap kr-select-wrap--nav">
+          <span class="sr-only">ניווט מהיר</span>
+          <select (change)="onQuickNav($any($event.target).value); $any($event.target).value = ''" aria-label="ניווט מהיר">
+            <option value="">ניווט</option>
+            <option value="orders">הזמנות</option>
+            <option value="settings">הגדרות</option>
+          </select>
+        </label>
+      </div>
     </div>
   </header>
 
-  <section class="kr-filters" aria-label="סינון דוח מטבח">
-    <label>מתאריך
-      <input type="date" [(ngModel)]="startDate" />
-    </label>
-    <label>עד תאריך
-      <input type="date" [(ngModel)]="endDate" />
-    </label>
-    <label>ארוחה
-      <select [(ngModel)]="meal">
-        @for (m of mealOptions; track m.key) {
-          <option [value]="m.key">{{ m.label }}</option>
-        }
-      </select>
-    </label>
-    <label>אספקה
-      <select [(ngModel)]="fulfillmentType">
-        @for (f of fulfillmentOptions; track f.key) {
-          <option [value]="f.key">{{ f.label }}</option>
-        }
-      </select>
-    </label>
-    <label>שעת הכנה
-      <select [(ngModel)]="preparationSlot">
-        <option value="">הכל</option>
-        @for (slot of preparationSlotOptions; track slot) {
-          <option [value]="slot">{{ slot }}</option>
-        }
-      </select>
-    </label>
-    <label class="kr-check">
-      <input type="checkbox" [(ngModel)]="includeCancelled" /> ביטולים ושינויים
-    </label>
-    <label class="kr-check">
-      <input type="checkbox" [(ngModel)]="changedOnly" /> שינויים בלבד
-    </label>
-    <label class="kr-check">
-      <input type="checkbox" [(ngModel)]="includeCatering" /> כולל קייטרינג
-    </label>
-    <label class="kr-search">חיפוש
-      <input type="search" [(ngModel)]="search" placeholder="מספר הזמנה / לקוח" />
-    </label>
-    <button type="button" class="kr-btn primary" (click)="applyFilters()">החל סינון</button>
+  <section class="kr-kpi-row no-print" aria-label="מדדי יום מטבח">
+    <button type="button" class="kr-kpi-card tone-blue" (click)="onDayModeSelect('orders')">
+      <div class="kr-kpi-icon" aria-hidden="true"><i class="fas fa-receipt"></i></div>
+      <div class="kr-kpi-body">
+        <span class="kr-kpi-label">הזמנות בטווח</span>
+        <strong class="kr-kpi-value">{{ dayOrders.length }}</strong>
+        <span class="kr-kpi-meta">{{ rangeLabel }}</span>
+      </div>
+    </button>
+    <button type="button" class="kr-kpi-card tone-green" (click)="onDayModeSelect('prep')" [disabled]="!prepListsEnabled">
+      <div class="kr-kpi-icon" aria-hidden="true"><i class="fas fa-utensils"></i></div>
+      <div class="kr-kpi-body">
+        <span class="kr-kpi-label">מנות להכנה</span>
+        <strong class="kr-kpi-value">{{ prepListsEnabled ? prepRows.length : '—' }}</strong>
+        <span class="kr-kpi-meta">{{ orderKindLabel }}</span>
+      </div>
+    </button>
+    <button type="button" class="kr-kpi-card tone-amber" (click)="onDayModeSelect('changes')">
+      <div class="kr-kpi-icon" aria-hidden="true"><i class="fas fa-exchange-alt"></i></div>
+      <div class="kr-kpi-body">
+        <span class="kr-kpi-label">שינויים</span>
+        <strong class="kr-kpi-value">{{ changeOrders.length }}</strong>
+        <span class="kr-kpi-meta">דורש תשומת לב</span>
+      </div>
+    </button>
+    <article class="kr-kpi-card" [class.tone-orange]="(openEventsAlert?.total || 0) > 0" [class.tone-navy]="!(openEventsAlert?.total)" [class.tone-red]="(openEventsAlert?.overdueCount || 0) > 0">
+      <div class="kr-kpi-icon" aria-hidden="true"><i class="fas fa-calendar-check"></i></div>
+      <div class="kr-kpi-body">
+        <span class="kr-kpi-label">הזמנות פתוחות</span>
+        <strong class="kr-kpi-value">{{ openEventsAlert?.total || 0 }}</strong>
+        <span class="kr-kpi-meta">
+          @if ((openEventsAlert?.overdueCount || 0) > 0) {
+            {{ openEventsAlert?.overdueCount }} באיחור
+          } @else {
+            חלון קרוב
+          }
+        </span>
+      </div>
+    </article>
   </section>
 
-  <div class="kr-exports" role="group" aria-label="ייצוא">
-    <button type="button" class="kr-btn" (click)="export('print')" [disabled]="!!exportBusy">הדפסה</button>
-    <button type="button" class="kr-btn" (click)="export('pdf')" [disabled]="!!exportBusy">PDF</button>
-    <button type="button" class="kr-btn" (click)="export('xlsx')" [disabled]="!!exportBusy">Excel</button>
-    <button type="button" class="kr-btn" (click)="export('csv')" [disabled]="!!exportBusy">CSV</button>
-  </div>
+  <section
+    class="kr-alert-card no-print"
+    [class.is-active]="!!(openEventsAlert && openEventsAlert.total > 0)"
+    [class.is-overdue]="!!(openEventsAlert && openEventsAlert.overdueCount > 0)"
+    [class.is-collapsed]="!openOrdersExpanded"
+    aria-label="הזמנות פתוחות לפי תאריך"
+  >
+    <div class="kr-alert-card-head">
+      <div class="kr-alert-icon" aria-hidden="true"><i class="fas fa-bell"></i></div>
+      <div class="kr-alert-copy">
+        <h2>הזמנות פתוחות לפי תאריך</h2>
+        <p>
+          @if (openEventsAlert && openEventsAlert.total > 0) {
+            {{ openEventsAlert.total }} פתוחות
+            @if (openEventsAlert.overdueCount > 0) { · <b>{{ openEventsAlert.overdueCount }} באיחור</b> }
+            @if (openEventsAlert.eventsCount) { · {{ openEventsAlert.eventsCount }} אירועים }
+          } @else {
+            אין הזמנות פתוחות בחלון הקרוב
+          }
+        </p>
+      </div>
+      <div class="kr-alert-actions">
+        @if (openEventsAlert?.byDate?.length) {
+          <label class="kr-select-wrap">
+            <span class="sr-only">קפיצה לתאריך</span>
+            <select [ngModel]="openJumpDate" (ngModelChange)="onOpenJumpDate($event)" name="openJumpDate">
+              <option value="">מעבר לתאריך…</option>
+              @for (row of openEventsAlert!.byDate; track row.date) {
+                <option [value]="row.date">
+                  {{ formatEventDateChip(row.date) }} · {{ row.count }}{{ row.overdue ? ' · באיחור' : '' }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+        <button type="button" class="kr-btn icon" (click)="toggleOpenOrdersPanel()" [attr.aria-expanded]="openOrdersExpanded" [attr.aria-label]="openOrdersExpanded ? 'כווץ' : 'הרחב'">
+          <i class="fas" [class.fa-chevron-up]="openOrdersExpanded" [class.fa-chevron-down]="!openOrdersExpanded" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
 
+    @if (openOrdersExpanded) {
+      @if (openEventsAlert && openEventsAlert.byDate?.length) {
+        <div class="kr-date-pills" role="list">
+          @for (row of openEventsAlert.byDate; track row.date) {
+            <button
+              type="button"
+              class="kr-date-pill"
+              role="listitem"
+              [class.overdue]="row.overdue"
+              [class.active]="startDate === row.date && endDate === row.date"
+              (click)="jumpToOpenEventDate(row.date)"
+              [attr.title]="eventDateChipTitle(row)"
+            >
+              <span>{{ formatEventDateChip(row.date) }}</span>
+              <em>{{ row.count }}</em>
+              @if (row.overdue) { <small>באיחור</small> }
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="kr-alert-empty">הכל נקי לטווח הקרוב. הזמנה פתוחה תופיע כאן אוטומטית.</div>
+      }
+    }
+  </section>
+
+  <section class="kr-filterbar no-print" aria-label="סינון והדפסה">
+    <div class="kr-filterbar-fields">
+      <label class="kr-select-wrap">
+        <span>תצוגה</span>
+        <select [ngModel]="dayMode" (ngModelChange)="onDayModeSelect($event)" name="dayMode">
+          @for (m of dayModes; track m.key) {
+            <option [value]="m.key">{{ m.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="kr-select-wrap">
+        <span>סוג הזמנה</span>
+        <select [ngModel]="orderKind" (ngModelChange)="onOrderKindSelect($event)" name="orderKind">
+          @for (k of orderKindOptions; track k.key) {
+            <option [value]="k.key">{{ k.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="kr-select-wrap">
+        <span>טווח</span>
+        <select [ngModel]="rangePreset" (ngModelChange)="applyRangePreset($event)" name="rangePreset">
+          @for (p of rangePresets; track p.key) {
+            <option [value]="p.key">{{ p.label }}</option>
+          }
+        </select>
+      </label>
+
+      @if (rangePreset === 'custom') {
+        <label class="kr-day-pick compact">
+          <span>מ־</span>
+          <input type="date" [(ngModel)]="startDate" name="startDate" (change)="onRangeChange()" />
+        </label>
+        <label class="kr-day-pick compact">
+          <span>עד</span>
+          <input type="date" [(ngModel)]="endDate" name="endDate" (change)="onRangeChange()" />
+        </label>
+      } @else {
+        <div class="kr-range-chip" title="טווח נבחר">
+          <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+          <span>{{ rangeLabel }}</span>
+        </div>
+      }
+
+      <label class="kr-select-wrap kr-select-wrap--accent">
+        <span>הדפסה</span>
+        <select [ngModel]="printAction" (ngModelChange)="runPrintAction($event)" name="printAction">
+          <option value="">בחרו פעולה…</option>
+          <option value="orders">הדפסת הזמנות</option>
+          @if (prepListsEnabled) {
+            <option value="prep">הדפסת הכנות</option>
+            @if (hasMissingChoices) {
+              <option value="prep-draft">טיוטת הכנות</option>
+            }
+          }
+          <option value="deltas">הדפסת שינויים</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  @if (hasMissingChoices) {
+    <div class="kr-banner error no-print" role="alert">
+      יש {{ missingChoiceLines }} פריטים עם בחירה חסרה — תקנו לפני הדפסת הכנות לייצור.
+    </div>
+  }
+  @if (successMessage) {
+    <div class="kr-banner success no-print" role="status">{{ successMessage }}</div>
+  }
   @if (errorMessage) {
     <div class="kr-banner error" role="alert">{{ errorMessage }}</div>
   }
 
   @if (isLoading && !report) {
     <div class="kr-loading" role="status">טוען דוח מטבח…</div>
-  } @else if (report) {
-    <section class="kr-summary" aria-label="סיכום">
-      <article><span>הזמנות פעילות</span><strong>{{ report.summary.activeOrders }}</strong></article>
-      <article><span>מנות כולל</span><strong>{{ report.summary.totalPortions }}</strong></article>
-      <article><span>סוגי מנות</span><strong>{{ report.summary.distinctDishes }}</strong></article>
-      <article><span>משלוחים</span><strong>{{ report.summary.deliveries }}</strong></article>
-      <article><span>איסופים</span><strong>{{ report.summary.pickups }}</strong></article>
-      <article class="warn"><span>אלרגיות</span><strong>{{ report.summary.allergyAlerts }}</strong></article>
-      <article><span>שונו</span><strong>{{ report.summary.changedOrders }}</strong></article>
-      <article><span>בוטלו</span><strong>{{ report.summary.cancelledOrders }}</strong></article>
-    </section>
-
-    @if (report.alerts.length) {
-      <section class="kr-alerts" aria-label="התראות תפעוליות">
-        <h2>התראות</h2>
-        <ul>
-          @for (a of report.alerts; track a.id) {
-            <li [class]="'sev-' + a.severity + ' kind-' + a.kind">
-              <i class="fas" [ngClass]="alertIcon(a.kind)" aria-hidden="true"></i>
-              <div>
-                <strong>{{ a.title }}</strong>
-                <span>{{ a.detail }}</span>
-                @if (a.orderNumber) {
-                  <em>{{ a.orderNumber }}</em>
-                }
-              </div>
-            </li>
-          }
-        </ul>
-      </section>
-    }
-
-    @if (!report.preparationGroups.length) {
-      <div class="kr-empty" role="status">
-        <i class="fas fa-utensils" aria-hidden="true"></i>
-        אין הזמנות פעילות בטווח שנבחר
-      </div>
-    } @else {
-      @for (pg of report.preparationGroups; track pg.preparationKey) {
-        <section class="kr-slot">
-          <header class="kr-slot-head">
-            <div>
-              <h2>{{ pg.preparationLabel }}</h2>
-              @if (!pg.isManualPreparation) {
-                <p class="kr-hint">זמן לפי אספקה / איסוף — לא הוגדר ידנית</p>
-              }
-            </div>
-            <div class="kr-slot-meta">
-              <span>{{ pg.ordersCount }} הזמנות</span>
-              <span>משלוח {{ pg.deliveries }}</span>
-              <span>איסוף {{ pg.pickups }}</span>
-            </div>
-          </header>
-
-          @for (mg of pg.meals; track mg.meal) {
-            <div class="kr-meal">
-              <h3>{{ mg.meal }} · {{ mg.portionsTotal }} מנות</h3>
-              <div class="kr-table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>מנה</th>
-                      <th>קטגוריה</th>
-                      <th>כמות</th>
-                      <th>הזמנות</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (d of mg.dishes; track d.key) {
-                      <tr>
-                        <td>
-                          <strong>{{ d.name }}</strong>
-                          @if (d.optionLabel || d.sizeLabel) {
-                            <small>{{ d.optionLabel }} {{ d.sizeLabel }}</small>
-                          }
-                        </td>
-                        <td>{{ d.category }}</td>
-                        <td class="qty">{{ d.quantity }} <span>{{ d.unit }}</span></td>
-                        <td>{{ d.orderCount }}</td>
-                        <td>
-                          <button type="button" class="kr-link" (click)="toggleDish(d.key)">
-                            {{ isDishExpanded(d.key) ? 'הסתר' : 'פירוט' }}
-                          </button>
-                        </td>
-                      </tr>
-                      @if (isDishExpanded(d.key)) {
-                        <tr class="kr-sources">
-                          <td colspan="5">
-                            <ul>
-                              @for (s of d.sources; track s.orderId + '-' + s.quantity) {
-                                <li>
-                                  {{ s.orderNumber || s.orderId }}
-                                  @if (s.customerName) { — {{ s.customerName }} }
-                                  · {{ s.quantity }}
-                                </li>
-                              }
-                            </ul>
-                          </td>
-                        </tr>
-                      }
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          }
-        </section>
-      }
-    }
-
-    <section class="kr-notes">
-      <header class="kr-notes-head">
-        <h2>הערות והזמנות</h2>
-        <button type="button" class="kr-link" (click)="expandedOrders = !expandedOrders">
-          {{ expandedOrders ? 'כווץ' : 'הצג הכל' }}
-        </button>
+  } @else {
+    <section
+      class="kr-main-card kr-main-card--orders"
+      aria-labelledby="orders-today-title"
+      [hidden]="dayMode !== 'orders'"
+    >
+      <header class="kr-main-card-head">
+        <div>
+          <h2 id="orders-today-title">הזמנות לטווח</h2>
+          <p class="kr-hint">מציג הזמנות שתאריך האספקה שלהן בטווח {{ rangeLabel }} · סינון: {{ orderKindLabel }}</p>
+        </div>
+        <span class="kr-count"><i class="fas fa-receipt" aria-hidden="true"></i> {{ dayOrders.length }}</span>
       </header>
-      @if (expandedOrders) {
-        <div class="kr-notes-list">
-          @for (o of report.orderNotes; track o.orderId) {
-            <article [class.has-allergy]="!!o.allergies">
-              <header>
-                <strong>{{ o.orderNumber || o.orderId }}</strong>
-                <span>{{ o.customerName }}</span>
-                <span>{{ o.fulfillment }}</span>
-                @if (o.city) { <span>{{ o.city }}</span> }
-                @if (o.deliveryTime) { <span>{{ o.deliveryTime }}</span> }
-              </header>
-              @if (o.allergies) {
-                <p class="allergy"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> אלרגיה: {{ o.allergies }}</p>
-              }
-              @if (o.specialRequests) {
-                <p><strong>בקשות מיוחדות:</strong> {{ o.specialRequests }}</p>
-              }
-              @if (o.customerNotes) {
-                <p><strong>הערת לקוח:</strong> {{ o.customerNotes }}</p>
-              }
-              @if (o.adminNotes) {
-                <p><strong>הערה פנימית:</strong> {{ o.adminNotes }}</p>
-              }
-              @if (o.itemNotes.length) {
-                <ul>
-                  @for (n of o.itemNotes; track n.dishName + n.note) {
-                    <li>{{ n.dishName }}: {{ n.note }}</li>
+
+      @if (!dayOrders.length) {
+        <div class="kr-empty">
+          <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+          <p>אין הזמנות ליום זה בסינון הנבחר</p>
+          <span class="kr-empty-hint">נסו יום אחר או שנו את סוג ההזמנה למעלה</span>
+        </div>
+      } @else {
+        <div class="kr-order-cards">
+          @for (o of dayOrders; track o.orderId) {
+            <article class="kr-order-card" [class.has-allergy]="!!o.allergies" [class.is-delivery]="o.fulfillment === 'משלוח'" [class.is-pickup]="o.fulfillment === 'איסוף עצמי'">
+              <header class="kr-order-head">
+                <div class="kr-order-identity">
+                  <div class="kr-order-number">{{ o.orderNumber || o.orderId }}</div>
+                  <div class="kr-order-customer">{{ o.customerName || 'ללא שם' }}</div>
+                </div>
+                <div class="kr-order-tags">
+                  <span class="pill pill-kind">{{ o.orderKindLabel || '—' }}</span>
+                  <span class="pill" [class.pill-delivery]="o.fulfillment === 'משלוח'" [class.pill-pickup]="o.fulfillment === 'איסוף עצמי'">{{ o.fulfillment }}</span>
+                  @if (o.deliveryTime) {
+                    <span class="pill pill-time"><i class="fas fa-clock" aria-hidden="true"></i> {{ o.deliveryTime }}</span>
                   }
-                </ul>
+                  @if (o.allergies) {
+                    <span class="pill pill-allergy"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> אלרגיה</span>
+                  }
+                </div>
+              </header>
+
+              <div class="kr-order-schedule">
+                <div class="kr-schedule-chip delivery">
+                  <span class="kr-schedule-label">אספקה</span>
+                  <span class="kr-schedule-value">{{ o.deliveryDate || '—' }}</span>
+                </div>
+                <div class="kr-schedule-chip prep">
+                  <span class="kr-schedule-label">הכנה</span>
+                  <span class="kr-schedule-value">{{ o.preparationDate || 'טרם הוקצה / לפי אספקה' }}</span>
+                </div>
+              </div>
+
+              <div class="kr-order-facts">
+                @if (o.phone) {
+                  <div class="kr-fact">
+                    <span class="kr-fact-label">טלפון</span>
+                    <a class="kr-fact-value kr-fact-link" [href]="'tel:' + o.phone">{{ o.phone }}</a>
+                  </div>
+                }
+                @if (o.address || o.city) {
+                  <div class="kr-fact kr-fact--wide">
+                    <span class="kr-fact-label">כתובת</span>
+                    <span class="kr-fact-value">{{ o.address || o.city }}</span>
+                  </div>
+                }
+                <div class="kr-fact">
+                  <span class="kr-fact-label">שיוך ארוחה</span>
+                  <span class="kr-fact-value" [class.kr-fact-muted]="!o.meal || o.meal === 'לא משויך'">{{ o.meal || 'לא משויך' }}</span>
+                </div>
+                <div class="kr-fact">
+                  <span class="kr-fact-label">כמות במטבח</span>
+                  <span class="kr-fact-value kr-fact-emphasis">{{ orderKitchenUnits(o) }} <small>מנות</small></span>
+                </div>
+              </div>
+
+              @if (o.allergies) {
+                <p class="kr-order-alert allergy">
+                  <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                  <span>{{ o.allergies }}</span>
+                </p>
+              }
+              @if (o.specialRequests || o.customerNotes || o.adminNotes) {
+                <div class="kr-order-notes">
+                  @if (o.specialRequests) {
+                    <p><span class="kr-note-label">בקשות מיוחדות</span> {{ o.specialRequests }}</p>
+                  }
+                  @if (o.customerNotes) {
+                    <p><span class="kr-note-label">הערות לקוח</span> {{ o.customerNotes }}</p>
+                  }
+                  @if (o.adminNotes) {
+                    <p><span class="kr-note-label">הערות מנהל</span> {{ o.adminNotes }}</p>
+                  }
+                </div>
+              }
+
+              <div class="kr-order-actions no-print">
+                <button type="button" class="kr-btn sm" (click)="toggleOrderExpanded(o.orderId)">
+                  {{ isOrderExpanded(o.orderId) ? 'הסתר מנות' : 'הצג מנות' }}
+                </button>
+                <button type="button" class="kr-btn sm primary" (click)="printSingleOrder(o)">
+                  <i class="fas fa-print" aria-hidden="true"></i> הדפסה
+                </button>
+              </div>
+              @if (isOrderExpanded(o.orderId)) {
+                <div class="kr-items-wrap">
+                  <div class="kr-items-head" aria-hidden="true">
+                    <span>מנה</span>
+                    <span>גודל / אפשרות</span>
+                    <span>כמות</span>
+                    <span class="no-print">פעולה</span>
+                  </div>
+                  <ul class="kr-items">
+                    @for (it of o.items || []; track it.name + '-' + (it.optionLabel || '') + '-' + (it.sizeLabel || '') + '-' + it.quantity + '-' + $index) {
+                      <li [class.kr-item-missing]="!!$any(it).missingChoice">
+                        <span class="kr-item-name">
+                          {{ it.name }}
+                          @if ($any(it).missingChoice) {
+                            <small class="kr-missing-flag">בחירה חסרה</small>
+                          }
+                        </span>
+                        <span class="kr-item-size">{{ formatItemSize(it) }}</span>
+                        <span class="kr-item-qty">{{ it.quantity }} <span class="unit">{{ it.unit || "יח'" }}</span></span>
+                        <span class="kr-item-action no-print">
+                          <button type="button" class="kr-btn sm" (click)="openAssignFromOrderItem(o, it)">הקצאה</button>
+                        </span>
+                      </li>
+                    } @empty {
+                      <li class="kr-items-empty muted">אין פירוט מנות</li>
+                    }
+                  </ul>
+                </div>
               }
             </article>
           }
@@ -227,22 +350,678 @@
       }
     </section>
 
-    @if (report.cancelledAndChanged.length) {
-      <section class="kr-changes">
-        <h2>ביטולים ושינויים</h2>
-        <ul>
-          @for (o of report.cancelledAndChanged; track o.orderId) {
-            <li>
-              <strong>{{ o.orderNumber || o.orderId }}</strong>
-              — {{ o.isCancelled ? 'בוטל' : 'עודכן' }}
-              @if (o.lastChange) {
-                · {{ o.lastChange.summary }}
-                <time>{{ o.lastChange.at | date: 'dd/MM HH:mm' }}</time>
-              }
-            </li>
-          }
-        </ul>
+    <!-- 2. Prep list -->
+    @if (prepListsEnabled) {
+      <section
+        class="kr-main-card kr-main-card--prep"
+        aria-labelledby="prep-list-title"
+        [hidden]="dayMode !== 'prep'"
+      >
+        <header class="kr-main-card-head">
+          <div>
+            <p class="kr-section-kicker"><i class="fas fa-utensils" aria-hidden="true"></i> חלק 2 · לפי תאריך הכנה</p>
+            <h2 id="prep-list-title">רשימת הכנות</h2>
+            <p class="kr-hint">מנות מאוחדות לטווח {{ rangeLabel }} · סינון: {{ orderKindLabel }}</p>
+          </div>
+          <span class="kr-count"><i class="fas fa-layer-group" aria-hidden="true"></i> {{ prepRows.length }} מנות מאוחדות</span>
+        </header>
+
+        @if (!prepRows.length) {
+          <div class="kr-empty">
+            <i class="fas fa-fire" aria-hidden="true"></i>
+            <p>אין מנות להכנה ביום זה</p>
+            <span class="kr-empty-hint">הקצו יום הכנה מהזמנות, או בחרו יום אחר</span>
+          </div>
+        } @else {
+          <div class="kr-table-wrap">
+            <table class="kr-prep-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>קטגוריה</th>
+                  <th>מנה</th>
+                  <th>גודל / אפשרות</th>
+                  <th>כמות כוללת</th>
+                  <th>יחידה</th>
+                  <th>הזמנות</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of prepRows; track row.key) {
+                  <tr>
+                    <td class="no-print">
+                      <button type="button" class="kr-btn sm" (click)="toggleDish(row.key)" [attr.aria-expanded]="isDishExpanded(row.key)">
+                        {{ isDishExpanded(row.key) ? 'הסתר' : 'פירוט' }}
+                      </button>
+                    </td>
+                    <td>{{ row.category }}</td>
+                    <td><strong>{{ row.name }}</strong></td>
+                    <td>{{ row.optionLabel || row.sizeLabel || '—' }}</td>
+                    <td class="qty">{{ row.plannedQuantity }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td>{{ row.orderCount }}</td>
+                  </tr>
+                  @if (isDishExpanded(row.key)) {
+                    <tr class="kr-prep-detail no-print">
+                      <td colspan="7">
+                        <table class="kr-source-table">
+                          <thead>
+                            <tr>
+                              <th>מנה</th>
+                              <th>כמות</th>
+                              <th>מס׳ הזמנה</th>
+                              <th>סוג</th>
+                              <th>אספקה</th>
+                              <th>הכנה</th>
+                              <th>הערות / אלרגיות</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (s of row.sources; track (s.assignmentId || s.orderId) + s.orderItemKey + s.prepDate) {
+                              <tr>
+                                <td>{{ row.name }}</td>
+                                <td>{{ s.quantity }}</td>
+                                <td>{{ s.orderNumber || s.orderId }}</td>
+                                <td>{{ s.orderKindLabel }}</td>
+                                <td>{{ s.deliveryDate || '—' }}</td>
+                                <td>{{ s.prepDate }}</td>
+                                <td>
+                                  @if (s.allergies) { <span class="allergy">{{ s.allergies }}</span> }
+                                  @if (s.notes) { <span>{{ s.notes }}</span> }
+                                  @if (!s.allergies && !s.notes) { — }
+                                </td>
+                                <td>
+                                  <button type="button" class="kr-btn sm" (click)="openAssignFromPrepSource(row, s)">הקצאה</button>
+                                </td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="kr-simple-actions no-print" style="margin-top: 0.75rem">
+            <button type="button" class="kr-btn primary" (click)="printPrepList()">הדפסת רשימת הכנות</button>
+          </div>
+        }
+      </section>
+    } @else {
+      <section class="kr-main-card muted-card no-print" [hidden]="dayMode !== 'prep'">
+        <p class="kr-hint">
+          רשימות הכנה כבויות בהגדרות האתר.
+          <a routerLink="/admin/settings">הפעלה בהגדרות</a>
+        </p>
       </section>
     }
+
+    <section
+      class="kr-main-card kr-main-card--changes"
+      aria-labelledby="changes-title"
+      [hidden]="dayMode !== 'changes'"
+    >
+      <header class="kr-main-card-head">
+        <div>
+          <p class="kr-section-kicker"><i class="fas fa-exchange-alt" aria-hidden="true"></i> חלק 3 · שינויים</p>
+          <h2 id="changes-title">שינויים והתראות</h2>
+          <p class="kr-hint">הזמנות שעודכנו או בוטלו · הדפיסו deltas מאז חתך ההדפסה האחרון</p>
+        </div>
+        <span class="kr-count">{{ changeOrders.length }}</span>
+      </header>
+      <div class="kr-simple-actions no-print" style="margin-bottom: 0.75rem">
+        <button type="button" class="kr-btn accent" (click)="printDeltas()" [disabled]="!!exportBusy">
+          <i class="fas fa-print" aria-hidden="true"></i> הדפסת שינויים (P3)
+        </button>
+      </div>
+      @if (!changeOrders.length) {
+        <div class="kr-empty">
+          <p>אין שינויים רשומים להזמנות ביום זה</p>
+        </div>
+      } @else {
+        <div class="kr-order-cards">
+          @for (o of changeOrders; track o.orderId) {
+            <article class="kr-order-card" [class.has-allergy]="!!o.allergies">
+              <div class="kr-order-top">
+                <div class="kr-order-id">
+                  <strong>{{ o.orderNumber || o.orderId }}</strong>
+                  <span class="kr-customer">{{ o.customerName || '—' }}</span>
+                </div>
+                <div class="kr-order-tags">
+                  @if (o.isCancelled) { <span class="pill pill-allergy">בוטל</span> }
+                  @if (o.isChanged) { <span class="pill pill-kind">עודכן</span> }
+                </div>
+              </div>
+              @if (o.lastChange) {
+                <p class="special">
+                  {{ o.lastChange.summary }}
+                  @if (o.lastChange.previousValue || o.lastChange.newValue) {
+                    <br />
+                    <span class="muted">{{ o.lastChange.previousValue || '—' }} → {{ o.lastChange.newValue || '—' }}</span>
+                  }
+                </p>
+              }
+              <div class="kr-order-actions no-print">
+                <button type="button" class="kr-btn sm primary" (click)="printSingleOrder(o)">הדפסת הזמנה</button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Advanced kitchen management (existing capabilities, collapsed) -->
+    <details class="kr-advanced no-print" [open]="advancedOpen" (toggle)="advancedOpen = $any($event.target).open">
+      <summary>
+        <span class="kr-advanced-summary">
+          <span class="kr-advanced-icon" aria-hidden="true"><i class="fas fa-cogs"></i></span>
+          <span class="kr-advanced-copy">
+            <strong>ניהול מטבח מתקדם</strong>
+            <span class="kr-advanced-desc">משימות תחנות, שיוך עובדים, תלויות, קיבולת, תקלות וייצוא תפעולי</span>
+          </span>
+          <i class="fas fa-chevron-down kr-advanced-chevron" aria-hidden="true"></i>
+        </span>
+      </summary>
+
+      <div class="kr-advanced-body">
+        @if (criticalAllergyBanner.length) {
+          <div class="kr-banner critical" role="alertdialog" aria-label="התראת אלרגיה קריטית">
+            <strong><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> אלרגיה נוספה לאחר תחילת עבודה</strong>
+            <ul>
+              @for (t of criticalAllergyBanner; track trackTask($index, t)) {
+                <li>
+                  {{ t.orderSnapshot?.orderNumber || t.orderId }} — {{ t.orderSnapshot?.allergies }}
+                  <button type="button" class="kr-btn sm primary" (click)="ackAllergy(t)">אישור אחראי</button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="kr-advanced-toolbar">
+          <label class="kr-select-wrap kr-select-wrap--accent">
+            <span>תצוגה</span>
+            <select [ngModel]="view" (ngModelChange)="setView($event)" name="advancedView">
+              @for (v of views; track v.key) {
+                <option [value]="v.key">{{ v.label }}</option>
+              }
+            </select>
+          </label>
+          <div class="kr-advanced-toolbar-actions">
+            <button type="button" class="kr-btn" (click)="openWizard()">
+              <i class="fas fa-magic" aria-hidden="true"></i> אשף תוכנית
+            </button>
+            <button type="button" class="kr-btn" (click)="export('print')" [disabled]="!!exportBusy">
+              <i class="fas fa-print" aria-hidden="true"></i> הדפסה תפעולית
+            </button>
+            <button type="button" class="kr-btn sm" (click)="export('pdf')" [disabled]="!!exportBusy">PDF</button>
+            <button type="button" class="kr-btn sm" (click)="export('xlsx')" [disabled]="!!exportBusy">Excel</button>
+            <button type="button" class="kr-btn sm" (click)="export('csv')" [disabled]="!!exportBusy">CSV</button>
+          </div>
+        </div>
+
+        <section class="kr-advanced-filters" aria-label="סינון מתקדם">
+          <div class="kr-advanced-filters-grid">
+            <label class="kr-select-wrap">
+              <span>מתאריך</span>
+              <input type="date" [(ngModel)]="startDate" name="startDate" />
+            </label>
+            <label class="kr-select-wrap">
+              <span>עד תאריך</span>
+              <input type="date" [(ngModel)]="endDate" name="endDate" />
+            </label>
+            <label class="kr-select-wrap">
+              <span>ארוחה</span>
+              <select [(ngModel)]="meal" name="meal" (ngModelChange)="onMealChange()">
+                @for (m of mealOptions; track m.key) {
+                  <option [value]="m.key">{{ m.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="kr-select-wrap">
+              <span>אספקה</span>
+              <select [(ngModel)]="fulfillmentType" name="fulfillmentType">
+                @for (f of fulfillmentOptions; track f.key) {
+                  <option [value]="f.key">{{ f.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="kr-select-wrap">
+              <span>שלב</span>
+              <select [(ngModel)]="stageFilter" name="stageFilter">
+                @for (s of stages; track s.key) {
+                  <option [value]="s.key">{{ s.label }}</option>
+                }
+              </select>
+            </label>
+            @if (view === 'event') {
+              <label class="kr-select-wrap">
+                <span>מזהה הזמנה</span>
+                <input type="text" [(ngModel)]="eventOrderId" name="eventOrderId" placeholder="ObjectId" />
+              </label>
+            }
+            <label class="kr-select-wrap kr-select-wrap--search">
+              <span>חיפוש</span>
+              <input type="search" [(ngModel)]="search" name="search" placeholder="מספר הזמנה / לקוח" />
+            </label>
+          </div>
+
+          <div class="kr-advanced-flags">
+            <label class="kr-flag"><input type="checkbox" [(ngModel)]="overdueOnly" name="overdueOnly" /> באיחור</label>
+            <label class="kr-flag"><input type="checkbox" [(ngModel)]="blockedOnly" name="blockedOnly" /> חסומות</label>
+            <label class="kr-flag"><input type="checkbox" [(ngModel)]="allergiesOnly" name="allergiesOnly" /> עם אלרגיות</label>
+            <label class="kr-flag"><input type="checkbox" [(ngModel)]="includeCancelled" name="includeCancelled" /> ביטולים</label>
+            <label class="kr-flag"><input type="checkbox" [(ngModel)]="includeCatering" name="includeCatering" /> קייטרינג</label>
+            <button type="button" class="kr-btn primary" (click)="applyFilters()">
+              <i class="fas fa-filter" aria-hidden="true"></i> החל סינון
+            </button>
+          </div>
+        </section>
+
+        @if (ops) {
+          <section class="kr-advanced-kpis" aria-label="סיכום תפעולי">
+            <article class="kr-adv-kpi tone-navy">
+              <span class="kr-adv-kpi-label">משימות</span>
+              <strong class="kr-adv-kpi-value">{{ ops.summary.tasksTotal }}</strong>
+              <span class="kr-adv-kpi-meta">פתוחות {{ ops.summary.tasksOpen }} · הושלמו {{ ops.summary.tasksDone }}</span>
+            </article>
+            <article class="kr-adv-kpi" [class.tone-red]="ops.summary.tasksOverdue > 0" [class.tone-muted]="!(ops.summary.tasksOverdue > 0)">
+              <span class="kr-adv-kpi-label">באיחור</span>
+              <strong class="kr-adv-kpi-value">{{ ops.summary.tasksOverdue }}</strong>
+              <span class="kr-adv-kpi-meta">דורש טיפול מיידי</span>
+            </article>
+            <article class="kr-adv-kpi" [class.tone-amber]="ops.summary.allergyAlerts > 0" [class.tone-muted]="!(ops.summary.allergyAlerts > 0)">
+              <span class="kr-adv-kpi-label">אלרגיות</span>
+              <strong class="kr-adv-kpi-value">{{ ops.summary.allergyAlerts }}</strong>
+              <span class="kr-adv-kpi-meta">התראות פעילות</span>
+            </article>
+            <article class="kr-adv-kpi" [class.tone-orange]="ops.summary.tasksNeedsReview > 0 || ops.summary.tasksBlocked > 0" [class.tone-muted]="!(ops.summary.tasksNeedsReview > 0 || ops.summary.tasksBlocked > 0)">
+              <span class="kr-adv-kpi-label">לבדיקה / חסום</span>
+              <strong class="kr-adv-kpi-value">{{ ops.summary.tasksNeedsReview }} / {{ ops.summary.tasksBlocked }}</strong>
+              <span class="kr-adv-kpi-meta">ממתינות להחלטה</span>
+            </article>
+          </section>
+        }
+
+        @if (view === 'today' && ops) {
+          <section class="kr-adv-panel" aria-label="משימות להיום">
+            <header class="kr-adv-panel-head">
+              <div>
+                <p class="kr-section-kicker"><i class="fas fa-tasks" aria-hidden="true"></i> לוח משימות</p>
+                <h2>משימות לפי שעה — {{ day }}</h2>
+              </div>
+              <div class="kr-adv-panel-meta">
+                @for (s of ops.byStage; track s.stage) {
+                  <span class="kr-stage-chip">{{ s.stageLabel }}: {{ s.count }}</span>
+                }
+                <button type="button" class="kr-btn sm primary" [disabled]="!selectedTaskIds.size" (click)="bulkCompleteSelected()">
+                  השלם נבחרות ({{ selectedTaskIds.size }})
+                </button>
+              </div>
+            </header>
+
+            @if (ops.capacity?.length) {
+              <div class="kr-capacity">
+                <h3>קיבולת תחנות</h3>
+                <div class="kr-capacity-grid">
+                  @for (c of ops.capacity; track c.stationId) {
+                    <article class="kr-capacity-card" [class.over]="!!c.overCapacity">
+                      <strong>{{ c.name }}</strong>
+                      @if (!c.configured) {
+                        <span class="muted">קיבולת טרם הוגדרה</span>
+                      } @else {
+                        <span>עומס {{ c.plannedLoad }} / {{ c.maxPortionsPerDay }}</span>
+                        <span class="kr-capacity-pct">{{ c.utilizationPercent }}%</span>
+                        @if (c.overCapacity) { <span class="kr-capacity-warn">חריגה</span> }
+                      }
+                    </article>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (!ops.tasks?.length) {
+              <div class="kr-empty">
+                <i class="fas fa-clipboard-check" aria-hidden="true"></i>
+                <p>אין משימות ליום זה</p>
+                <span class="kr-empty-hint">צרו תוכנית באשף או הרחיבו את טווח התאריכים</span>
+              </div>
+            } @else {
+              <div class="kr-task-list">
+                @for (t of ops.tasks; track trackTask($index, t)) {
+                  <article class="kr-task" [class.overdue]="t.isOverdue" [class.blocked]="t.status === 'blocked'" [class.allergy]="!!t.orderSnapshot?.allergies">
+                    <header class="kr-task-head">
+                      <label class="kr-task-select">
+                        <input type="checkbox" [checked]="selectedTaskIds.has(t.id)" (change)="toggleTaskSelect(t.id)" [attr.aria-label]="'בחירת משימה ' + t.title" />
+                        <strong>{{ t.title }}</strong>
+                      </label>
+                      <div class="kr-task-tags">
+                        <span class="pill">{{ t.stageLabel }}</span>
+                        <span class="pill">{{ t.statusLabel }}</span>
+                        @if (t.syncStatus === 'needs_review') {
+                          <span class="pill warn">נדרש עדכון</span>
+                        }
+                      </div>
+                    </header>
+                    <div class="kr-task-facts">
+                      <div class="kr-task-fact">
+                        <span class="kr-fact-label">מתוכנן</span>
+                        <span class="kr-fact-value">{{ t.plannedQuantity ?? '—' }} {{ t.unit }}</span>
+                      </div>
+                      <div class="kr-task-fact">
+                        <span class="kr-fact-label">בפועל</span>
+                        <span class="kr-fact-value">{{ t.actualQuantity ?? '—' }}</span>
+                      </div>
+                      <div class="kr-task-fact">
+                        <span class="kr-fact-label">תחנה</span>
+                        <span class="kr-fact-value">{{ t.stationName || 'ללא תחנה' }}</span>
+                      </div>
+                      <div class="kr-task-fact">
+                        <span class="kr-fact-label">עובד</span>
+                        <span class="kr-fact-value">{{ t.assigneeName || 'ללא שיוך' }}</span>
+                      </div>
+                      <div class="kr-task-fact kr-task-fact--wide">
+                        <span class="kr-fact-label">הזמנה</span>
+                        <span class="kr-fact-value">
+                          {{ t.orderSnapshot?.orderNumber || t.orderId }}
+                          · אספקה {{ t.orderSnapshot?.eventDate || '—' }}
+                          · {{ t.orderSnapshot?.fulfillment || '—' }}
+                        </span>
+                      </div>
+                    </div>
+                    @if (t.orderSnapshot?.allergies) {
+                      <p class="kr-order-alert allergy"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> {{ t.orderSnapshot.allergies }}</p>
+                    }
+                    @if (t.checklist?.length) {
+                      <ul class="kr-check-list">
+                        @for (c of t.checklist; track c.id) {
+                          <li>
+                            <label>
+                              <input type="checkbox" [checked]="c.done" (change)="runAction(t, 'checklist', { id: c.id, done: $any($event.target).checked })" />
+                              {{ c.label }}
+                            </label>
+                          </li>
+                        }
+                      </ul>
+                    }
+                    <div class="kr-task-actions">
+                      <div class="kr-task-action-group">
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="runAction(t, 'start')">התחל</button>
+                        <label class="inline-qty">
+                          בפועל
+                          <input type="number" min="0" [(ngModel)]="partialQtyDraft[t.id]" [name]="'qty-' + t.id" />
+                        </label>
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="completePartial(t)">חלקי</button>
+                        <button type="button" class="kr-btn sm primary" [disabled]="isActionBusy(t.id)" (click)="runAction(t, 'complete')">הושלם</button>
+                      </div>
+                      <div class="kr-task-action-group">
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="runAction(t, 'block', { reason: 'חסום מהמסך' })">חסום</button>
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="runAction(t, 'reopen')">פתח מחדש</button>
+                        <button type="button" class="kr-btn sm danger" [disabled]="isActionBusy(t.id)" (click)="runAction(t, 'cancel', { reason: 'בוטל מהמסך' })">בטל</button>
+                      </div>
+                      <div class="kr-task-action-group">
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="reportNote(t)">הערה</button>
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="reportShortage(t)">חוסר</button>
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="reportFault(t)">תקלה</button>
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="assignDemo(t)">שיוך</button>
+                        <button type="button" class="kr-btn sm" [disabled]="isActionBusy(t.id)" (click)="markUrgent(t)">דחוף</button>
+                      </div>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+
+            @if (ops.ingredients) {
+              <section class="kr-ingredients">
+                <header class="kr-adv-panel-head compact">
+                  <div>
+                    <h3>חומרי גלם</h3>
+                    <p class="kr-hint">
+                      {{ ops.ingredients.completeness === 'full' ? 'מלא לפי מתכונים' : ops.ingredients.completeness === 'partial' ? 'חלקי — חלק מהמנות ללא מתכון' : 'אין מתכונים מוגדרים' }}
+                    </p>
+                  </div>
+                </header>
+                @if (ops.ingredients.completeness === 'none') {
+                  <p class="kr-hint">אין מתכון מוגדר למנות — לא הומצאו רכיבים.</p>
+                } @else {
+                  <ul class="kr-ingredient-list">
+                    @for (ing of ops.ingredients.items; track ing.name + ing.unit) {
+                      <li><span>{{ ing.name }}</span><strong>{{ ing.required }} {{ ing.unit }}</strong></li>
+                    }
+                  </ul>
+                }
+              </section>
+            }
+          </section>
+        }
+
+        @if (view === 'fulfillment' && ops) {
+          <section class="kr-adv-panel">
+            <header class="kr-adv-panel-head">
+              <div>
+                <p class="kr-section-kicker"><i class="fas fa-truck" aria-hidden="true"></i> אספקה</p>
+                <h2>כמויות לאספקה</h2>
+              </div>
+            </header>
+            <div class="kr-table-wrap">
+              <table class="kr-prep-table">
+                <thead>
+                  <tr>
+                    <th>הזמנה</th><th>מנה</th><th>הוזמן</th><th>נארז/מוכן</th><th>הפרש</th><th>אספקה</th><th>אלרגיות</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (l of ops.fulfillmentLines; track l.orderId + l.dishName + l.orderedQuantity) {
+                    <tr>
+                      <td>{{ l.orderNumber }}</td>
+                      <td>{{ l.dishName }} <small>{{ l.optionLabel }} {{ l.sizeLabel }}</small></td>
+                      <td class="qty">{{ l.orderedQuantity }}</td>
+                      <td class="qty">{{ l.packedQuantity }}</td>
+                      <td [class.allergy]="l.variance < 0">{{ l.variance }}</td>
+                      <td>{{ l.fulfillment }} {{ l.deliveryTime }}</td>
+                      <td class="allergy">{{ l.allergies }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="7">אין שורות</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
+        @if (view === 'event' && ops) {
+          <section class="kr-adv-panel">
+            <header class="kr-adv-panel-head">
+              <div>
+                <p class="kr-section-kicker"><i class="fas fa-calendar-alt" aria-hidden="true"></i> אירוע</p>
+                <h2>תוכנית אירוע רב־יומית</h2>
+              </div>
+            </header>
+            @if (ops.eventTimeline?.days?.length) {
+              <p class="kr-hint">השלמה כוללת: <b>{{ ops.eventTimeline.overallCompletionPercent }}%</b></p>
+              @for (d of ops.eventTimeline.days; track d.date) {
+                <div class="kr-meal">
+                  <h3>{{ d.date }} · {{ d.completionPercent }}%</h3>
+                  <ul>
+                    @for (t of d.tasks; track trackTask($index, t)) {
+                      <li><strong>{{ t.title }}</strong> — {{ t.stageLabel }} — {{ t.statusLabel }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+            } @else {
+              <div class="kr-empty">
+                <p>אין ציר זמן</p>
+                <span class="kr-empty-hint">בחרו הזמנה או צרו תוכנית באשף</span>
+              </div>
+            }
+          </section>
+        }
+
+        @if (view === 'changes' && ops) {
+          <section class="kr-adv-panel">
+            <header class="kr-adv-panel-head">
+              <div>
+                <p class="kr-section-kicker"><i class="fas fa-exchange-alt" aria-hidden="true"></i> סנכרון</p>
+                <h2>ביטולים ושינויים</h2>
+              </div>
+            </header>
+            <ul class="kr-review-list">
+              @for (t of ops.changes.tasksNeedsReview; track trackTask($index, t)) {
+                <li>
+                  <div>
+                    <strong>{{ t.title }}</strong>
+                    <span>{{ t.syncDetail }}</span>
+                  </div>
+                  <button type="button" class="kr-btn sm" (click)="ackAllergy(t)">קבל שינוי</button>
+                </li>
+              } @empty {
+                <li class="empty">אין משימות ממתינות לסקירה</li>
+              }
+            </ul>
+          </section>
+        }
+
+        @if (report) {
+          <section class="kr-adv-panel">
+            <header class="kr-adv-panel-head">
+              <div>
+                <p class="kr-section-kicker"><i class="fas fa-edit" aria-hidden="true"></i> עריכה</p>
+                <h2>עריכת זמני הכנה / אלרגיות</h2>
+              </div>
+            </header>
+            <div class="kr-notes-list">
+              @for (o of report.orderNotes; track o.orderId) {
+                <article class="kr-note-card" [class.has-allergy]="!!o.allergies">
+                  <header>
+                    <strong>{{ o.orderNumber || o.orderId }}</strong>
+                    <span>{{ o.customerName }}</span>
+                  </header>
+                  <div class="kr-order-actions">
+                    <button type="button" class="kr-btn sm" (click)="openPrepEdit(o)">עריכת זמן הכנה</button>
+                    <button type="button" class="kr-btn sm" (click)="openNotesEdit(o)">עריכת אלרגיות / בקשות</button>
+                    <button type="button" class="kr-btn sm" (click)="eventOrderId = o.orderId; view = 'event'; load()">תוכנית אירוע</button>
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    </details>
   }
+
+  @if (editMode) {
+    <div class="kr-modal-backdrop no-print" (click)="cancelEdit()"></div>
+    <div class="kr-modal no-print" role="dialog" aria-modal="true">
+      <header>
+        <h2>{{ editMode === 'prep' ? 'עריכת זמן הכנה' : 'אלרגיות ובקשות' }}</h2>
+        <p>{{ editOrderLabel }}</p>
+      </header>
+      @if (editMode === 'prep') {
+        <p class="kr-hint">שינוי זמן הכנה אינו משנה את תאריך האספקה.</p>
+        <label>זמן הכנה <input type="datetime-local" [(ngModel)]="editPrepLocal" name="editPrepLocal" /></label>
+      } @else {
+        <label>אלרגיות <textarea [(ngModel)]="editAllergies" name="editAllergies" rows="3" maxlength="500"></textarea></label>
+        <label>בקשות מיוחדות <textarea [(ngModel)]="editSpecialRequests" name="editSpecialRequests" rows="3" maxlength="1000"></textarea></label>
+      }
+      @if (editError) { <div class="kr-banner error" role="alert">{{ editError }}</div> }
+      <footer>
+        <button type="button" class="kr-btn ghost" (click)="cancelEdit()" [disabled]="editSaving">ביטול</button>
+        <button type="button" class="kr-btn primary" (click)="saveEdit()" [disabled]="editSaving">{{ editSaving ? 'שומר…' : 'שמירה' }}</button>
+      </footer>
+    </div>
+  }
+
+  @if (assignModal.open) {
+    <div class="kr-modal-backdrop no-print" (click)="closeAssignModal()"></div>
+    <div class="kr-modal no-print" role="dialog" aria-modal="true" aria-label="הקצאת יום הכנה">
+      <header>
+        <h2>הקצאת יום הכנה</h2>
+        <p>{{ assignModal.dishName }} · הזמנה {{ assignModal.orderNumber }}</p>
+      </header>
+      <div class="kr-assign-meta">
+        <span><b>סוג:</b> {{ assignModal.orderKindLabel || '—' }}</span>
+        <span><b>אספקה:</b> {{ assignModal.deliveryDate || '—' }}</span>
+        <span><b>כמות בהזמנה:</b> {{ assignModal.orderedQuantity }} {{ assignModal.unit }}</span>
+      </div>
+      @if (!assignModal.splitMode) {
+        <label>תאריך הכנה
+          <input type="date" [(ngModel)]="assignModal.prepDate" name="assignPrepDate" />
+        </label>
+        <label>כמות להכנה ביום זה
+          <input type="number" min="0" step="0.5" [(ngModel)]="assignModal.quantity" name="assignQty" />
+        </label>
+        <label>הערות
+          <textarea [(ngModel)]="assignModal.notes" name="assignNotes" rows="2" maxlength="500"></textarea>
+        </label>
+        @if (assignModal.allergies) {
+          <p class="allergy"><b>אלרגיות:</b> {{ assignModal.allergies }}</p>
+        }
+        <p class="kr-hint">תאריך האספקה לא משתנה. לאחר שמירה ההכנה תופיע בדוח של יום ההכנה.</p>
+        <button type="button" class="kr-btn sm" (click)="enableSplitMode()">חלוקה לכמה ימים / שלבים</button>
+      } @else {
+        <p class="kr-hint">חלוקת מנה לימי הכנה — כמות ההזמנה המקורית לא משתנה.</p>
+        @for (sp of assignModal.splits; track $index) {
+          <div class="kr-split-row">
+            <label>יום הכנה
+              <input type="date" [(ngModel)]="sp.prepDate" [name]="'splitDate' + $index" />
+            </label>
+            <label>כמות
+              <input type="number" min="0" step="0.5" [(ngModel)]="sp.quantity" [name]="'splitQty' + $index" />
+            </label>
+          </div>
+        }
+        <button type="button" class="kr-btn sm" (click)="addSplitRow()">הוסף יום</button>
+      }
+      @if (assignError) { <div class="kr-banner error" role="alert">{{ assignError }}</div> }
+      <footer>
+        <button type="button" class="kr-btn ghost" (click)="closeAssignModal()" [disabled]="assignSaving">ביטול</button>
+        <button type="button" class="kr-btn primary" (click)="saveAssignModal()" [disabled]="assignSaving">
+          {{ assignSaving ? 'שומר…' : 'שמירה' }}
+        </button>
+      </footer>
+    </div>
+  }
+
+  @if (wizardOpen) {
+    <div class="kr-modal-backdrop no-print" (click)="closeWizard()"></div>
+    <div class="kr-modal wide no-print" role="dialog" aria-modal="true" aria-label="אשף תוכנית הכנה">
+      <header>
+        <h2>אשף תוכנית הכנה</h2>
+        <p>שלב {{ wizardStep }} מתוך 2</p>
+      </header>
+      @if (wizardStep === 1) {
+        <label>מזהה הזמנה (ObjectId)
+          <input type="text" [(ngModel)]="wizardOrderId" name="wizardOrderId" />
+        </label>
+      } @else if (wizardPreview) {
+        <p><strong>הזמנה:</strong> {{ wizardPreview.orderSnapshot?.orderNumber }}</p>
+        <ul>
+          @for (t of wizardPreview.tasks; track t.title + t.plannedStartAt) {
+            <li>{{ t.title }} — {{ t.plannedStartAt | date: 'dd/MM HH:mm' }} · כמות {{ t.plannedQuantity ?? '—' }}</li>
+          }
+        </ul>
+        <label>שמור גם כתבנית (אופציונלי)
+          <input type="text" [(ngModel)]="wizardTemplateName" name="wizardTemplateName" />
+        </label>
+      }
+      @if (wizardError) { <div class="kr-banner error" role="alert">{{ wizardError }}</div> }
+      <footer>
+        <button type="button" class="kr-btn ghost" (click)="closeWizard()" [disabled]="wizardSaving">ביטול</button>
+        @if (wizardStep === 1) {
+          <button type="button" class="kr-btn primary" (click)="previewPlan()" [disabled]="wizardSaving">תצוגה מקדימה</button>
+        } @else {
+          <button type="button" class="kr-btn" (click)="wizardStep = 1" [disabled]="wizardSaving">חזרה</button>
+          <button type="button" class="kr-btn primary" (click)="commitPlan()" [disabled]="wizardSaving">{{ wizardSaving ? 'שומר…' : 'שמירת תוכנית' }}</button>
+        }
+      </footer>
+    </div>
+  }
+  </div>
 </div>

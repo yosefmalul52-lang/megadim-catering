@@ -31,6 +31,8 @@ export interface ISiteSettings extends Document {
   cholentForceOpen?: boolean;
   cholentCustomMessage?: string;
   cholentClosedMessage?: string;
+  /** When true, kitchen report shows aggregated prep lists for the selected day. */
+  kitchenPrepListsEnabled?: boolean;
   pageAnnouncements?: Record<string, IPageAnnouncement>;
   createdAt?: Date;
   updatedAt?: Date;
@@ -83,6 +85,10 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
       type: String,
       default: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
       trim: true
+    },
+    kitchenPrepListsEnabled: {
+      type: Boolean,
+      default: true
     },
     pageAnnouncements: {
       type: Schema.Types.Mixed,

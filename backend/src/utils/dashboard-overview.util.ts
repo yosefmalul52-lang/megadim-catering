@@ -3,7 +3,7 @@
  * Timezone-aware range resolution without external date libraries.
  */
 
-export type DashboardPreset = 'today' | 'week' | 'last30' | 'month';
+export type DashboardPreset = 'today' | 'week' | 'last30' | 'month' | 'year';
 
 export type DateRange = {
   from: Date;
@@ -218,6 +218,16 @@ export function resolveDashboardRange(input: {
     };
   }
 
+  if (preset === 'year') {
+    return {
+      from: zonedLocalToUtc(parts.year, 1, 1, 0, 0, 0, timezone),
+      to: zonedLocalToUtc(parts.year, 12, 31, 23, 59, 59, timezone),
+      timezone,
+      dateBasis: 'createdAt',
+      preset: 'year'
+    };
+  }
+
   // Default: current calendar month in business timezone
   const from = zonedLocalToUtc(parts.year, parts.month, 1, 0, 0, 0, timezone);
   const lastDay = new Date(Date.UTC(parts.year, parts.month, 0)).getUTCDate();
@@ -370,14 +380,20 @@ export function computeOrderItemLineRevenue(item: {
   return unit * qty;
 }
 
-/** Shared match fragments for dashboard metrics. */
-export const DASHBOARD_MATCH = {
+import { buildActualRevenueMatch } from './order-actual-revenue.util';
+
+/** Shared match fragments for dashboard metrics.
+ * Revenue = order-actual-revenue SSOT (effectivePaidAt / adminPriceOverride).
+ */
+export const DASHBOARD_MATCH: {
+  notTest: Record<string, unknown>;
+  capturedRevenue: Record<string, unknown>;
+  activeOrders: Record<string, unknown>;
+  awaitingPayment: Record<string, unknown>;
+  failedPayment: Record<string, unknown>;
+} = {
   notTest: { isTestOrder: { $ne: true } },
-  capturedRevenue: {
-    isTestOrder: { $ne: true },
-    paymentStatus: 'captured',
-    status: { $ne: 'cancelled' }
-  },
+  capturedRevenue: buildActualRevenueMatch(),
   activeOrders: {
     isTestOrder: { $ne: true },
     isDeleted: { $ne: true },
@@ -393,4 +409,4 @@ export const DASHBOARD_MATCH = {
     isDeleted: { $ne: true },
     paymentStatus: 'failed'
   }
-} as const;
+};

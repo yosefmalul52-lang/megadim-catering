@@ -1,0 +1,850 @@
+<div class="payments-page" dir="rtl">
+  <div class="pay-shell">
+
+  <header class="pay-topbar">
+    <div class="pay-title-wrap">
+      <h1>בקרה כספית</h1>
+      <p>מעקב אחר הכנסות, עסקאות וחריגות</p>
+      @if (lastUpdatedLabel) {
+        <time class="pay-title-stamp" title="זמן עדכון אחרון של הנתונים">{{ lastUpdatedLabel }}</time>
+      }
+    </div>
+    <div class="pay-topbar-controls" role="group" aria-label="פעולות כותרת">
+      <label class="pay-select-wrap">
+        <span class="sr-only">טווח תאריכים</span>
+        <select
+          [ngModel]="preset"
+          (ngModelChange)="selectPreset($event)"
+          aria-label="טווח תאריכים"
+        >
+          @for (opt of presetOptions; track opt.key) {
+            <option [ngValue]="opt.key">{{ opt.label }}</option>
+          }
+        </select>
+      </label>
+      @if (preset === 'custom') {
+        <label class="pay-field inline">
+          <span class="sr-only">מתאריך</span>
+          <input id="pay-from" type="date" [(ngModel)]="filterFrom" />
+        </label>
+        <label class="pay-field inline">
+          <span class="sr-only">עד תאריך</span>
+          <input id="pay-to" type="date" [(ngModel)]="filterTo" />
+        </label>
+        <button type="button" class="pay-btn primary" (click)="applyCustomRange()">החל</button>
+      }
+      <button
+        type="button"
+        class="pay-btn primary"
+        [disabled]="exportBusy"
+        (click)="exportCsv()"
+        aria-label="ייצוא להנהלת חשבונות"
+      >
+        <i class="fas fa-file-export" aria-hidden="true"></i>
+        {{ exportBusy ? 'מייצא…' : 'ייצוא' }}
+      </button>
+      <button type="button" class="pay-btn icon" (click)="reloadAll()" aria-label="רענון נתונים" title="רענון נתונים">
+        <i class="fas fa-sync-alt" aria-hidden="true"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric cards -->
+  <section class="metrics-section" aria-label="מדדים כספיים">
+    @if (overviewLoading && !summary) {
+      <div class="metrics-grid">
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="metric-card skeleton" aria-hidden="true">
+            <div class="sk-line short"></div>
+            <div class="sk-line value"></div>
+            <div class="sk-line mid"></div>
+          </div>
+        }
+      </div>
+    } @else if (overviewError && !summary) {
+      <div class="error-banner">
+        <span>{{ overviewError }}</span>
+        <button type="button" class="btn-link" (click)="reloadAll()">נסה שוב</button>
+      </div>
+    } @else if (summary) {
+      <div class="metrics-grid" [class.is-refreshing]="overviewLoading">
+        <article
+          class="metric-card tone-green"
+          title="סכום ההכנסות שהתקבלו בטווח שנבחר (עסקאות ששולמו)"
+          aria-label="הכנסות שהתקבלו"
+        >
+          <div class="metric-icon" aria-hidden="true"><i class="fas fa-shekel-sign"></i></div>
+          <div class="metric-body">
+            <span class="metric-label">הכנסות שהתקבלו</span>
+            <span class="metric-value">{{ formatAmount(summary.totalReceived) }}</span>
+            @if (summary.revenueChangePercent != null) {
+              <span class="metric-change" [class]="changeClass(summary.revenueChangePercent)">
+                {{ formatChangePercent(summary.revenueChangePercent) }}
+                <span class="change-hint">לעומת תקופה קודמת</span>
+              </span>
+            } @else if (summary.paid) {
+              <span class="metric-sub">{{ formatCount(summary.paid.count) }} עסקאות</span>
+            }
+          </div>
+        </article>
+
+        <article
+          class="metric-card tone-blue"
+          title="מספר עסקאות שסומנו כשולמו בטווח"
+          aria-label="עסקאות ששולמו"
+        >
+          <div class="metric-icon" aria-hidden="true"><i class="fas fa-check-circle"></i></div>
+          <div class="metric-body">
+            <span class="metric-label">עסקאות ששולמו</span>
+            <span class="metric-value">{{ formatCount(summary.paid?.count || 0) }}</span>
+            <span class="metric-sub">{{ formatAmount(summary.paid?.amount || 0) }}</span>
+          </div>
+        </article>
+
+        <article
+          class="metric-card tone-navy"
+          title="ממוצע סכום לעסקה ששולמה — 0 אם אין עסקאות ששולמו"
+          aria-label="סכום עסקה ממוצע"
+        >
+          <div class="metric-icon" aria-hidden="true"><i class="fas fa-chart-line"></i></div>
+          <div class="metric-body">
+            <span class="metric-label">סכום עסקה ממוצע</span>
+            <span class="metric-value">{{ formatAmount(summary.averageTransactionAmount) }}</span>
+          </div>
+        </article>
+
+        <button
+          type="button"
+          class="metric-card clickable"
+          [class.tone-red]="exceptionsToneClass === 'tone-critical'"
+          [class.tone-amber]="exceptionsToneClass !== 'tone-critical'"
+          title="עסקאות שדורשות בדיקה — לחצו למעבר לרשימת החריגות"
+          aria-label="עסקאות חריגות — מעבר לבדיקה"
+          (click)="focusExceptionsCard()"
+        >
+          <div class="metric-icon" aria-hidden="true"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="metric-body">
+            <span class="metric-label">עסקאות חריגות</span>
+            <span class="metric-value">{{ formatCount(summary.exceptions?.count || 0) }}</span>
+            <span class="metric-sub">
+              @if (summary.exceptions; as ex) {
+                {{ formatCount(ex.criticalCount) }} חשוב ·
+                {{ formatCount(ex.warningCount) }} אזהרה ·
+                {{ formatCount(ex.infoCount) }} מידע
+              }
+            </span>
+          </div>
+        </button>
+      </div>
+    }
+  </section>
+
+  <!-- Funnel — compact select instead of 5 large chips -->
+  <section class="funnel-section" aria-label="משפך תפעולי">
+    <div class="funnel-toolbar">
+      <label class="pay-select-wrap">
+        <span>סינון משפך</span>
+        <select
+          [ngModel]="funnelBucket"
+          (ngModelChange)="selectFunnel($event)"
+          aria-label="סינון לפי שלב משפך"
+        >
+          @for (key of funnelKeys; track key) {
+            <option [ngValue]="key">{{ funnelOptionLabel(key) }}</option>
+          }
+        </select>
+      </label>
+      @if (funnelStage(funnelBucket); as stage) {
+        <div class="funnel-active-stat" aria-live="polite">
+          <strong>{{ formatCount(stage.count) }}</strong>
+          <span>{{ formatAmount(stage.amount) }}</span>
+          <span class="muted">{{ stage.percent }}%</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- Exceptions -->
+  <section #exceptionsSection class="exceptions-section" aria-labelledby="exceptions-heading">
+    <div class="section-head">
+      <h2 id="exceptions-heading" class="section-title">דורש בדיקה</h2>
+      <label class="pay-select-wrap">
+        <span class="sr-only">חומרת חריגה</span>
+        <select
+          [ngModel]="exceptionFilter"
+          (ngModelChange)="selectExceptionSeverity($event)"
+          aria-label="סינון חומרת חריגות"
+        >
+          <option value="all">הכל</option>
+          <option value="critical">חשוב</option>
+          <option value="warning">אזהרה</option>
+          <option value="info">מידע חסר</option>
+        </select>
+      </label>
+    </div>
+
+    @if (exceptionsLoading && !exceptionRows.length) {
+      <div class="state-row">
+        <mat-spinner diameter="26"></mat-spinner>
+        <span>טוען חריגות…</span>
+      </div>
+    } @else if (exceptionsError) {
+      <div class="error-banner">
+        <span>{{ exceptionsError }}</span>
+        <button type="button" class="btn-link" (click)="reloadAll()">נסה שוב</button>
+      </div>
+    } @else if (exceptionRows.length === 0) {
+      <p class="empty-msg">לא נמצאו עסקאות שדורשות בדיקה בטווח שנבחר.</p>
+    } @else {
+      <div class="exception-list">
+        @for (row of exceptionRows; track trackById($index, row)) {
+          <article
+            class="exception-card"
+            [attr.data-severity]="row.primaryException?.severity || 'info'"
+          >
+            <div class="ex-top">
+              <span
+                class="severity-badge"
+                [attr.data-severity]="row.primaryException?.severity || 'info'"
+              >
+                {{ severityLabel(row.primaryException?.severity) }}
+              </span>
+              <span class="ex-type">{{ row.primaryException?.labelHe || 'חריגה' }}</span>
+              <span class="ex-order mono">{{ row.orderNumber }}</span>
+            </div>
+            <div class="ex-body">
+              <div class="ex-meta">
+                <span>{{ row.customerName }}</span>
+                <span class="amount">{{ formatAmount(row.amount) }}</span>
+                <span class="muted">{{ formatDate(row.createdAt) }}</span>
+              </div>
+              <p class="ex-explain">
+                {{ row.primaryException?.explanationHe || 'נדרשת בדיקה ידנית.' }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="btn-secondary compact"
+              (click)="openDetail(row)"
+              [attr.aria-label]="'פתיחת פרטים להזמנה ' + row.orderNumber"
+            >
+              פתיחת פרטים
+            </button>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Revenue chart -->
+  <section class="chart-section" aria-labelledby="chart-heading">
+    <div class="section-head">
+      <h2 id="chart-heading" class="section-title">מגמת הכנסות</h2>
+      <label class="pay-select-wrap">
+        <span class="sr-only">מדד גרף</span>
+        <select
+          [ngModel]="chartMetric"
+          (ngModelChange)="setChartMetric($event)"
+          aria-label="מדד גרף"
+        >
+          <option value="revenue">הכנסות</option>
+          <option value="paidCount">עסקאות ששולמו</option>
+        </select>
+      </label>
+    </div>
+
+    @if (overviewLoading && !revenue) {
+      <div class="chart-skeleton" aria-hidden="true"></div>
+    } @else if (!hasChartData) {
+      <p class="empty-msg">אין נתוני הכנסה להצגה בטווח שנבחר.</p>
+    } @else {
+      <div class="chart-wrap" dir="ltr">
+        <canvas
+          baseChart
+          [data]="chartData"
+          [options]="chartOptions"
+          [type]="'line'"
+          aria-label="גרף מגמת הכנסות"
+        ></canvas>
+      </div>
+    }
+  </section>
+
+  <!-- Transactions table -->
+  <section class="table-section" aria-labelledby="tx-heading">
+    <div class="section-head">
+      <div>
+        <h2 id="tx-heading" class="section-title">עסקאות</h2>
+        @if (meta.total > 0) {
+          <span class="tx-count">{{ formatCount(meta.total) }} רשומות</span>
+        }
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <div class="filter-group grow">
+        <label class="filter-label" for="tx-search">חיפוש</label>
+        <input
+          id="tx-search"
+          type="search"
+          class="filter-input"
+          placeholder="מספר הזמנה, שם, טלפון או אסמכתא"
+          [ngModel]="filterSearch"
+          (ngModelChange)="onSearchInput($event)"
+        />
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="tx-status">סטטוס</label>
+        <select
+          id="tx-status"
+          class="filter-select"
+          [(ngModel)]="filterStatus"
+          (ngModelChange)="onTableFiltersChange()"
+        >
+          <option value="">הכל</option>
+          <option value="awaiting_payment">ממתין לתשלום</option>
+          <option value="authorized">אושר</option>
+          <option value="captured">שולם</option>
+          <option value="failed">נכשל</option>
+          <option value="voided">בוטל</option>
+          <option value="pending">ממתין</option>
+          <option value="manual_review">דורש בדיקה</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="tx-type">סוג הזמנה</label>
+        <select
+          id="tx-type"
+          class="filter-select"
+          [(ngModel)]="filterOrderType"
+          (ngModelChange)="onTableFiltersChange()"
+        >
+          <option value="">הכל</option>
+          <option value="shabbat">שבת</option>
+          <option value="catering">קייטרינג</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label" for="tx-fulfill">משלוח / איסוף</label>
+        <select
+          id="tx-fulfill"
+          class="filter-select"
+          [(ngModel)]="filterFulfillment"
+          (ngModelChange)="onTableFiltersChange()"
+        >
+          <option value="">הכל</option>
+          <option value="delivery">משלוח</option>
+          <option value="pickup">איסוף</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="button" class="btn-secondary" (click)="resetTableFilters()">איפוס</button>
+      </div>
+    </div>
+
+    @if (listLoading && !rows.length) {
+      <div class="state-row">
+        <mat-spinner diameter="28"></mat-spinner>
+        <span>טוען עסקאות…</span>
+      </div>
+    } @else if (listError) {
+      <div class="error-banner">
+        <span>{{ listError }}</span>
+        <button type="button" class="btn-link" (click)="reloadAll()">נסה שוב</button>
+      </div>
+    } @else if (rows.length === 0) {
+      <p class="empty-msg">אין עסקאות התואמות לסינון.</p>
+    } @else {
+      <div class="table-wrapper" [class.is-refreshing]="listLoading" [class.filter-open]="!!openFilterColumn">
+        <table class="pay-table">
+          <thead>
+            <tr>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <button type="button" class="th-sort-btn" (click)="onSortColumn('orderNumber', $event)">
+                    מס׳ הזמנה<span class="sort-indicator">{{ getSortIndicator('orderNumber') }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('orderNumber')"
+                    (click)="toggleColumnFilter('orderNumber', $event)"
+                    aria-label="סינון מספר הזמנה"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'orderNumber') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <input
+                      type="search"
+                      class="th-filter-input"
+                      [(ngModel)]="draftOrderNumberSearch"
+                      placeholder="חיפוש מספר הזמנה"
+                      (keyup.enter)="applyColumnFilter('orderNumber', $event)"
+                    />
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('orderNumber', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('orderNumber', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <button type="button" class="th-sort-btn" (click)="onSortColumn('createdAt', $event)">
+                    תאריך<span class="sort-indicator">{{ getSortIndicator('createdAt') }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('createdAt')"
+                    (click)="toggleColumnFilter('createdAt', $event)"
+                    aria-label="סינון תאריך"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'createdAt') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <label class="th-filter-label">מתאריך<input type="date" class="th-filter-input" [(ngModel)]="draftCreatedFrom" /></label>
+                    <label class="th-filter-label">עד תאריך<input type="date" class="th-filter-input" [(ngModel)]="draftCreatedTo" /></label>
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('createdAt', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('createdAt', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <span class="th-label">לקוח</span>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('customer')"
+                    (click)="toggleColumnFilter('customer', $event)"
+                    aria-label="סינון לקוח"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'customer') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <input
+                      type="search"
+                      class="th-filter-input"
+                      [(ngModel)]="draftCustomerSearch"
+                      placeholder="שם או טלפון"
+                      (keyup.enter)="applyColumnFilter('customer', $event)"
+                    />
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('customer', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('customer', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <span class="th-label">סוג</span>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('orderType')"
+                    (click)="toggleColumnFilter('orderType', $event)"
+                    aria-label="סינון סוג הזמנה"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'orderType') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <select class="th-filter-input" [(ngModel)]="draftOrderType">
+                      <option value="">הכל</option>
+                      <option value="shabbat">שבת</option>
+                      <option value="catering">קייטרינג</option>
+                    </select>
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('orderType', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('orderType', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <button type="button" class="th-sort-btn" (click)="onSortColumn('totalPrice', $event)">
+                    סכום<span class="sort-indicator">{{ getSortIndicator('totalPrice') }}</span>
+                  </button>
+                </div>
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <button type="button" class="th-sort-btn" (click)="onSortColumn('paymentStatus', $event)">
+                    סטטוס<span class="sort-indicator">{{ getSortIndicator('paymentStatus') }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('status')"
+                    (click)="toggleColumnFilter('status', $event)"
+                    aria-label="סינון סטטוס"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'status') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <select class="th-filter-input" [(ngModel)]="draftStatus">
+                      <option value="">הכל</option>
+                      <option value="awaiting_payment">ממתין לתשלום</option>
+                      <option value="authorized">אושר</option>
+                      <option value="captured">שולם</option>
+                      <option value="failed">נכשל</option>
+                      <option value="voided">בוטל</option>
+                      <option value="pending">ממתין</option>
+                      <option value="manual_review">דורש בדיקה</option>
+                    </select>
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('status', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('status', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <span class="th-label">אסמכתא</span>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('reference')"
+                    (click)="toggleColumnFilter('reference', $event)"
+                    aria-label="סינון אסמכתא"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'reference') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <input
+                      type="search"
+                      class="th-filter-input"
+                      [(ngModel)]="draftReferenceSearch"
+                      placeholder="חיפוש אסמכתא"
+                      (keyup.enter)="applyColumnFilter('reference', $event)"
+                    />
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('reference', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('reference', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th class="th-sort-filter">
+                <div class="th-inner">
+                  <span class="th-label">חריגה</span>
+                  <button
+                    type="button"
+                    class="th-filter-btn"
+                    [class.active]="isColumnFilterActive('exception')"
+                    (click)="toggleColumnFilter('exception', $event)"
+                    aria-label="סינון חריגה"
+                  >
+                    <i class="fas fa-filter" aria-hidden="true"></i>
+                  </button>
+                </div>
+                @if (openFilterColumn === 'exception') {
+                  <div class="th-filter-dropdown" (click)="$event.stopPropagation()">
+                    <select class="th-filter-input" [(ngModel)]="draftException">
+                      <option value="all">הכל</option>
+                      <option value="yes">עם חריגה</option>
+                      <option value="no">ללא חריגה</option>
+                    </select>
+                    <div class="th-filter-actions">
+                      <button type="button" class="th-filter-apply" (click)="applyColumnFilter('exception', $event)">החל</button>
+                      <button type="button" class="th-filter-apply secondary" (click)="clearColumnFilter('exception', $event)">נקה</button>
+                    </div>
+                  </div>
+                }
+              </th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows; track trackById($index, row)) {
+              <tr
+                (click)="openDetail(row)"
+                (keydown.enter)="openDetail(row)"
+                tabindex="0"
+                role="button"
+                [attr.aria-label]="'פרטי עסקה ' + row.orderNumber"
+                [class.has-exception]="row.hasException"
+              >
+                <td class="mono">{{ row.orderNumber }}</td>
+                <td>{{ formatDate(row.createdAt) }}</td>
+                <td>
+                  <div class="client-cell">
+                    <span>{{ row.customerName }}</span>
+                    @if (row.customerPhone) {
+                      <small>{{ row.customerPhone }}</small>
+                    }
+                  </div>
+                </td>
+                <td>{{ orderTypeLabel(row.orderType) }}</td>
+                <td class="amount">{{ formatAmount(row.amount) }}</td>
+                <td>
+                  <span class="status-badge" [attr.data-status]="statusClass(row)">
+                    {{ statusLabel(statusClass(row)) }}
+                  </span>
+                </td>
+                <td class="mono ref">{{ row.transactionReference || '—' }}</td>
+                <td>
+                  @if (row.hasException) {
+                    <span
+                      class="ex-mark"
+                      [attr.data-severity]="row.primaryException?.severity || 'info'"
+                      [title]="row.primaryException?.labelHe || 'חריגה'"
+                    >
+                      !
+                    </span>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn-link"
+                    (click)="openDetail(row); $event.stopPropagation()"
+                  >
+                    פרטים
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (meta.totalPages > 1) {
+        <nav class="pagination" aria-label="דפדוף עסקאות">
+          <button
+            type="button"
+            class="page-nav"
+            [disabled]="meta.page <= 1"
+            (click)="goToPage(meta.page - 1)"
+            aria-label="עמוד קודם"
+          >
+            הקודם
+          </button>
+          @for (p of pages; track p) {
+            <button
+              type="button"
+              class="page-btn"
+              [class.active]="p === meta.page"
+              [attr.aria-current]="p === meta.page ? 'page' : null"
+              (click)="goToPage(p)"
+            >
+              {{ p }}
+            </button>
+          }
+          <button
+            type="button"
+            class="page-nav"
+            [disabled]="meta.page >= meta.totalPages"
+            (click)="goToPage(meta.page + 1)"
+            aria-label="עמוד הבא"
+          >
+            הבא
+          </button>
+        </nav>
+      }
+    }
+  </section>
+  </div>
+</div>
+
+@if (detailOpen) {
+  <div class="drawer-backdrop" (click)="closeDetail()" aria-hidden="true"></div>
+  <aside class="detail-drawer" dir="rtl" role="dialog" aria-modal="true" aria-label="פרטי עסקה">
+    <div class="drawer-header">
+      <h2>פרטי עסקה</h2>
+      <button type="button" class="icon-btn" (click)="closeDetail()" aria-label="סגור">×</button>
+    </div>
+
+    @if (detailLoading) {
+      <div class="state-row">
+        <mat-spinner diameter="28"></mat-spinner>
+        <span>טוען…</span>
+      </div>
+    } @else if (detailError) {
+      <div class="error-banner">
+        <span>{{ detailError }}</span>
+        <button type="button" class="btn-link" (click)="refreshDetail()">נסה שוב</button>
+      </div>
+    } @else if (detail) {
+      <div class="drawer-body">
+        <div class="order-header-block">
+          <div>
+            <span class="lbl">מס׳ הזמנה</span>
+            <span class="val mono strong">{{ detail.orderNumber }}</span>
+          </div>
+          <div>
+            <span class="lbl">סכום</span>
+            <span class="val strong">{{ formatAmount(detail.amount) }}</span>
+          </div>
+          <span class="status-badge" [attr.data-status]="statusClass(detail)">
+            {{ statusLabel(statusClass(detail)) }}
+          </span>
+        </div>
+
+        @if (detail.hasException && detail.primaryException) {
+          <div class="review-banner" [attr.data-severity]="detail.primaryException.severity">
+            <strong>{{ detail.primaryException.labelHe }}</strong>
+            — {{ detail.primaryException.explanationHe }}
+          </div>
+        }
+
+        @if (detail.isOrderDeleted) {
+          <div class="deleted-banner">
+            <strong>הזמנה מחוקה</strong>
+            — ההזמנה נמחקה מהמערכת התפעולית, אך היסטוריית התשלום נשמרה לצפייה ולביקורת.
+          </div>
+        }
+
+        <h3 class="block-title">לקוח</h3>
+        <div class="detail-grid">
+          <div>
+            <span class="lbl">שם</span>
+            <span class="val">{{ detail.customer.fullName }}</span>
+          </div>
+          <div>
+            <span class="lbl">טלפון</span>
+            <span class="val">{{ detail.customer.phone || '—' }}</span>
+          </div>
+          <div>
+            <span class="lbl">אימייל</span>
+            <span class="val">{{ detail.customer.email || '—' }}</span>
+          </div>
+          <div>
+            <span class="lbl">כתובת</span>
+            <span class="val">{{ detail.customer.address || '—' }}</span>
+          </div>
+        </div>
+
+        <h3 class="block-title">פרטי הזמנה</h3>
+        <div class="detail-grid">
+          <div>
+            <span class="lbl">סוג / מימוש</span>
+            <span class="val"
+              >{{ orderTypeLabel(detail.orderType) }} ·
+              {{ fulfillmentLabel(detail.fulfillment) }}</span
+            >
+          </div>
+          <div>
+            <span class="lbl">סטטוס תפעולי</span>
+            <span class="val">{{ detail.operationalStatus || '—' }}</span>
+          </div>
+          <div>
+            <span class="lbl">נוצר</span>
+            <span class="val">{{ formatDate(detail.createdAt) }}</span>
+          </div>
+          @if (detail.venue) {
+            <div>
+              <span class="lbl">מקום</span>
+              <span class="val">{{ detail.venue }}</span>
+            </div>
+          }
+        </div>
+
+        <h3 class="block-title">תשלום (קריאה בלבד)</h3>
+        <div class="detail-grid">
+          <div>
+            <span class="lbl">סטטוס תשלום</span>
+            <span class="val">{{ statusLabel(detail.paymentStatus) }}</span>
+          </div>
+          <div>
+            <span class="lbl">אסמכתא / מזהה עסקה</span>
+            <span class="val mono">{{ detail.transactionReference || '—' }}</span>
+          </div>
+          <div>
+            <span class="lbl">תאריך תשלום</span>
+            <span class="val">{{ formatDate(detail.paymentAt) }}</span>
+          </div>
+          <div>
+            <span class="lbl">אמצעי</span>
+            <span class="val">{{ detail.paymentMethod || '—' }}</span>
+          </div>
+        </div>
+
+        @if (detail.items?.length) {
+          <h3 class="block-title">פריטים</h3>
+          <ul class="items-list">
+            @for (item of detail.items; track item.name + item.quantity) {
+              <li>
+                <span>{{ item.name }} × {{ item.quantity }}</span>
+                <span>{{ formatAmount(item.price * item.quantity) }}</span>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (detail.paymentHistory?.length) {
+          <h3 class="block-title">ציר זמן תשלומים</h3>
+          <ul class="timeline history-list">
+            @for (ev of detail.paymentHistory; track ev.id) {
+              <li [attr.data-result]="ev.result">
+                <div class="hist-main">
+                  <span class="tl-label">{{ ev.eventTypeLabelHe }}</span>
+                  <span class="result-chip" [attr.data-result]="ev.result">{{
+                    ev.resultLabelHe
+                  }}</span>
+                </div>
+                <div class="hist-meta">
+                  <span class="tl-at">{{ formatDate(ev.createdAt) }}</span>
+                  <span class="hist-actor">
+                    {{ ev.actorTypeLabelHe
+                    }}{{ ev.actorDisplayName ? ' · ' + ev.actorDisplayName : '' }}
+                  </span>
+                </div>
+                @if (ev.paymentStatusBefore || ev.paymentStatusAfter) {
+                  <div class="hist-status">
+                    {{ ev.paymentStatusBefore || '—' }} → {{ ev.paymentStatusAfter || '—' }}
+                  </div>
+                }
+                @if (ev.safeReasonLabelHe) {
+                  <div class="hist-reason">{{ ev.safeReasonLabelHe }}</div>
+                }
+              </li>
+            }
+          </ul>
+        } @else if (detail.timeline?.length) {
+          <h3 class="block-title">ציר זמן</h3>
+          <p class="fallback-note">ציר הזמן מבוסס על מצב ההזמנה הקיים.</p>
+          <ul class="timeline">
+            @for (ev of detail.timeline; track ev.key + (ev.at || '')) {
+              <li>
+                <span class="tl-label">{{ ev.label }}</span>
+                <span class="tl-at">{{ formatDate(ev.at) }}</span>
+              </li>
+            }
+          </ul>
+        }
+
+        <a
+          class="orders-link"
+          [routerLink]="['/admin/orders']"
+          [queryParams]="{ search: detail.orderNumber }"
+        >
+          מעבר להזמנה בלוח ההזמנות
+        </a>
+
+        <p class="readonly-note">
+          מסך בקרה כספית לצפייה בלבד — אין פעולות חיוב, ביטול הרשאה או החזר מכאן.
+        </p>
+      </div>
+    }
+  </aside>
+}

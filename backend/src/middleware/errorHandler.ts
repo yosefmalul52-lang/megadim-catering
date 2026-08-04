@@ -122,6 +122,10 @@ export const createValidationError = (message: string): AppError => {
   return new AppError(message, 400);
 };
 
+export const createUnprocessableError = (message: string): AppError => {
+  return new AppError(message, 422);
+};
+
 export const createNotFoundError = (resource: string): AppError => {
   return new AppError(`${resource} not found`, 404);
 };

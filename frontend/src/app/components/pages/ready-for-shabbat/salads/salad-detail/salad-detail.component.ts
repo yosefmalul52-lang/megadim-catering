@@ -917,15 +917,26 @@ export class SaladDetailComponent implements OnInit {
       return;
     }
 
+    const sizeLabel = this.getSizeLabel(this.selectedSize);
+    const selectedOption = {
+      label: sizeLabel,
+      amount: sizeLabel,
+      price,
+      optionId: this.selectedSize,
+      optionName: sizeLabel,
+      valueName: sizeLabel
+    };
+
     // Add to cart with selected size and quantity
     for (let i = 0; i < this.quantity; i++) {
       this.cartService.addItem({
         id: `${saladId}-${this.selectedSize}`,
-        name: `${this.salad.name} (${this.getSizeLabel(this.selectedSize)})`,
+        name: `${this.salad.name} (${sizeLabel})`,
         price: price,
         imageUrl: this.salad.imageUrl || '/assets/images/placeholder-dish.jpg',
         description: this.salad.description,
-        category: this.salad.category
+        category: this.salad.category,
+        selectedOption
       });
     }
 

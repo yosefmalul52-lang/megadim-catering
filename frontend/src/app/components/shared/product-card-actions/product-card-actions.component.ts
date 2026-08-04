@@ -2,7 +2,7 @@ import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MenuItem } from '../../../services/menu.service';
-import { CartService } from '../../../services/cart.service';
+import { CartService, CartItem } from '../../../services/cart.service';
 import { QuantitySelectorComponent } from '../quantity-selector/quantity-selector.component';
 
 /** Pricing, quantity, and add-to-cart block for unified product cards (sides, holiday, etc.). */
@@ -151,6 +151,7 @@ export class ProductCardActionsComponent {
     let price = this.getSelectedPrice(item);
     let cartLineId = itemId;
     let quantity = 1;
+    let selectedOption: CartItem['selectedOption'] | undefined;
 
     if (this.hasPricingOptions(item)) {
       const optionIndex = this.getSelectedOptionIndex(itemId);
@@ -160,6 +161,14 @@ export class ProductCardActionsComponent {
         itemName = `${item.name} (${opt.label} - ${opt.amount})`;
         price = opt.price;
         cartLineId = `${itemId}-size-${optionIndex}`;
+        selectedOption = {
+          label: String(opt.label || '').trim(),
+          amount: String(opt.amount || '').trim() || undefined,
+          price: Number(opt.price) || 0,
+          optionId: String(optionIndex),
+          optionName: String(opt.label || '').trim() || undefined,
+          valueName: String(opt.amount || opt.label || '').trim() || undefined
+        };
       }
     } else if (this.hasPricingVariants(item)) {
       const variantIndex = this.getSelectedVariantIndex(itemId);
@@ -169,6 +178,14 @@ export class ProductCardActionsComponent {
         itemName = `${item.name} (${v.label})`;
         price = v.price;
         cartLineId = `${itemId}-size-${variantIndex}`;
+        selectedOption = {
+          label: String(v.label || '').trim(),
+          amount: String((v as { size?: string }).size || v.label || '').trim() || undefined,
+          price: Number(v.price) || 0,
+          optionId: String(variantIndex),
+          optionName: String(v.label || '').trim() || undefined,
+          valueName: String((v as { size?: string }).size || v.label || '').trim() || undefined
+        };
       }
     } else if (this.isWeightFixed(item) || this.isUnitFixed(item)) {
       quantity = this.getQuantity(item);
@@ -187,7 +204,8 @@ export class ProductCardActionsComponent {
         price,
         imageUrl: item.imageUrl ?? '',
         description: item.description,
-        category: this.cartCategory || item.category
+        category: this.cartCategory || item.category,
+        selectedOption
       },
       quantity
     );

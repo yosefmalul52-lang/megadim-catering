@@ -48,8 +48,15 @@ export interface OrderItem {
   category?: string;
   selectedOption?: {
     label: string;
-    amount: string;
-    price: number;
+    amount?: string;
+    price?: number;
+    optionId?: string;
+    optionName?: string;
+    valueId?: string;
+    valueName?: string;
+    quantity?: number;
+    priceAdjustment?: number;
+    missingForReview?: boolean;
   };
   imageUrl?: string;
   description?: string;
@@ -90,6 +97,29 @@ export interface Order {
   subtotal?: number;
   deliveryFee?: number;
   totalPrice: number;
+  /** Explicit admin special price — preferred in alerts/reports when set. */
+  adminPriceOverride?: number | null;
+  adminPriceOverrideReason?: string | null;
+  priceOverriddenAt?: string | Date | null;
+  priceOverriddenBy?: string | null;
+  /** Explicit resolution of failed/abandoned payment exception (does not rewrite paymentStatus). */
+  paymentExceptionResolvedAt?: string | Date | null;
+  paymentExceptionResolvedBy?: string | null;
+  paymentExceptionResolution?:
+    | 'approve_and_continue_billing'
+    | 'paid_elsewhere_continue'
+    | 'send_new_payment_link'
+    | 'cancel_order'
+    | 'paid_elsewhere'
+    | 'continue_without_payment'
+    | 'new_payment_link_sent'
+    | 'reviewed_and_closed'
+    | null;
+  /** Manual payment recorded when resolving paid_elsewhere (does not set captured/authorized). */
+  manualPaymentRecordedAt?: string | Date | null;
+  manualPaymentRecordedBy?: string | null;
+  manualPaymentMethod?: string | null;
+  manualPaymentNote?: string | null;
   status:
     | 'pending'
     | 'processing'
@@ -125,6 +155,13 @@ export interface Order {
    * failed         → payment attempt failed
    */
   paymentStatus?: 'pending' | 'awaiting_payment' | 'authorized' | 'captured' | 'voided' | 'failed';
+  /** Lifecycle timestamps (optional; first-write on server). */
+  readyAt?: string | Date | null;
+  completedAt?: string | Date | null;
+  cancelledAt?: string | Date | null;
+  paidAt?: string | Date | null;
+  capturedAt?: string | Date | null;
+  serviceDate?: string | Date | null;
   /** Provider-issued auth code from the pre-auth response. */
   authCode?: string;
   /** Provider's transaction ID — used to capture or void. */
@@ -153,6 +190,8 @@ export interface OrderSourceTabCounts {
   processing: number;
   ready: number;
   failed: number;
+  cancelled: number;
+  completed: number;
   archive: number;
 }
 
@@ -163,7 +202,14 @@ export interface OrderTabCounts {
 }
 
 export type AdminOrderSource = 'shabbat' | 'catering' | 'events';
-export type AdminOrderStatusTab = 'pending' | 'processing' | 'ready' | 'failed' | 'archive';
+export type AdminOrderStatusTab =
+  | 'pending'
+  | 'processing'
+  | 'ready'
+  | 'failed'
+  | 'cancelled'
+  | 'completed'
+  | 'archive';
 export type AdminOrdersSortBy =
   | 'createdAt'
   | 'eventDate'
@@ -310,6 +356,9 @@ export class OrderService {
     if (query.salesPreset) params = params.set('salesPreset', query.salesPreset);
     if (query.salesFrom) params = params.set('salesFrom', query.salesFrom);
     if (query.salesTo) params = params.set('salesTo', query.salesTo);
+    if (query.orderKind) params = params.set('orderKind', query.orderKind);
+    if (query.status) params = params.set('status', query.status);
+    if (query.paymentStatus) params = params.set('paymentStatus', query.paymentStatus);
 
     return this.http
       .get<{ success: boolean; data: DashboardOverviewData }>(
@@ -480,17 +529,48 @@ export class OrderService {
     );
   }
 
-  updateOrderStatus(orderId: string, status: Order['status']): Observable<Order> {
-    return this.http.put<{success: boolean, data: Order}>(`${environment.apiUrl}/order/${orderId}/status`, { status }).pipe(
-      map(response => ({
-        ...response.data,
-        id: response.data._id || response.data.id
-      })),
-      catchError((error: any) => {
-        console.error('Error updating order status:', error);
-        throw error;
-      })
-    );
+  updateOrderStatus(
+    orderId: string,
+    status: Order['status'],
+    options?: {
+      paymentExceptionResolution?: NonNullable<Order['paymentExceptionResolution']>;
+      manualPaymentMethod?: string;
+      manualPaymentNote?: string;
+    }
+  ): Observable<{ order: Order; adminStatusTab?: AdminOrderStatusTab | null }> {
+    const body: Record<string, unknown> = { status };
+    if (options?.paymentExceptionResolution) {
+      body['paymentExceptionResolution'] = options.paymentExceptionResolution;
+    }
+    if (options?.manualPaymentMethod) {
+      body['manualPaymentMethod'] = options.manualPaymentMethod;
+    }
+    if (options?.manualPaymentNote) {
+      body['manualPaymentNote'] = options.manualPaymentNote;
+    }
+    return this.http
+      .put<{
+        success: boolean;
+        data: Order;
+        order?: Order;
+        adminStatusTab?: AdminOrderStatusTab;
+      }>(`${environment.apiUrl}/order/${orderId}/status`, body)
+      .pipe(
+        map((response) => {
+          const raw = response.order || response.data;
+          return {
+            order: {
+              ...raw,
+              id: raw._id || raw.id
+            },
+            adminStatusTab: response.adminStatusTab ?? null
+          };
+        }),
+        catchError((error: any) => {
+          console.error('Error updating order status:', error);
+          throw error;
+        })
+      );
   }
 
   getDriverMyOrders(params?: { fromDate?: string; toDate?: string; limit?: number }): Observable<Order[]> {
@@ -603,6 +683,62 @@ export class OrderService {
       );
   }
 
+  /** Admin: set explicit special price (adminPriceOverride*). */
+  setAdminPriceOverride(
+    orderId: string,
+    payload: { amount: number; reason: string }
+  ): Observable<Order> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/admin/${id}/price-override`,
+        payload
+      )
+      .pipe(
+        map((response) => ({
+          ...response.data,
+          id: response.data._id || response.data.id
+        })),
+        catchError((error: any) => {
+          console.error('Error setting admin price override:', error);
+          throw error;
+        })
+      );
+  }
+
+  /** Admin: explicitly resolve failed/abandoned payment exception without rewriting paymentStatus. */
+  resolvePaymentException(
+    orderId: string,
+    resolution: NonNullable<Order['paymentExceptionResolution']>,
+    extras?: { manualPaymentMethod?: string; manualPaymentNote?: string; exceptionNote?: string }
+  ): Observable<{ order: Order; adminStatusTab?: AdminOrderStatusTab | null }> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{
+        success: boolean;
+        data: Order;
+        order?: Order;
+        adminStatusTab?: AdminOrderStatusTab;
+        message?: string;
+      }>(`${environment.apiUrl}/order/admin/${id}/resolve-payment-exception`, {
+        resolution,
+        ...(extras || {})
+      })
+      .pipe(
+        map((response) => {
+          const raw = response.order || response.data;
+          return {
+            order: { ...raw, id: raw._id || raw.id },
+            adminStatusTab: response.adminStatusTab ?? null
+          };
+        }),
+        catchError((error: any) => {
+          console.error('Error resolving payment exception:', error);
+          throw error;
+        })
+      );
+  }
+
   /** Admin: replace items of an existing order and let backend recalculate totalPrice from DB prices. */
   updateOrderItems(
     orderId: string,
@@ -614,12 +750,27 @@ export class OrderService {
       category?: string;
       price?: number;
       description?: string;
-      selectedOption?: { label: string; amount?: string; price?: number };
-    }>
+      selectedOption?: {
+        label: string;
+        amount?: string;
+        price?: number;
+        optionId?: string;
+        optionName?: string;
+        valueId?: string;
+        valueName?: string;
+        quantity?: number;
+        priceAdjustment?: number;
+        missingForReview?: boolean;
+      };
+    }>,
+    options?: { notifyCustomer?: boolean }
   ): Observable<Order> {
     return this.http.put<{ success: boolean; data: Order }>(
       `${environment.apiUrl}/order/admin/${orderId}/items`,
-      { items }
+      {
+        items,
+        notifyCustomer: options?.notifyCustomer === true
+      }
     ).pipe(
       map((response) => ({
         ...response.data,
@@ -636,6 +787,9 @@ export class OrderService {
     orderIds: string[];
     action: BulkOrderAction;
     status?: Order['status'];
+    paymentExceptionResolution?: NonNullable<Order['paymentExceptionResolution']>;
+    manualPaymentMethod?: string;
+    manualPaymentNote?: string;
   }): Observable<BulkOrderResult> {
     return this.http
       .post<{ success: boolean; data: BulkOrderResult }>(`${environment.apiUrl}/order/bulk`, payload)
@@ -766,55 +920,6 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
       );
   }
 
-  // Get kitchen preparation report
-  getKitchenReport(date?: string, includeCatering?: boolean): Observable<{
-    items: {
-      productName: string;
-      category: string;
-      totalPackages: number;
-      totalWeightRaw: number;
-      displayWeight: string;
-      unit?: string;
-      isUnitOnly?: boolean;
-      prepWindow?: 'now' | 'soon' | 'later';
-      prepWindowLabel?: string;
-      prepSortOrder?: number;
-    }[];
-    meta: KitchenReportMeta | null;
-  }> {
-    const params: Record<string, string> = {};
-    if (date) params['date'] = date;
-    if (includeCatering) params['includeCatering'] = 'true';
-    return this.http.get<{ 
-      success: boolean; 
-      data: {
-        productName: string;
-        category: string;
-        totalPackages: number; 
-        totalWeightRaw: number; 
-        displayWeight: string;
-        unit?: string;
-        isUnitOnly?: boolean;
-        prepWindow?: 'now' | 'soon' | 'later';
-        prepWindowLabel?: string;
-        prepSortOrder?: number;
-      }[];
-      meta?: KitchenReportMeta;
-    }>(
-      `${environment.apiUrl}/order/kitchen-report`,
-      { params }
-    ).pipe(
-      map(response => ({
-        items: response.data || [],
-        meta: response.meta || null
-      })),
-      catchError(error => {
-        console.error('Error fetching kitchen report:', error);
-        return of({ items: [], meta: null });
-      })
-    );
-  }
-
   private kitchenQueryParams(query: import('../utils/kitchen-report.util').KitchenReportQuery): Record<string, string> {
     const params: Record<string, string> = {
       startDate: query.startDate,
@@ -828,6 +933,8 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
     if (query.search) params['search'] = query.search;
     if (query.includeCatering === false) params['includeCatering'] = 'false';
     else params['includeCatering'] = 'true';
+    if (query.orderKind) params['orderKind'] = query.orderKind;
+    if (query.dateBasis) params['dateBasis'] = query.dateBasis;
     return params;
   }
 
@@ -864,6 +971,52 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
     });
   }
 
+  getKitchenPrintPack(
+    pack: 'prep' | 'orders' | 'order' | 'deltas' | 'full',
+    query: import('../utils/kitchen-report.util').KitchenReportQuery,
+    opts?: { orderId?: string; allowMissingDraft?: boolean }
+  ): Observable<string> {
+    const params: Record<string, string> = {
+      ...this.kitchenQueryParams(query),
+      pack
+    };
+    if (opts?.orderId) params['orderId'] = opts.orderId;
+    if (opts?.allowMissingDraft) params['allowMissingDraft'] = 'true';
+    return this.http.get(`${environment.apiUrl}/order/kitchen-report/print-pack`, {
+      params,
+      responseType: 'text'
+    });
+  }
+
+  markKitchenPrinted(
+    query: import('../utils/kitchen-report.util').KitchenReportQuery,
+    body?: { orderIds?: string[]; allowMissingDraft?: boolean }
+  ): Observable<{ updated: number; printedAt: string }> {
+    return this.http
+      .post<{ success: boolean; data: { updated: number; printedAt: string } }>(
+        `${environment.apiUrl}/order/kitchen-report/mark-printed`,
+        body || {},
+        { params: this.kitchenQueryParams(query) }
+      )
+      .pipe(map((r) => r.data));
+  }
+
+  updateKitchenPreparation(
+    orderId: string,
+    kitchenPreparationAt: string | null
+  ): Observable<unknown> {
+    return this.http.patch(`${environment.apiUrl}/order/${orderId}/kitchen-preparation`, {
+      kitchenPreparationAt
+    });
+  }
+
+  updateKitchenAllergyInfo(
+    orderId: string,
+    payload: { allergies?: string; specialRequests?: string }
+  ): Observable<unknown> {
+    return this.http.patch(`${environment.apiUrl}/order/${orderId}/kitchen-allergies`, payload);
+  }
+
   // Get delivery report for a date range. Returns days keyed by YYYY-MM-DD.
   getDeliveryReport(fromDate: string, toDate?: string): Observable<{
     days: Record<string, { deliveryByCity: { city: string; orders: any[] }[]; pickupByTime: { time: string; orders: any[] }[] }>;
@@ -885,6 +1038,23 @@ ${orderRequest.notes ? `📝 הערות: ${orderRequest.notes}` : ''}
   }
 
   // ─── Payment ──────────────────────────────────────────────────────────────
+
+  /** Admin/customer: create or reuse a Tranzila payment page URL (existing payload). */
+  initiatePaymentLink(
+    orderId: string
+  ): Observable<{ success: boolean; redirectUrl?: string; message?: string }> {
+    return this.http
+      .post<{ success: boolean; redirectUrl?: string; message?: string }>(
+        `${environment.apiUrl}/payment/initiate/${orderId}`,
+        {}
+      )
+      .pipe(
+        catchError((err) => {
+          console.error('Error initiating payment link:', err);
+          throw err;
+        })
+      );
+  }
 
   /** Admin: capture a pre-authorized payment. */
   capturePayment(orderId: string): Observable<{ success: boolean; captureRef?: string; message?: string }> {

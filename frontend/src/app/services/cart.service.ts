@@ -13,6 +13,15 @@ export interface CartItem {
   imageUrl: string;
   category?: string;
   description?: string;
+  selectedOption?: {
+    label: string;
+    amount?: string;
+    price: number;
+    optionId?: string;
+    optionName?: string;
+    valueId?: string;
+    valueName?: string;
+  };
 }
 
 export interface CartSummary {

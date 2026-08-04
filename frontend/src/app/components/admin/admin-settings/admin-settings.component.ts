@@ -103,6 +103,7 @@ export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy 
       cholentForceOpen: [false],
       cholentCustomMessage: [''],
       cholentClosedMessage: [''],
+      kitchenPrepListsEnabled: [true],
       pageAnnouncements: this.fb.group(
         PAGE_IDS.reduce((acc, id) => {
           acc[id] = this.fb.group({
@@ -341,6 +342,7 @@ export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy 
             cholentForceOpen: !!settings.cholentForceOpen,
             cholentCustomMessage: settings.cholentCustomMessage || '',
             cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+            kitchenPrepListsEnabled: settings.kitchenPrepListsEnabled !== false,
             pageAnnouncements: this.normalizePageAnnouncementsForForm(settings.pageAnnouncements)
           });
           this.syncCertificatePreview();
@@ -384,6 +386,7 @@ export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy 
       cholentForceOpen: false,
       cholentCustomMessage: '',
       cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
+      kitchenPrepListsEnabled: true,
       pageAnnouncements: this.normalizePageAnnouncementsForForm(null)
     });
     this.syncCertificatePreview();

@@ -1,14 +1,32 @@
 import Order from '../models/Order';
-import MenuItem from '../models/MenuItem';
+import MenuItem from '../models/menuItem';
+import mongoose from 'mongoose';
 import {
   buildKitchenChangeEntry,
   buildKitchenReportDto,
+  buildOpenKitchenEventsAlert,
   KitchenChangeType,
   KitchenReportDTO,
   kitchenReportToCsv,
+  MenuKitchenMeta,
+  OPEN_EVENTS_LOOKAHEAD_DAYS,
+  OPEN_EVENTS_LOOKBACK_DAYS,
+  addKitchenCalendarDays,
+  toJerusalemDateKey,
   validateKitchenReportQuery,
   withBom
 } from '../utils/kitchen-report.util';
+import {
+  buildKitchenDeltasPrintHtml,
+  buildKitchenFullPrintHtml,
+  buildKitchenOrdersPrintHtml,
+  buildKitchenOrderSheetHtml,
+  buildKitchenPrepPrintHtml,
+  buildKitchenQtySnapshot,
+  collectPrintDeltas,
+  countMissingChoiceLines,
+  type KitchenPrintPackKind
+} from '../utils/kitchen-print-pack.util';
 
 const KITCHEN_SAFE_SELECT = [
   '_id',
@@ -30,19 +48,48 @@ const KITCHEN_SAFE_SELECT = [
   'specialRequests',
   'kitchenPreparationAt',
   'kitchenChangeLog',
+  'lastKitchenPrintAt',
+  'lastKitchenPrintSnapshot',
   'createdAt',
   'updatedAt'
 ].join(' ');
 
 export async function loadMenuCategoryMap(productIds: string[]): Promise<Map<string, string>> {
-  const ids = [...new Set(productIds.filter(Boolean))];
+  const meta = await loadMenuKitchenMetaMap(productIds);
   const map = new Map<string, string>();
+  for (const [id, m] of meta) map.set(id, m.category);
+  return map;
+}
+
+export async function loadMenuKitchenMetaMap(
+  productIds: string[]
+): Promise<Map<string, MenuKitchenMeta>> {
+  const ids = [...new Set(productIds.filter(Boolean).map((id) => String(id).replace(/-size-\d+$/i, '').slice(0, 24)).filter((id) => /^[a-f\d]{24}$/i.test(id)))];
+  const map = new Map<string, MenuKitchenMeta>();
   if (!ids.length) return map;
-  const rows = await MenuItem.find({ _id: { $in: ids.filter((id) => /^[a-f\d]{24}$/i.test(id)) } })
-    .select('_id category')
+  const rows = await MenuItem.find({ _id: { $in: ids } })
+    .select('_id category pricingOptions pricingVariants')
     .lean();
   for (const r of rows as any[]) {
-    map.set(String(r._id), String(r.category || '').trim());
+    const pricingOptions = Array.isArray(r.pricingOptions)
+      ? r.pricingOptions.map((o: any) => ({
+          label: o?.label,
+          amount: o?.amount,
+          size: o?.size,
+          price: o?.price
+        }))
+      : Array.isArray(r.pricingVariants)
+        ? r.pricingVariants.map((v: any) => ({
+            label: v?.label,
+            amount: v?.size ?? v?.amount,
+            size: v?.size,
+            price: v?.price
+          }))
+        : [];
+    map.set(String(r._id), {
+      category: String(r.category || '').trim(),
+      pricingOptions
+    });
   }
   return map;
 }
@@ -55,13 +102,17 @@ export async function getAdvancedKitchenReport(
   const statusFilter = filters.includeCancelled
     ? {
         $or: [
-          { status: { $in: ['pending', 'new', 'processing', 'in-progress', 'ready', 'out_for_delivery', 'cancelled'] } },
+          {
+            status: {
+              $in: ['pending', 'new', 'processing', 'in-progress', 'ready', 'out_for_delivery', 'cancelled']
+            }
+          },
           { isDeleted: true }
         ]
       }
     : {
-        status: { $in: ['pending', 'new', 'processing', 'in-progress', 'ready', 'out_for_delivery'] },
-        isDeleted: { $ne: true }
+        // Archive (isDeleted) with an active kitchen status still needs prep sheets.
+        status: { $in: ['pending', 'new', 'processing', 'in-progress', 'ready', 'out_for_delivery'] }
       };
 
   // Broad fetch by eventDate string range; precise filter in builder (Jerusalem).
@@ -87,30 +138,65 @@ export async function getAdvancedKitchenReport(
     .select(KITCHEN_SAFE_SELECT)
     .lean();
 
-  const all = [...orders, ...prepExtra];
+  let all: any[] = [...orders, ...prepExtra];
+
+  // Institutions are a separate collection — include when filter allows.
+  if (filters.orderKind === 'all' || filters.orderKind === 'institutions') {
+    const { loadInstitutionOrdersForKitchenRange } = await import('./kitchen-prep-day.service');
+    const institutions = await loadInstitutionOrdersForKitchenRange(filters.startDate, filters.endDate);
+    all = [...all, ...institutions];
+  }
+
   const productIds: string[] = [];
   for (const o of all as any[]) {
     for (const item of o.items || []) {
       if (item?.productId) productIds.push(String(item.productId));
     }
   }
-  const menuMap = await loadMenuCategoryMap(productIds);
-  return buildKitchenReportDto(all, filters, menuMap);
+  const menuMap = await loadMenuKitchenMetaMap(productIds);
+  const report = buildKitchenReportDto(all, filters, menuMap);
+
+  // Always attach open-orders horizon so the kitchen page warns about dates outside the selected range.
+  const today = toJerusalemDateKey();
+  const openFrom = addKitchenCalendarDays(today, -OPEN_EVENTS_LOOKBACK_DAYS);
+  const openTo = addKitchenCalendarDays(today, OPEN_EVENTS_LOOKAHEAD_DAYS);
+  const openOrders = await Order.find({
+    status: { $in: ['pending', 'new', 'processing', 'in-progress', 'ready', 'out_for_delivery'] },
+    isDeleted: { $ne: true },
+    'customerDetails.eventDate': {
+      $gte: openFrom,
+      $lte: `${openTo}\uffff`
+    }
+  })
+    .select('_id orderNumber status orderType cateringKind customerDetails isDeleted')
+    .lean();
+
+  report.openEventsAlert = buildOpenKitchenEventsAlert(openOrders, today);
+  return report;
 }
 
 export async function appendKitchenChange(
   orderId: string,
   type: KitchenChangeType,
   summary: string,
-  by?: string
+  by?: string,
+  meta?: { previousValue?: string; newValue?: string }
 ): Promise<void> {
-  const entry = buildKitchenChangeEntry(type, summary, by);
+  const entry = buildKitchenChangeEntry(type, summary, by, new Date(), meta);
+  const doc: Record<string, unknown> = {
+    at: new Date(entry.at),
+    type: entry.type,
+    summary: entry.summary
+  };
+  if (entry.by) doc.by = entry.by;
+  if (entry.previousValue != null) doc.previousValue = entry.previousValue;
+  if (entry.newValue != null) doc.newValue = entry.newValue;
   await Order.updateOne(
     { _id: orderId },
     {
       $push: {
         kitchenChangeLog: {
-          $each: [{ at: new Date(entry.at), type: entry.type, summary: entry.summary, by: entry.by }],
+          $each: [doc],
           $slice: -40
         }
       }
@@ -132,6 +218,12 @@ export async function setKitchenPreparationAt(
       throw err;
     }
   }
+  const existing = await Order.findById(orderId).select('kitchenPreparationAt customerDetails').lean();
+  if (!existing) return null;
+  const previousRaw = (existing as any).kitchenPreparationAt;
+  const previousValue = previousRaw ? new Date(previousRaw).toISOString() : '';
+
+  // Only touch kitchenPreparationAt — never mutate delivery/event date fields.
   const updated = await Order.findByIdAndUpdate(
     orderId,
     { $set: { kitchenPreparationAt: value } },
@@ -144,7 +236,11 @@ export async function setKitchenPreparationAt(
     orderId,
     'preparation',
     value ? `זמן הכנה עודכן ל-${value.toISOString()}` : 'זמן הכנה הייעודי הוסר',
-    by
+    by,
+    {
+      previousValue,
+      newValue: value ? value.toISOString() : ''
+    }
   );
   return updated;
 }
@@ -154,6 +250,8 @@ export async function setKitchenAllergyFields(
   input: { allergies?: string; specialRequests?: string },
   by?: string
 ): Promise<any> {
+  const existing = await Order.findById(orderId).select('allergies specialRequests').lean();
+  if (!existing) return null;
   const $set: Record<string, string> = {};
   if (input.allergies !== undefined) $set.allergies = String(input.allergies || '').trim().slice(0, 500);
   if (input.specialRequests !== undefined) {
@@ -169,10 +267,37 @@ export async function setKitchenAllergyFields(
     .lean();
   if (!updated) return null;
   if ($set.allergies !== undefined) {
-    await appendKitchenChange(orderId, 'allergies', 'עודכנו פרטי אלרגיה', by);
+    await appendKitchenChange(orderId, 'allergies', 'עודכנו פרטי אלרגיה', by, {
+      previousValue: String((existing as any).allergies || ''),
+      newValue: $set.allergies
+    });
   }
   if ($set.specialRequests !== undefined) {
-    await appendKitchenChange(orderId, 'special_requests', 'עודכנו בקשות מיוחדות', by);
+    await appendKitchenChange(orderId, 'special_requests', 'עודכנו בקשות מיוחדות', by, {
+      previousValue: String((existing as any).specialRequests || ''),
+      newValue: $set.specialRequests
+    });
+  }
+  try {
+    const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+    const allergyChanged =
+      $set.allergies !== undefined &&
+      String((existing as any).allergies || '') !== String($set.allergies || '');
+    await onOrderKitchenRelevantChange(
+      orderId,
+      {
+        type: allergyChanged ? 'allergies' : 'special_requests',
+        summary: allergyChanged ? 'עודכנו פרטי אלרגיה' : 'עודכנו בקשות מיוחדות',
+        previousValue: allergyChanged
+          ? String((existing as any).allergies || '')
+          : String((existing as any).specialRequests || ''),
+        newValue: allergyChanged ? $set.allergies : $set.specialRequests,
+        criticalAllergy: allergyChanged && !!String($set.allergies || '').trim()
+      },
+      by
+    );
+  } catch {
+    /* non-blocking */
   }
   return updated;
 }
@@ -286,175 +411,227 @@ export async function buildKitchenXlsxBuffer(report: KitchenReportDTO): Promise<
   return Buffer.from(buf);
 }
 
-function rtlVisual(text: string): string {
-  const s = String(text ?? '');
-  if (!/[\u0590-\u05FF]/.test(s)) return s;
-  return [...s].reverse().join('');
+function resolveChromeExecutable(): string | null {
+  const candidates = [
+    process.env.CHROME_PATH,
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser'
+  ].filter(Boolean) as string[];
+  const fs = require('fs') as typeof import('fs');
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch {
+      /* continue */
+    }
+  }
+  return null;
 }
 
-export async function buildKitchenPdfBuffer(report: KitchenReportDTO): Promise<Buffer> {
-  const PDFDocument = require('pdfkit');
-  const path = require('path');
-  const fontPath = path.join(process.cwd(), 'assets/fonts/NotoSansHebrew-Regular.ttf');
+/**
+ * HTML→PDF via headless Chromium. Real RTL + embedded Hebrew font; no manual string reverse.
+ */
+let kitchenPdfLock: Promise<void> = Promise.resolve();
 
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({
-      size: 'A4',
-      layout: 'landscape',
-      margin: 36,
-      info: { Title: 'דוח מטבח', Author: 'Megadim' }
+export async function buildKitchenPdfBuffer(report: KitchenReportDTO): Promise<Buffer> {
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const { spawn } = require('child_process') as typeof import('child_process');
+
+  // Serialize Chrome launches (parallel tests / concurrent exports).
+  let release!: () => void;
+  const prev = kitchenPdfLock;
+  kitchenPdfLock = new Promise<void>((r) => {
+    release = r;
+  });
+  await prev;
+
+  try {
+    if (!resolveChromeExecutable()) {
+      const err: any = new Error(
+        'Hebrew PDF requires Chrome/Chromium. Set CHROME_PATH or install Google Chrome.'
+      );
+      err.statusCode = 503;
+      throw err;
+    }
+
+    // Prefer workspace-local temp; ship font beside HTML (file://) — avoid huge base64 hangs.
+    const baseTmp = path.join(process.cwd(), '.tmp-kitchen-pdf');
+    fs.mkdirSync(baseTmp, { recursive: true });
+    const tmpDir = fs.mkdtempSync(path.join(baseTmp, 'run-'));
+    const htmlPath = path.join(tmpDir, 'report.html');
+    const pdfPath = path.join(tmpDir, 'report.pdf');
+    const fontSrc = path.join(process.cwd(), 'assets/fonts/NotoSansHebrew-Regular.ttf');
+    const fontDst = path.join(tmpDir, 'NotoSansHebrew-Regular.ttf');
+    if (fs.existsSync(fontSrc)) fs.copyFileSync(fontSrc, fontDst);
+    const html = buildKitchenPrintHtml(report, {
+      fontUrl: fs.existsSync(fontDst) ? './NotoSansHebrew-Regular.ttf' : undefined
     });
-    const chunks: Buffer[] = [];
-    doc.on('data', (c: Buffer) => chunks.push(c));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+    fs.writeFileSync(htmlPath, html, 'utf8');
+
+    const helper = path.join(process.cwd(), 'scripts/html-to-pdf.py');
+    const runOnce = (): Promise<void> =>
+      new Promise<void>((resolve, reject) => {
+        const child = spawn('python3', [helper, htmlPath, pdfPath], {
+          stdio: ['ignore', 'ignore', 'pipe'],
+          env: process.env
+        });
+        let stderr = '';
+        const timer = setTimeout(() => {
+          try {
+            child.kill('SIGKILL');
+          } catch {
+            /* ignore */
+          }
+          reject(new Error('Chrome PDF timed out after 25s'));
+        }, 25000);
+        child.stderr.on('data', (d: Buffer) => {
+          stderr += d.toString();
+        });
+        child.on('error', (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+        child.on('close', (code: number | null) => {
+          clearTimeout(timer);
+          if (code === 0 && fs.existsSync(pdfPath)) resolve();
+          else reject(new Error(`Chrome PDF failed (code ${code}): ${stderr.slice(0, 400)}`));
+        });
+      });
+
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
+        await runOnce();
+        lastErr = null;
+        break;
+      } catch (err) {
+        lastErr = err;
+        await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+      }
+    }
+    if (lastErr) {
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+      throw lastErr;
+    }
 
     try {
-      doc.registerFont('hebrew', fontPath);
-      doc.font('hebrew');
-    } catch {
-      doc.font('Helvetica');
-    }
-
-    const line = (text: string, opts: any = {}) => {
-      doc.text(rtlVisual(text), { align: 'right', ...opts });
-    };
-
-    line('דוח מטבח', { fontSize: 18 });
-    doc.moveDown(0.3);
-    line(
-      `טווח: ${report.range.startDate} – ${report.range.endDate} | הופק: ${new Date(
-        report.generatedAt
-      ).toLocaleString('he-IL', { timeZone: report.timezone })}`,
-      { fontSize: 10 }
-    );
-    doc.moveDown(0.4);
-    line(
-      `הזמנות פעילות: ${report.summary.activeOrders} | מנות: ${report.summary.totalPortions} | סוגי מנות: ${report.summary.distinctDishes} | משלוחים: ${report.summary.deliveries} | איסופים: ${report.summary.pickups} | אלרגיות: ${report.summary.allergyAlerts}`,
-      { fontSize: 10 }
-    );
-
-    if (report.alerts.length) {
-      doc.moveDown(0.5);
-      line('התראות', { fontSize: 13 });
-      for (const a of report.alerts.slice(0, 20)) {
-        line(`• [${a.title}] ${a.detail}`, { fontSize: 9 });
+      return fs.readFileSync(pdfPath);
+    } finally {
+      try {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        /* ignore cleanup */
       }
     }
+  } finally {
+    release();
+  }
+}
 
-    for (const pg of report.preparationGroups) {
-      doc.moveDown(0.6);
-      line(pg.preparationLabel + (pg.isManualPreparation ? '' : ' (לפי אספקה)'), { fontSize: 12 });
-      line(`משלוחים: ${pg.deliveries} | איסופים: ${pg.pickups}`, { fontSize: 9 });
-      for (const mg of pg.meals) {
-        doc.moveDown(0.25);
-        line(mg.meal, { fontSize: 11 });
-        for (const d of mg.dishes) {
-          const label = [d.name, d.optionLabel, d.sizeLabel].filter(Boolean).join(' · ');
-          line(`${label}  |  ${d.quantity} ${d.unit}  |  הזמנות: ${d.orderCount}`, { fontSize: 9 });
-        }
-      }
-    }
-
-    if (report.cancelledAndChanged.length) {
-      doc.moveDown(0.6);
-      line('ביטולים ושינויים', { fontSize: 12 });
-      for (const o of report.cancelledAndChanged.slice(0, 40)) {
-        line(
-          `${o.orderNumber || o.orderId} — ${o.isCancelled ? 'בוטל' : 'עודכן'}${
-            o.lastChange ? `: ${o.lastChange.summary}` : ''
-          }`,
-          { fontSize: 9 }
-        );
-      }
-    }
-
-    if (!report.preparationGroups.length && !report.cancelledAndChanged.length) {
-      doc.moveDown();
-      line('אין הזמנות בטווח שנבחר', { fontSize: 12 });
-    }
-
-    doc.end();
+/** Printable HTML (also source for PDF). fontUrl points at Noto Sans Hebrew for Chrome print. */
+export function buildKitchenPrintHtml(
+  report: KitchenReportDTO,
+  opts: { embedFont?: boolean; fontUrl?: string; allowMissingDraft?: boolean } = {}
+): string {
+  return buildKitchenFullPrintHtml(report, {
+    fontUrl: opts.fontUrl,
+    allowMissingDraft: opts.allowMissingDraft === true
   });
 }
 
-/** Lightweight printable HTML used for PDF generation (Hebrew RTL). */
-export function buildKitchenPrintHtml(report: KitchenReportDTO): string {
-  const esc = (s: unknown) =>
-    String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+export function buildKitchenPrintPack(
+  report: KitchenReportDTO,
+  pack: KitchenPrintPackKind,
+  opts: {
+    fontUrl?: string;
+    allowMissingDraft?: boolean;
+    orderId?: string;
+    printedAt?: string | null;
+  } = {}
+): { html: string; missingChoiceLines: number; blocked: boolean; snapshot: string } {
+  const missingChoiceLines = countMissingChoiceLines(report);
+  const snapshot = buildKitchenQtySnapshot(report);
+  const allowMissingDraft = opts.allowMissingDraft === true;
+  const blocked =
+    (pack === 'prep' || pack === 'full') && missingChoiceLines > 0 && !allowMissingDraft;
 
-  const dishRows = report.preparationGroups
-    .map((pg) => {
-      const meals = pg.meals
-        .map((mg) => {
-          const rows = mg.dishes
-            .map(
-              (d) =>
-                `<tr><td>${esc(d.name)}${d.optionLabel ? ` · ${esc(d.optionLabel)}` : ''}${
-                  d.sizeLabel ? ` (${esc(d.sizeLabel)})` : ''
-                }</td><td>${esc(d.category)}</td><td class="qty">${esc(d.quantity)} ${esc(
-                  d.unit
-                )}</td><td>${esc(d.orderCount)}</td></tr>`
-            )
-            .join('');
-          return `<h3>${esc(mg.meal)}</h3><table><thead><tr><th>מנה</th><th>קטגוריה</th><th>כמות</th><th>הזמנות</th></tr></thead><tbody>${rows}</tbody></table>`;
-        })
-        .join('');
-      return `<section class="slot"><h2>${esc(pg.preparationLabel)}${
-        pg.isManualPreparation ? '' : ' <small>(לפי אספקה)</small>'
-      }</h2><p>משלוחים: ${pg.deliveries} · איסופים: ${pg.pickups}</p>${meals}</section>`;
-    })
-    .join('');
+  if (blocked) {
+    const html = buildKitchenPrepPrintHtml(report, {
+      fontUrl: opts.fontUrl,
+      allowMissingDraft: false
+    });
+    return { html, missingChoiceLines, blocked: true, snapshot };
+  }
 
-  const alerts = report.alerts
-    .map((a) => `<li class="${esc(a.kind)}"><strong>${esc(a.title)}</strong> — ${esc(a.detail)}</li>`)
-    .join('');
-
-  return `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"/><title>דוח מטבח</title>
-<style>
-  body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:12px;margin:16px}
-  h1{font-size:20px;margin:0 0 6px} h2{font-size:15px;margin:18px 0 6px;page-break-after:avoid}
-  h3{font-size:13px;margin:12px 0 4px;page-break-after:avoid}
-  table{width:100%;border-collapse:collapse;margin-bottom:10px}
-  th,td{border:1px solid #333;padding:5px 7px;text-align:right}
-  th{background:#eee;font-weight:700}
-  thead{display:table-header-group}
-  tr{page-break-inside:avoid}
-  .qty{font-size:16px;font-weight:700}
-  .summary{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
-  .summary span{border:1px solid #333;padding:6px 10px}
-  .allergy{font-weight:700}
-  @page{size:A4 landscape;margin:12mm}
-</style></head><body>
-<h1>דוח מטבח</h1>
-<p>טווח: ${esc(report.range.startDate)} – ${esc(report.range.endDate)} · הופק: ${esc(
-    new Date(report.generatedAt).toLocaleString('he-IL', { timeZone: report.timezone })
-  )}</p>
-<div class="summary">
-  <span>הזמנות פעילות: <b>${report.summary.activeOrders}</b></span>
-  <span>מנות: <b>${report.summary.totalPortions}</b></span>
-  <span>סוגי מנות: <b>${report.summary.distinctDishes}</b></span>
-  <span>משלוחים: <b>${report.summary.deliveries}</b></span>
-  <span>איסופים: <b>${report.summary.pickups}</b></span>
-  <span>אלרגיות: <b>${report.summary.allergyAlerts}</b></span>
-</div>
-${alerts ? `<h2>התראות</h2><ul>${alerts}</ul>` : ''}
-${dishRows || '<p>אין הזמנות פעילות בטווח שנבחר</p>'}
-${
-  report.cancelledAndChanged.length
-    ? `<h2>ביטולים ושינויים</h2><ul>${report.cancelledAndChanged
-        .map(
-          (o) =>
-            `<li>${esc(o.orderNumber || o.orderId)} — ${o.isCancelled ? 'בוטל' : 'עודכן'}${
-              o.lastChange ? `: ${esc(o.lastChange.summary)}` : ''
-            }</li>`
-        )
-        .join('')}</ul>`
-    : ''
+  let html: string;
+  switch (pack) {
+    case 'prep':
+      html = buildKitchenPrepPrintHtml(report, {
+        fontUrl: opts.fontUrl,
+        allowMissingDraft
+      });
+      break;
+    case 'orders':
+      html = buildKitchenOrdersPrintHtml(report, { fontUrl: opts.fontUrl });
+      break;
+    case 'order': {
+      const order =
+        (report.orderNotes || []).find((o) => o.orderId === opts.orderId) ||
+        (report.orderNotes || [])[0];
+      html = order
+        ? buildKitchenOrderSheetHtml(order, { fontUrl: opts.fontUrl })
+        : buildKitchenOrdersPrintHtml(report, { fontUrl: opts.fontUrl });
+      break;
+    }
+    case 'deltas': {
+      const deltas = collectPrintDeltas(report.orderNotes || [], opts.printedAt);
+      html = buildKitchenDeltasPrintHtml(deltas, {
+        dayLabel: `${report.range.startDate}`,
+        printedAt: opts.printedAt,
+        fontUrl: opts.fontUrl
+      });
+      break;
+    }
+    case 'full':
+    default:
+      html = buildKitchenFullPrintHtml(report, {
+        fontUrl: opts.fontUrl,
+        allowMissingDraft
+      });
+      break;
+  }
+  return { html, missingChoiceLines, blocked: false, snapshot };
 }
-</body></html>`;
+
+/** Record kitchen print cut on included orders (no customer email). */
+export async function markKitchenReportPrinted(
+  orderIds: string[],
+  snapshot: string
+): Promise<{ updated: number; printedAt: string }> {
+  const ids = [...new Set((orderIds || []).map((id) => String(id || '').trim()).filter(Boolean))]
+    .filter((id) => mongoose.Types.ObjectId.isValid(id))
+    .map((id) => new mongoose.Types.ObjectId(id));
+  const printedAt = new Date();
+  if (!ids.length) return { updated: 0, printedAt: printedAt.toISOString() };
+  const result = await Order.updateMany(
+    { _id: { $in: ids } },
+    {
+      $set: {
+        lastKitchenPrintAt: printedAt,
+        lastKitchenPrintSnapshot: String(snapshot || '').slice(0, 120)
+      }
+    }
+  );
+  return { updated: result.modifiedCount || 0, printedAt: printedAt.toISOString() };
 }

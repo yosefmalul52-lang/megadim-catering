@@ -208,14 +208,16 @@ describe('AdminDashboardComponent ops', () => {
     expect(html.querySelector('.day-grid')).toBeFalsy();
   }));
 
-  it('defaults sales range to last30 independent of finance preset', fakeAsync(() => {
+  it('defaults sales range to last30 independent of primary/finance preset', fakeAsync(() => {
     fixture.detectChanges();
     tick();
     expect(component.salesPreset).toBe('last30');
-    expect(component.selectedPreset).toBe('last30');
+    expect(component.primaryPreset).toBe('this_month');
+    expect(component.selectedPreset).toBe('month');
     component.selectPreset('week');
     tick();
     expect(component.selectedPreset).toBe('week');
+    expect(component.primaryPreset).toBe('last7');
     expect(component.salesPreset).toBe('last30');
     expect(component.selectedSalesCategories.length).toBe(1);
     expect(component.salesTone('סלטים')).toBe(5);

@@ -289,6 +289,7 @@ export class CateringController {
         email: payload.email,
         eventDate: payload.eventDate,
         address: payload.address || undefined,
+        deliveryType: payload.deliveryType || undefined,
         notes: combinedNotes
       },
       items: buildCateringItems(),

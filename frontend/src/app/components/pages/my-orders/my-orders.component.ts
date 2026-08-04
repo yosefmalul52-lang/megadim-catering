@@ -632,12 +632,14 @@ export class MyOrdersComponent implements OnInit {
 
   getItemDisplayName(item: OrderItem): string {
     const name = (item as any).name || (item as any).productName || '';
-    const variant = (item as any).variant ?? (item as any).size ?? (item as any).selectedOption?.label ?? '';
-    if (!variant) return name;
-    if (name.includes('(') && name.includes(')')) return name;
-    const cleanVariant = String(variant).split('-')[0].trim();
-    if (!cleanVariant) return name;
-    return name.trim() + ' (' + cleanVariant + ')';
+    if (String(name).includes('(') && String(name).includes(')')) return name;
+    const so = (item as any).selectedOption;
+    const variant = (item as any).variant ?? (item as any).size ?? so?.label ?? '';
+    const amount = String(so?.amount || '').trim();
+    const label = String(variant || '').split('-')[0].trim();
+    if (!label && !amount) return name;
+    if (label && amount && label !== amount) return `${String(name).trim()} (${label} - ${amount})`;
+    return `${String(name).trim()} (${label || amount})`;
   }
 
   formatItems(items: OrderItem[] | null | undefined): string {

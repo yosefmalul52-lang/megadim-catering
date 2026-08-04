@@ -391,6 +391,7 @@ export class AdminLayoutComponent implements OnInit {
     '/admin/dashboard': 'לוח בקרה',
     '/admin/menu': 'ניהול תפריט',
     '/admin/orders': 'הזמנות',
+    '/admin/payments': 'בקרה כספית',
     '/admin/leads': 'לידים',
     '/admin/marketing': 'ניהול קמפיינים',
     '/admin/customers': 'ניהול לקוחות (CRM)',
@@ -402,7 +403,9 @@ export class AdminLayoutComponent implements OnInit {
     '/admin/shopping': 'רשימת קניות',
     '/admin/gallery': 'ניהול גלריה',
     '/admin/institutions': 'ניהול מוסדות',
-    '/admin/settings': 'הגדרות אתר'
+    '/admin/settings': 'הגדרות אתר',
+    '/admin/accounting': 'הנהלת חשבונות',
+    '/admin/kitchen-report': 'דוח מטבח'
   };
 
   /** Sidebar links filtered by `AuthService` role */
@@ -432,11 +435,10 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   private updatePageInfo(url: string): void {
-    // Extract the path after /admin
-    const pathMatch = url.match(/\/admin(\/.*)?$/);
+    // Strip query/hash so /admin/payments?preset=… still resolves the title.
+    const clean = (url || '').split('?')[0].split('#')[0];
+    const pathMatch = clean.match(/\/admin(\/[^/]*)?/);
     const adminPath = pathMatch ? (pathMatch[1] || '/dashboard') : '/dashboard';
-    
-    // Set page title
     const fullPath = '/admin' + adminPath;
     this.pageTitle = this.pageTitles[fullPath] || this.pageTitles[adminPath] || 'לוח בקרה';
   }

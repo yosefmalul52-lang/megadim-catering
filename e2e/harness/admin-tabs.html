@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Admin Tabs Harness</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 16px; }
+      [role="tablist"] { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      [role="tab"] { padding: 6px 10px; border: 1px solid #ccc; background: #f7f7f7; cursor: pointer; border-radius: 2px; }
+      [role="tab"][aria-selected="true"] { background: #0E1A24; color: #fff; }
+      .panel { display: none; border: 1px solid #ddd; padding: 12px; min-height: 80px; }
+      .panel.active { display: block; }
+      .order { padding: 6px 0; border-bottom: 1px solid #eee; }
+      .badge { font-size: 12px; color: #666; }
+    </style>
+  </head>
+  <body>
+    <h1>מינוף טאבי הזמנות (בדיקה מבודדת)</h1>
+    <div role="tablist" aria-label="סטטוס הזמנות">
+      <button type="button" role="tab" data-tab="pending">ממתינים <span class="count" data-count="pending">0</span></button>
+      <button type="button" role="tab" data-tab="processing">בטיפול <span class="count" data-count="processing">0</span></button>
+      <button type="button" role="tab" data-tab="ready">מוכנים <span class="count" data-count="ready">0</span></button>
+      <button type="button" role="tab" data-tab="failed">נכשלו / ננטשו <span class="count" data-count="failed">0</span></button>
+      <button type="button" role="tab" data-tab="cancelled">בוטלו <span class="count" data-count="cancelled">0</span></button>
+      <button type="button" role="tab" data-tab="completed">הושלמו <span class="count" data-count="completed">0</span></button>
+      <button type="button" role="tab" data-tab="archive">ארכיון <span class="count" data-count="archive">0</span></button>
+    </div>
+
+    <div data-tab-panel="pending" class="panel" role="tabpanel"></div>
+    <div data-tab-panel="processing" class="panel" role="tabpanel"></div>
+    <div data-tab-panel="ready" class="panel" role="tabpanel"></div>
+    <div data-tab-panel="failed" class="panel" role="tabpanel"></div>
+    <div data-tab-panel="cancelled" class="panel" role="tabpanel"></div>
+    <div data-tab-panel="completed" class="panel" role="tabpanel"></div>
+    <div data-tab-panel="archive" class="panel" role="tabpanel"></div>
+
+    <script>
+      /**
+       * Same priority cascade as backend resolveAdminStatusTab
+       * (single source of truth mirrored for isolated UI proof).
+       */
+      function resolveAdminStatusTab(order) {
+        if (order.isDeleted === true) return 'archive';
+        if (order.status === 'cancelled') return 'cancelled';
+        const pay = String(order.paymentStatus || '');
+        const open =
+          order.paymentExceptionResolvedAt == null &&
+          (pay === 'failed' ||
+            (pay === 'awaiting_payment' &&
+              (order.paymentFailedAt != null || order.awaitingAbandoned === true)));
+        if (open) return 'failed';
+        if (order.status === 'delivered' || order.status === 'completed') return 'completed';
+        if (order.status === 'ready' || order.status === 'out_for_delivery') return 'ready';
+        if (
+          order.status === 'processing' ||
+          order.status === 'in-progress' ||
+          order.status === 'delivery_failed'
+        )
+          return 'processing';
+        return 'pending';
+      }
+
+      window.__orders = window.__orders || [];
+
+      window.__renderTabs = function () {
+        const tabs = [
+          'pending',
+          'processing',
+          'ready',
+          'failed',
+          'cancelled',
+          'completed',
+          'archive'
+        ];
+        const buckets = Object.fromEntries(tabs.map((t) => [t, []]));
+        for (const o of window.__orders) {
+          buckets[resolveAdminStatusTab(o)].push(o);
+        }
+        for (const t of tabs) {
+          const panel = document.querySelector('[data-tab-panel="' + t + '"]');
+          panel.innerHTML = buckets[t]
+            .map((o) => {
+              const action =
+                resolveAdminStatusTab(o) === 'failed'
+                  ? '<button type="button" data-move-processing="' +
+                    o.id +
+                    '">העבר לטיפול</button>'
+                  : '';
+              return (
+                '<div class="order" data-order-id="' +
+                o.id +
+                '">' +
+                (o.label || o.id) +
+                ' <span class="badge">' +
+                (o.paymentStatus || '') +
+                '</span> ' +
+                action +
+                '</div>'
+              );
+            })
+            .join('');
+          document.querySelector('[data-count="' + t + '"]').textContent = String(
+            buckets[t].length
+          );
+        }
+      };
+
+      document.querySelector('[role="tablist"]').addEventListener('click', (e) => {
+        const btn = e.target.closest('[role="tab"]');
+        if (!btn) return;
+        const tab = btn.getAttribute('data-tab');
+        document.querySelectorAll('[role="tab"]').forEach((b) => {
+          b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+        });
+        document.querySelectorAll('.panel').forEach((p) => {
+          p.classList.toggle('active', p.getAttribute('data-tab-panel') === tab);
+        });
+      });
+
+      document.body.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-move-processing]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-move-processing');
+        const o = window.__orders.find((x) => x.id === id);
+        if (!o) return;
+        o.status = 'processing';
+        o.paymentExceptionResolvedAt = new Date().toISOString();
+        o.paymentExceptionResolution = 'approve_and_continue_billing';
+        o.paymentExceptionResolvedBy = 'admin-e2e';
+        // keep paymentStatus = failed
+        window.__renderTabs();
+        document.querySelector('[data-tab="processing"]').click();
+      });
+
+      // default active
+      document.querySelector('[data-tab="pending"]').click();
+      window.__renderTabs();
+    </script>
+  </body>
+</html>

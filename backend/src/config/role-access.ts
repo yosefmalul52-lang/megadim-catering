@@ -7,6 +7,8 @@ export const CAP = {
   ORDERS_STATS: 'orders:stats',
   ORDERS_STATS_REVENUE: 'orders:stats_revenue',
   ORDERS_KITCHEN_REPORT: 'orders:kitchen_report',
+  KITCHEN_OPS_READ: 'kitchen:ops_read',
+  KITCHEN_OPS_WRITE: 'kitchen:ops_write',
   ORDERS_DELIVERY_REPORT: 'orders:delivery_report',
   ORDERS_RECENT: 'orders:recent',
   ORDERS_SEARCH: 'orders:search',

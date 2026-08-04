@@ -36,6 +36,13 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./admin-orders/admin-orders.component').then(m => m.AdminOrdersComponent)
       },
       {
+        path: 'payments',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () =>
+          import('./admin-payments/admin-payments.component').then((m) => m.AdminPaymentsComponent)
+      },
+      {
         path: 'kitchen-report',
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },

@@ -530,7 +530,20 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
       quantity: i.quantity,
       price: i.price,
       ...(i.category ? { category: i.category } : {}),
-      ...(i.imageUrl ? { imageUrl: i.imageUrl } : {})
+      ...(i.imageUrl ? { imageUrl: i.imageUrl } : {}),
+      ...(i.selectedOption
+        ? {
+            selectedOption: {
+              label: i.selectedOption.label,
+              amount: i.selectedOption.amount,
+              price: i.selectedOption.price,
+              optionId: i.selectedOption.optionId,
+              optionName: i.selectedOption.optionName,
+              valueId: i.selectedOption.valueId,
+              valueName: i.selectedOption.valueName
+            }
+          }
+        : {})
     }));
 
     const address =

@@ -31,6 +31,7 @@ import {
   createNotFoundError,
   createForbiddenError
 } from '../middleware/errorHandler';
+import { applyCaptureTimestamps, applyOpsStatusTimestamps } from '../utils/order-lifecycle-timestamps.util';
 
 const tranzilaService = new TranzilaService();
 
@@ -199,7 +200,8 @@ export class PaymentController {
             paymentStatus: 'authorized',
             authorizedAmount: order.totalPrice,
             transactionId: order.transactionId || `MOCK-${Date.now()}`
-          }
+          },
+          $unset: { paymentFailedAt: 1 }
         },
         { new: true }
       ).select(paymentFields);
@@ -221,11 +223,6 @@ export class PaymentController {
       } catch (crmErr) {
         console.error('[crm] payment backup upsert failed (mock authorize):', { orderId }, crmErr);
       }
-      try {
-        await emailService.sendOrderConfirmationAfterPayment(orderId);
-      } catch (emailErr) {
-        console.error('[payment] confirmation email failed (mock authorize):', { orderId }, emailErr);
-      }
 
       return res.status(200).json({
         success: true,
@@ -237,6 +234,7 @@ export class PaymentController {
     const paymentSecurityToken =
       (order as any).paymentSecurityToken || crypto.randomBytes(16).toString('hex');
     const transactionId = order.transactionId || `ORD-${orderId}`;
+    const fromFailed = order.paymentStatus === 'failed' || (order as any).paymentFailedAt != null;
     const updated = await Order.findOneAndUpdate(
       {
         _id: orderId,
@@ -246,6 +244,11 @@ export class PaymentController {
       {
         $set: {
           paymentStatus: 'awaiting_payment',
+          paymentAwaitingStartedAt: new Date(),
+          // Keep failure marker across new payment-link attempts so the order stays on failed tab.
+          ...(fromFailed
+            ? { paymentFailedAt: (order as any).paymentFailedAt || new Date() }
+            : {}),
           paymentSecurityToken,
           authorizedAmount: order.totalPrice,
           transactionId
@@ -373,7 +376,15 @@ export class PaymentController {
     const rc = String(responseCodeRaw ?? '').trim();
     if (rc !== '000' && rc !== '0') {
       console.warn(`[payment:success] Bad or absent response code '${rc}' for order ${orderId}`);
-      await Order.findByIdAndUpdate(orderId, { $set: { paymentStatus: 'failed' } }).catch(() => {});
+      // Only mark failed when still in a pre-success payment state; never rewrite ops status
+      // and never clear an already-resolved payment exception.
+      await Order.findOneAndUpdate(
+        {
+          _id: orderId,
+          paymentStatus: { $in: ['pending', 'awaiting_payment'] }
+        },
+        { $set: { paymentStatus: 'failed', paymentFailedAt: new Date() } }
+      ).catch(() => {});
       return res.redirect(`${frontendBase}/checkout?paymentError=declined&orderId=${orderId}`);
     }
 
@@ -392,11 +403,7 @@ export class PaymentController {
       } catch (crmErr) {
         console.error('[crm] payment backup upsert failed (idempotent redirect):', { orderId }, crmErr);
       }
-      try {
-        await emailService.sendOrderConfirmationAfterPayment(String(orderId));
-      } catch (emailErr) {
-        console.error('[payment] confirmation email failed (idempotent redirect):', { orderId }, emailErr);
-      }
+      // No emails on payment callback (order_received is create-time; approval is admin-time).
       return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
     }
 
@@ -418,7 +425,13 @@ export class PaymentController {
         const diff = Math.abs(paid - expected);
         if (diff > 0.02) {
           console.warn(`[payment:success] Amount mismatch for order ${orderId}: paid ${paid} vs expected ${expected}`);
-          await Order.findByIdAndUpdate(orderId, { $set: { paymentStatus: 'failed' } }).catch(() => {});
+          await Order.findOneAndUpdate(
+            {
+              _id: orderId,
+              paymentStatus: { $in: ['pending', 'awaiting_payment'] }
+            },
+            { $set: { paymentStatus: 'failed', paymentFailedAt: new Date() } }
+          ).catch(() => {});
           return res.redirect(`${frontendBase}/checkout?paymentError=amount_mismatch&orderId=${orderId}`);
         }
       }
@@ -435,17 +448,35 @@ export class PaymentController {
       ? (expYearRaw.length === 2 ? Number('20' + expYearRaw) : Number(expYearRaw))
       : undefined;
 
-    await Order.findByIdAndUpdate(orderId, {
-      $set: {
-        paymentStatus: 'authorized',
-        ...(tranzilaIndex    ? { transactionId: String(tranzilaIndex) }    : {}),
-        ...(confirmationCode ? { authCode:       String(confirmationCode) } : {}),
-        ...(authCode && !confirmationCode ? { authCode: String(authCode) } : {}),
-        ...(cardToken                 ? { cardToken }    : {}),
-        ...(expMonth !== undefined    ? { expireMonth: expMonth } : {}),
-        ...(expYear  !== undefined    ? { expireYear:  expYear  } : {})
-      }
-    });
+    // Payment success updates paymentStatus only — never ops status, never emails.
+    // Conditional write prevents stale callbacks from overwriting a newer payment attempt
+    // or an already-settled payment state.
+    const authUpdate = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        paymentStatus: { $in: ['pending', 'awaiting_payment', 'failed'] }
+      },
+      {
+        $set: {
+          paymentStatus: 'authorized',
+          ...(tranzilaIndex    ? { transactionId: String(tranzilaIndex) }    : {}),
+          ...(confirmationCode ? { authCode:       String(confirmationCode) } : {}),
+          ...(authCode && !confirmationCode ? { authCode: String(authCode) } : {}),
+          ...(cardToken                 ? { cardToken }    : {}),
+          ...(expMonth !== undefined    ? { expireMonth: expMonth } : {}),
+          ...(expYear  !== undefined    ? { expireYear:  expYear  } : {})
+        },
+        $unset: { paymentFailedAt: 1 }
+      },
+      { returnDocument: 'after' }
+    );
+    if (!authUpdate) {
+      const latest = await Order.findById(orderId).select('paymentStatus').lean();
+      console.warn(
+        `[payment:success] Skipped authorize write for ${orderId}; current paymentStatus=${(latest as any)?.paymentStatus}`
+      );
+      return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
+    }
     console.log(
       `[payment:success] Order ${orderId} authorized.`,
       `index(ref)=${tranzilaIndex}`,
@@ -466,12 +497,6 @@ export class PaymentController {
       console.error('[crm] payment backup upsert failed (payment success):', { orderId }, crmErr);
     }
 
-    try {
-      await emailService.sendOrderConfirmationAfterPayment(String(orderId));
-    } catch (emailErr) {
-      console.error('[payment] confirmation email failed (payment success):', { orderId }, emailErr);
-    }
-
     return res.redirect(`${frontendBase}/order-confirmation/${orderId}`);
   });
 
@@ -486,7 +511,9 @@ export class PaymentController {
     if (!orderId) throw createValidationError('orderId is required');
 
     const order = await Order.findById(orderId)
-      .select(`${ORDER_PAYMENT_OPERATION_SELECT} items totalPrice deliveryFee subtotal customerDetails userId paymentStatus transactionId`)
+      .select(
+        `${ORDER_PAYMENT_OPERATION_SELECT} items totalPrice deliveryFee subtotal customerDetails userId paymentStatus transactionId paidAt capturedAt`
+      )
       .populate('userId', 'fullName username')
       .lean();
     if (!order) throw createNotFoundError('Order');
@@ -515,7 +542,17 @@ export class PaymentController {
     // ── Mock mode ──────────────────────────────────────────────────────────────
     if (!tranzilaService.isConfigured()) {
       console.warn('[payment:capture] Mock mode — skipping real Tranzila capture');
-      await Order.findByIdAndUpdate(orderId, { $set: { paymentStatus: 'captured', status: 'processing' } });
+      const now = new Date();
+      const $set: Record<string, unknown> = { paymentStatus: 'captured' };
+      applyCaptureTimestamps({
+        $set,
+        prior: {
+          capturedAt: (order as any).capturedAt,
+          paidAt: (order as any).paidAt
+        },
+        now
+      });
+      await Order.findByIdAndUpdate(orderId, { $set });
       return res.status(200).json({ success: true, captureRef: `CAP-MOCK-${Date.now()}`, message: 'Payment captured (mock)' });
     }
 
@@ -558,13 +595,23 @@ export class PaymentController {
 
     if (!result.ok) {
       console.error('[payment:capture] Capture failed:', result.raw);
-      await Order.findByIdAndUpdate(orderId, { $set: { paymentStatus: 'failed' } });
+      await Order.findByIdAndUpdate(orderId, {
+        $set: { paymentStatus: 'failed', paymentFailedAt: new Date() }
+      });
       return res.status(502).json({ success: false, message: 'Capture failed', gateway: result.raw.slice(0, 200) });
     }
 
-    await Order.findByIdAndUpdate(orderId, {
-      $set: { paymentStatus: 'captured', status: 'processing' }
+    const now = new Date();
+    const $set: Record<string, unknown> = { paymentStatus: 'captured' };
+    applyCaptureTimestamps({
+      $set,
+      prior: {
+        capturedAt: (order as any).capturedAt,
+        paidAt: (order as any).paidAt
+      },
+      now
     });
+    await Order.findByIdAndUpdate(orderId, { $set });
 
     return res.status(200).json({
       success: true,
@@ -583,7 +630,9 @@ export class PaymentController {
     const { orderId } = req.params;
     if (!orderId) throw createValidationError('orderId is required');
 
-    const order = await Order.findById(orderId).select(ORDER_PAYMENT_OPERATION_SELECT);
+    const order = await Order.findById(orderId).select(
+      `${ORDER_PAYMENT_OPERATION_SELECT} paymentStatus transactionId status cancelledAt`
+    );
     if (!order) throw createNotFoundError('Order');
 
     if (order.paymentStatus !== 'authorized') {
@@ -598,9 +647,22 @@ export class PaymentController {
       throw createValidationError('Tranzila index not yet available; cannot void. Wait for IPN or try again.');
     }
 
+    const now = new Date();
+    const voidSet: Record<string, unknown> = {
+      paymentStatus: 'voided',
+      status: 'cancelled'
+    };
+    applyOpsStatusTimestamps({
+      $set: voidSet,
+      previousStatus: String((order as any).status || ''),
+      nextStatus: 'cancelled',
+      prior: { cancelledAt: (order as any).cancelledAt },
+      now
+    });
+
     // Mock mode
     if (!tranzilaService.isConfigured()) {
-      await Order.findByIdAndUpdate(orderId, { $set: { paymentStatus: 'voided', status: 'cancelled' } });
+      await Order.findByIdAndUpdate(orderId, { $set: voidSet });
       return res.status(200).json({ success: true, message: 'Authorization voided (mock)' });
     }
 
@@ -610,9 +672,7 @@ export class PaymentController {
       return res.status(502).json({ success: false, message: result.error || 'Void failed at Tranzila' });
     }
 
-    await Order.findByIdAndUpdate(orderId, {
-      $set: { paymentStatus: 'voided', status: 'cancelled' }
-    });
+    await Order.findByIdAndUpdate(orderId, { $set: voidSet });
 
     return res.status(200).json({ success: true, message: 'Authorization voided; hold released on card' });
   });

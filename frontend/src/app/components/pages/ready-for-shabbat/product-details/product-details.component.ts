@@ -796,6 +796,16 @@ export class ProductDetailsComponent implements OnInit {
     let price = this.getCurrentPrice();
     // Stable cart line id: same product + same size = same line (quantity merged)
     let cartLineId = baseId;
+    let selectedOption:
+      | {
+          label: string;
+          amount?: string;
+          price: number;
+          optionId?: string;
+          optionName?: string;
+          valueName?: string;
+        }
+      | undefined;
 
     if (this.hasSizeOptions()) {
       const options = this.getSizeOptions();
@@ -805,6 +815,15 @@ export class ProductDetailsComponent implements OnInit {
         itemName = `${this.product.name} (${label})`;
         price = this.getSizePrice(option);
         cartLineId = `${baseId}-size-${this.selectedSizeIndex}`;
+        const amount = String((option as { amount?: string }).amount || label || '').trim();
+        selectedOption = {
+          label: String(label || '').trim(),
+          amount: amount || undefined,
+          price: Number(price) || 0,
+          optionId: String(this.selectedSizeIndex),
+          optionName: String(label || '').trim() || undefined,
+          valueName: amount || undefined
+        };
       }
     }
 
@@ -815,7 +834,8 @@ export class ProductDetailsComponent implements OnInit {
         price,
         imageUrl: this.product.imageUrl ?? '',
         description: this.product.description,
-        category: this.product.category
+        category: this.product.category,
+        selectedOption
       },
       this.quantity
     );

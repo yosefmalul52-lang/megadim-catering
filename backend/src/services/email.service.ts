@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import Order, { IOrder } from '../models/Order';
+import { ORDER_NOTIFICATION_TYPES } from '../models/OrderNotificationClaim';
 import { generateAdminEmailHtml, generateCustomerEmailHtml, generateCateringCustomerEmailHtml, buildShabbatMealsExtraInfo, OrderTemplateData } from './email-templates';
 import { ORDER_API_DETAIL_SELECT } from '../utils/order-projection.util';
 import {
@@ -7,7 +8,17 @@ import {
   pushCateringEmailItems,
   resolveMealCourseLines
 } from '../utils/catering-lines';
-
+import {
+  acquireEmailSendClaim,
+  markEmailClaimFailed,
+  markEmailClaimSent,
+  retryFailedEmailClaims
+} from '../utils/order-email-claim.util';
+import {
+  assertOrderCustomerEmailsAllowedOrSuppress,
+  isOrderCustomerEmailsEnabled,
+  suppressOrderCustomerEmail
+} from '../utils/order-customer-email-gate.util';
 /** Single source of truth: EMAIL_HOST, EMAIL_PORT (default 587), EMAIL_USER, EMAIL_PASS */
 const EMAIL_USER = (process.env.EMAIL_USER || '').trim();
 const EMAIL_PASS = process.env.EMAIL_PASS;
@@ -215,11 +226,19 @@ export class EmailService {
 
   /**
    * Internal helper to wrap transporter.sendMail with strong logging & normalized errors.
+   * Hard block: order-related contexts never hit SMTP when ORDER_CUSTOMER_EMAILS_ENABLED is off.
    */
   private async sendMailWithLogging(
     context: string,
     options: nodemailer.SendMailOptions
   ): Promise<void> {
+    if (
+      String(context || '').startsWith('order:') &&
+      !isOrderCustomerEmailsEnabled()
+    ) {
+      suppressOrderCustomerEmail(`sendMailWithLogging:${context}`);
+      return;
+    }
     try {
       await this.transporter.sendMail(options);
     } catch (error: any) {
@@ -312,6 +331,9 @@ export class EmailService {
     _adminEmail: string,
     customerEmail?: string
   ): Promise<void> {
+    const gate = assertOrderCustomerEmailsAllowedOrSuppress('sendOrderEmails');
+    if (!('ok' in gate)) return;
+
     if (!EMAIL_USER || !EMAIL_PASS) {
       throw new Error('Email service is not configured (EMAIL_USER or EMAIL_PASS missing)');
     }
@@ -363,28 +385,168 @@ export class EmailService {
   }
 
   /**
-   * Send checkout confirmation emails once after payment is authorized/captured.
-   * Idempotent: only the first caller wins via confirmationEmailSentAt.
+   * Payment success must NOT send the "order received" email (that fires on create).
+   * Kept as a no-op so existing payment.controller call sites stay safe/idempotent.
    */
   async sendOrderConfirmationAfterPayment(orderId: string): Promise<void> {
-    const claimed = await Order.findOneAndUpdate(
-      {
-        _id: orderId,
-        confirmationEmailSentAt: null,
-        paymentStatus: { $in: ['authorized', 'captured'] }
-      },
-      { $set: { confirmationEmailSentAt: new Date() } },
-      { returnDocument: 'before' }
-    )
-      .select(ORDER_API_DETAIL_SELECT)
-      .lean();
+    console.log(
+      '[email] Skipping post-payment confirmation email (order_received is create-time only):',
+      orderId
+    );
+  }
 
-    if (!claimed) {
-      return;
+  /**
+   * Public website order received — once per (order, recipient).
+   * Does not claim the order is approved; uses existing received templates.
+   */
+  async sendOrderReceivedForPublicOrder(order: IOrder): Promise<{
+    sent: boolean;
+    skipped?: string;
+    suppressed?: boolean;
+  }> {
+    const gate = assertOrderCustomerEmailsAllowedOrSuppress('order_received');
+    if (!('ok' in gate)) return gate;
+
+    const orderId = String((order as any)._id || '');
+    const ownerEmail = (process.env.OWNER_EMAIL || '').trim().toLowerCase();
+    const customerEmail = String(order.customerDetails?.email || '')
+      .trim()
+      .toLowerCase();
+
+    const recipients = [...new Set([ownerEmail, customerEmail].filter(Boolean))];
+    if (!recipients.length) {
+      console.warn('⚠️ order_received: no recipients – skipping');
+      return { sent: false, skipped: 'no_recipients' };
     }
 
-    await this.sendOrderEmail(claimed as IOrder);
-    console.log('✅ Order confirmation emails sent after payment:', orderId);
+    let anySent = false;
+    for (const recipient of recipients) {
+      const claim = await acquireEmailSendClaim({
+        orderId,
+        emailEventType: ORDER_NOTIFICATION_TYPES.ORDER_RECEIVED,
+        recipient
+      });
+      if (!claim || claim.action !== 'send') continue;
+      try {
+        // sendOrderEmail sends owner+customer; for claim-per-recipient we still use
+        // the existing combined helper once for the first acquired send, then mark all.
+        if (!anySent) {
+          await this.sendOrderEmailThrowing(order);
+          anySent = true;
+        }
+        await markEmailClaimSent(claim.claimId);
+      } catch (err) {
+        await markEmailClaimFailed(claim.claimId, err);
+        console.error('order_received SMTP failed (status unchanged):', (err as any)?.message || err);
+      }
+    }
+
+    // Mark remaining recipients as sent if the combined mail already went out
+    if (anySent) {
+      for (const recipient of recipients) {
+        const claim = await acquireEmailSendClaim({
+          orderId,
+          emailEventType: ORDER_NOTIFICATION_TYPES.ORDER_RECEIVED,
+          recipient
+        });
+        if (claim?.action === 'send') {
+          await markEmailClaimSent(claim.claimId);
+        }
+      }
+    }
+
+    return { sent: anySent };
+  }
+
+  /** Like sendOrderEmail but propagates SMTP errors for claim status updates. */
+  private async sendOrderEmailThrowing(order: IOrder): Promise<void> {
+    if (!isOrderCustomerEmailsEnabled()) {
+      suppressOrderCustomerEmail('sendOrderEmailThrowing');
+      return;
+    }
+    const businessName = process.env.BUSINESS_NAME || 'Megadim';
+    const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+    if (!ownerEmail) {
+      throw new Error('OWNER_EMAIL not set');
+    }
+    const customerReplyEmail = (order.customerDetails?.email || '').toString().trim();
+    const ownerTemplateData = buildTemplateDataFromOrder(order);
+    const customerTemplateData: OrderTemplateData = {
+      customerName: ownerTemplateData.customerName,
+      customerPhone: ownerTemplateData.customerPhone,
+      customerEmail: ownerTemplateData.customerEmail,
+      orderType: ownerTemplateData.orderType,
+      eventDate: ownerTemplateData.eventDate,
+      address: ownerTemplateData.address,
+      notes: ownerTemplateData.notes,
+      cartItems: ownerTemplateData.cartItems,
+      subtotal: ownerTemplateData.subtotal,
+      deliveryFee: ownerTemplateData.deliveryFee,
+      totalPrice: ownerTemplateData.totalPrice,
+      orderNumber: ownerTemplateData.orderNumber,
+      cateringKind: ownerTemplateData.cateringKind,
+      cateringExtraInfo: ownerTemplateData.cateringExtraInfo
+    };
+
+    const ownerHtml = generateAdminEmailHtml(ownerTemplateData);
+    const customerHtml = ownerTemplateData.cateringKind
+      ? generateCateringCustomerEmailHtml(customerTemplateData)
+      : generateCustomerEmailHtml(customerTemplateData);
+
+    const ownerSubject = ownerTemplateData.cateringKind
+      ? `בקשת קייטרינג חדשה${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`
+      : `הזמנה חדשה התקבלה וממתינה לאישור${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`;
+
+    await this.sendMailWithLogging('order:received-admin', {
+      from: getWebsiteFromHeader(),
+      to: ownerEmail,
+      replyTo: customerReplyEmail || undefined,
+      subject: ownerSubject,
+      html: ownerHtml
+    });
+
+    if (customerReplyEmail) {
+      const customerSubject = ownerTemplateData.cateringKind
+        ? `אישור קבלת בקשת קייטרינג${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`
+        : `הזמנתך התקבלה וממתינה לאישור הקייטרינג${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`;
+      await this.sendMailWithLogging('order:received-customer', {
+        from: getWebsiteFromHeader(),
+        replyTo: ownerEmail,
+        to: customerReplyEmail,
+        subject: customerSubject,
+        html: customerHtml
+      });
+    }
+  }
+
+  /** Retry failed/pending order email claims. Blocked when emails are disabled. */
+  async retryFailedOrderEmails(limit = 20): Promise<{
+    attempted: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+    suppressed?: boolean;
+  }> {
+    if (!isOrderCustomerEmailsEnabled()) {
+      suppressOrderCustomerEmail('retryFailedOrderEmails');
+      return { attempted: 0, sent: 0, failed: 0, skipped: 0, suppressed: true };
+    }
+    return retryFailedEmailClaims({
+      limit,
+      send: async (claim) => {
+        const order = await Order.findById(claim.orderId).select(ORDER_API_DETAIL_SELECT).lean();
+        if (!order) throw new Error('Order not found for email retry');
+        if (claim.emailEventType === ORDER_NOTIFICATION_TYPES.ORDER_APPROVED) {
+          await this.sendOrderApprovedToCustomerRaw(order as IOrder, claim.recipient);
+          return;
+        }
+        if (claim.emailEventType === ORDER_NOTIFICATION_TYPES.ORDER_RECEIVED) {
+          await this.sendOrderEmailThrowing(order as IOrder);
+          return;
+        }
+        throw new Error(`Unsupported emailEventType for retry: ${claim.emailEventType}`);
+      }
+    });
   }
 
   private buildItemsListHtml(order: IOrder): string {
@@ -402,6 +564,9 @@ export class EmailService {
    * Notify customer that an admin edited order items (uses persisted order snapshot).
    */
   async sendOrderUpdateEmail(order: IOrder): Promise<void> {
+    const gate = assertOrderCustomerEmailsAllowedOrSuppress('order_updated');
+    if (!('ok' in gate)) return;
+
     const toEmail = (order.customerDetails?.email || '').toString().trim();
     if (!toEmail) {
       console.warn('⚠️ Order updated but customer has no email – skipping update email');
@@ -464,6 +629,9 @@ export class EmailService {
    */
   async sendOrderEmail(order: IOrder): Promise<void> {
     try {
+      const gate = assertOrderCustomerEmailsAllowedOrSuppress('sendOrderEmail');
+      if (!('ok' in gate)) return;
+
       const businessName = process.env.BUSINESS_NAME || 'Megadim';
       const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
       if (!ownerEmail) {
@@ -533,18 +701,52 @@ export class EmailService {
   }
 
   /**
-   * Send "order approved and being prepared" email to the customer (when admin sets status to 'processing').
-   * Gold brand theme. No-op if customer has no email.
+   * Send "order approved" to customer once per (order, recipient).
+   * Returns whether SMTP send was attempted and succeeded.
+   * On SMTP failure marks claim failed — does not throw (caller keeps status change).
    */
-  async sendOrderApprovedToCustomer(order: IOrder): Promise<void> {
-    const toEmail = (order.customerDetails?.email || '').toString().trim();
+  async sendOrderApprovedToCustomer(
+    order: IOrder
+  ): Promise<{ sent: boolean; skipped?: string; suppressed?: boolean }> {
+    const gate = assertOrderCustomerEmailsAllowedOrSuppress('order_approved');
+    if (!('ok' in gate)) return gate;
+
+    const toEmail = (order.customerDetails?.email || '').toString().trim().toLowerCase();
     if (!toEmail) {
       console.warn('⚠️ Order approved but customer has no email – skipping approval email');
+      return { sent: false, skipped: 'no_recipient' };
+    }
+    const orderId = String((order as any)._id || '');
+    const claim = await acquireEmailSendClaim({
+      orderId,
+      emailEventType: ORDER_NOTIFICATION_TYPES.ORDER_APPROVED,
+      recipient: toEmail
+    });
+    if (!claim) return { sent: false, skipped: 'no_claim' };
+    if (claim.action === 'skip_already_sent') return { sent: false, skipped: 'already_sent' };
+    if (claim.action === 'skip_locked') return { sent: false, skipped: 'locked' };
+
+    try {
+      await this.sendOrderApprovedToCustomerRaw(order, toEmail);
+      await markEmailClaimSent(claim.claimId);
+      return { sent: true };
+    } catch (err) {
+      await markEmailClaimFailed(claim.claimId, err);
+      console.error(
+        'Order approved email SMTP failed (order status unchanged):',
+        (err as any)?.message || err
+      );
+      return { sent: false, skipped: 'smtp_failed' };
+    }
+  }
+
+  async sendOrderApprovedToCustomerRaw(order: IOrder, toEmail: string): Promise<void> {
+    if (!isOrderCustomerEmailsEnabled()) {
+      suppressOrderCustomerEmail('sendOrderApprovedToCustomerRaw');
       return;
     }
     if (!EMAIL_USER || !EMAIL_PASS) {
-      console.warn('⚠️ Email not configured – skipping approval email to customer');
-      return;
+      throw new Error('Email not configured');
     }
     const businessName = process.env.BUSINESS_NAME || 'Megadim';
     const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
