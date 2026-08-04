@@ -15,6 +15,7 @@ import {
   parseOptionFromItemName,
   findMatchingPricingOption
 } from '../utils/order-item-options.util';
+import { computeAdminRecalculatedTotals } from '../utils/order-admin-pricing.util';
 import {
   buildAdminStatusChangeUpdate,
   orderMatchesFailedTab,
@@ -64,7 +65,7 @@ function invoke(
   });
 }
 
-/** In-memory mirror of updateOrderItems preserve rules (uses real utils). */
+/** In-memory mirror of updateOrderItems preserve + total recalc rules (uses real utils). */
 function applyItemsUpdate(
   order: any,
   newItems: any[]
@@ -74,8 +75,6 @@ function applyItemsUpdate(
   }
   const existingItems = Array.isArray(order.items) ? order.items : [];
   const paymentStatusBefore = order.paymentStatus;
-  const totalBefore = order.totalPrice;
-  const subtotalBefore = order.subtotal;
   const tranzilaBefore = {
     authCode: order.authCode,
     transactionId: order.transactionId,
@@ -148,12 +147,12 @@ function applyItemsUpdate(
     };
   });
 
+  const totals = computeAdminRecalculatedTotals(order, { items: normalized });
   const next = {
     ...order,
     items: normalized,
-    // financial + payment fields frozen
-    totalPrice: totalBefore,
-    subtotal: subtotalBefore,
+    totalPrice: totals.locked ? order.totalPrice : totals.totalPrice,
+    subtotal: totals.locked ? order.subtotal : totals.subtotal,
     paymentStatus: paymentStatusBefore,
     authCode: tranzilaBefore.authCode,
     transactionId: tranzilaBefore.transactionId,
@@ -162,7 +161,7 @@ function applyItemsUpdate(
   return { order: next, emailWouldSend: false };
 }
 
-test('HTTP items: qty-only preserves selectedOption, name, price; no email; totals/payment frozen', async () => {
+test('HTTP items: qty-only preserves selectedOption, name, price; no email; totals recalculate; payment frozen', async () => {
   const store: any = {
     _id: 'ord-items-1',
     orderNumber: 'MG-TEST-ITEMS',
@@ -221,8 +220,8 @@ test('HTTP items: qty-only preserves selectedOption, name, price; no email; tota
     assert.equal(store.items[0].selectedOption.label, '250 מ"ל');
     assert.equal(store.items[0].name, 'טחינה (250 מ"ל - 250)');
     assert.equal(store.items[0].price, 17);
-    assert.equal(store.totalPrice, 34);
-    assert.equal(store.subtotal, 34);
+    assert.equal(store.totalPrice, 51);
+    assert.equal(store.subtotal, 51);
     assert.equal(store.paymentStatus, 'awaiting_payment');
     assert.equal(store.transactionId, 'tx-keep');
     assert.equal(emailCalls, 0);

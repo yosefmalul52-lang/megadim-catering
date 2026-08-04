@@ -107,7 +107,8 @@ export function computePortionBasedTotal(order: Record<string, unknown>): number
 
 /**
  * Recalculate subtotal + totalPrice for admin edits.
- * Priority: admin override → portion×rate (events/catering) → items+delivery − discount.
+ * Priority: admin override → items+delivery when item prices exist → portion×rate
+ * (events/shabbat with ₪0 dish rows) → keep previous catering quote → items+delivery − discount.
  * When payment is authorized/captured, totals are left unchanged (caller must not $set them).
  */
 export function computeAdminRecalculatedTotals(
@@ -182,17 +183,17 @@ export function computeAdminRecalculatedTotals(
     String(order.cateringKind || '') === 'events' ||
     String(order.cateringKind || '') === 'shabbat';
 
-  if (isCatering && portionTotal != null) {
-    // Events/shabbat menus store dish rows at price 0; portion×rate is the real quote.
-    if (itemsSubtotal <= 0 || String(order.cateringKind || '') === 'events') {
-      return {
-        subtotal: portionTotal,
-        totalPrice: portionTotal,
-        deliveryFee,
-        source: 'portion_rate',
-        locked: false
-      };
-    }
+  // Portion×rate is the quote only when dish rows are ₪0 (typical events/shabbat menus).
+  // When admin edits priced items (itemsSubtotal > 0), those prices must win — otherwise
+  // "סה״כ ביניים לעריכה" updates in the UI but Save silently keeps the old portion quote.
+  if (isCatering && portionTotal != null && itemsSubtotal <= 0) {
+    return {
+      subtotal: portionTotal,
+      totalPrice: portionTotal,
+      deliveryFee,
+      source: 'portion_rate',
+      locked: false
+    };
   }
 
   // Catering menus often store dish rows at price 0. Do not wipe an existing quote

@@ -33,6 +33,30 @@ test('events catering: portion×rate recalculates when item prices are 0', () =>
   assert.equal(totals.locked, false);
 });
 
+test('events catering: priced item edits win over portion×rate quote', () => {
+  const order = {
+    orderType: 'catering',
+    cateringKind: 'events',
+    paymentStatus: 'pending',
+    totalPrice: 1982,
+    subtotal: 1982,
+    deliveryFee: 0,
+    numberOfPortions: 25,
+    customerDetails: { pricePerPortion: 70 },
+    items: [{ name: 'מנה', price: 50, quantity: 10 }]
+  };
+  const totals = computeAdminRecalculatedTotals(order, {
+    items: [
+      { name: 'מנה', price: 50, quantity: 20 },
+      { name: 'תוספת', price: 1480, quantity: 1 }
+    ]
+  });
+  assert.equal(totals.locked, false);
+  assert.equal(totals.source, 'items_plus_delivery');
+  assert.equal(totals.subtotal, 2480);
+  assert.equal(totals.totalPrice, 2480);
+});
+
 test('shabbat starts at 0; admin override becomes effective amount; invalid_amount only when classic-paid', () => {
   const before = {
     orderType: 'catering',
@@ -118,6 +142,38 @@ test('retail items+delivery recalculation preserves discount', () => {
   assert.equal(totals.source, 'items_plus_delivery');
   assert.equal(totals.subtotal, 80);
   assert.equal(totals.totalPrice, 70);
+});
+
+test('unlocked item edit recalculates retail total from new qty×price', () => {
+  const order = {
+    orderType: 'shabbat',
+    paymentStatus: 'awaiting_payment',
+    totalPrice: 34,
+    subtotal: 34,
+    deliveryFee: 0,
+    items: [{ name: 'טחינה', price: 17, quantity: 2 }]
+  };
+  const totals = computeAdminRecalculatedTotals(order, {
+    items: [{ name: 'טחינה', price: 17, quantity: 3 }]
+  });
+  assert.equal(totals.locked, false);
+  assert.equal(totals.source, 'items_plus_delivery');
+  assert.equal(totals.totalPrice, 51);
+});
+
+test('authorized item edit keeps total locked', () => {
+  const order = {
+    orderType: 'shabbat',
+    paymentStatus: 'authorized',
+    totalPrice: 34,
+    subtotal: 34,
+    items: [{ name: 'טחינה', price: 17, quantity: 2 }]
+  };
+  const totals = computeAdminRecalculatedTotals(order, {
+    items: [{ name: 'טחינה', price: 17, quantity: 9 }]
+  });
+  assert.equal(totals.locked, true);
+  assert.equal(totals.totalPrice, 34);
 });
 
 test('effective amount prefers adminPriceOverride over zero totalPrice', () => {

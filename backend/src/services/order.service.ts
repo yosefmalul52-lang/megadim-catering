@@ -1187,7 +1187,9 @@ export class OrderService {
    * Update order items securely (Admin):
    * - Round-trips selectedOption / size / kitchen notes.
    * - Omitting selectedOption preserves the existing snapshot (does not wipe).
-   * - Does not mutate subtotal, totalPrice, paymentStatus, or Tranzila fields.
+   * - Recalculates subtotal/totalPrice when payment is not gateway-locked
+   *   (authorized/captured stay frozen; adminPriceOverride / catering rules apply).
+   * - Never mutates paymentStatus or Tranzila fields.
    */
   async updateOrderItems(orderId: string, newItems: any[]): Promise<IOrder | null> {
     if (!Array.isArray(newItems) || newItems.length === 0) {
@@ -1567,11 +1569,21 @@ export class OrderService {
       })
     );
 
-    // Items/kitchen edits must not mutate paymentStatus, Tranzila fields, subtotal, or totalPrice.
-    // Price overrides use dedicated admin endpoints.
+    // Never mutate paymentStatus / Tranzila fields here.
+    // Recalculate money fields when unlocked so admin item edits match the displayed total.
+    const totals = computeAdminRecalculatedTotals(order as unknown as Record<string, unknown>, {
+      items: normalizedItems
+    });
     const $set: Record<string, unknown> = {
       items: normalizedItems
     };
+    if (!totals.locked) {
+      $set.subtotal = totals.subtotal;
+      $set.totalPrice = totals.totalPrice;
+      if (totals.deliveryFee !== undefined) {
+        $set.deliveryFee = totals.deliveryFee;
+      }
+    }
 
     const updateResult = await Order.updateOne({ _id: orderId }, { $set });
     if (updateResult.matchedCount === 0) return null;
@@ -1586,14 +1598,23 @@ export class OrderService {
           })
           .join('; ')
           .slice(0, 500);
-      await appendKitchenChange(orderId, 'items', 'עודכנו פריטים, כמויות או וריאציות בהזמנה', undefined, {
-        previousValue: summarizeItems((order as any).items || []),
-        newValue: summarizeItems(normalizedItems)
-      });
+      const moneyNote = totals.locked
+        ? ' (סכום נעול — authorized/captured)'
+        : ` (סה״כ → ₪${Number(totals.totalPrice).toFixed(2)}, מקור=${totals.source})`;
+      await appendKitchenChange(
+        orderId,
+        'items',
+        `עודכנו פריטים, כמויות או וריאציות בהזמנה${moneyNote}`,
+        undefined,
+        {
+          previousValue: summarizeItems((order as any).items || []),
+          newValue: summarizeItems(normalizedItems)
+        }
+      );
       const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
       await onOrderKitchenRelevantChange(orderId, {
         type: 'items',
-        summary: 'עודכנו פריטים, כמויות או וריאציות בהזמנה',
+        summary: `עודכנו פריטים, כמויות או וריאציות בהזמנה${moneyNote}`,
         previousValue: summarizeItems((order as any).items || []),
         newValue: summarizeItems(normalizedItems)
       });
