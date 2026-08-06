@@ -49,7 +49,7 @@
 ## 9. Environment variable names (by service)
 
 ### Backend
-`NODE_ENV`, `PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN` (legacy auth.js), `ALLOWED_ORIGINS`, `ALLOWED_ORIGIN`, `FRONTEND_URL`, `BACKEND_URL`, `OWNER_EMAIL`, `BUSINESS_NAME`, `EMAIL_*`, `CLOUDINARY_*`, `GOOGLE_MAPS_API_KEY`, `TRANZILA_*`, `N8N_*`, `TWILIO_*`, `TZ`
+`NODE_ENV`, `PORT`, `MONGO_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN` (legacy auth.js), `ALLOWED_ORIGINS`, `ALLOWED_ORIGIN`, `FRONTEND_URL`, `BACKEND_URL`, `OWNER_EMAIL`, `BUSINESS_NAME`, `EMAIL_*`, `ORDER_CUSTOMER_EMAILS_ENABLED` (explicit on/off; **unset defaults to ON in production**, OFF otherwise), `CLOUDINARY_*`, `GOOGLE_MAPS_API_KEY`, `TRANZILA_*`, `N8N_*`, `TWILIO_*`, `TZ`
 
 ### Frontend (compile-time)
 `environment.apiUrl`, `googleAnalyticsId`, `adminSummariesKey`, `assistant.*`

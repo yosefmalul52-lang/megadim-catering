@@ -1,13 +1,22 @@
 /**
- * Central kill switch for all order-related customer (and combined) emails.
- * Default: OFF (unset / false). Must be explicitly enabled with true/1/yes/on.
+ * Central kill switch for order-related emails (owner + customer).
+ *
+ * Explicit values:
+ *   true/1/yes/on  → enabled
+ *   false/0/no/off → disabled
+ *
+ * Unset:
+ *   production → enabled (so live orders are never silently dropped)
+ *   otherwise  → disabled (safe for local/tests)
  */
 
 export function isOrderCustomerEmailsEnabled(): boolean {
   const raw = String(process.env.ORDER_CUSTOMER_EMAILS_ENABLED ?? '')
     .trim()
     .toLowerCase();
-  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+  if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+  if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+  return process.env.NODE_ENV === 'production';
 }
 
 export type OrderEmailSuppressed = {
