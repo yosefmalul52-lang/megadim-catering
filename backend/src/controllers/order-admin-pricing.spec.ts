@@ -106,10 +106,11 @@ test('shabbat starts at 0; admin override becomes effective amount; invalid_amou
   assert.equal(recalc.totalPrice, 4800);
 });
 
-test('authorized/captured totals stay locked on recalculation', () => {
-  assert.equal(isGatewayLockedPaymentStatus('authorized'), true);
+test('captured totals stay locked; authorized recalculates for capture amount', () => {
+  assert.equal(isGatewayLockedPaymentStatus('authorized'), false);
   assert.equal(isGatewayLockedPaymentStatus('captured'), true);
-  const order = {
+
+  const authorized = {
     orderType: 'shabbat',
     paymentStatus: 'authorized',
     totalPrice: 200,
@@ -117,12 +118,21 @@ test('authorized/captured totals stay locked on recalculation', () => {
     deliveryFee: 20,
     items: [{ name: 'חלה', price: 50, quantity: 2 }]
   };
-  const totals = computeAdminRecalculatedTotals(order, {
+  const authTotals = computeAdminRecalculatedTotals(authorized, {
     items: [{ name: 'חלה', price: 50, quantity: 10 }]
   });
-  assert.equal(totals.locked, true);
-  assert.equal(totals.totalPrice, 200);
-  assert.equal(totals.source, 'unchanged');
+  assert.equal(authTotals.locked, false);
+  assert.equal(authTotals.source, 'items_plus_delivery');
+  // discount preserved: prev 180+20-200=0 → 500+20
+  assert.equal(authTotals.totalPrice, 520);
+
+  const captured = { ...authorized, paymentStatus: 'captured' };
+  const capTotals = computeAdminRecalculatedTotals(captured, {
+    items: [{ name: 'חלה', price: 50, quantity: 10 }]
+  });
+  assert.equal(capTotals.locked, true);
+  assert.equal(capTotals.totalPrice, 200);
+  assert.equal(capTotals.source, 'unchanged');
 });
 
 test('retail items+delivery recalculation preserves discount', () => {
@@ -161,10 +171,27 @@ test('unlocked item edit recalculates retail total from new qty×price', () => {
   assert.equal(totals.totalPrice, 51);
 });
 
-test('authorized item edit keeps total locked', () => {
+test('authorized item edit recalculates total for charge button', () => {
   const order = {
     orderType: 'shabbat',
     paymentStatus: 'authorized',
+    totalPrice: 34,
+    subtotal: 34,
+    deliveryFee: 0,
+    items: [{ name: 'טחינה', price: 17, quantity: 2 }]
+  };
+  const totals = computeAdminRecalculatedTotals(order, {
+    items: [{ name: 'טחינה', price: 17, quantity: 9 }]
+  });
+  assert.equal(totals.locked, false);
+  assert.equal(totals.source, 'items_plus_delivery');
+  assert.equal(totals.totalPrice, 153);
+});
+
+test('captured item edit keeps total locked', () => {
+  const order = {
+    orderType: 'shabbat',
+    paymentStatus: 'captured',
     totalPrice: 34,
     subtotal: 34,
     items: [{ name: 'טחינה', price: 17, quantity: 2 }]

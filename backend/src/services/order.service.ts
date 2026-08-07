@@ -1599,7 +1599,7 @@ export class OrderService {
           .join('; ')
           .slice(0, 500);
       const moneyNote = totals.locked
-        ? ' (סכום נעול — authorized/captured)'
+        ? ' (סכום נעול — captured)'
         : ` (סה״כ → ₪${Number(totals.totalPrice).toFixed(2)}, מקור=${totals.source})`;
       await appendKitchenChange(
         orderId,
@@ -1644,7 +1644,7 @@ export class OrderService {
 
     if (isGatewayLockedPaymentStatus((order as any).paymentStatus)) {
       throw new Error(
-        'לא ניתן לשנות סכום הזמנה שאושרה או שחויבה ללא מנגנון פיננסי מתאים (authorized/captured)'
+        'לא ניתן לשנות סכום הזמנה שחויבה סופית (captured) ללא מנגנון פיננסי מתאים'
       );
     }
 

@@ -2,6 +2,10 @@
  * Admin order pricing helpers.
  * totalPrice remains the stored charge amount; adminPriceOverride (when set)
  * is preferred for alerts/reports via getEffectiveOrderAmount.
+ *
+ * Money lock: only `captured` freezes totals (settled).
+ * `authorized` must still recalc so the capture button / Tranzila amount
+ * tracks admin item edits; authorizedAmount stays as the original hold snapshot.
  */
 function roundMoney(n: number): number {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -13,9 +17,9 @@ export type AdminPriceSource =
   | 'items_plus_delivery'
   | 'unchanged';
 
+/** True when order money is settled and must not be rewritten by admin edits. */
 export function isGatewayLockedPaymentStatus(status: unknown): boolean {
-  const s = String(status || '').trim();
-  return s === 'authorized' || s === 'captured';
+  return String(status || '').trim() === 'captured';
 }
 
 export function hasAdminPriceOverride(doc: Record<string, unknown> | null | undefined): boolean {
@@ -109,7 +113,8 @@ export function computePortionBasedTotal(order: Record<string, unknown>): number
  * Recalculate subtotal + totalPrice for admin edits.
  * Priority: admin override → items+delivery when item prices exist → portion×rate
  * (events/shabbat with ₪0 dish rows) → keep previous catering quote → items+delivery − discount.
- * When payment is authorized/captured, totals are left unchanged (caller must not $set them).
+ * When payment is captured, totals are left unchanged (caller must not $set them).
+ * Authorized orders recalculate so capture uses the updated charge amount.
  */
 export function computeAdminRecalculatedTotals(
   order: Record<string, unknown>,

@@ -32,6 +32,7 @@ import {
   createForbiddenError
 } from '../middleware/errorHandler';
 import { applyCaptureTimestamps, applyOpsStatusTimestamps } from '../utils/order-lifecycle-timestamps.util';
+import { getEffectiveOrderAmount } from '../utils/order-admin-pricing.util';
 
 const tranzilaService = new TranzilaService();
 
@@ -562,7 +563,7 @@ export class PaymentController {
       typeof (order as { userId?: unknown }).userId === 'object'
         ? ((order as { userId: { fullName?: string; username?: string } }).userId)
         : null;
-    const captureAmount = roundMoney(Number(order.totalPrice ?? 0));
+    const captureAmount = getEffectiveOrderAmount(order as unknown as Record<string, unknown>);
     const captureContext: TranzilaCaptureOrderContext = {
       items: order.items || [],
       totalPrice: captureAmount,

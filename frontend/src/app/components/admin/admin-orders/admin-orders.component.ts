@@ -2975,6 +2975,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.isSavingItems = true;
     this.orderService.updateOrderItems(orderId, payloadItems, { notifyCustomer: false }).subscribe({
       next: (updated) => {
+        this.isSavingItems = false;
         const normalizedUpdated: Order = {
           ...updated,
           id: (updated._id || updated.id || '').toString()
@@ -2989,10 +2990,17 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
         this.selectedOrder = normalizedUpdated;
         this.cancelEditingItems();
-        // Auto-close details modal after successful save.
-        this.closeModal();
+        // Keep details open after item save so charge amount (totalPrice) is visible.
+        // Only auto-close when not in a payment-sensitive authorized state.
+        if (normalizedUpdated.paymentStatus !== 'authorized') {
+          this.closeModal();
+        }
 
-        this.successMessage = 'פריטי ההזמנה עודכנו בהצלחה';
+        const newTotal = Number(normalizedUpdated.totalPrice || 0);
+        this.successMessage =
+          normalizedUpdated.paymentStatus === 'authorized'
+            ? `פריטי ההזמנה עודכנו — סכום לחיוב עודכן ל־₪${newTotal.toFixed(2)}`
+            : 'פריטי ההזמנה עודכנו בהצלחה';
         // If the order was authorized, flag a potential amount mismatch for the UI warning
         if (this.selectedOrder?.paymentStatus === 'authorized') {
           this.authorizedAmountMismatchWarning = true;

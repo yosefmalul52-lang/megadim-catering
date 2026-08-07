@@ -67,11 +67,23 @@ export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): T
     });
   }
 
+  const targetTotal = roundMoney(order.totalPrice);
+
+  if (lines.length === 0) {
+    lines.push({
+      name: 'הזמנה',
+      type: 'I',
+      unit_price: targetTotal,
+      units_number: 1
+    });
+    return lines;
+  }
+
   const lineTotal = roundMoney(
     lines.reduce((sum, line) => sum + line.unit_price * line.units_number, 0)
   );
-  const targetTotal = roundMoney(order.totalPrice);
   const discountAmount = roundMoney(Math.max(0, lineTotal - targetTotal));
+  const topUpAmount = roundMoney(Math.max(0, targetTotal - lineTotal));
 
   if (discountAmount > 0) {
     lines.push({
@@ -80,13 +92,12 @@ export function buildTranzilaInvoiceItems(order: TranzilaCaptureOrderContext): T
       unit_price: -discountAmount,
       units_number: 1
     });
-  }
-
-  if (lines.length === 0) {
+  } else if (topUpAmount > 0) {
+    // Keep provider invoice net equal to Order.totalPrice (e.g. admin override / quote).
     lines.push({
-      name: 'הזמנה',
+      name: 'התאמת סכום',
       type: 'I',
-      unit_price: targetTotal,
+      unit_price: topUpAmount,
       units_number: 1
     });
   }

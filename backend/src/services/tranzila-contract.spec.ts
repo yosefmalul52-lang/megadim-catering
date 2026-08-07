@@ -223,6 +223,16 @@ test('contract: buildTranzilaInvoiceItems — item/shipping/discount/fallback sh
   assert.deepEqual(empty, [
     { name: 'הזמנה', type: 'I', unit_price: 55, units_number: 1 }
   ]);
+
+  const topUp = buildTranzilaInvoiceItems({
+    totalPrice: 120,
+    deliveryFee: 0,
+    items: [{ name: 'פריט', price: 40, quantity: 2 }]
+  });
+  assert.deepEqual(topUp, [
+    { name: 'פריט', type: 'I', unit_price: 40, units_number: 2 },
+    { name: 'התאמת סכום', type: 'I', unit_price: 40, units_number: 1 }
+  ]);
 });
 
 test('contract: resolveTranzilaCaptureClient — name/email selection', () => {
