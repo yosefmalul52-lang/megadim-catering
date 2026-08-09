@@ -139,7 +139,7 @@ export function computePortionBasedTotal(order: Record<string, unknown>): number
 export function computeAdminRecalculatedTotals(
   order: Record<string, unknown>,
   patch: {
-    items?: Array<{ name?: unknown; price?: unknown; quantity?: unknown }>;
+    items?: Array<{ name?: unknown; price?: unknown; quantity?: unknown; priceSource?: unknown }>;
     deliveryFee?: number | null;
     portionsEvening?: number;
     portionsMorning?: number;
