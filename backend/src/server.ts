@@ -82,6 +82,7 @@ import couponRoutes from './routes/coupon.routes';
 import userRoutes from './routes/user.routes';
 import campaignRoutes from './routes/campaign.routes';
 import holidayEventRoutes from './routes/holiday-event.routes';
+import eventsCateringCatalogRoutes from './routes/events-catering-catalog.routes';
 import customerRoutes from './routes/customer.routes';
 import paymentRoutes      from './routes/payment.routes';
 import accountingRoutes   from './routes/accounting.routes';
@@ -90,6 +91,7 @@ import institutionRoutes  from './routes/institution.routes';
 import b2bDictionaryRoutes from './routes/b2b-dictionary.routes';
 import portalRoutes       from './routes/portal.routes';
 import kitchenRoutes      from './routes/kitchen.routes';
+import quotesRoutes       from './routes/quotes.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -197,13 +199,15 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// General API rate limit: 100 requests per 15 minutes per IP (DDoS / abuse protection)
+// General API rate limit. Production: 100/15min. Local/dev: skip so admin/login aren't blocked.
+const isProd = process.env.NODE_ENV === 'production';
 const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: isProd ? 100 : 5000,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  skip: () => !isProd
 });
 app.use('/api', generalApiLimiter);
 
@@ -257,6 +261,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/campaign', campaignRoutes);
 app.use('/api/holiday-events', holidayEventRoutes);
+app.use('/api/events-catalog', eventsCateringCatalogRoutes);
 app.use('/api/payment',           paymentRoutes);
 app.use('/api/admin/accounting',  accountingRoutes);
 app.use('/api/admin/payments',    adminPaymentsRoutes);
@@ -264,6 +269,7 @@ app.use('/api/admin/institutions', institutionRoutes);
 app.use('/api/admin/b2b-dictionary', b2bDictionaryRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/kitchen', kitchenRoutes);
+app.use('/api/quotes', quotesRoutes);
 
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler);

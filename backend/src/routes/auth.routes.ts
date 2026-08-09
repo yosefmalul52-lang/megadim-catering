@@ -14,11 +14,12 @@ if (!JWT_SECRET) {
 // Strict rate limit for login endpoints (brute-force protection)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // allow more retries before temporary lock
+  max: process.env.NODE_ENV === 'production' ? 10 : 100,
   message: { success: false, message: 'Too many login attempts from this IP, please try again after 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true // successful login should not keep user locked out
+  skipSuccessfulRequests: true, // successful login should not keep user locked out
+  skip: () => process.env.NODE_ENV !== 'production'
 });
 
 const COOKIE_NAME = 'token';

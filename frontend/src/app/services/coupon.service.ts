@@ -55,7 +55,10 @@ export class CouponService {
     return this.http.delete<{ success?: boolean; message?: string }>(`${this.apiUrl}/${id}`).pipe(map(() => void 0));
   }
 
-  applyCoupon(code: string, cartTotal: number): Observable<ApplyCouponResponse> {
-    return this.http.post<ApplyCouponResponse>(`${this.apiUrl}/apply`, { code, cartTotal });
+  applyCoupon(code: string, cartTotal: number, customerPhone?: string): Observable<ApplyCouponResponse> {
+    const body: { code: string; cartTotal: number; customerPhone?: string } = { code, cartTotal };
+    const phone = String(customerPhone || '').trim();
+    if (phone) body.customerPhone = phone;
+    return this.http.post<ApplyCouponResponse>(`${this.apiUrl}/apply`, body);
   }
 }

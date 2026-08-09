@@ -56,6 +56,20 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./admin-leads/admin-leads.component').then(m => m.AdminLeadsComponent)
       },
       {
+        path: 'quotes',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () =>
+          import('./admin-quotes/admin-quotes.component').then((m) => m.AdminQuotesComponent)
+      },
+      {
+        path: 'quotes/:id',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () =>
+          import('./admin-quotes/admin-quotes.component').then((m) => m.AdminQuotesComponent)
+      },
+      {
         path: 'marketing',
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },
@@ -79,6 +93,13 @@ export const adminRoutes: Routes = [
         data: { adminRoles: [...AD] },
         loadComponent: () =>
           import('./admin-holiday-events/admin-holiday-events.component').then(m => m.AdminHolidayEventsComponent)
+      },
+      {
+        path: 'events-catalog',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () =>
+          import('./admin-events-catalog/admin-events-catalog.component').then(m => m.AdminEventsCatalogComponent)
       },
       {
         path: 'shipping',

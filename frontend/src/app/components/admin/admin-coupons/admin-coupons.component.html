@@ -7,6 +7,12 @@
       </div>
     </div>
 
+    <div class="help-box">
+      <strong>איך יוצרים קופון באחוזים מעל סכום מינימום:</strong>
+      בחרו סוג הנחה «אחוז», הזינו ערך (למשל 10), וב«מינימום הזמנה» הזינו את הסף בשקלים.
+      המינימום נבדק מול סכום המזון + דמי המשלוח בצ׳קאאוט. תוקף אופציונלי — השאירו ריק ללא תפוגה.
+    </div>
+
     <div class="stats-row">
       <div class="stat-card">
         <span class="stat-value">{{ coupons.length }}</span>
@@ -56,11 +62,8 @@
             <input id="minOrderValue" type="number" formControlName="minOrderValue" class="input" min="0" />
           </div>
           <div class="field">
-            <label for="expiryDate">תוקף</label>
+            <label for="expiryDate">תוקף (אופציונלי)</label>
             <input id="expiryDate" type="date" formControlName="expiryDate" class="input" />
-            @if (createForm.get('expiryDate')?.invalid && createForm.get('expiryDate')?.touched) {
-              <span class="field-error">חובה</span>
-            }
           </div>
           <div class="field">
             <label for="maxUses">מקסימום שימושים (מכסה)</label>
@@ -92,7 +95,7 @@
           </label>
           <label class="checkbox-label">
             <input type="checkbox" formControlName="isVipOnly" />
-            <span>VIP Only (Returning Customers)</span>
+            <span>VIP בלבד</span>
           </label>
           <button type="submit" class="btn-create" [disabled]="isSubmitting">
             @if (isSubmitting) { יוצר... } @else { צור קופון חדש }
@@ -100,6 +103,69 @@
         </div>
       </form>
     </section>
+
+    @if (editingCouponId) {
+      <section class="create-section card">
+        <h2 class="card-title">עריכת קופון</h2>
+        <form [formGroup]="editForm" (ngSubmit)="onSubmitEdit()" class="create-form">
+          <div class="form-row">
+            <div class="field">
+              <label for="edit-code">קוד קופון</label>
+              <input id="edit-code" type="text" formControlName="code" class="input" />
+            </div>
+            <div class="field">
+              <label for="edit-discountType">סוג הנחה</label>
+              <select id="edit-discountType" formControlName="discountType" class="input">
+                <option value="percentage">אחוז</option>
+                <option value="fixedAmount">סכום קבוע</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="edit-discountValue">ערך הנחה</label>
+              <input id="edit-discountValue" type="number" formControlName="discountValue" class="input" min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="edit-minOrderValue">מינימום הזמנה (₪)</label>
+              <input id="edit-minOrderValue" type="number" formControlName="minOrderValue" class="input" min="0" />
+            </div>
+            <div class="field">
+              <label for="edit-expiryDate">תוקף (אופציונלי)</label>
+              <input id="edit-expiryDate" type="date" formControlName="expiryDate" class="input" />
+            </div>
+            <div class="field">
+              <label for="edit-maxUses">מקסימום שימושים</label>
+              <input id="edit-maxUses" type="number" formControlName="maxUses" class="input" min="1" />
+            </div>
+            <div class="field">
+              <label for="edit-maxUsesPerCustomer">מקסימום ללקוח</label>
+              <input id="edit-maxUsesPerCustomer" type="number" formControlName="maxUsesPerCustomer" class="input" min="1" />
+            </div>
+            <div class="field">
+              <label for="edit-targetCustomerCategory">קהל יעד</label>
+              <select id="edit-targetCustomerCategory" formControlName="targetCustomerCategory" class="input">
+                @for (opt of categoryOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="form-row form-row-actions">
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="isActive" />
+              <span>פעיל</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" formControlName="isVipOnly" />
+              <span>VIP בלבד</span>
+            </label>
+            <button type="submit" class="btn-create" [disabled]="isSubmitting">שמור שינויים</button>
+            <button type="button" class="btn-delete-selected" (click)="cancelEdit()">ביטול</button>
+          </div>
+        </form>
+      </section>
+    }
 
     @if (successMessage) {
       <div class="message success-message">{{ successMessage }}</div>
@@ -127,6 +193,7 @@
               <th>סה״כ הכנסות</th>
               <th>קהל</th>
               <th>סטטוס</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -143,7 +210,7 @@
                 <td class="code-cell">{{ c.code }}</td>
                 <td class="discount-cell">{{ getDiscountLabel(c) }}</td>
                 <td class="min-cell">₪{{ c.minOrderValue | number:'1.0-0' }}</td>
-                <td class="date-cell">{{ getExpiryDate(c) | date:'dd/MM/yyyy' }}</td>
+                <td class="date-cell">{{ getExpiryDate(c) ? (getExpiryDate(c) | date:'dd/MM/yyyy') : 'ללא תפוגה' }}</td>
                 <td class="uses-cell">{{ getUsageDisplay(c) }}</td>
                 <td class="revenue-cell">{{ (c.totalRevenueGenerated || 0) | currency:'ILS':'symbol-narrow':'1.0-0' }}</td>
                 <td>{{ getAudienceLabel(c) }}</td>
@@ -151,6 +218,9 @@
                   <button type="button" class="toggle-btn" [class.active]="c.isActive" (click)="toggleActive(c)" [attr.aria-label]="c.isActive ? 'כבה קופון' : 'הפעל קופון'">
                     {{ c.isActive ? 'פעיל' : 'כבוי' }}
                   </button>
+                </td>
+                <td>
+                  <button type="button" class="toggle-btn" (click)="startEdit(c)">עריכה</button>
                 </td>
               </tr>
             }

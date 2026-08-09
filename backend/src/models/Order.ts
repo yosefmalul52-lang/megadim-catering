@@ -209,6 +209,8 @@ const OrderSchema: Schema<IOrder> = new Schema({
     price: Number,
     quantity: Number,
     category: String,
+    /** When 'admin', unit price was set by staff and must not be overwritten from catalog. */
+    priceSource: { type: String, enum: ['catalog', 'admin'], required: false },
     selectedOption: {
       label: String,
       amount: String,

@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { EventsCatalogService, ShabbatCatalogDto } from '../../../services/events-catalog.service';
 import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { environment } from '../../../../environments/environment';
@@ -21,6 +22,33 @@ import {
 } from '../../../utils/open-date-rules';
 
 type MealTime = 'evening' | 'morning' | 'both' | '';
+
+const DEFAULT_SALAD_OPTIONS = [
+  'חומוס', 'טחינה', 'מטבוחה', 'חציל פיקנטי', 'חציל במיונז', 'חציל בטחינה',
+  'סחוג', 'חילבה', 'אנטיפסטי', 'סלט גזר מרוקאי', 'סלט סלק מזרחי', 'סלט ביצים',
+  'סלט קצוץ ישראלי', 'סלט וולדורף', 'גזר מגורד בלימון', 'כרוב לבן וחמוציות',
+  'קולוסלאו', 'כרוב בסגנון אסיאתי', 'שרי פסטו', 'סלט חסה עם שרי', 'טאבולה',
+  'חמוצי הבית', 'סלט תירס'
+];
+
+const DEFAULT_FIRST_COURSE_OPTIONS = [
+  'פילה אמנון מזרחי', 'פילה אמנון בעשבי תיבול', 'פילה סלמון בחרדל ודבש',
+  'פילה סלמון בטריאקי', 'פילה סלמון בעשבי תיבול', 'גלילות חצילים במילוי בשר',
+  'תחתיות ארטישוק במילוי בשר', 'כבד קצוץ', 'בצל ממולא בשר ואורז',
+  'פלפל ממולא בשר ואורז', 'בצל ממולא אורז', 'פלפל ממולא אורז'
+];
+
+const DEFAULT_MAIN_COURSE_OPTIONS = [
+  'כרעיים עוף בסילאן', 'כרעיים עוף בעשבי תיבול', 'אסאדו בסגנון ארגנטינאי',
+  'צלי בקר ברוטב', 'פרגית בטריאקי', 'פרגית בעשבי תיבול', 'פרגית מונטריאון',
+  'שוקיים בצ\'ילי', 'שניצל', 'שניצלונים', 'שוק טלה', 'צ\'ולנט'
+];
+
+const DEFAULT_SIDE_DISH_OPTIONS = [
+  'אורז לבן', 'אורז בקארי וירקות', 'אורז שקדים וצימוקים במייפל',
+  'תפו"א פריזיאן בסגנון מזרחי', 'סירות תפו"א ובטטה', 'זיתים ברוטב פיקנטי',
+  'קוסקוס עם ירקות בסגנון טריפולטאי', 'ירקות מוקפצים', 'שעועית ירוקה מוקפצת בסגנון סיני'
+];
 
 @Component({
   selector: 'app-holiday-food',
@@ -43,6 +71,7 @@ type MealTime = 'evening' | 'morning' | 'both' | '';
 export class HolidayFoodComponent implements OnInit {
   settingsService = inject(SiteSettingsService);
   private http = inject(HttpClient);
+  private eventsCatalogService = inject(EventsCatalogService);
   settings: SiteSettings | null = null;
   eventsMenuUrl: string = '';
   showPopup = false;
@@ -53,35 +82,24 @@ export class HolidayFoodComponent implements OnInit {
   isOrderFormOpen: boolean = false;
 
   saladIndexes = [1, 2, 3, 4, 5, 6, 7, 8];
-  readonly courseSlotIndexes = [1, 2];
-  readonly sidesSlotIndexes = [1, 2, 3];
+  firstCourseSlotIndexes = [1, 2];
+  mainCourseSlotIndexes = [1, 2];
+  sidesSlotIndexes = [1, 2, 3];
+  saladMinCount = 6;
+  saladMaxCount = 8;
 
-  saladOptions: string[] = [
-    'חומוס', 'טחינה', 'מטבוחה', 'חציל פיקנטי', 'חציל במיונז', 'חציל בטחינה',
-    'סחוג', 'חילבה', 'אנטיפסטי', 'סלט גזר מרוקאי', 'סלט סלק מזרחי', 'סלט ביצים',
-    'סלט קצוץ ישראלי', 'סלט וולדורף', 'גזר מגורד בלימון', 'כרוב לבן וחמוציות',
-    'קולוסלאו', 'כרוב בסגנון אסיאתי', 'שרי פסטו', 'סלט חסה עם שרי', 'טאבולה',
-    'חמוצי הבית', 'סלט תירס'
-  ];
+  singleMealPrice = 70;
+  bothMealsPrice = 135;
+  firstCourseUpgradePrice = 20;
+  seudaShlishitPrice = 25;
+  fishUpgradePrice = 18;
+  dessertsPrice = 8;
+  kosherUpgradePrice = 7;
 
-  firstCourseOptions: string[] = [
-    'פילה אמנון מזרחי', 'פילה אמנון בעשבי תיבול', 'פילה סלמון בחרדל ודבש',
-    'פילה סלמון בטריאקי', 'פילה סלמון בעשבי תיבול', 'גלילות חצילים במילוי בשר',
-    'תחתיות ארטישוק במילוי בשר', 'כבד קצוץ', 'בצל ממולא בשר ואורז',
-    'פלפל ממולא בשר ואורז', 'בצל ממולא אורז', 'פלפל ממולא אורז'
-  ];
-
-  mainCourseOptions: string[] = [
-    'כרעיים עוף בסילאן', 'כרעיים עוף בעשבי תיבול', 'אסאדו בסגנון ארגנטינאי',
-    'צלי בקר ברוטב', 'פרגית בטריאקי', 'פרגית בעשבי תיבול', 'פרגית מונטריאון',
-    'שוקיים בצ\'ילי', 'שניצל', 'שניצלונים', 'שוק טלה', 'צ\'ולנט'
-  ];
-
-  sideDishOptions: string[] = [
-    'אורז לבן', 'אורז בקארי וירקות', 'אורז שקדים וצימוקים במייפל',
-    'תפו"א פריזיאן בסגנון מזרחי', 'סירות תפו"א ובטטה', 'זיתים ברוטב פיקנטי',
-    'קוסקוס עם ירקות בסגנון טריפולטאי', 'ירקות מוקפצים', 'שעועית ירוקה מוקפצת בסגנון סיני'
-  ];
+  saladOptions: string[] = [...DEFAULT_SALAD_OPTIONS];
+  firstCourseOptions: string[] = [...DEFAULT_FIRST_COURSE_OPTIONS];
+  mainCourseOptions: string[] = [...DEFAULT_MAIN_COURSE_OPTIONS];
+  sideDishOptions: string[] = [...DEFAULT_SIDE_DISH_OPTIONS];
 
   readonly blockedHolidays: string[] = ['2026-04-23', '2026-05-02'];
 
@@ -328,28 +346,32 @@ export class HolidayFoodComponent implements OnInit {
 
     let err =
       this.assertNoDuplicates(this.orderForm.salads, 'סלטים') ||
-      this.assertCountRange(this.orderForm.salads, 6, 8, 'סלטים');
+      this.assertCountRange(this.orderForm.salads, this.saladMinCount, this.saladMaxCount, 'סלטים');
     if (err) return err;
+
+    const firstSlots = this.firstCourseSlotIndexes.length;
+    const mainSlots = this.mainCourseSlotIndexes.length;
+    const sideSlots = this.sidesSlotIndexes.length;
 
     if (this.showEveningMealBlock) {
       err =
         this.assertNoDuplicates(this.orderForm.firstCoursesEvening, 'מנות ראשונות לערב') ||
-        this.assertExactCount(this.orderForm.firstCoursesEvening, 2, 'מנות ראשונות לערב') ||
+        this.assertExactCount(this.orderForm.firstCoursesEvening, firstSlots, 'מנות ראשונות לערב') ||
         this.assertNoDuplicates(this.orderForm.mainCoursesEvening, 'מנות עיקריות לערב') ||
-        this.assertExactCount(this.orderForm.mainCoursesEvening, 2, 'מנות עיקריות לערב') ||
+        this.assertExactCount(this.orderForm.mainCoursesEvening, mainSlots, 'מנות עיקריות לערב') ||
         this.assertNoDuplicates(this.orderForm.sidesEvening, 'תוספות לערב') ||
-        this.assertExactCount(this.orderForm.sidesEvening, 3, 'תוספות לערב');
+        this.assertExactCount(this.orderForm.sidesEvening, sideSlots, 'תוספות לערב');
       if (err) return err;
     }
 
     if (this.showMorningMealBlock) {
       err =
         this.assertNoDuplicates(this.orderForm.firstCoursesMorning, 'מנות ראשונות לבוקר') ||
-        this.assertExactCount(this.orderForm.firstCoursesMorning, 2, 'מנות ראשונות לבוקר') ||
+        this.assertExactCount(this.orderForm.firstCoursesMorning, firstSlots, 'מנות ראשונות לבוקר') ||
         this.assertNoDuplicates(this.orderForm.mainCoursesMorning, 'מנות עיקריות לבוקר') ||
-        this.assertExactCount(this.orderForm.mainCoursesMorning, 2, 'מנות עיקריות לבוקר') ||
+        this.assertExactCount(this.orderForm.mainCoursesMorning, mainSlots, 'מנות עיקריות לבוקר') ||
         this.assertNoDuplicates(this.orderForm.sidesMorning, 'תוספות לבוקר') ||
-        this.assertExactCount(this.orderForm.sidesMorning, 3, 'תוספות לבוקר');
+        this.assertExactCount(this.orderForm.sidesMorning, sideSlots, 'תוספות לבוקר');
       if (err) return err;
     }
 
@@ -480,6 +502,7 @@ export class HolidayFoodComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDeliverySettings();
+    this.loadShabbatCatalog();
 
     this.settingsService.getSettings(true).subscribe(s => {
       this.settings = s || null;
@@ -489,6 +512,75 @@ export class HolidayFoodComponent implements OnInit {
       }
       this.eventsMenuUrl = '/assets/docs/shabbat-menu.pdf';
     });
+  }
+
+  private loadShabbatCatalog(): void {
+    this.eventsCatalogService.getPublicShabbatCatalog().subscribe({
+      next: (catalog) => this.applyShabbatCatalog(catalog),
+      error: () => {
+        /* keep hardcoded defaults */
+      }
+    });
+  }
+
+  private applyShabbatCatalog(catalog: ShabbatCatalogDto): void {
+    if (!catalog) return;
+    this.singleMealPrice = Number(catalog.singleMealPrice) || this.singleMealPrice;
+    this.bothMealsPrice = Number(catalog.bothMealsPrice) || this.bothMealsPrice;
+    this.firstCourseUpgradePrice =
+      Number(catalog.firstCourseUpgradePrice) || this.firstCourseUpgradePrice;
+    this.seudaShlishitPrice = Number(catalog.seudaShlishitPrice) || this.seudaShlishitPrice;
+    this.fishUpgradePrice = Number(catalog.fishUpgradePrice) || this.fishUpgradePrice;
+    this.dessertsPrice = Number(catalog.dessertsPrice) || this.dessertsPrice;
+    this.kosherUpgradePrice = Number(catalog.kosherUpgradePrice) || this.kosherUpgradePrice;
+
+    if (catalog.saladOptions?.length) this.saladOptions = [...catalog.saladOptions];
+    if (catalog.firstCourseOptions?.length) {
+      this.firstCourseOptions = [...catalog.firstCourseOptions];
+    }
+    if (catalog.mainCourseOptions?.length) this.mainCourseOptions = [...catalog.mainCourseOptions];
+    if (catalog.sideDishOptions?.length) this.sideDishOptions = [...catalog.sideDishOptions];
+
+    this.saladMinCount = Number(catalog.saladMinCount) || this.saladMinCount;
+    this.saladMaxCount = Number(catalog.saladMaxCount) || this.saladMaxCount;
+    const saladSlots = Math.max(
+      Number(catalog.saladSlotCount) || this.saladIndexes.length,
+      this.saladMaxCount
+    );
+    const firstSlots = Number(catalog.firstCourseSlotCount) || this.firstCourseSlotIndexes.length;
+    const mainSlots = Number(catalog.mainCourseSlotCount) || this.mainCourseSlotIndexes.length;
+    const sideSlots = Number(catalog.sideSlotCount) || this.sidesSlotIndexes.length;
+
+    this.saladIndexes = Array.from({ length: saladSlots }, (_, i) => i + 1);
+    this.firstCourseSlotIndexes = Array.from({ length: firstSlots }, (_, i) => i + 1);
+    this.mainCourseSlotIndexes = Array.from({ length: mainSlots }, (_, i) => i + 1);
+    this.sidesSlotIndexes = Array.from({ length: sideSlots }, (_, i) => i + 1);
+
+    this.orderForm.salads = this.resizeSelectionArray(this.orderForm.salads, saladSlots);
+    this.orderForm.firstCoursesEvening = this.resizeSelectionArray(
+      this.orderForm.firstCoursesEvening,
+      firstSlots
+    );
+    this.orderForm.firstCoursesMorning = this.resizeSelectionArray(
+      this.orderForm.firstCoursesMorning,
+      firstSlots
+    );
+    this.orderForm.mainCoursesEvening = this.resizeSelectionArray(
+      this.orderForm.mainCoursesEvening,
+      mainSlots
+    );
+    this.orderForm.mainCoursesMorning = this.resizeSelectionArray(
+      this.orderForm.mainCoursesMorning,
+      mainSlots
+    );
+    this.orderForm.sidesEvening = this.resizeSelectionArray(this.orderForm.sidesEvening, sideSlots);
+    this.orderForm.sidesMorning = this.resizeSelectionArray(this.orderForm.sidesMorning, sideSlots);
+  }
+
+  private resizeSelectionArray(arr: string[], size: number): string[] {
+    const next = arr.slice(0, size);
+    while (next.length < size) next.push('');
+    return next;
   }
 
   openMenu(): void {

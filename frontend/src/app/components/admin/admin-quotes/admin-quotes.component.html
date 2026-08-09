@@ -1,0 +1,745 @@
+<div class="quotes-page" [class.editor-mode]="mode === 'editor'">
+  @if (mode === 'list') {
+    <div class="q-shell">
+      <header class="q-topbar">
+        <div class="q-title-wrap">
+          <h1>הפקת הצעת מחיר</h1>
+          <p class="q-sub">
+            @if (audienceTab === 'business') {
+              מסמך עסקי לחברות — שורות, מע״מ, הדפסה ו־PDF
+            } @else {
+              הצעת מחיר לפרטיים — לפי סוג השירות באתר, מוכן לוואטסאפ
+            }
+          </p>
+        </div>
+        <div class="q-top-actions">
+          <input
+            type="search"
+            class="q-search"
+            placeholder="חיפוש מספר, לקוח, טלפון..."
+            [(ngModel)]="search"
+            (keyup.enter)="onSearch()"
+          />
+          <select class="q-select" [(ngModel)]="statusFilter" (change)="onSearch()">
+            @for (opt of statusOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          <button type="button" class="btn-primary" (click)="createNew()">
+            <i class="fas fa-plus"></i>
+            {{ audienceTab === 'private' ? 'הצעה לפרט' : 'הצעה לחברה' }}
+          </button>
+        </div>
+      </header>
+
+      <div class="audience-tabs no-print" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="aud-tab"
+          [class.active]="audienceTab === 'business'"
+          (click)="setAudienceTab('business')"
+        >
+          חברות
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="aud-tab"
+          [class.active]="audienceTab === 'private'"
+          (click)="setAudienceTab('private')"
+        >
+          פרטיים
+        </button>
+      </div>
+
+      <section class="kpi-row">
+        <article class="kpi">
+          <div class="kpi-icon draft"><i class="fas fa-file-alt"></i></div>
+          <div>
+            <div class="kpi-label">טיוטות</div>
+            <div class="kpi-value">{{ kpis.draftCount }}</div>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi-icon sent"><i class="fas fa-paper-plane"></i></div>
+          <div>
+            <div class="kpi-label">נשלחו החודש</div>
+            <div class="kpi-value">{{ kpis.sentThisMonthCount }}</div>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi-icon ok"><i class="fas fa-check-circle"></i></div>
+          <div>
+            <div class="kpi-label">התקבלו</div>
+            <div class="kpi-value">{{ kpis.acceptedCount }}</div>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi-icon money"><i class="fas fa-shekel-sign"></i></div>
+          <div>
+            <div class="kpi-label">סכום הצעות פתוחות</div>
+            <div class="kpi-value">₪{{ formatMoney(kpis.openQuotesAmount) }}</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="q-card">
+        <div class="card-head">
+          <h2>{{ audienceTab === 'private' ? 'הצעות לפרטיים' : 'הצעות לחברות' }}</h2>
+          @if (loading) {
+            <mat-spinner diameter="22"></mat-spinner>
+          }
+        </div>
+
+        <div class="table-wrap">
+          <table class="q-table">
+            <thead>
+              <tr>
+                <th>מספר</th>
+                <th>לקוח</th>
+                <th>סוג שירות</th>
+                <th>תאריך אירוע</th>
+                <th>סכום</th>
+                <th>סטטוס</th>
+                <th>עודכן</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (q of quotes; track q._id) {
+                <tr (click)="openQuote(q)">
+                  <td class="mono">{{ q.quoteNumber }}</td>
+                  <td>
+                    <div class="client-name">{{ clientLabel(q) }}</div>
+                    @if (q.client?.phone) {
+                      <div class="muted">{{ q.client.phone }}</div>
+                    }
+                  </td>
+                  <td class="muted">
+                    {{ audienceTab === 'private' ? (categoryLabel(q) || '—') : '—' }}
+                  </td>
+                  <td>{{ q.eventDate ? (q.eventDate | date: 'dd/MM/yyyy') : '—' }}</td>
+                  <td class="mono">₪{{ formatMoney(q.totalInclVat) }}</td>
+                  <td>
+                    <span class="status-pill" [ngClass]="statusClass(q.status)">
+                      {{ statusLabels[q.status] }}
+                    </span>
+                  </td>
+                  <td class="muted">{{ q.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td class="actions" (click)="$event.stopPropagation()">
+                    <button type="button" class="icon-btn" title="עריכה" (click)="openQuote(q)">
+                      <i class="fas fa-pen"></i>
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" class="empty">
+                    אין הצעות להצגה — לחצו על
+                    {{ audienceTab === 'private' ? '״הצעה לפרט״' : '״הצעה לחברה״' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (mode === 'editor') {
+    <div class="q-shell editor-shell">
+      <header class="q-topbar no-print">
+        <div class="q-title-wrap">
+          <button type="button" class="link-back" (click)="backToList()">
+            <i class="fas fa-arrow-right"></i> חזרה לרשימה
+          </button>
+          <h1>
+            @if (isNew) {
+              {{ isPrivate ? 'הצעה חדשה לפרט' : 'הצעת מחיר חדשה לחברה' }}
+            } @else {
+              הצעה {{ form.quoteNumber }}
+            }
+          </h1>
+          <p class="q-sub">
+            {{ isPrivate ? 'פרטיים · WhatsApp' : 'חברות · מסמך עסקי' }}
+            · סטטוס:
+            <span class="status-pill" [ngClass]="statusClass(form.status)">{{ statusLabels[form.status] }}</span>
+          </p>
+        </div>
+        <div class="q-top-actions">
+          @if (editable) {
+            <button type="button" class="btn-secondary" (click)="save()" [disabled]="saving">שמירה</button>
+            <button type="button" class="btn-primary" (click)="markSent()" [disabled]="saving">
+              שמירה וסימון נשלחה
+            </button>
+          }
+          @if (isPrivate) {
+            <button type="button" class="btn-primary" (click)="copyWhatsApp()">
+              <i class="fab fa-whatsapp"></i> העתק לוואטסאפ
+            </button>
+          } @else {
+            <button type="button" class="btn-secondary" (click)="printPreview()">הדפסה</button>
+            <button type="button" class="btn-secondary" (click)="downloadPdf()" [disabled]="isNew">PDF</button>
+          }
+          @if (!isNew) {
+            <button type="button" class="btn-secondary" (click)="duplicate()" [disabled]="saving">שכפול</button>
+            <button type="button" class="btn-danger" (click)="remove()">מחיקה</button>
+          }
+        </div>
+      </header>
+
+      @if (loading) {
+        <div class="loading-block no-print"><mat-spinner diameter="36"></mat-spinner></div>
+      } @else if (isPrivate) {
+        <!-- Private category-based quote editor -->
+        <div class="editor-grid">
+          <section class="q-card editor-form no-print">
+            <h2>סוג שירות</h2>
+            <div class="template-row category-row">
+              @for (cat of privateCategories; track cat) {
+                <button
+                  type="button"
+                  class="btn-chip"
+                  [class.active]="privatePkg.serviceCategory === cat"
+                  [disabled]="!editable"
+                  (click)="setPrivateCategory(cat)"
+                >
+                  {{ categoryLabels[cat] }}
+                </button>
+              }
+            </div>
+
+            @if (privatePkg.serviceCategory === 'catering_shabbat') {
+              <h2>חבילה</h2>
+              <div class="template-row">
+                <button
+                  type="button"
+                  class="btn-chip"
+                  [class.active]="privatePkg.templateKey === 'one_meal'"
+                  [disabled]="!editable"
+                  (click)="applyPrivateTemplate('one_meal')"
+                >
+                  ארוחה אחת (70₪)
+                </button>
+                <button
+                  type="button"
+                  class="btn-chip"
+                  [class.active]="privatePkg.templateKey === 'two_meals'"
+                  [disabled]="!editable"
+                  (click)="applyPrivateTemplate('two_meals')"
+                >
+                  שתי ארוחות (135₪)
+                </button>
+                <button
+                  type="button"
+                  class="btn-chip"
+                  [class.active]="privatePkg.templateKey === 'premium_hosted'"
+                  [disabled]="!editable"
+                  (click)="applyPrivateTemplate('premium_hosted')"
+                >
+                  פרימיום + שירות (255₪)
+                </button>
+              </div>
+            }
+
+            <h2>פרטי לקוח</h2>
+            <div class="form-grid">
+              <label>שם
+                <input [(ngModel)]="form.client.name" [disabled]="!editable" />
+              </label>
+              <label>טלפון
+                <input [(ngModel)]="form.client.phone" [disabled]="!editable" />
+              </label>
+              <label>תאריך אירוע / שבת
+                <input type="date" [(ngModel)]="form.eventDate" [disabled]="!editable" />
+              </label>
+              <label>מיקום
+                <input [(ngModel)]="form.eventLocation" [disabled]="!editable" />
+              </label>
+              <label class="span-2">הערות
+                <textarea rows="2" [(ngModel)]="form.notes" [disabled]="!editable"></textarea>
+              </label>
+            </div>
+
+            <!-- EVENTS -->
+            @if (privatePkg.serviceCategory === 'events') {
+              <h2>תמחור אירוע (לפי מנה)</h2>
+              <p class="hint-text">בסיס 70₪ — לחמניות, 8 סלטים, 2 עיקריות, 3 תוספות. שדרוגים לפי האתר.</p>
+              <div class="form-grid">
+                <label>סוג אירוע
+                  <input [(ngModel)]="privatePkg.eventType" [disabled]="!editable" placeholder="בר מצווה, חתונה..." />
+                </label>
+                <label>מספר אורחים
+                  <input type="number" min="0" step="1" [(ngModel)]="privatePkg.portions" [disabled]="!editable" />
+                </label>
+                <label>מחיר בסיס למנה
+                  <input type="number" min="0" step="1" [(ngModel)]="privatePkg.basePricePerPortion" [disabled]="!editable" />
+                </label>
+                <label>סלטים
+                  <input type="number" min="0" [(ngModel)]="privatePkg.saladsCount" [disabled]="!editable" />
+                </label>
+                <label>עיקריות לבחירה
+                  <input type="number" min="0" [(ngModel)]="privatePkg.mainChoices" [disabled]="!editable" />
+                </label>
+                <label>תוספות
+                  <input type="number" min="0" [(ngModel)]="privatePkg.sidesCount" [disabled]="!editable" />
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeFirstCourse" [disabled]="!editable" />
+                  מנה ראשונה (+20₪)
+                </label>
+                <label>בחירות ראשונה
+                  <input type="number" min="0" [(ngModel)]="privatePkg.firstCourseChoices" [disabled]="!editable" />
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeDesserts" [disabled]="!editable" />
+                  קינוחים (+8₪)
+                </label>
+                <label>בר קבלת פנים
+                  <select [(ngModel)]="privatePkg.receptionBar" [disabled]="!editable">
+                    <option value="none">ללא</option>
+                    <option value="standard">בסיסי +30₪ (4 תחנות)</option>
+                    <option value="premium">משודרג +45₪ (6 תחנות)</option>
+                  </select>
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeKosherUpgrade" [disabled]="!editable" />
+                  כשרות מחפוד (+7₪)
+                </label>
+                <label>מחיר למנה כולל שדרוגים
+                  <input [ngModel]="formatMoney(eventsRate)" disabled />
+                </label>
+                <label>סה״כ משוער
+                  <input [ngModel]="formatMoney(privateTotal)" disabled />
+                </label>
+              </div>
+            }
+
+            <!-- CATERING SHABBAT -->
+            @if (privatePkg.serviceCategory === 'catering_shabbat') {
+              <h2>תמחור ומנות</h2>
+              <div class="form-grid">
+                <label>היקף ארוחות
+                  <select
+                    [(ngModel)]="privatePkg.mealScope"
+                    [disabled]="!editable"
+                    (ngModelChange)="syncShabbatPortionsFromScope()"
+                  >
+                    <option value="evening">ערב בלבד</option>
+                    <option value="morning">בוקר בלבד</option>
+                    <option value="both">ערב + בוקר</option>
+                  </select>
+                </label>
+                <label>מחיר בסיס למנה
+                  <input type="number" min="0" step="1" [(ngModel)]="privatePkg.basePricePerPortion" [disabled]="!editable" />
+                </label>
+                @if (privatePkg.mealScope !== 'morning') {
+                  <label>מנות ערב
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      [(ngModel)]="privatePkg.portionsEvening"
+                      [disabled]="!editable"
+                      (ngModelChange)="syncShabbatPortionsFromScope()"
+                    />
+                  </label>
+                }
+                @if (privatePkg.mealScope !== 'evening') {
+                  <label>מנות בוקר
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      [(ngModel)]="privatePkg.portionsMorning"
+                      [disabled]="!editable"
+                      (ngModelChange)="syncShabbatPortionsFromScope()"
+                    />
+                  </label>
+                }
+                <label>סה״כ משוער
+                  <input [ngModel]="formatMoney(privateTotal)" disabled />
+                </label>
+              </div>
+
+              <h2>שדרוגים (כמו באתר)</h2>
+              <div class="form-grid">
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeAppetizerUpgrade" [disabled]="!editable" />
+                  מנה ראשונה (+20₪ לסעודה)
+                </label>
+                <label>מס׳ סעודות עם ראשונה
+                  <input type="number" min="0" [(ngModel)]="privatePkg.appetizerMealsCount" [disabled]="!editable" />
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeThirdMeal" [disabled]="!editable" />
+                  סעודה שלישית
+                </label>
+                <label>מחיר סעודה שלישית למנה
+                  <input type="number" min="0" [(ngModel)]="privatePkg.thirdMealPricePerPortion" [disabled]="!editable" />
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeFishUpgrade" [disabled]="!editable" />
+                  תוספת דג (+18₪)
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeDessertUpgrade" [disabled]="!editable" />
+                  קינוחי ביסקוטי (+8₪ לאדם לארוחה)
+                </label>
+                <label>מס׳ ארוחות עם קינוח
+                  <input type="number" min="0" [(ngModel)]="privatePkg.dessertMealsCount" [disabled]="!editable" />
+                </label>
+                <label class="check-label">
+                  <input type="checkbox" [(ngModel)]="privatePkg.includeKosherUpgrade" [disabled]="!editable" />
+                  כשרות מחפוד (+7₪ למנה לארוחה)
+                </label>
+                <label>מס׳ ארוחות עם כשרות
+                  <input type="number" min="0" [(ngModel)]="privatePkg.kosherMealsCount" [disabled]="!editable" />
+                </label>
+              </div>
+
+              <h2>מבנה ארוחות</h2>
+              <div class="form-grid">
+                <label>לחמים
+                  <input [(ngModel)]="privatePkg.bread" [disabled]="!editable" />
+                </label>
+                <label>מספר סוגי סלטים
+                  <input type="number" min="0" [(ngModel)]="privatePkg.saladsCount" [disabled]="!editable" />
+                </label>
+              </div>
+              <div class="meal-grid">
+                @if (privatePkg.mealScope !== 'morning') {
+                  <div class="meal-box">
+                    <h3>ערב שבת</h3>
+                    <label>ראשונה (בחירות)<input type="number" min="0" [(ngModel)]="privatePkg.friday.appetizerChoices" [disabled]="!editable" /></label>
+                    <label>עיקרית (בחירות)<input type="number" min="0" [(ngModel)]="privatePkg.friday.mainChoices" [disabled]="!editable" /></label>
+                    <label>תוספות<input type="number" min="0" [(ngModel)]="privatePkg.friday.sides" [disabled]="!editable" /></label>
+                    <label class="check-label"><input type="checkbox" [(ngModel)]="privatePkg.friday.dessert" [disabled]="!editable" /> קינוח</label>
+                  </div>
+                }
+                @if (privatePkg.mealScope !== 'evening') {
+                  <div class="meal-box">
+                    <h3>שבת בוקר / צהריים</h3>
+                    <label>ראשונה (בחירות)<input type="number" min="0" [(ngModel)]="privatePkg.saturday.appetizerChoices" [disabled]="!editable" /></label>
+                    <label>עיקרית (בחירות)<input type="number" min="0" [(ngModel)]="privatePkg.saturday.mainChoices" [disabled]="!editable" /></label>
+                    <label>תוספות<input type="number" min="0" [(ngModel)]="privatePkg.saturday.sides" [disabled]="!editable" /></label>
+                    <label class="check-label"><input type="checkbox" [(ngModel)]="privatePkg.saturday.dessert" [disabled]="!editable" /> קינוח</label>
+                  </div>
+                }
+              </div>
+              @if (privatePkg.includeThirdMeal) {
+                <label class="block-label">תיאור סעודה שלישית
+                  <input [(ngModel)]="privatePkg.thirdMealNotes" [disabled]="!editable" />
+                </label>
+              }
+
+              @if (privatePkg.templateKey === 'premium_hosted') {
+                <h2>כלולים בחבילת פרימיום</h2>
+                <div class="extras-presets">
+                  @for (p of extraPresets; track p) {
+                    <button
+                      type="button"
+                      class="btn-chip"
+                      [class.active]="hasExtra(p)"
+                      [disabled]="!editable"
+                      (click)="toggleExtraPreset(p)"
+                    >
+                      {{ p }}
+                    </button>
+                  }
+                </div>
+                <label class="block-label">שורות נוספות
+                  <textarea rows="3" [(ngModel)]="extrasDraft" [disabled]="!editable"></textarea>
+                </label>
+              }
+            }
+
+            <!-- READY FOOD -->
+            @if (privatePkg.serviceCategory === 'shabbat_ready') {
+              <h2>פריטי תפריט</h2>
+              <p class="hint-text">אוכל מוכן — לפי פריטים ומחירים (לא חבילת מנות).</p>
+              <div class="lines-table-wrap">
+                <table class="lines-table">
+                  <thead>
+                    <tr>
+                      <th>תיאור</th>
+                      <th>כמות</th>
+                      <th>מחיר</th>
+                      <th>סה״כ</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (line of privatePkg.readyLines; track $index; let i = $index) {
+                      <tr>
+                        <td><input [(ngModel)]="line.description" [disabled]="!editable" placeholder="סלט חומוס / מגש..." /></td>
+                        <td><input type="number" min="0" step="0.01" [(ngModel)]="line.quantity" [disabled]="!editable" /></td>
+                        <td><input type="number" min="0" step="0.01" [(ngModel)]="line.unitPrice" [disabled]="!editable" /></td>
+                        <td class="mono">₪{{ formatMoney(readyLineTotal(line)) }}</td>
+                        <td>
+                          @if (editable) {
+                            <button type="button" class="icon-btn danger" (click)="removeReadyLine(i)">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              @if (editable) {
+                <button type="button" class="btn-secondary" (click)="addReadyLine()">+ פריט</button>
+              }
+              <div class="form-grid" style="margin-top: 1rem">
+                <label>איסוף / משלוח
+                  <select [(ngModel)]="privatePkg.deliveryType" [disabled]="!editable">
+                    <option value="">לא צוין</option>
+                    <option value="pickup">איסוף עצמי</option>
+                    <option value="delivery">משלוח</option>
+                  </select>
+                </label>
+                <label>דמי משלוח
+                  <input type="number" min="0" step="1" [(ngModel)]="privatePkg.deliveryFee" [disabled]="!editable" />
+                </label>
+                <label>סה״כ משוער
+                  <input [ngModel]="formatMoney(privateTotal)" disabled />
+                </label>
+              </div>
+            }
+
+            @if (!isNew) {
+              <div class="status-actions">
+                <span class="muted">עדכון סטטוס:</span>
+                <button type="button" class="btn-chip" (click)="setStatus('accepted')">התקבלה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('rejected')">נדחתה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('expired')">פגה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('draft')">חזרה לטיוטה</button>
+              </div>
+            }
+          </section>
+
+          <section class="preview-card wa-preview-card">
+            <div class="wa-toolbar no-print">
+              <h2>תצוגת הודעת WhatsApp</h2>
+              <button type="button" class="btn-primary" (click)="copyWhatsApp()">העתק להדבקה</button>
+            </div>
+            <pre class="wa-bubble" dir="rtl">{{ whatsappPreview }}</pre>
+          </section>
+        </div>
+      } @else {
+        <!-- Business Rivhit editor (existing) -->
+        <div class="editor-grid">
+          <section class="q-card editor-form no-print">
+            <h2>פרטי לקוח ואירוע</h2>
+            <div class="form-grid">
+              <label>שם / חברה
+                <input [(ngModel)]="form.client.company" [disabled]="!editable" placeholder="לכבוד" />
+              </label>
+              <label>איש קשר
+                <input [(ngModel)]="form.client.name" [disabled]="!editable" />
+              </label>
+              <label>ת.ז / ח.פ
+                <input [(ngModel)]="form.client.idNumber" [disabled]="!editable" />
+              </label>
+              <label>מספרכם
+                <input [(ngModel)]="form.client.theirRef" [disabled]="!editable" />
+              </label>
+              <label class="span-2">כתובת
+                <input [(ngModel)]="form.client.address" [disabled]="!editable" />
+              </label>
+              <label>טלפון
+                <input [(ngModel)]="form.client.phone" [disabled]="!editable" />
+              </label>
+              <label>אימייל
+                <input [(ngModel)]="form.client.email" [disabled]="!editable" />
+              </label>
+              <label>תאריך אירוע
+                <input type="date" [(ngModel)]="form.eventDate" [disabled]="!editable" />
+              </label>
+              <label>מיקום אירוע
+                <input [(ngModel)]="form.eventLocation" [disabled]="!editable" />
+              </label>
+              <label>הנחה %
+                <input type="number" min="0" max="100" step="0.01" [(ngModel)]="form.discountPercent" [disabled]="!editable" />
+              </label>
+              <label>מפיק המסמך
+                <input [(ngModel)]="form.issuedBy" [disabled]="!editable" />
+              </label>
+              <label class="span-2">הערות פנימיות / על המסמך
+                <textarea rows="2" [(ngModel)]="form.notes" [disabled]="!editable"></textarea>
+              </label>
+            </div>
+
+            @if (!isNew) {
+              <div class="status-actions">
+                <span class="muted">עדכון סטטוס:</span>
+                <button type="button" class="btn-chip" (click)="setStatus('accepted')">התקבלה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('rejected')">נדחתה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('expired')">פגה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('converted')">הומרה להזמנה</button>
+                <button type="button" class="btn-chip" (click)="setStatus('draft')">חזרה לטיוטה</button>
+              </div>
+            }
+
+            <div class="lines-head">
+              <h2>שורות הצעה</h2>
+              @if (editable) {
+                <div class="line-tools">
+                  @for (t of quickTemplates; track t.label) {
+                    <button type="button" class="btn-chip" (click)="addTemplate(t.line)">{{ t.label }}</button>
+                  }
+                  <button type="button" class="btn-chip" (click)="addLine(true)">+ הערה ללא מחיר</button>
+                  <button type="button" class="btn-secondary" (click)="addLine(false)">+ שורה</button>
+                </div>
+              }
+            </div>
+
+            <div class="lines-table-wrap">
+              <table class="lines-table">
+                <thead>
+                  <tr>
+                    <th>מס' פריט</th>
+                    <th>תיאור</th>
+                    <th>כמות</th>
+                    <th>מחיר כולל מע״מ</th>
+                    <th>סה״כ</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of form.lines; track $index; let i = $index) {
+                    <tr>
+                      <td><input [(ngModel)]="line.sku" [disabled]="!editable" /></td>
+                      <td><input [(ngModel)]="line.description" [disabled]="!editable" /></td>
+                      <td>
+                        <input type="number" min="0" step="0.01" [(ngModel)]="line.quantity" [disabled]="!editable" />
+                      </td>
+                      <td>
+                        <input type="number" min="0" step="0.01" [(ngModel)]="line.unitPriceInclVat" [disabled]="!editable" />
+                      </td>
+                      <td class="mono">₪{{ formatMoney(lineTotal(line)) }}</td>
+                      <td>
+                        @if (editable) {
+                          <button type="button" class="icon-btn danger" (click)="removeLine(i)">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="live-totals">
+              <div><span>ביניים</span><strong>₪{{ formatMoney(liveTotals.subtotalInclVat) }}</strong></div>
+              <div><span>הנחה</span><strong>₪{{ formatMoney(liveTotals.discountAmount) }}</strong></div>
+              <div class="strong"><span>לתשלום</span><strong>₪{{ formatMoney(liveTotals.totalInclVat) }}</strong></div>
+            </div>
+          </section>
+
+          <section class="preview-card" id="quote-print-root">
+            <div class="preview-doc">
+              <div class="doc-header">
+                <div class="company">
+                  <h2>{{ form.companySnapshot.name }}</h2>
+                  <p>{{ form.companySnapshot.address }}</p>
+                  <p>טלפון: {{ form.companySnapshot.phone }}</p>
+                  <p>עוסק מורשה {{ form.companySnapshot.businessId }}</p>
+                </div>
+                <div class="meta">
+                  <div class="doc-title">הצעת מחיר</div>
+                  <div>מספר: {{ form.quoteNumber }}</div>
+                  <div>תאריך: {{ previewDate() }}</div>
+                  <div>שעה: {{ previewTime() }}</div>
+                  <div>דף 1 מתוך 1</div>
+                </div>
+              </div>
+
+              <div class="doc-client">
+                <h3>לכבוד:</h3>
+                <div>{{ form.client.company || form.client.name || '—' }}</div>
+                @if (form.client.address) {
+                  <div>{{ form.client.address }}</div>
+                }
+                @if (form.client.idNumber) {
+                  <div>מ/ת.ז/ע: {{ form.client.idNumber }}</div>
+                }
+                @if (form.client.theirRef) {
+                  <div>מספרכם: {{ form.client.theirRef }}</div>
+                }
+                @if (form.client.phone) {
+                  <div>טלפון: {{ form.client.phone }}</div>
+                }
+                @if (form.eventDate) {
+                  <div>תאריך אירוע: {{ form.eventDate }}</div>
+                }
+                @if (form.eventLocation) {
+                  <div>מיקום: {{ form.eventLocation }}</div>
+                }
+              </div>
+
+              <table class="doc-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>מס' פריט</th>
+                    <th>תיאור פריט</th>
+                    <th>כמות</th>
+                    <th>ש״ח כולל מע״מ</th>
+                    <th>סה״כ כולל מע״מ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of liveTotals.lines; track $index; let i = $index) {
+                    <tr>
+                      <td>{{ i + 1 }}</td>
+                      <td>{{ line.sku || '0' }}</td>
+                      <td>{{ line.description }}</td>
+                      <td>{{ formatMoney(line.quantity) }}</td>
+                      <td>{{ formatMoney(line.unitPriceInclVat) }}</td>
+                      <td>{{ formatMoney(line.lineTotalInclVat || 0) }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="6">אין שורות עדיין</td></tr>
+                  }
+                </tbody>
+              </table>
+
+              <div class="doc-totals">
+                <div class="row"><span>סה״כ כולל מע״מ:</span><span>{{ formatMoney(liveTotals.subtotalInclVat) }}</span></div>
+                <div class="row">
+                  <span>הנחה % {{ formatMoney(form.discountPercent) }}:</span>
+                  <span>{{ formatMoney(liveTotals.discountAmount) }}</span>
+                </div>
+                <div class="row strong">
+                  <span>סה״כ לתשלום:</span><span>{{ formatMoney(liveTotals.totalInclVat) }}</span>
+                </div>
+              </div>
+
+              <div class="doc-payment">
+                <h3>פרוט התשלום</h3>
+                <div>סה״כ ללא מע״מ: {{ formatMoney(liveTotals.totalExVat) }}</div>
+                <div>הנחה: {{ formatMoney(liveTotals.discountAmount) }}</div>
+                <div>{{ form.vatRate }}% מע״מ: {{ formatMoney(liveTotals.vatAmount) }}</div>
+                <div class="bank">פרטי חשבון בנק להעברה: {{ bankLine() }}</div>
+                <div>מפיק המסמך: {{ form.issuedBy || form.companySnapshot.producerName }}</div>
+                @if (form.notes) {
+                  <div>הערות: {{ form.notes }}</div>
+                }
+              </div>
+
+              <div class="doc-sign">
+                <div class="box">שם המקבל _____________ חתימה _________ תאריך _________</div>
+                <div class="box">{{ form.companySnapshot.name }} _____________</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      }
+    </div>
+  }
+</div>

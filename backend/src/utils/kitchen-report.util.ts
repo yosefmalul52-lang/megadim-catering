@@ -102,6 +102,8 @@ export type KitchenOrderLineItem = {
   category: string;
   unit: string;
   quantity: number;
+  /** Admin kitchen prep notes (from item.description). */
+  notes?: string;
   missingChoice?: boolean;
 };
 
@@ -140,6 +142,11 @@ export type KitchenOrderNote = {
   specialRequests?: string;
   items: KitchenOrderLineItem[];
   itemNotes: Array<{ dishName: string; note: string }>;
+  /** Guests / portions for catering header (events & shabbat). */
+  guestCount?: number | null;
+  numberOfPortions?: number | null;
+  portionsEvening?: number | null;
+  portionsMorning?: number | null;
   lastChange?: KitchenChangeEntry | null;
   status: string;
   isCancelled: boolean;
@@ -767,27 +774,71 @@ export function parseUnitFromItem(_item?: unknown): string {
   return "יח'";
 }
 
+/** Unit label for kitchen print — catering portions vs retail packages. */
+export function kitchenQuantityUnit(order: any): string {
+  const isCatering =
+    order?.orderType === 'catering' ||
+    order?.cateringKind === 'events' ||
+    order?.cateringKind === 'shabbat' ||
+    (String(order?.mealTime || '').trim() !== '' && Number(order?.numberOfPortions) > 0);
+  return isCatering ? 'מנות' : "יח'";
+}
+
+/**
+ * Package / pricing meta rows on events catering orders (not kitchen dishes).
+ * e.g. "תפריט בסיסי לאירוע (70₪ למנה)", reception bar tiers, per-guest upgrades.
+ */
+export function isKitchenPackageMetaLine(item: {
+  name?: string;
+  category?: string;
+} | null | undefined): boolean {
+  const cat = String(item?.category || '').trim();
+  const name = String(item?.name || '').trim();
+  if (/^תפריט בסיס/.test(cat) || /תפריט בסיסי/.test(name)) return true;
+  if (/^בר קבלת פנים/.test(cat) || /^בר קבלת פנים/.test(name)) return true;
+  if (/^שדרוג/.test(cat)) return true;
+  if (/^תוספת קינוחים/.test(name) || /^כשרות מהדרין/.test(name) || /^תוספת מנה ראשונה/.test(name)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Effective kitchen quantity for a line.
- * Catering dishes often store quantity=1 and scale by portions + meal category.
+ * Shabbat catering: choice rows often store qty=1 and scale by portions.
+ * Events catering: use the quantity the admin set in edit (never × guestCount).
  * Uses items[] only — never double-counts salads/firstCourses arrays.
  */
 export function effectiveLineQuantity(order: any, item: any): number {
   const base = Number(item?.quantity);
-  const qty = Number.isFinite(base) && base > 0 ? base : 0;
-  if (qty <= 0) return 0;
+  let qty = Number.isFinite(base) && base > 0 ? base : 0;
 
+  const isEvents = order?.cateringKind === 'events';
   const isCatering =
     order?.orderType === 'catering' ||
+    isEvents ||
+    order?.cateringKind === 'shabbat' ||
     (String(order?.mealTime || '').trim() !== '' && Number(order?.numberOfPortions) > 0);
 
+  // Choice rows often omit quantity — treat as 1 (events: as-is; shabbat: × portions).
+  if (qty <= 0 && isCatering) qty = 1;
+  if (qty <= 0) return 0;
   if (!isCatering) return qty;
+
+  // Events: kitchen qty = stored/admin-edited quantity. Guest count is header meta only.
+  if (isEvents) return qty;
 
   const cat = String(item?.category || '');
   const portionsEvening = Math.max(0, Number(order?.portionsEvening) || 0);
   const portionsMorning = Math.max(0, Number(order?.portionsMorning) || 0);
   const numberOfPortions = Math.max(0, Number(order?.numberOfPortions) || 0);
-  const fallback = Math.max(numberOfPortions, 1);
+  const guestCount = Math.max(0, Number(order?.guestCount) || 0);
+  const fallback = Math.max(numberOfPortions, guestCount, 1);
+
+  // Reception bar / package meta lines: keep choice count (not × guests).
+  if (/בר קבלת פנים|תפריט בסיס|שדרוג כשרות|קינוחים/.test(cat)) {
+    return qty;
+  }
 
   if (/ערב/.test(cat)) {
     return qty * (portionsEvening > 0 ? portionsEvening : fallback);
@@ -1077,6 +1128,22 @@ export function buildKitchenReportDto(
       adminNotes: adminNotes || undefined,
       allergies: allergies || undefined,
       specialRequests: specialRequests || undefined,
+      guestCount: (() => {
+        const n = Number(order?.guestCount);
+        return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+      })(),
+      numberOfPortions: (() => {
+        const n = Number(order?.numberOfPortions);
+        return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+      })(),
+      portionsEvening: (() => {
+        const n = Number(order?.portionsEvening);
+        return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+      })(),
+      portionsMorning: (() => {
+        const n = Number(order?.portionsMorning);
+        return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+      })(),
       items: orderItems,
       itemNotes,
       lastChange,
@@ -1125,6 +1192,7 @@ export function buildKitchenReportDto(
     for (const item of items) {
       const name = String(item?.name || '').trim();
       if (!name) continue;
+      if (isKitchenPackageMetaLine(item)) continue;
       const qty = effectiveLineQuantity(order, item);
       if (qty <= 0) continue;
 
@@ -1160,10 +1228,7 @@ export function buildKitchenReportDto(
         lineMeal,
         optionLabel: labels.optionLabel,
         sizeLabel: labels.sizeLabel,
-        unit: parseUnitFromItem({
-          ...item,
-          selectedOption: effectiveOption || item?.selectedOption
-        }),
+        unit: kitchenQuantityUnit(order),
         key: dishIdentityKey({
           productId: item?.productId,
           name,
@@ -1238,6 +1303,7 @@ export function buildKitchenReportDto(
         category: line.category,
         unit: line.unit,
         quantity: line.qty,
+        notes: line.description || undefined,
         missingChoice: line.missingChoice || undefined
       });
 

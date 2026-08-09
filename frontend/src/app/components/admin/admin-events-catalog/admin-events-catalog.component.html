@@ -1,0 +1,354 @@
+<div class="events-catalog-admin">
+  <div class="page-header">
+    <h1>תפריט אירועים</h1>
+    <p>ניהול תפריטים ומחירים לקייטרינג אירועים ולקייטרינג שבת וחג. הזמנות קיימות לא משתנות.</p>
+  </div>
+
+  <nav class="source-tabs" role="tablist" aria-label="סוג תפריט">
+    <button
+      type="button"
+      class="source-tab-btn"
+      role="tab"
+      [class.active]="activeTab === 'events'"
+      [attr.aria-selected]="activeTab === 'events'"
+      (click)="setTab('events')"
+    >
+      <i class="fas fa-glass-cheers" aria-hidden="true"></i>
+      קייטרינג לאירועים
+    </button>
+    <button
+      type="button"
+      class="source-tab-btn"
+      role="tab"
+      [class.active]="activeTab === 'shabbat'"
+      [attr.aria-selected]="activeTab === 'shabbat'"
+      (click)="setTab('shabbat')"
+    >
+      <i class="fas fa-calendar-week" aria-hidden="true"></i>
+      קייטרינג שבת וחג
+    </button>
+  </nav>
+
+  @if (successMessage) {
+    <div class="msg success">{{ successMessage }}</div>
+  }
+  @if (errorMessage) {
+    <div class="msg error">{{ errorMessage }}</div>
+  }
+
+  @if (isLoading) {
+    <div class="loading">טוען...</div>
+  } @else if (activeTab === 'events' && eventsCatalog) {
+    <section class="card">
+      <h2>חבילת בסיס</h2>
+      <div class="row">
+        <label>
+          כותרת
+          <input type="text" [(ngModel)]="eventsCatalog.baseTitle" />
+        </label>
+        <label>
+          מחיר למנה (₪)
+          <input type="number" min="0" step="1" [(ngModel)]="eventsCatalog.basePrice" />
+        </label>
+      </div>
+
+      <div class="option-editor">
+        <div class="option-editor-head">
+          <h3>מה כלול בחבילה</h3>
+          <span class="option-count">{{ eventsBaseIncludes.length }} פריטים</span>
+        </div>
+        <label class="option-select-label" for="events-base-includes-select">
+          פריטים בחבילה ({{ eventsBaseIncludes.length }})
+        </label>
+        <select
+          id="events-base-includes-select"
+          class="option-select"
+          size="6"
+          aria-label="פריטי חבילת בסיס"
+        >
+          @if (eventsBaseIncludes.length === 0) {
+            <option disabled selected>אין פריטים — הוסיפו למטה</option>
+          } @else {
+            @for (item of eventsBaseIncludes; track trackItem($index, item); let i = $index) {
+              <option [value]="i">{{ item }}</option>
+            }
+          }
+        </select>
+        <div class="option-add-row">
+          <input
+            type="text"
+            class="option-input"
+            [(ngModel)]="eventsDraft.baseIncludes"
+            placeholder="שם פריט חדש לחבילה..."
+            (keydown.enter)="onDraftEnter($event, eventsBaseIncludes, 'baseIncludes', eventsDraft)"
+          />
+          <button type="button" class="btn-add-option" (click)="addEventsBaseInclude()">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            הוסף לרשימה
+          </button>
+        </div>
+        @if (eventsBaseIncludes.length > 0) {
+          <div class="option-remove-row">
+            <select class="option-remove-select" [(ngModel)]="eventsBaseRemovePick">
+              <option [ngValue]="null" disabled>הסר פריט מהרשימה...</option>
+              @for (item of eventsBaseIncludes; track trackItem($index, item); let i = $index) {
+                <option [ngValue]="i">{{ item }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              class="btn-remove-pick"
+              [disabled]="eventsBaseRemovePick === null || eventsBaseRemovePick === undefined"
+              (click)="removeEventsBaseInclude()"
+            >
+              הסר
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>שדרוגים</h2>
+      <div class="row">
+        <label>
+          כותרת מנה ראשונה
+          <input type="text" [(ngModel)]="eventsCatalog.firstCourseUpgradeTitle" />
+        </label>
+        <label>
+          מחיר מנה ראשונה
+          <input type="number" min="0" [(ngModel)]="eventsCatalog.firstCourseUpgradePrice" />
+        </label>
+        <label>
+          כותרת קינוחים
+          <input type="text" [(ngModel)]="eventsCatalog.dessertsUpgradeTitle" />
+        </label>
+        <label>
+          מחיר קינוחים
+          <input type="number" min="0" [(ngModel)]="eventsCatalog.dessertsUpgradePrice" />
+        </label>
+        <label>
+          תוספת כשרות (₪)
+          <input type="number" min="0" [(ngModel)]="eventsCatalog.kosherUpgradePrice" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>בר קבלת פנים</h2>
+      @for (tier of eventsCatalog.receptionTiers; track trackTier($index, tier)) {
+        <div class="tier-row">
+          <strong>{{ tier.title }} ({{ tier.id }})</strong>
+          <label>
+            מחיר
+            <input type="number" min="0" [(ngModel)]="tier.pricePerPortion" />
+          </label>
+          <label>
+            תחנות
+            <input type="number" min="1" [(ngModel)]="tier.stations" />
+          </label>
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <h2>מספר בחירות בטופס</h2>
+      <div class="row">
+        <label>סלטים <input type="number" min="1" [(ngModel)]="eventsCatalog.saladSlotCount" /></label>
+        <label>עיקריות <input type="number" min="1" [(ngModel)]="eventsCatalog.mainCourseSlotCount" /></label>
+        <label>תוספות <input type="number" min="1" [(ngModel)]="eventsCatalog.sideSlotCount" /></label>
+        <label>מנות ראשונות <input type="number" min="1" [(ngModel)]="eventsCatalog.firstCourseSlotCount" /></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>רשימות מנות</h2>
+      <p class="card-hint">כל קטגוריה מוצגת כרשימה (סלקט). הוסיפו מנה חדשה בשדה למטה, או בחרו מנה להסרה.</p>
+      <div class="lists-grid">
+        @for (group of eventsDishLists; track group.key) {
+          <div class="option-editor">
+            <div class="option-editor-head">
+              <h3>{{ group.label }}</h3>
+              <span class="option-count">{{ getEventsList(group.key).length }}</span>
+            </div>
+            <label class="option-select-label" [attr.for]="'events-select-' + group.key">
+              מנות בטופס ({{ getEventsList(group.key).length }})
+            </label>
+            <select
+              class="option-select"
+              [id]="'events-select-' + group.key"
+              size="6"
+              [attr.aria-label]="group.label"
+            >
+              @if (getEventsList(group.key).length === 0) {
+                <option disabled selected>אין מנות — הוסיפו למטה</option>
+              } @else {
+                @for (item of getEventsList(group.key); track trackItem($index, item); let i = $index) {
+                  <option [value]="i">{{ item }}</option>
+                }
+              }
+            </select>
+            <div class="option-add-row">
+              <input
+                type="text"
+                class="option-input"
+                [(ngModel)]="eventsDraft[group.key]"
+                [placeholder]="'שם מנה חדשה ל' + group.label + '...'"
+                (keydown.enter)="onDraftEnter($event, getEventsList(group.key), group.key, eventsDraft)"
+              />
+              <button type="button" class="btn-add-option" (click)="addEventsDish(group.key)">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+                הוסף לרשימה
+              </button>
+            </div>
+            @if (getEventsList(group.key).length > 0) {
+              <div class="option-remove-row">
+                <select class="option-remove-select" [(ngModel)]="eventsRemovePick[group.key]">
+                  <option [ngValue]="null" disabled>הסר מנה מהרשימה...</option>
+                  @for (item of getEventsList(group.key); track trackItem($index, item); let i = $index) {
+                    <option [ngValue]="i">{{ item }}</option>
+                  }
+                </select>
+                <button
+                  type="button"
+                  class="btn-remove-pick"
+                  [disabled]="eventsRemovePick[group.key] === null || eventsRemovePick[group.key] === undefined"
+                  (click)="removeEventsDish(group.key)"
+                >
+                  הסר
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="btn-save" [disabled]="isSaving" (click)="save()">
+        @if (isSaving) { שומר... } @else { שמור קטלוג אירועים }
+      </button>
+    </div>
+  } @else if (activeTab === 'shabbat' && shabbatCatalog) {
+    <section class="card">
+      <h2>מחירי חבילות</h2>
+      <div class="row">
+        <label>
+          ארוחה אחת (₪ למנה)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.singleMealPrice" />
+        </label>
+        <label>
+          שתי ארוחות (₪ למנה)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.bothMealsPrice" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>שדרוגים ותוספות</h2>
+      <div class="row">
+        <label>
+          מנה ראשונה (₪)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.firstCourseUpgradePrice" />
+        </label>
+        <label>
+          סעודה שלישית (₪)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.seudaShlishitPrice" />
+        </label>
+        <label>
+          תוספת דג (₪)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.fishUpgradePrice" />
+        </label>
+        <label>
+          קינוחים (₪ לאדם)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.dessertsPrice" />
+        </label>
+        <label>
+          כשרות מחפוד (₪)
+          <input type="number" min="0" [(ngModel)]="shabbatCatalog.kosherUpgradePrice" />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>מספר בחירות בטופס</h2>
+      <div class="row">
+        <label>חריצי סלטים <input type="number" min="1" [(ngModel)]="shabbatCatalog.saladSlotCount" /></label>
+        <label>מינ׳ סלטים <input type="number" min="1" [(ngModel)]="shabbatCatalog.saladMinCount" /></label>
+        <label>מקס׳ סלטים <input type="number" min="1" [(ngModel)]="shabbatCatalog.saladMaxCount" /></label>
+        <label>מנות ראשונות <input type="number" min="1" [(ngModel)]="shabbatCatalog.firstCourseSlotCount" /></label>
+        <label>עיקריות <input type="number" min="1" [(ngModel)]="shabbatCatalog.mainCourseSlotCount" /></label>
+        <label>תוספות <input type="number" min="1" [(ngModel)]="shabbatCatalog.sideSlotCount" /></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>רשימות מנות</h2>
+      <p class="card-hint">כל קטגוריה מוצגת כרשימה (סלקט). הוסיפו מנה חדשה בשדה למטה, או בחרו מנה להסרה.</p>
+      <div class="lists-grid">
+        @for (group of shabbatDishLists; track group.key) {
+          <div class="option-editor">
+            <div class="option-editor-head">
+              <h3>{{ group.label }}</h3>
+              <span class="option-count">{{ getShabbatList(group.key).length }}</span>
+            </div>
+            <label class="option-select-label" [attr.for]="'shabbat-select-' + group.key">
+              מנות בטופס ({{ getShabbatList(group.key).length }})
+            </label>
+            <select
+              class="option-select"
+              [id]="'shabbat-select-' + group.key"
+              size="6"
+              [attr.aria-label]="group.label"
+            >
+              @if (getShabbatList(group.key).length === 0) {
+                <option disabled selected>אין מנות — הוסיפו למטה</option>
+              } @else {
+                @for (item of getShabbatList(group.key); track trackItem($index, item); let i = $index) {
+                  <option [value]="i">{{ item }}</option>
+                }
+              }
+            </select>
+            <div class="option-add-row">
+              <input
+                type="text"
+                class="option-input"
+                [(ngModel)]="shabbatDraft[group.key]"
+                [placeholder]="'שם מנה חדשה ל' + group.label + '...'"
+                (keydown.enter)="onDraftEnter($event, getShabbatList(group.key), group.key, shabbatDraft)"
+              />
+              <button type="button" class="btn-add-option" (click)="addShabbatDish(group.key)">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+                הוסף לרשימה
+              </button>
+            </div>
+            @if (getShabbatList(group.key).length > 0) {
+              <div class="option-remove-row">
+                <select class="option-remove-select" [(ngModel)]="shabbatRemovePick[group.key]">
+                  <option [ngValue]="null" disabled>הסר מנה מהרשימה...</option>
+                  @for (item of getShabbatList(group.key); track trackItem($index, item); let i = $index) {
+                    <option [ngValue]="i">{{ item }}</option>
+                  }
+                </select>
+                <button
+                  type="button"
+                  class="btn-remove-pick"
+                  [disabled]="shabbatRemovePick[group.key] === null || shabbatRemovePick[group.key] === undefined"
+                  (click)="removeShabbatDish(group.key)"
+                >
+                  הסר
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </section>
+
+    <div class="actions">
+      <button type="button" class="btn-save" [disabled]="isSaving" (click)="save()">
+        @if (isSaving) { שומר... } @else { שמור קטלוג שבת וחג }
+      </button>
+    </div>
+  }
+</div>

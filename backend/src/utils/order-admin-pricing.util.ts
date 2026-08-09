@@ -69,6 +69,26 @@ export function computeItemsSubtotal(
   return roundMoney(sum);
 }
 
+/**
+ * Admin explicitly set unit price (incl. 0 / free / discount).
+ * When priceSource=admin and price is a finite >=0 number, keep it (do not overwrite from catalog).
+ */
+export function resolveLineUnitPrice(
+  item: { price?: unknown; priceSource?: unknown } | null | undefined,
+  authenticPrice: number
+): { price: number; priceSource: 'admin' | 'catalog' } {
+  const wantsAdmin = String(item?.priceSource || '').toLowerCase() === 'admin';
+  const clientPrice = Number(item?.price);
+  if (wantsAdmin && Number.isFinite(clientPrice) && clientPrice >= 0) {
+    return { price: clientPrice, priceSource: 'admin' };
+  }
+  const catalog = Number(authenticPrice);
+  return {
+    price: Number.isFinite(catalog) && catalog >= 0 ? catalog : 0,
+    priceSource: 'catalog'
+  };
+}
+
 export function resolvePortionCount(order: Record<string, unknown>): number {
   const evening = Number(order.portionsEvening);
   const morning = Number(order.portionsMorning);

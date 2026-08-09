@@ -20,6 +20,8 @@ export class AdminCouponsComponent implements OnInit {
   errorMessage = '';
   successMessage = '';
   createForm!: FormGroup;
+  editForm!: FormGroup;
+  editingCouponId: string | null = null;
   isSubmitting = false;
   isDeletingSelected = false;
   selectedCouponIds = new Set<string>();
@@ -32,19 +34,24 @@ export class AdminCouponsComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.createForm = this.fb.group({
+    this.createForm = this.buildCouponForm();
+    this.editForm = this.buildCouponForm();
+    this.loadCoupons();
+  }
+
+  private buildCouponForm(): FormGroup {
+    return this.fb.group({
       code: ['', [Validators.required]],
       discountType: ['percentage', [Validators.required]],
       discountValue: [10, [Validators.required, Validators.min(0)]],
       minOrderValue: [0, [Validators.required, Validators.min(0)]],
-      expiryDate: ['', [Validators.required]],
+      expiryDate: [''],
       maxUses: [100, [Validators.required, Validators.min(1)]],
       maxUsesPerCustomer: [1, [Validators.required, Validators.min(1)]],
       isActive: [true],
       isVipOnly: [false],
       targetCustomerCategory: ['all', [Validators.required]]
     });
-    this.loadCoupons();
   }
 
   loadCoupons(): void {
@@ -88,6 +95,13 @@ export class AdminCouponsComponent implements OnInit {
     return coupon.expiryDate || coupon.expiresAt || null;
   }
 
+  private toDateInputValue(raw: string | null | undefined): string {
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  }
+
   toggleActive(coupon: Coupon): void {
     this.couponService.updateCoupon(coupon._id, { isActive: !coupon.isActive }).subscribe({
       next: () => {
@@ -96,6 +110,66 @@ export class AdminCouponsComponent implements OnInit {
       },
       error: () => this.showError('שגיאה בעדכון הקופון')
     });
+  }
+
+  startEdit(coupon: Coupon): void {
+    this.editingCouponId = coupon._id;
+    this.editForm.reset({
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      minOrderValue: coupon.minOrderValue || 0,
+      expiryDate: this.toDateInputValue(this.getExpiryDate(coupon)),
+      maxUses: coupon.maxUses == null ? 100 : coupon.maxUses,
+      maxUsesPerCustomer: coupon.maxUsesPerCustomer || 1,
+      isActive: coupon.isActive !== false,
+      isVipOnly: coupon.isVipOnly === true,
+      targetCustomerCategory: coupon.targetCustomerCategory || 'all'
+    });
+  }
+
+  cancelEdit(): void {
+    this.editingCouponId = null;
+    this.editForm.reset(this.buildCouponForm().getRawValue());
+  }
+
+  onSubmitEdit(): void {
+    if (!this.editingCouponId || this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+    const v = this.editForm.value;
+    if (v.discountType === 'percentage' && (v.discountValue < 0 || v.discountValue > 100)) {
+      this.showError('אחוז הנחה חייב להיות בין 0 ל-100');
+      return;
+    }
+    this.isSubmitting = true;
+    this.couponService
+      .updateCoupon(this.editingCouponId, {
+        code: (v.code || '').trim().toUpperCase(),
+        discountType: v.discountType,
+        discountValue: Number(v.discountValue),
+        minOrderValue: Number(v.minOrderValue) || 0,
+        expiryDate: v.expiryDate || null,
+        expiresAt: v.expiryDate || null,
+        maxUses: Number(v.maxUses) || 1,
+        maxUsesPerCustomer: Number(v.maxUsesPerCustomer) || 1,
+        isActive: v.isActive !== false,
+        isVipOnly: v.isVipOnly === true,
+        targetCustomerCategory: v.targetCustomerCategory || 'all'
+      })
+      .subscribe({
+        next: () => {
+          this.isSubmitting = false;
+          this.editingCouponId = null;
+          this.loadCoupons();
+          this.showSuccess('הקופון עודכן בהצלחה');
+        },
+        error: (err) => {
+          this.isSubmitting = false;
+          this.showError(err?.error?.message || 'שגיאה בעדכון הקופון');
+        }
+      });
   }
 
   toggleCouponSelection(couponId: string, checked: boolean): void {
@@ -163,40 +237,43 @@ export class AdminCouponsComponent implements OnInit {
     }
     this.isSubmitting = true;
     this.errorMessage = '';
-    this.couponService.createCoupon({
-      code: (v.code || '').trim().toUpperCase(),
-      discountType: v.discountType,
-      discountValue: Number(v.discountValue),
-      minOrderValue: Number(v.minOrderValue) || 0,
-      expiryDate: v.expiryDate,
-      maxUses: Number(v.maxUses) || 1,
-      maxUsesPerCustomer: Number(v.maxUsesPerCustomer) || 1,
-      isActive: v.isActive !== false,
-      isVipOnly: v.isVipOnly === true,
-      targetCustomerCategory: v.targetCustomerCategory || 'all'
-    }).subscribe({
-      next: () => {
-        this.isSubmitting = false;
-        this.createForm.reset({
-          code: '',
-          discountType: 'percentage',
-          discountValue: 10,
-          minOrderValue: 0,
-          expiryDate: '',
-          maxUses: 100,
-          maxUsesPerCustomer: 1,
-          isActive: true,
-          isVipOnly: false,
-          targetCustomerCategory: 'all'
-        });
-        this.loadCoupons();
-        this.showSuccess('קופון נוצר בהצלחה');
-      },
-      error: (err) => {
-        this.isSubmitting = false;
-        this.showError(err?.error?.message || 'שגיאה ביצירת הקופון');
-      }
-    });
+    this.couponService
+      .createCoupon({
+        code: (v.code || '').trim().toUpperCase(),
+        discountType: v.discountType,
+        discountValue: Number(v.discountValue),
+        minOrderValue: Number(v.minOrderValue) || 0,
+        expiryDate: v.expiryDate || undefined,
+        expiresAt: v.expiryDate || null,
+        maxUses: Number(v.maxUses) || 1,
+        maxUsesPerCustomer: Number(v.maxUsesPerCustomer) || 1,
+        isActive: v.isActive !== false,
+        isVipOnly: v.isVipOnly === true,
+        targetCustomerCategory: v.targetCustomerCategory || 'all'
+      })
+      .subscribe({
+        next: () => {
+          this.isSubmitting = false;
+          this.createForm.reset({
+            code: '',
+            discountType: 'percentage',
+            discountValue: 10,
+            minOrderValue: 0,
+            expiryDate: '',
+            maxUses: 100,
+            maxUsesPerCustomer: 1,
+            isActive: true,
+            isVipOnly: false,
+            targetCustomerCategory: 'all'
+          });
+          this.loadCoupons();
+          this.showSuccess('קופון נוצר בהצלחה');
+        },
+        error: (err) => {
+          this.isSubmitting = false;
+          this.showError(err?.error?.message || 'שגיאה ביצירת הקופון');
+        }
+      });
   }
 
   isExpired(coupon: Coupon): boolean {

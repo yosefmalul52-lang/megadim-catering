@@ -10,6 +10,7 @@ import {
   extractAllergies,
   extractCustomerName,
   extractSpecialRequests,
+  isKitchenPackageMetaLine,
   normalizeFulfillment,
   normalizeMeals,
   formatOrderMealsLabel,
@@ -198,6 +199,7 @@ export function orderedQuantitiesFromOrder(order: any): Array<{
   for (const item of items) {
     const name = String(item?.name || '').trim();
     if (!name) continue;
+    if (isKitchenPackageMetaLine(item)) continue;
     const qty = effectiveLineQuantity(order, item);
     if (qty <= 0) continue;
     const key = buildOrderItemKey(item);

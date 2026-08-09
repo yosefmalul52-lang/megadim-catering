@@ -29,6 +29,12 @@ type EditableOrderItem = {
   quantity: number;
   category?: string;
   unitPrice?: number;
+  /** When 'admin', unit price was set by staff (incl. 0 / discount). */
+  priceSource?: 'catalog' | 'admin';
+  /**
+   * Manager quantity / prep text (stored as item.description).
+   * On events kitchen sheets this is shown in the quantity column.
+   */
   kitchenNotes?: string;
   selectedOption?: SelectedOptionPayload;
 };
@@ -36,6 +42,8 @@ type EditableOrderItem = {
 type KitchenPrepLine = {
   name: string;
   category: string;
+  quantity: number;
+  /** Manager quantity text (item.description) — shown as כמויות on events. */
   kitchenNotes: string;
 };
 
@@ -823,7 +831,60 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  /** True if order is from catering/events (saved with orderType or catering-specific fields). */
+  /**
+   * Effective kitchen/print quantity: Shabbat scales by portions; events uses admin-edited qty.
+   * Mirrors backend effectiveLineQuantity.
+   */
+  effectiveItemQuantity(
+    order: Order | null | undefined,
+    item: { quantity?: number; category?: string; name?: string } | null | undefined
+  ): number {
+    const base = Number(item?.quantity);
+    let qty = Number.isFinite(base) && base > 0 ? base : 0;
+    if (!order) return Math.max(0, qty);
+
+    const isEvents = this.isEventCateringOrder(order);
+    const isCatering =
+      order.orderType === 'catering' ||
+      (String((order as any).mealTime || '').trim() !== '' && Number((order as any).numberOfPortions) > 0) ||
+      this.isCateringOrder(order);
+
+    // Catering choice rows often omit quantity — treat as 1.
+    if (qty <= 0 && isCatering) qty = 1;
+    if (qty <= 0) return 0;
+    if (!isCatering) return qty;
+
+    // Events: quantity = what admin set in edit (guest count is header only).
+    if (isEvents) return qty;
+
+    const cat = String(item?.category || '');
+    // Reception / package meta: keep choice count (not × guests).
+    if (/בר קבלת פנים|תפריט בסיס|שדרוג כשרות|קינוחים/.test(cat)) {
+      return qty;
+    }
+    const portionsEvening = Math.max(0, Number((order as any).portionsEvening) || 0);
+    const portionsMorning = Math.max(0, Number((order as any).portionsMorning) || 0);
+    const numberOfPortions = Math.max(0, Number((order as any).numberOfPortions) || 0);
+    const guestCount = Math.max(0, Number((order as any).guestCount) || 0);
+    const fallback = Math.max(numberOfPortions, guestCount, 1);
+    if (/ערב/.test(cat)) return qty * (portionsEvening > 0 ? portionsEvening : fallback);
+    if (/בוקר/.test(cat)) return qty * (portionsMorning > 0 ? portionsMorning : fallback);
+    return qty * fallback;
+  }
+
+  /**
+   * Display quantity for reports — events use manager quantity text (item.description),
+   * same source as kitchen sheet כמויות.
+   */
+  eventsQuantityDisplay(
+    item: { quantity?: number; description?: string; name?: string; category?: string } | null | undefined
+  ): string {
+    const managerText = String((item as { description?: string })?.description || '').trim();
+    if (managerText) return managerText;
+    const n = Number(item?.quantity);
+    return Number.isFinite(n) && n > 0 ? String(n) : '—';
+  }
+
   private isCateringOrder(order: Order): boolean {
     if (order.orderType === 'catering') return true;
     if (order.numberOfPortions !== undefined && order.numberOfPortions !== null && order.numberOfPortions !== '') return true;
@@ -903,9 +964,22 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** True if order is specifically from the events catering form (cateringKind:'events'). */
-  private isEventCateringOrder(order: Order): boolean {
-    return order.cateringKind === 'events';
+  /** Package/pricing meta rows — not kitchen dishes (mirrors backend isKitchenPackageMetaLine). */
+  private isKitchenPackageMetaLine(item: { name?: string; category?: string } | null | undefined): boolean {
+    const cat = String(item?.category || '').trim();
+    const name = String(item?.name || '').trim();
+    if (/^תפריט בסיס/.test(cat) || /תפריט בסיסי/.test(name)) return true;
+    if (/^בר קבלת פנים/.test(cat) || /^בר קבלת פנים/.test(name)) return true;
+    if (/^שדרוג/.test(cat)) return true;
+    if (/^תוספת קינוחים/.test(name) || /^כשרות מהדרין/.test(name) || /^תוספת מנה ראשונה/.test(name)) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Events catering (guest-count based form). Public for template use. */
+  isEventCateringOrder(order: Order | null | undefined): boolean {
+    return !!order && order.cateringKind === 'events';
   }
 
   /** True if order is from the Shabbat/holiday catering form (cateringKind:'shabbat' or old orders without cateringKind). */
@@ -1296,22 +1370,30 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       : (prettyAddress || textualAddress || 'כתובת לא צוינה');
 
     const customerNotes = (cd.notes || cd.comments || cd.specialRequests || '').toString().trim();
+    const esc = (v: unknown) => this.escapeKitchenHtml(String(v ?? ''));
     const notesHtml = customerNotes
-      ? `<div class="notes-section"><div class="notes-title">הערות הלקוח:</div><div>${customerNotes}</div></div>`
+      ? `<div class="notes-section"><div class="notes-title">הערות הלקוח:</div><div>${esc(customerNotes)}</div></div>`
       : '';
 
-    const isCatering = order.orderType === 'catering';
+    const isCatering = this.isCateringOrder(order);
     const allItemsFree = (order.items || []).every(i => Number(i.price || 0) === 0);
 
-    // Build items table — catering orders group by category, no price column
+    // Build items table — catering/free: name + qty (no prices); retail: name + qty + line total
+    // Events: quantity column = manager quantity text (same source as kitchen sheet).
+    const isEventsCatering = this.isEventCateringOrder(order);
     let itemsHtml = '';
     if (isCatering || allItemsFree) {
-      // Group items by category
-      const byCategory: Record<string, string[]> = {};
-      (order.items || []).forEach(i => {
+      const byCategory: Record<string, Array<{ name: string; qty: string | number }>> = {};
+      (order.items || []).forEach((i) => {
+        if (isEventsCatering && this.isKitchenPackageMetaLine(i)) return;
         const cat = (i as any).category || 'כללי';
         if (!byCategory[cat]) byCategory[cat] = [];
-        byCategory[cat].push(i.name);
+        byCategory[cat].push({
+          name: String(i.name || ''),
+          qty: isEventsCatering
+            ? this.eventsQuantityDisplay(i as { quantity?: number; description?: string })
+            : this.effectiveItemQuantity(order, i)
+        });
       });
       if (Object.keys(byCategory).length === 0) {
         itemsHtml = '<tr><td colspan="2" style="text-align:center;color:#888;">אין פרטים שמורים</td></tr>';
@@ -1322,39 +1404,52 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           ...Object.keys(byCategory).filter((c) => !categoryOrder.includes(c))
         ];
         itemsHtml = sortedCategories
-          .map((cat) =>
-            `<tr class="cat-header"><td colspan="2"><strong>${cat}</strong></td></tr>` +
-            byCategory[cat].map(n => `<tr><td>${n}</td><td>✓</td></tr>`).join('')
+          .map(
+            (cat) =>
+              `<tr class="cat-header"><td colspan="2"><strong>${esc(cat)}</strong></td></tr>` +
+              byCategory[cat]
+                .map(
+                  (row) =>
+                    `<tr><td>${esc(row.name)}</td><td class="qty-cell">${esc(row.qty)}</td></tr>`
+                )
+                .join('')
           )
           .join('');
       }
     } else {
       itemsHtml = (order.items || [])
-        .map(i => `<tr><td>${i.name}</td><td>${i.quantity}</td><td>₪${(Number(i.price) * Number(i.quantity)).toFixed(2)}</td></tr>`)
+        .map((i) => {
+          const qty = this.effectiveItemQuantity(order, i);
+          const lineTotal = Number(i.price || 0) * Number(i.quantity || 0);
+          return `<tr><td>${esc(i.name || '')}</td><td class="qty-cell">${esc(qty)}</td><td>₪${lineTotal.toFixed(2)}</td></tr>`;
+        })
         .join('');
     }
 
-    // Header row for table
     const tableHeader = (isCatering || allItemsFree)
-      ? '<tr><th>פריט</th><th>נבחר</th></tr>'
+      ? '<tr><th>פריט</th><th>כמות</th></tr>'
       : '<tr><th>פריט</th><th>כמות</th><th>סה"כ</th></tr>';
 
     // Catering meta block — includes both shabbat and events catering details
+    const eventType = String((order as any).eventType || '').trim();
+    const guestCount = (order as any).guestCount;
+    const venue = String((order as any).venue || '').trim();
+    const mealTypes = String((order as any).mealTypes || '').trim();
+    const numberOfPortions = (order as any).numberOfPortions;
     const cateringMetaHtml = isCatering
       ? `<div class="section">
           <div class="section-title">פרטי קייטרינג</div>
-          ${ (order as any).eventType ? `<p><strong>סוג אירוע:</strong> ${ (order as any).eventType }</p>` : '' }
-          ${ (order as any).guestCount ? `<p><strong>מספר אורחים:</strong> ${ (order as any).guestCount }</p>` : '' }
-          ${ cd.deliveryType ? `<p><strong>אספקה:</strong> ${ cd.deliveryType === 'delivery' ? 'משלוח לכתובת' : 'איסוף עצמי' }</p>` : '' }
-          ${ (order.subtotal ?? cd.pricePerPortion) ? `<p><strong>מחיר למנה (משוער):</strong> ₪${Number(order.subtotal ?? cd.pricePerPortion).toFixed(0)}</p>` : '' }
-          ${ (order as any).venue ? `<p><strong>מיקום האירוע:</strong> ${ (order as any).venue }</p>` : '' }
-          ${ (order as any).numberOfPortions && !(order as any).eventType ? `<p><strong>מספר מנות:</strong> ${ (order as any).numberOfPortions }</p>` : '' }
-          ${ (order as any).mealTypes ? `<p><strong>סוג ארוחה:</strong> ${ (order as any).mealTypes }</p>` : '' }
+          ${eventType ? `<p><strong>סוג אירוע:</strong> ${esc(eventType)}</p>` : ''}
+          ${guestCount ? `<p><strong>מספר אורחים:</strong> ${esc(guestCount)}</p>` : ''}
+          ${cd.deliveryType ? `<p><strong>אספקה:</strong> ${cd.deliveryType === 'delivery' ? 'משלוח לכתובת' : 'איסוף עצמי'}</p>` : ''}
+          ${(order.subtotal ?? cd.pricePerPortion) ? `<p><strong>מחיר למנה (משוער):</strong> ₪${Number(order.subtotal ?? cd.pricePerPortion).toFixed(0)}</p>` : ''}
+          ${venue ? `<p><strong>מיקום האירוע:</strong> ${esc(venue)}</p>` : ''}
+          ${numberOfPortions && !eventType ? `<p><strong>מספר מנות:</strong> ${esc(numberOfPortions)}</p>` : ''}
+          ${mealTypes ? `<p><strong>סוג ארוחה:</strong> ${esc(mealTypes)}</p>` : ''}
         </div>`
       : '';
 
     // Summary block — hide for shabbat catering with totalPrice 0; show estimate for events
-    const isEventsCatering = (order as any).cateringKind === 'events';
     const summaryHtml = (isCatering && totalPrice === 0 && !isEventsCatering)
       ? ''
       : `<div class="summary">
@@ -1365,7 +1460,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         </div>`;
 
     const html = `
-      <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${orderCode}</title>
+      <!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>הזמנה ${esc(orderCode)}</title>
       <style>
       body{font-family:Heebo,Arial,sans-serif;padding:20px;max-width:760px;margin:0 auto;color:#111;background:#fff}
       h1{margin:0 0 8px;color:#111}
@@ -1379,6 +1474,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       table{width:100%;border-collapse:collapse;margin-top:10px}
       th,td{border:1px solid #111;padding:8px;text-align:right;color:#000}
       th{background:#fff;font-weight:800}
+      td.qty-cell{font-weight:800;font-size:16px;text-align:center;width:72px}
       tr.cat-header td{background:#f4f4f4;font-weight:800;border-top:2px solid #111}
       .summary{margin-top:14px;border:1px solid #111;padding:10px 12px}
       .summary-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
@@ -1395,15 +1491,15 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       }
       </style></head>
       <body>
-        <h1>הזמנה #${orderCode}</h1>
-        <div class="order-type">${orderTypeLabel}</div>
-        <div class="meta"><strong>סטטוס:</strong> ${this.getStatusLabel(order.status || '')}</div>
-        <p><strong>לקוח:</strong> ${order.customerDetails?.fullName || 'לא צוין'}</p>
-        <p><strong>טלפון:</strong> ${order.customerDetails?.phone || 'לא צוין'}</p>
-        <p><strong>תאריך אירוע:</strong> ${order.customerDetails?.eventDate || 'לא צוין'}</p>
+        <h1>הזמנה #${esc(orderCode)}</h1>
+        <div class="order-type">${esc(orderTypeLabel)}</div>
+        <div class="meta"><strong>סטטוס:</strong> ${esc(this.getStatusLabel(order.status || ''))}</div>
+        <p><strong>לקוח:</strong> ${esc(order.customerDetails?.fullName || 'לא צוין')}</p>
+        <p><strong>טלפון:</strong> ${esc(order.customerDetails?.phone || 'לא צוין')}</p>
+        <p><strong>תאריך אירוע:</strong> ${esc(order.customerDetails?.eventDate || 'לא צוין')}</p>
         <div class="section">
           <div class="section-title">כתובת משלוח / איסוף</div>
-          <div>${addressDisplay}</div>
+          <div>${esc(addressDisplay)}</div>
         </div>
         ${cateringMetaHtml}
         ${notesHtml}
@@ -1432,16 +1528,26 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const sourceItems = order.items || [];
     if (!sourceItems.length) return;
 
-    const payloadItems = sourceItems.map((item, index) => {
+    const prepByKey = new Map<string, string>();
+    this.kitchenPrepLines.forEach((line) => {
+      prepByKey.set(`${line.category}::${line.name}`, line.kitchenNotes);
+    });
+
+    const payloadItems = sourceItems.map((item) => {
+      const name = String(item.name || '');
+      const category = String((item as { category?: string }).category || '').trim() || 'כללי';
+      const key = `${category}::${name}`;
+      const existingDesc = String((item as { description?: string }).description || '').trim();
+      const fromPrep = prepByKey.has(key) ? (prepByKey.get(key) || '').trim() : existingDesc;
       // Notes-only: omit selectedOption so the server preserves the stored size/weight
       // snapshot without re-matching catalog options (avoids collapsing 500→250).
       return {
         productId: String((item as { productId?: string }).productId || ''),
-        name: String(item.name || ''),
+        name,
         quantity: Number(item.quantity || 1),
-        category: String((item as { category?: string }).category || ''),
+        category,
         price: Number((item as { price?: number }).price || 0),
-        description: (this.kitchenPrepLines[index]?.kitchenNotes || '').trim() || undefined
+        description: this.isKitchenPackageMetaLine(item) ? existingDesc || undefined : fromPrep || undefined
       };
     });
 
@@ -1457,7 +1563,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         };
         replaceInList(this.orders);
         this.refreshKitchenPrepLines();
-        this.successMessage = 'הערות המטבח נשמרו';
+        this.successMessage = this.isEventCateringOrder(order) ? 'הכמויות נשמרו' : 'הערות המטבח נשמרו';
         setTimeout(() => (this.successMessage = ''), 3000);
       },
       error: () => {
@@ -1637,11 +1743,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
     const itemsByCategory: Record<
       string,
-      Array<{ name: string; sizeLabel: string; notes: string; missingChoice: boolean }>
+      Array<{ name: string; sizeLabel: string; notes: string; missingChoice: boolean; qty: number }>
     > = {};
     (order.items || []).forEach((item) => {
       const cat = String((item as { category?: string }).category || 'כללי');
       const name = String(item.name || '');
+      if (this.isKitchenPackageMetaLine(item)) return;
       const key = `${cat}::${name}`;
       const notes =
         prepByKey.get(key) ||
@@ -1665,7 +1772,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         name: this.displayItemBaseName({ name }),
         sizeLabel,
         notes,
-        missingChoice
+        missingChoice,
+        qty: this.effectiveItemQuantity(order, item)
       });
     });
     // Keep same dish / different sizes adjacent in the kitchen sheet.
@@ -1695,7 +1803,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const sectionOrder: MealSection[] = ['evening', 'morning', 'salads', 'third', 'other'];
     const sectionItems: Record<
       MealSection,
-      Array<{ category: string; name: string; sizeLabel: string; notes: string; missingChoice: boolean }>
+      Array<{ category: string; name: string; sizeLabel: string; notes: string; missingChoice: boolean; qty: number }>
     > = {
       evening: [],
       morning: [],
@@ -1712,7 +1820,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           name: row.name,
           sizeLabel: row.sizeLabel,
           notes: row.notes,
-          missingChoice: row.missingChoice
+          missingChoice: row.missingChoice,
+          qty: row.qty
         });
       });
     });
@@ -1722,22 +1831,34 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     let totalItemRows = 0;
     let sectionsWithItems = 0;
 
+    const resolveKitchenQty = (
+      section: MealSection,
+      itemQty: number
+    ): number | string => {
+      // Prefer concrete line quantity (portion-scaled). Fall back to section portions only if line qty missing.
+      if (Number.isFinite(itemQty) && itemQty > 0) return itemQty;
+      return this.getKitchenRowPortionQty(section, portions, isEvents, guestCount);
+    };
+
     const renderTable = (section: MealSection): string => {
       const rows = sectionItems[section];
       if (!rows.length && !(section === 'third' && portions.seudaShlishit === true)) return '';
 
-      const qty = this.getKitchenRowPortionQty(section, portions, isEvents, guestCount);
-      const itemRows = rows
+          const itemRows = rows
         .map((row) => {
           totalItemRows += 1;
-          const notesCell = '';
+          const qty = resolveKitchenQty(section, row.qty);
+          // Notes column blank — kitchen handwriting on print.
+          const sizeCell = isEvents
+            ? ''
+            : `<td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>`;
           return `<tr>
             <td class="done-col">☐</td>
             <td class="done-col">☐</td>
             <td>${this.escapeKitchenHtml(row.name)}${row.missingChoice ? ' <strong style="color:#8a1f11">⚠ בחירה חסרה</strong>' : ''}</td>
-            <td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>
+            ${sizeCell}
             <td class="qty-col">${qty}</td>
-            <td class="notes-col">${notesCell}</td>
+            <td class="notes-col"></td>
           </tr>`;
         })
         .join('');
@@ -1747,12 +1868,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         body = `<tr>
           <td class="done-col">☐</td>
           <td class="done-col">☐</td>
-          <td colspan="4">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
+          <td colspan="${isEvents ? 3 : 4}">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
         </tr>`;
         totalItemRows += 1;
       }
 
       sectionsWithItems += 1;
+      const sizeHeader = isEvents ? '' : '<th>גודל / אפשרות</th>';
       return `
         <div class="meal-section">
           <h2>${sectionLabels[section]}</h2>
@@ -1762,7 +1884,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
                 <th class="done-col">הוכן</th>
                 <th class="done-col">נארז</th>
                 <th>שם מנה</th>
-                <th>גודל / אפשרות</th>
+                ${sizeHeader}
                 <th class="qty-col">כמות</th>
                 <th>הערות למטבח</th>
               </tr>
@@ -1775,23 +1897,32 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const tablesHtml = isShabbat
       ? sectionOrder.map((section) => renderTable(section)).join('')
       : (() => {
+          const colSpan = isEvents ? 5 : 6;
           const rows = sortedCategories
             .flatMap((cat) => {
               const catItems = itemsByCategory[cat] || [];
               if (!catItems.length) return [];
-              const header = `<tr class="cat-row"><td colspan="6"><strong>${this.escapeKitchenHtml(cat)}</strong></td></tr>`;
+              const header = `<tr class="cat-row"><td colspan="${colSpan}"><strong>${this.escapeKitchenHtml(cat)}</strong></td></tr>`;
               const itemRows = catItems
                 .map((row) => {
                   totalItemRows += 1;
-                  const notesCell = '';
-                  const qty = guestCount > 0 ? guestCount : 'לפי אורחים';
+                  // Events: manager quantity text → quantity column; notes blank for kitchen handwriting.
+                  const qty = isEvents
+                    ? row.notes?.trim() ||
+                      (Number.isFinite(row.qty) && row.qty > 0 ? String(row.qty) : '—')
+                    : Number.isFinite(row.qty) && row.qty > 0
+                      ? row.qty
+                      : '—';
+                  const sizeCell = isEvents
+                    ? ''
+                    : `<td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>`;
                   return `<tr>
                     <td class="done-col">☐</td>
                     <td class="done-col">☐</td>
                     <td>${this.escapeKitchenHtml(row.name)}${row.missingChoice ? ' <strong style="color:#8a1f11">⚠ בחירה חסרה</strong>' : ''}</td>
-                    <td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>
-                    <td class="qty-col">${qty}</td>
-                    <td class="notes-col">${notesCell}</td>
+                    ${sizeCell}
+                    <td class="qty-col">${typeof qty === 'string' ? this.escapeKitchenHtml(qty) : qty}</td>
+                    <td class="notes-col"></td>
                   </tr>`;
                 })
                 .join('');
@@ -1799,9 +1930,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             })
             .join('');
           if (rows) sectionsWithItems = 1;
+          const sizeHeader = isEvents ? '' : '<th>גודל / אפשרות</th>';
           return rows
             ? `<div class="meal-section"><h2>פריטי האירוע</h2><table>
-              <thead><tr><th class="done-col">הוכן</th><th class="done-col">נארז</th><th>שם מנה</th><th>גודל / אפשרות</th><th class="qty-col">כמות</th><th>הערות למטבח</th></tr></thead>
+              <thead><tr><th class="done-col">הוכן</th><th class="done-col">נארז</th><th>שם מנה</th>${sizeHeader}<th class="qty-col">כמות</th><th>הערות למטבח</th></tr></thead>
               <tbody>${rows}</tbody></table></div>`
             : '';
         })();
@@ -1898,7 +2030,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         th{background:#f4f4f4;font-weight:700}
         tr.cat-row td{background:#f8f8f8;font-weight:700}
         .done-col{width:40px;text-align:center;font-size:16px;font-weight:700}
-        .qty-col{width:72px;text-align:center;white-space:nowrap}
+        .qty-col{width:88px;text-align:center;white-space:nowrap;font-weight:800;font-size:1.05rem}
         .notes-col{min-width:140px;min-height:28px;height:28px}
         .toolbar{margin:12px 0;display:flex;gap:8px}
         .toolbar button{padding:8px 14px;border:1px solid #111;background:#fff;cursor:pointer;font-family:inherit}
@@ -2139,15 +2271,20 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.editAdminNotesValue = order.adminNotes || '';
     this.refreshKitchenPrepLines();
     if (!this.availableMenuItems.length) {
-      this.menuService.getMenuItems().subscribe({
-        next: (items) => {
-          this.availableMenuItems = Array.isArray(items) ? items.filter((i) => i._id || i.id) : [];
-        },
-        error: () => {
-          /* size inference falls back to selectedOption / name only */
-        }
-      });
+      this.loadAdminMenuCatalog();
     }
+  }
+
+  /** Admin order editor: include unavailable products (tagged in search UI). */
+  private loadAdminMenuCatalog(): void {
+    this.menuService.loadMenuItems(undefined, { includeUnavailable: true }).subscribe({
+      next: (items) => {
+        this.availableMenuItems = Array.isArray(items) ? items.filter((i) => i._id || i.id) : [];
+      },
+      error: () => {
+        /* size inference falls back to selectedOption / name only */
+      }
+    });
   }
 
   hasCustomerNotes(order: Order | null): boolean {
@@ -2205,11 +2342,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       this.kitchenPrepLines = [];
       return;
     }
-    this.kitchenPrepLines = (this.selectedOrder.items || []).map((item) => ({
-      name: String(item.name || ''),
-      category: String((item as { category?: string }).category || 'כללי'),
-      kitchenNotes: String((item as { description?: string }).description || '').trim()
-    }));
+    this.kitchenPrepLines = (this.selectedOrder.items || [])
+      .filter((item) => !this.isKitchenPackageMetaLine(item))
+      .map((item) => ({
+        name: String(item.name || ''),
+        category: String((item as { category?: string }).category || 'כללי'),
+        quantity: this.effectiveItemQuantity(this.selectedOrder, item),
+        kitchenNotes: String((item as { description?: string }).description || '').trim()
+      }));
   }
 
   /** Round-trip selectedOption; recover from legacy name encoding when snapshot missing. */
@@ -2356,22 +2496,24 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       const selectedOption = this.selectedOptionPayloadFromItem(item);
       const fullName = String(item.name || '');
       const baseName = this.displayItemBaseName(item);
+      const existingSource = String((item as any).priceSource || '').toLowerCase();
       return {
         productId: String((item as any).productId || (item as any).id || ''),
         baseName,
         name: fullName,
         quantity: Number(item.quantity || 1),
         category: String((item as any).category || ''),
-        unitPrice: Number((item as any).price || 0),
+        unitPrice: Number.isFinite(Number((item as any).price)) ? Number((item as any).price) : 0,
+        priceSource: existingSource === 'admin' ? 'admin' : 'catalog',
         kitchenNotes: String((item as any).description || '').trim(),
         selectedOption
       };
     });
 
     if (!this.availableMenuItems.length) {
-      this.menuService.getMenuItems().subscribe({
+      this.menuService.loadMenuItems(undefined, { includeUnavailable: true }).subscribe({
         next: (items) => {
-          this.availableMenuItems = Array.isArray(items) ? items.filter((i) => (i._id || i.id)) : [];
+          this.availableMenuItems = Array.isArray(items) ? items.filter((i) => i._id || i.id) : [];
         },
         error: () => {
           this.errorMessage = 'שגיאה בטעינת רשימת המוצרים';
@@ -2548,6 +2690,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
     item.baseName = baseName;
     item.unitPrice = choice.price;
+    item.priceSource = 'catalog';
     item.selectedOption = {
       label: choice.label,
       amount: choice.amount,
@@ -2565,6 +2708,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       item.productId = `${baseId}-size-${catalogSizeIndex}`;
     } else if (baseId) {
       item.productId = baseId;
+    }
+  }
+
+  /** Staff edited unit price (0 allowed) — persist as admin override. */
+  onEditableUnitPriceChange(item: EditableOrderItem, raw: string | number): void {
+    const n = Number(raw);
+    item.unitPrice = Number.isFinite(n) && n >= 0 ? n : 0;
+    item.priceSource = 'admin';
+    if (item.selectedOption) {
+      item.selectedOption = { ...item.selectedOption, price: item.unitPrice };
     }
   }
 
@@ -2615,12 +2768,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
    */
   getCateringViewItemsByCategory(): {
     category: string;
-    items: { name: string; sizeLabel?: string; kitchenNotes?: string }[];
+    items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
   }[] {
     if (!this.selectedOrder) return [];
     const categoryOrder = this.getCateringCategoryOrder(this.selectedOrder);
-    const grouped: Record<string, { name: string; sizeLabel?: string; kitchenNotes?: string }[]> = {};
+    const grouped: Record<
+      string,
+      { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[]
+    > = {};
     (this.selectedOrder.items || []).forEach((item) => {
+      if (this.isEventCateringOrder(this.selectedOrder) && this.isKitchenPackageMetaLine(item)) return;
       const cat = (item as any).category || 'כללי';
       if (!grouped[cat]) grouped[cat] = [];
       const kitchenNotes = String((item as any).description || '').trim();
@@ -2631,6 +2788,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         : this.inferSizeLabelFromMenu(item);
       grouped[cat].push({
         name: this.displayItemBaseName(item),
+        quantity: Number(item.quantity || 0),
+        category: cat,
         sizeLabel,
         kitchenNotes: kitchenNotes || undefined
       });
@@ -2646,7 +2805,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
     const result: {
       category: string;
-      items: { name: string; sizeLabel?: string; kitchenNotes?: string }[];
+      items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
     }[] = [];
     categoryOrder.forEach((cat) => {
       if (grouped[cat]) result.push({ category: cat, items: grouped[cat] });
@@ -2714,7 +2873,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     title: string;
     portions?: number | null;
     legacy?: boolean;
-    categories: { category: string; items: { name: string; sizeLabel?: string; kitchenNotes?: string }[] }[];
+    categories: {
+      category: string;
+      items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
+    }[];
   }> {
     if (!this.selectedOrder || !this.isShabbatCateringOrder(this.selectedOrder)) return [];
 
@@ -2737,7 +2899,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       title: string;
       portions?: number | null;
       legacy?: boolean;
-      categories: { category: string; items: { name: string; kitchenNotes?: string }[] }[];
+      categories: {
+        category: string;
+        items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
+      }[];
     }> = [];
 
     const salads = map.get('סלטים');
@@ -2799,6 +2964,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       quantity: 1,
       category: this.cateringNewItemCategory,
       unitPrice: 0,
+      priceSource: 'admin',
       selectedOption: undefined
     });
     this.cateringNewItemName = '';
@@ -2810,6 +2976,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const groups = this.getCateringItemsByCategory();
     for (let i = 0; i < catIndex; i++) offset += groups[i].items.length;
     return offset + itemIndex;
+  }
+
+  /** Remove by object identity — category regrouping is not the same order as editableItems. */
+  removeEditableItemRef(item: EditableOrderItem): void {
+    const index = this.editableItems.indexOf(item);
+    if (index >= 0) this.editableItems.splice(index, 1);
   }
 
   removeEditableItem(index: number): void {
@@ -2825,6 +2997,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       if (!productId) continue;
       const baseName = String(product.name || '').trim();
       const category = String(product.category || '').trim();
+      const unavailable = product.isAvailable === false;
+      const unavailableTag = unavailable ? ' [לא פעיל]' : '';
       const options = Array.isArray((product as any).pricingOptions) ? (product as any).pricingOptions : [];
       const variants = Array.isArray((product as any).pricingVariants) ? (product as any).pricingVariants : [];
       const hasOptions = options.length > 0;
@@ -2838,7 +3012,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           flattened.push({
             productId,
             baseName,
-            displayName: `${baseName} - ${label} (${unitPrice}₪)`,
+            displayName: `${baseName} - ${label} (${unitPrice}₪)${unavailableTag}`,
             category,
             unitPrice,
             selectedOption: { label, amount: amount || undefined, price: unitPrice }
@@ -2852,7 +3026,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           flattened.push({
             productId,
             baseName,
-            displayName: `${baseName} - ${label} (${unitPrice}₪)`,
+            displayName: `${baseName} - ${label} (${unitPrice}₪)${unavailableTag}`,
             category,
             unitPrice,
             selectedOption: { label, amount: amount || undefined, price: unitPrice }
@@ -2863,7 +3037,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         flattened.push({
           productId,
           baseName,
-          displayName: `${baseName} (${unitPrice}₪)`,
+          displayName: `${baseName} (${unitPrice}₪)${unavailableTag}`,
           category,
           unitPrice
         });
@@ -2906,6 +3080,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         quantity: 1,
         category: product.category || '',
         unitPrice: Number(product.unitPrice || 0),
+        priceSource: 'catalog',
         selectedOption: product.selectedOption
           ? {
               label: product.selectedOption.label,
@@ -2929,7 +3104,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         ? {
             label: String(item.selectedOption.label || '').trim(),
             amount: String(item.selectedOption.amount || '').trim() || undefined,
-            price: Number(item.selectedOption.price || item.unitPrice || 0),
+            price: Number(item.selectedOption.price ?? item.unitPrice ?? 0),
             optionId: item.selectedOption.optionId,
             optionName: item.selectedOption.optionName,
             valueId: item.selectedOption.valueId,
@@ -2948,9 +3123,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             name: item.name.trim(),
             quantity: Number(item.quantity),
             category: item.category || '',
-            // Send the unit price from the editor when set; backend recalculates
-            // catering totals from portion×rate / admin override when price is 0.
-            price: Number(item.unitPrice || item.selectedOption?.price || 0),
+            price: Number(item.unitPrice ?? item.selectedOption?.price ?? 0),
+            priceSource: item.priceSource === 'admin' ? 'admin' : 'catalog',
             description: (item.kitchenNotes || '').trim() || undefined,
             selectedOption: mapOption(item)
           }))
@@ -2960,7 +3134,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             name: String(item.name || '').trim(),
             quantity: Number(item.quantity || 0),
             category: item.category || '',
-            price: Number(item.unitPrice || item.selectedOption?.price || 0),
+            price: Number(item.unitPrice ?? item.selectedOption?.price ?? 0),
+            priceSource: item.priceSource === 'admin' ? 'admin' : 'catalog',
             description: (item.kitchenNotes || '').trim() || undefined,
             selectedOption: mapOption(item)
           }))
@@ -2990,22 +3165,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
         this.selectedOrder = normalizedUpdated;
         this.cancelEditingItems();
-        // Keep details open after item save so charge amount (totalPrice) is visible.
-        // Only auto-close when not in a payment-sensitive authorized state.
-        if (normalizedUpdated.paymentStatus !== 'authorized') {
-          this.closeModal();
-        }
+        // Keep order details open so staff can see updated line prices + סה״כ הזמנה / סכום לחיוב.
+        // (Previously closed for non-authorized and made the change easy to miss.)
 
         const newTotal = Number(normalizedUpdated.totalPrice || 0);
-        this.successMessage =
-          normalizedUpdated.paymentStatus === 'authorized'
-            ? `פריטי ההזמנה עודכנו — סכום לחיוב עודכן ל־₪${newTotal.toFixed(2)}`
-            : 'פריטי ההזמנה עודכנו בהצלחה';
+        this.successMessage = `פריטי ההזמנה עודכנו — סה״כ הזמנה / סכום לחיוב: ₪${newTotal.toFixed(2)}`;
         // If the order was authorized, flag a potential amount mismatch for the UI warning
         if (this.selectedOrder?.paymentStatus === 'authorized') {
           this.authorizedAmountMismatchWarning = true;
         }
-        setTimeout(() => (this.successMessage = ''), 3000);
+        setTimeout(() => (this.successMessage = ''), 5000);
         this.loadOrdersPage();
         this.loadStats();
       },

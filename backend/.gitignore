@@ -31,4 +31,5 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 .tmp-kitchen-pdf/
+.tmp-quote-pdf/
 tmp-screenshots/

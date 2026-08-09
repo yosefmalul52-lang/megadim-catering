@@ -126,6 +126,10 @@ export interface KitchenReportDTO {
     adminNotes?: string;
     allergies?: string;
     specialRequests?: string;
+    guestCount?: number | null;
+    numberOfPortions?: number | null;
+    portionsEvening?: number | null;
+    portionsMorning?: number | null;
     items?: Array<{
       productId?: string;
       name: string;
@@ -134,6 +138,7 @@ export interface KitchenReportDTO {
       category: string;
       unit: string;
       quantity: number;
+      notes?: string;
       missingChoice?: boolean;
     }>;
     itemNotes: Array<{ dishName: string; note: string }>;

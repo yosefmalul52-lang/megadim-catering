@@ -7,6 +7,7 @@ import {
   dishIdentityKey,
   effectiveLineQuantity,
   isCancelledOrder,
+  isKitchenPackageMetaLine,
   kitchenReportToCsv,
   normalizeFulfillment,
   normalizeMeal,
@@ -171,7 +172,8 @@ test('normal / shabbat / catering / manual-like orders contribute quantities', (
   const filters = validateKitchenReportQuery({ startDate: '2026-08-10', endDate: '2026-08-10' });
   const report = buildKitchenReportDto(orders, filters);
   assert.equal(report.summary.activeOrders, 4);
-  assert.ok(report.summary.totalPortions >= 2 + 1 + 10 + 4);
+  // Events use admin/item qty (not × portions/guests): 2 + 1 + 1 + 4
+  assert.ok(report.summary.totalPortions >= 2 + 1 + 1 + 4);
   assert.equal(normalizeMeal(orders[2]), 'אירוע');
 });
 
@@ -325,6 +327,7 @@ test('fulfillment and allergies/notes separation', () => {
   assert.equal(report.orderNotes[0].adminNotes, 'פנימי');
   assert.equal(report.orderNotes[0].specialRequests, 'בלי בצל');
   assert.equal(report.orderNotes[0].itemNotes[0].note, 'חריף');
+  assert.equal(report.orderNotes[0].items[0].notes, 'חריף');
 });
 
 test('Jerusalem date range validation allows 60 days and rejects 61', () => {
@@ -361,6 +364,84 @@ test('catering portion scaling uses items only (no double count)', () => {
     items: [{ name: 'חומוס', quantity: 1, category: 'סלטים ערב' }]
   };
   assert.equal(effectiveLineQuantity(order, order.items[0]), 8);
+});
+
+test('events catering uses admin/item quantity (not guestCount)', () => {
+  const order = {
+    orderType: 'catering',
+    cateringKind: 'events',
+    guestCount: 85,
+    numberOfPortions: 0,
+    items: [{ name: 'אסאדו', quantity: 1, category: 'מנות עיקריות' }]
+  };
+  assert.equal(effectiveLineQuantity(order, order.items[0]), 1);
+});
+
+test('events catering uses edited quantity when admin set it', () => {
+  const order = {
+    orderType: 'catering',
+    cateringKind: 'events',
+    guestCount: 85,
+    items: [{ name: 'חומוס', quantity: 12, category: 'סלטים' }]
+  };
+  assert.equal(effectiveLineQuantity(order, order.items[0]), 12);
+});
+
+test('events catering missing item qty defaults to 1 (not guests)', () => {
+  const order = {
+    orderType: 'catering',
+    cateringKind: 'events',
+    guestCount: 40,
+    items: [{ name: 'חומוס', category: 'סלטים' }]
+  };
+  assert.equal(effectiveLineQuantity(order, order.items[0]), 1);
+});
+
+test('reception bar is not multiplied by guest count', () => {
+  const order = {
+    orderType: 'catering',
+    cateringKind: 'events',
+    guestCount: 85,
+    numberOfPortions: 85,
+    items: [{ name: 'בר רגיל', quantity: 1, category: 'בר קבלת פנים' }]
+  };
+  assert.equal(effectiveLineQuantity(order, order.items[0]), 1);
+});
+
+test('events package meta lines are excluded from kitchen report dishes', () => {
+  assert.equal(
+    isKitchenPackageMetaLine({
+      name: 'תפריט בסיסי לאירוע (₪70 למנה)',
+      category: 'תפריט בסיס'
+    }),
+    true
+  );
+  assert.equal(isKitchenPackageMetaLine({ name: 'סירות תפ"א בתנור', category: 'תוספות' }), false);
+
+  const filters = validateKitchenReportQuery({ startDate: '2026-08-10', endDate: '2026-08-10' });
+  const report = buildKitchenReportDto(
+    [
+      {
+        _id: 'ev-meta',
+        status: 'processing',
+        orderType: 'catering',
+        cateringKind: 'events',
+        guestCount: 70,
+        items: [
+          { name: 'תפריט בסיסי לאירוע (₪70 למנה)', quantity: 1, category: 'תפריט בסיס' },
+          { name: 'סירות תפ"א בתנור', quantity: 1, category: 'תוספות', description: '2 גסטרונום' },
+          { name: 'בר קבלת פנים — 4 סוגים', quantity: 1, category: 'בר קבלת פנים' },
+          { name: 'כשרות מהדרין מחפוד (+₪7 למנה)', quantity: 1, category: 'שדרוגים' }
+        ],
+        customerDetails: { eventDate: '2026-08-10', deliveryMethod: 'delivery' }
+      }
+    ],
+    filters
+  );
+  assert.equal(report.orderNotes.length, 1);
+  assert.equal(report.orderNotes[0].items.length, 1);
+  assert.equal(report.orderNotes[0].items[0].name, 'סירות תפ"א בתנור');
+  assert.ok(!report.orderNotes[0].items.some((it) => /תפריט בסיסי/.test(it.name)));
 });
 
 test('csv has BOM and Hebrew headers', () => {

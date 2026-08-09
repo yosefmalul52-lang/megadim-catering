@@ -10,6 +10,10 @@ import {
   resolveMealCourseLines,
 } from '../utils/catering-lines';
 import { validateShabbatCateringSelection, cateringLineNames } from '../utils/catering-validation';
+import {
+  catalogToPublicDto,
+  getOrCreateEventsCatalog
+} from '../services/events-catering-catalog.service';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -25,27 +29,46 @@ function toStrArr(v: unknown): string[] {
     : [];
 }
 
-function buildEventCateringItems(body: Record<string, unknown>): {
+function buildEventCateringItems(
+  body: Record<string, unknown>,
+  catalog?: {
+    basePrice?: number;
+    firstCourseUpgradePrice?: number;
+    dessertsUpgradePrice?: number;
+    kosherUpgradePrice?: number;
+    receptionTiers?: Array<{ backendId?: string; id?: string; pricePerPortion?: number; title?: string; stations?: number }>;
+  }
+): {
   name: string;
   price: number;
   quantity: number;
   category: string;
 }[] {
   const list: { name: string; price: number; quantity: number; category: string }[] = [];
+  const basePrice = Number(catalog?.basePrice) || 70;
+  const firstPrice = Number(catalog?.firstCourseUpgradePrice) || 20;
+  const dessertPrice = Number(catalog?.dessertsUpgradePrice) || 8;
+  const kosherPrice = Number(catalog?.kosherUpgradePrice) || 7;
 
   const baseTitle =
     typeof body.basePackageTitle === 'string' && body.basePackageTitle.trim()
       ? body.basePackageTitle.trim()
       : 'תפריט בסיסי לאירוע';
-  list.push({ name: `${baseTitle} (₪70 למנה)`, price: 0, quantity: 1, category: 'תפריט בסיס' });
+  list.push({ name: `${baseTitle} (₪${basePrice} למנה)`, price: 0, quantity: 1, category: 'תפריט בסיס' });
 
   if (body.receptionBar === true) {
     const variant = typeof body.receptionBarVariant === 'string' ? body.receptionBarVariant : '';
+    const tiers = Array.isArray(catalog?.receptionTiers) ? catalog!.receptionTiers! : [];
+    const matched =
+      tiers.find((t) => t.backendId === variant) ||
+      tiers.find((t) => (variant === 'premium' ? t.id === 'upgraded' : t.id === 'regular'));
+    const price = Number(matched?.pricePerPortion);
+    const stations = Number(matched?.stations);
     const label =
       variant === 'premium'
-        ? 'בר קבלת פנים משודרג — 6 סוגים (+₪45 למנה)'
+        ? `בר קבלת פנים משודרג — ${stations || 6} סוגים (+₪${Number.isFinite(price) ? price : 45} למנה)`
         : variant === 'standard'
-          ? 'בר קבלת פנים — 4 סוגים (+₪30 למנה)'
+          ? `בר קבלת פנים — ${stations || 4} סוגים (+₪${Number.isFinite(price) ? price : 30} למנה)`
           : 'בר קבלת פנים';
     list.push({ name: label, price: 0, quantity: 1, category: 'בר קבלת פנים' });
   }
@@ -56,7 +79,7 @@ function buildEventCateringItems(body: Record<string, unknown>): {
   if (firstCourseUpgrade) {
     if (firstCourses.length === 0) {
       list.push({
-        name: 'תוספת מנה ראשונה (+₪20 למנה)',
+        name: `תוספת מנה ראשונה (+₪${firstPrice} למנה)`,
         price: 0,
         quantity: 1,
         category: 'שדרוגים'
@@ -80,7 +103,7 @@ function buildEventCateringItems(body: Record<string, unknown>): {
 
   if (body.desserts === true) {
     list.push({
-      name: 'תוספת קינוחים (+₪8 למנה)',
+      name: `תוספת קינוחים (+₪${dessertPrice} למנה)`,
       price: 0,
       quantity: 1,
       category: 'שדרוגים'
@@ -89,7 +112,7 @@ function buildEventCateringItems(body: Record<string, unknown>): {
 
   if (body.kosherUpgrade === true) {
     list.push({
-      name: 'כשרות מהדרין מחפוד (+₪7 למנה)',
+      name: `כשרות מהדרין מחפוד (+₪${kosherPrice} למנה)`,
       price: 0,
       quantity: 1,
       category: 'שדרוגים'
@@ -410,7 +433,13 @@ export class CateringController {
 
     const pricePerPortion = Number(body.pricePerPortion) || 0;
     const totalEventPrice = Number(body.totalEventPrice) || 0;
-    const evItems = buildEventCateringItems(body);
+    let catalogDto: ReturnType<typeof catalogToPublicDto> | undefined;
+    try {
+      catalogDto = catalogToPublicDto(await getOrCreateEventsCatalog());
+    } catch {
+      catalogDto = undefined;
+    }
+    const evItems = buildEventCateringItems(body, catalogDto);
     const orderNumber = generateOrderNumber();
 
     let evCreated;

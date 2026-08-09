@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { EventsCatalogService, EventsCatalogDto } from '../../../services/events-catalog.service';
 import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { environment } from '../../../../environments/environment';
@@ -41,23 +42,29 @@ import {
 })
 export class EventsCateringComponent implements OnInit {
   private http = inject(HttpClient);
+  private eventsCatalogService = inject(EventsCatalogService);
   settingsService = inject(SiteSettingsService);
 
-  readonly basePackage = EVENTS_BASE_PACKAGE;
-  readonly basePrice = EVENTS_BASE_PRICE;
-  readonly firstCourseUpgrade = EVENTS_FIRST_COURSE_UPGRADE;
-  readonly dessertsUpgrade = EVENTS_DESSERTS_UPGRADE;
-  readonly receptionBarUpgrade = EVENTS_RECEPTION_BAR_UPGRADE;
-  readonly kosherUpgradePrice = EVENTS_KOSHER_UPGRADE_PRICE;
-  readonly saladOptions = EVENTS_SALAD_OPTIONS;
-  readonly firstCourseUpgradeOptions = EVENTS_FIRST_COURSE_UPGRADE_OPTIONS;
-  readonly mainCourseOptions = EVENTS_MAIN_COURSE_OPTIONS;
-  readonly sideDishOptions = EVENTS_SIDE_DISH_OPTIONS;
+  basePackage = { ...EVENTS_BASE_PACKAGE };
+  basePrice = EVENTS_BASE_PRICE;
+  firstCourseUpgrade = { ...EVENTS_FIRST_COURSE_UPGRADE };
+  dessertsUpgrade = { ...EVENTS_DESSERTS_UPGRADE };
+  receptionBarUpgrade = {
+    ...EVENTS_RECEPTION_BAR_UPGRADE,
+    tiers: EVENTS_RECEPTION_BAR_UPGRADE.tiers.map((t) => ({ ...t, features: [...t.features] }))
+  };
+  kosherUpgradePrice = EVENTS_KOSHER_UPGRADE_PRICE;
+  saladOptions = [...EVENTS_SALAD_OPTIONS];
+  firstCourseUpgradeOptions = [...EVENTS_FIRST_COURSE_UPGRADE_OPTIONS];
+  mainCourseOptions = [...EVENTS_MAIN_COURSE_OPTIONS];
+  sideDishOptions = [...EVENTS_SIDE_DISH_OPTIONS];
 
-  readonly saladIndexes = Array.from({ length: EVENTS_SALAD_SLOT_COUNT }, (_, i) => i + 1);
-  readonly mainCourseIndexes = Array.from({ length: EVENTS_MAIN_COURSE_SLOT_COUNT }, (_, i) => i + 1);
-  readonly sideIndexes = Array.from({ length: EVENTS_SIDE_SLOT_COUNT }, (_, i) => i + 1);
-  readonly firstCourseIndexes = Array.from({ length: EVENTS_FIRST_COURSE_SLOT_COUNT }, (_, i) => i + 1);
+  saladIndexes = Array.from({ length: EVENTS_SALAD_SLOT_COUNT }, (_, i) => i + 1);
+  mainCourseIndexes = Array.from({ length: EVENTS_MAIN_COURSE_SLOT_COUNT }, (_, i) => i + 1);
+  sideIndexes = Array.from({ length: EVENTS_SIDE_SLOT_COUNT }, (_, i) => i + 1);
+  firstCourseIndexes = Array.from({ length: EVENTS_FIRST_COURSE_SLOT_COUNT }, (_, i) => i + 1);
+
+  private liveCatalog: EventsCatalogDto | null = null;
 
   readonly EVENT_TYPES = [
     'חתונה', 'בר / בת מצווה', 'אירוע עסקי', 'יום הולדת', 'ברית / קידוש', 'סיום / מסיבה', 'אחר'
@@ -90,7 +97,6 @@ export class EventsCateringComponent implements OnInit {
 
   ngOnInit(): void {
     const today = new Date();
-    // Events catering: allow any future/today date except Shabbat.
     this.minEventDateObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     this.settingsService.getSettings(true).subscribe(settings => {
@@ -100,6 +106,71 @@ export class EventsCateringComponent implements OnInit {
         this.showPopup = true;
       }
     });
+
+    this.eventsCatalogService.getPublicCatalog().subscribe({
+      next: (catalog) => this.applyCatalog(catalog),
+      error: () => {
+        /* keep hardcoded defaults */
+      }
+    });
+  }
+
+  private applyCatalog(catalog: EventsCatalogDto): void {
+    if (!catalog) return;
+    this.liveCatalog = catalog;
+    this.basePrice = Number(catalog.basePrice) || EVENTS_BASE_PRICE;
+    this.basePackage = {
+      id: 'base-event-menu',
+      title: catalog.baseTitle || EVENTS_BASE_PACKAGE.title,
+      pricePerPortion: this.basePrice,
+      mandatoryLabel: EVENTS_BASE_PACKAGE.mandatoryLabel,
+      includes: Array.isArray(catalog.baseIncludes) && catalog.baseIncludes.length
+        ? catalog.baseIncludes
+        : [...EVENTS_BASE_PACKAGE.includes]
+    };
+    this.firstCourseUpgrade = {
+      title: catalog.firstCourseUpgradeTitle || EVENTS_FIRST_COURSE_UPGRADE.title,
+      pricePerPortion: Number(catalog.firstCourseUpgradePrice) || EVENTS_FIRST_COURSE_UPGRADE.pricePerPortion,
+      priceLabel: `+₪${Number(catalog.firstCourseUpgradePrice) || EVENTS_FIRST_COURSE_UPGRADE.pricePerPortion} למנה`,
+      includes: [...EVENTS_FIRST_COURSE_UPGRADE.includes]
+    };
+    this.dessertsUpgrade = {
+      title: catalog.dessertsUpgradeTitle || EVENTS_DESSERTS_UPGRADE.title,
+      pricePerPortion: Number(catalog.dessertsUpgradePrice) || EVENTS_DESSERTS_UPGRADE.pricePerPortion,
+      priceLabel: `+₪${Number(catalog.dessertsUpgradePrice) || EVENTS_DESSERTS_UPGRADE.pricePerPortion} למנה`,
+      includes: [...EVENTS_DESSERTS_UPGRADE.includes]
+    };
+    this.kosherUpgradePrice = Number(catalog.kosherUpgradePrice) || EVENTS_KOSHER_UPGRADE_PRICE;
+    if (Array.isArray(catalog.receptionTiers) && catalog.receptionTiers.length) {
+      this.receptionBarUpgrade = {
+        title: EVENTS_RECEPTION_BAR_UPGRADE.title,
+        minStationsNote: EVENTS_RECEPTION_BAR_UPGRADE.minStationsNote,
+        tiers: catalog.receptionTiers.map((t) => ({
+          id: t.id,
+          backendId: t.backendId,
+          title: t.title,
+          pricePerPortion: Number(t.pricePerPortion) || 0,
+          stations: Number(t.stations) || 4,
+          features: Array.isArray(t.features) ? t.features : []
+        })) as typeof EVENTS_RECEPTION_BAR_UPGRADE.tiers
+      };
+    }
+    if (catalog.saladOptions?.length) this.saladOptions = [...catalog.saladOptions];
+    if (catalog.firstCourseOptions?.length) {
+      this.firstCourseUpgradeOptions = [...catalog.firstCourseOptions];
+    }
+    if (catalog.mainCourseOptions?.length) this.mainCourseOptions = [...catalog.mainCourseOptions];
+    if (catalog.sideDishOptions?.length) this.sideDishOptions = [...catalog.sideDishOptions];
+
+    const saladSlots = Number(catalog.saladSlotCount) || EVENTS_SALAD_SLOT_COUNT;
+    const mainSlots = Number(catalog.mainCourseSlotCount) || EVENTS_MAIN_COURSE_SLOT_COUNT;
+    const sideSlots = Number(catalog.sideSlotCount) || EVENTS_SIDE_SLOT_COUNT;
+    const firstSlots = Number(catalog.firstCourseSlotCount) || EVENTS_FIRST_COURSE_SLOT_COUNT;
+    this.saladIndexes = Array.from({ length: saladSlots }, (_, i) => i + 1);
+    this.mainCourseIndexes = Array.from({ length: mainSlots }, (_, i) => i + 1);
+    this.sideIndexes = Array.from({ length: sideSlots }, (_, i) => i + 1);
+    this.firstCourseIndexes = Array.from({ length: firstSlots }, (_, i) => i + 1);
+    this.syncPrice();
   }
 
   private createEmptyOrderForm() {
@@ -121,13 +192,16 @@ export class EventsCateringComponent implements OnInit {
   }
 
   get computedPricePerPortion(): number {
-    return calculatePricePerPortion({
-      isFirstCourseSelected: this.isFirstCourseSelected,
-      isDessertsSelected: this.isDessertsSelected,
-      isReceptionSelected: this.isReceptionSelected,
-      receptionTier: this.isReceptionSelected ? this.receptionTier : '',
-      isKosherUpgradeSelected: this.isKosherUpgradeSelected
-    });
+    return calculatePricePerPortion(
+      {
+        isFirstCourseSelected: this.isFirstCourseSelected,
+        isDessertsSelected: this.isDessertsSelected,
+        isReceptionSelected: this.isReceptionSelected,
+        receptionTier: this.isReceptionSelected ? this.receptionTier : '',
+        isKosherUpgradeSelected: this.isKosherUpgradeSelected
+      },
+      this.liveCatalog || undefined
+    );
   }
 
   get totalEventPrice(): number {
@@ -283,7 +357,7 @@ export class EventsCateringComponent implements OnInit {
       return;
     }
 
-    const receptionTierDef = EVENTS_RECEPTION_BAR_UPGRADE.tiers.find(t => t.id === this.receptionTier);
+    const receptionTierDef = this.receptionBarUpgrade.tiers.find(t => t.id === this.receptionTier);
 
     this.isSubmitting = true;
 
@@ -297,7 +371,7 @@ export class EventsCateringComponent implements OnInit {
       kosherUpgrade: this.isKosherUpgradeSelected,
       pricePerPortion: this.computedPricePerPortion,
       totalEventPrice: this.totalEventPrice,
-      basePackageTitle: EVENTS_BASE_PACKAGE.title
+      basePackageTitle: this.basePackage.title
     };
 
     this.http

@@ -2,7 +2,7 @@ import Coupon, { ICoupon } from '../models/coupon.model';
 import Order from '../models/Order';
 import Customer from '../models/Customer';
 
-const VAGUE_ERROR_MESSAGE = 'Invalid or expired coupon';
+const VAGUE_ERROR_MESSAGE = 'קוד הקופון לא תקין או שפג תוקפו';
 
 export interface ApplyCouponResult {
   valid: true;
@@ -86,9 +86,21 @@ async function getCompletedOrdersCountForPhone(phone: string): Promise<number> {
   return count;
 }
 
+/** Log why apply failed without leaking state to the client (enumeration oracle). */
+function couponApplyFail(reason: string): ApplyCouponInvalid {
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[coupon.apply] rejected:', reason);
+  }
+  return { valid: false, message: VAGUE_ERROR_MESSAGE };
+}
+
 /**
  * Single source of truth: validate coupon and compute discount.
  * Used by both POST /coupons/apply (preview) and order checkout (final validation).
+ *
+ * Client-facing messages for unknown/inactive/expired codes stay vague so attackers
+ * cannot enumerate valid codes. Min-order / audience rules stay specific so real
+ * customers who already have a code understand how to fix the cart.
  */
 export async function validateAndApplyCoupon(
   code: string,
@@ -97,30 +109,33 @@ export async function validateAndApplyCoupon(
 ): Promise<ApplyCouponResult | ApplyCouponInvalid> {
   const normalizedCode = (code || '').trim().toUpperCase();
   if (!normalizedCode) {
-    return { valid: false, message: VAGUE_ERROR_MESSAGE };
+    return couponApplyFail('empty_code');
   }
 
   const coupon = await Coupon.findOne({ code: normalizedCode }).lean();
   if (!coupon) {
-    return { valid: false, message: VAGUE_ERROR_MESSAGE };
+    return couponApplyFail('not_found');
   }
 
   if (!coupon.isActive) {
-    return { valid: false, message: VAGUE_ERROR_MESSAGE };
+    return couponApplyFail('inactive');
   }
 
   if (coupon.maxUses != null && coupon.usageCount >= coupon.maxUses) {
-    return { valid: false, message: VAGUE_ERROR_MESSAGE };
+    return couponApplyFail('max_uses');
   }
 
   const now = new Date();
   if (coupon.expiresAt && now >= new Date(coupon.expiresAt)) {
-    return { valid: false, message: VAGUE_ERROR_MESSAGE };
+    return couponApplyFail('expired');
   }
 
   const minOrder = Number(coupon.minOrderValue) || 0;
   if (cartTotal < minOrder) {
-    return { valid: false, message: VAGUE_ERROR_MESSAGE };
+    return {
+      valid: false,
+      message: `הקופון תקף רק להזמנה בסכום מינימום של ₪${minOrder.toFixed(0)} (מזון + משלוח)`
+    };
   }
 
   const normalizedPhone = normalizePhone(customerPhone || '');

@@ -406,7 +406,8 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     const cartTotal = base + (isDelivery ? fee : 0);
     this.couponError = '';
     this.couponApplying = true;
-    this.couponService.applyCoupon(code, cartTotal).subscribe({
+    const customerPhone = String(this.orderForm?.get('phone')?.value || '').trim();
+    this.couponService.applyCoupon(code, cartTotal, customerPhone || undefined).subscribe({
       next: (res) => {
         this.couponApplying = false;
         if (res.success && res.discountAmount != null && res.newTotal != null) {

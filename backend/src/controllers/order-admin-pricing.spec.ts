@@ -7,7 +7,8 @@ import { evaluatePaymentExceptions } from '../utils/admin-payments.util';
 import {
   computeAdminRecalculatedTotals,
   getEffectiveOrderAmount,
-  isGatewayLockedPaymentStatus
+  isGatewayLockedPaymentStatus,
+  resolveLineUnitPrice
 } from '../utils/order-admin-pricing.util';
 
 test('events catering: portion×rate recalculates when item prices are 0', () => {
@@ -201,6 +202,72 @@ test('captured item edit keeps total locked', () => {
   });
   assert.equal(totals.locked, true);
   assert.equal(totals.totalPrice, 34);
+});
+
+test('#4/#10 resolveLineUnitPrice: admin may set free (0) or discounted price', () => {
+  assert.deepEqual(resolveLineUnitPrice({ price: 0, priceSource: 'admin' }, 45), {
+    price: 0,
+    priceSource: 'admin'
+  });
+  assert.deepEqual(resolveLineUnitPrice({ price: 12.5, priceSource: 'admin' }, 45), {
+    price: 12.5,
+    priceSource: 'admin'
+  });
+  // Without admin flag, catalog wins (even if client sent a lower price)
+  assert.deepEqual(resolveLineUnitPrice({ price: 0, priceSource: 'catalog' }, 45), {
+    price: 45,
+    priceSource: 'catalog'
+  });
+  assert.deepEqual(resolveLineUnitPrice({ price: 10 }, 45), {
+    price: 45,
+    priceSource: 'catalog'
+  });
+  // Invalid admin price falls back to catalog
+  assert.deepEqual(resolveLineUnitPrice({ price: 'x', priceSource: 'admin' }, 30), {
+    price: 30,
+    priceSource: 'catalog'
+  });
+});
+
+test('#4/#10 retail order: lowering one line and setting another free recalculates total', () => {
+  const order = {
+    orderType: 'shabbat',
+    paymentStatus: 'awaiting_payment',
+    totalPrice: 100,
+    subtotal: 100,
+    deliveryFee: 0,
+    items: [
+      { name: 'חומוס', price: 40, quantity: 1 },
+      { name: 'חלה', price: 30, quantity: 2 }
+    ]
+  };
+  const totals = computeAdminRecalculatedTotals(order, {
+    items: [
+      { name: 'חומוס', price: 0, quantity: 1, priceSource: 'admin' },
+      { name: 'חלה', price: 20, quantity: 2, priceSource: 'admin' }
+    ]
+  });
+  assert.equal(totals.locked, false);
+  assert.equal(totals.source, 'items_plus_delivery');
+  assert.equal(totals.subtotal, 40);
+  assert.equal(totals.totalPrice, 40);
+});
+
+test('#4/#10 free line alone is a valid 0 subtotal for unlocked retail order', () => {
+  const order = {
+    orderType: 'shabbat',
+    paymentStatus: 'pending',
+    totalPrice: 45,
+    subtotal: 45,
+    deliveryFee: 0,
+    items: [{ name: 'מתנה', price: 45, quantity: 1 }]
+  };
+  const totals = computeAdminRecalculatedTotals(order, {
+    items: [{ name: 'מתנה', price: 0, quantity: 1, priceSource: 'admin' }]
+  });
+  assert.equal(totals.source, 'items_plus_delivery');
+  assert.equal(totals.subtotal, 0);
+  assert.equal(totals.totalPrice, 0);
 });
 
 test('effective amount prefers adminPriceOverride over zero totalPrice', () => {

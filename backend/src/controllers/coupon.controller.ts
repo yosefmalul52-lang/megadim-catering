@@ -173,7 +173,8 @@ export async function applyCoupon(req: Request, res: Response): Promise<void> {
 
     const result = await validateAndApplyCoupon(codeStr, total, customerPhone);
     if (!result.valid) {
-      res.status(404).json({ success: false, message: (result as any).message });
+      // Always 400 — do not use 404 (existence oracle via status code).
+      res.status(400).json({ success: false, message: (result as any).message });
       return;
     }
 

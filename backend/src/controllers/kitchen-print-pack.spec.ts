@@ -168,6 +168,40 @@ test('P2 order sheet includes size column and allergy-ready structure', () => {
   assert.ok(html.includes('נארז'));
 });
 
+test('P2 events order sheet omits size column and prints kitchen notes', () => {
+  const order = {
+    orderId: 'ev1',
+    orderNumber: 'MG-EVENTS-1',
+    orderKind: 'events',
+    cateringKind: 'events',
+    orderKindLabel: 'קייטרינג לאירועים',
+    meal: 'אירוע',
+    meals: ['אירוע'],
+    fulfillment: 'משלוח',
+    preparationLabel: 'הכנה',
+    status: 'processing',
+    isCancelled: false,
+    isChanged: false,
+    guestCount: 85,
+    itemNotes: [],
+    items: [
+      {
+        name: 'אסאדו',
+        category: 'מנות עיקריות',
+        unit: 'מנות',
+        quantity: 12,
+        notes: 'בלי עצמות'
+      }
+    ]
+  };
+  const html = buildKitchenOrderSheetHtml(order as any);
+  assert.ok(!html.includes('גודל / אפשרות'));
+  // Manager text is the quantity column; notes cell left blank for kitchen handwriting.
+  assert.ok(html.includes('בלי עצמות'));
+  assert.ok(html.includes('class="notes-write"></td>') || html.includes('class="notes-write">\n'));
+  assert.ok(!html.includes('<b>85</b>'));
+});
+
 test('P3 deltas collect changes after print cut', () => {
   const r = report();
   const before = collectPrintDeltas(r.orderNotes, '2026-08-10T11:00:00.000Z');

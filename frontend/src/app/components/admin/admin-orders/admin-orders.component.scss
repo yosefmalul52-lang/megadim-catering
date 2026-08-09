@@ -1779,13 +1779,21 @@ $border: #e2e8f0;
 
 .editable-item-row {
   display: grid;
-  grid-template-columns: 1fr 90px 42px;
+  grid-template-columns: 1fr 88px 72px minmax(120px, 1.2fr) 42px;
   gap: 0.5rem;
   align-items: center;
 }
 
 .editable-item-row--with-size {
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 200px) 72px 42px;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) 88px 72px minmax(120px, 1.2fr) 42px;
+}
+
+.editable-item-row--events {
+  grid-template-columns: 1fr 88px minmax(140px, 1.4fr) 42px;
+}
+
+.editable-item-row--events.editable-item-row--with-size {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) 88px minmax(140px, 1.4fr) 42px;
 }
 
 .editable-item-name {
@@ -1807,12 +1815,24 @@ $border: #e2e8f0;
   min-height: 38px;
 }
 
+.input-item-price,
 .input-item-qty {
   border: 1px solid $border;
   border-radius: 4px;
   padding: 0.4rem 0.5rem;
   text-align: center;
   min-height: 38px;
+}
+
+.input-item-kitchen-notes {
+  width: 100%;
+  border: 1px solid $border;
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  min-height: 38px;
+  font-size: 0.85rem;
+  color: $brand-dark;
+  background: #fff;
 }
 
 @media (max-width: 640px) {
@@ -1830,7 +1850,9 @@ $border: #e2e8f0;
   }
 
   .editable-item-row--with-size .input-item-size,
-  .editable-item-row--with-size .input-item-qty {
+  .editable-item-row--with-size .input-item-price,
+  .editable-item-row--with-size .input-item-qty,
+  .editable-item-row--with-size .input-item-kitchen-notes {
     grid-column: 1 / -1;
   }
 }
@@ -2009,6 +2031,21 @@ $border: #e2e8f0;
   justify-content: space-between;
   padding: 0.75rem 0;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.summary-row--order-total {
+  margin-top: 0.25rem;
+  padding: 0.85rem 0.65rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+
+  .summary-label,
+  .summary-value {
+    color: $brand-dark;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
 }
 
 .summary-row:last-child {

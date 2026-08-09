@@ -91,23 +91,39 @@ export const EVENTS_MAIN_COURSE_SLOT_COUNT = 2;
 export const EVENTS_SIDE_SLOT_COUNT = 3;
 export const EVENTS_FIRST_COURSE_SLOT_COUNT = 2;
 
-export function getReceptionTierPrice(tier: EventsReceptionTier | ''): number {
-  if (!tier) return 0;
-  return EVENTS_RECEPTION_BAR_UPGRADE.tiers.find(t => t.id === tier)?.pricePerPortion ?? 0;
-}
-
-export function calculatePricePerPortion(input: {
-  isFirstCourseSelected: boolean;
-  isDessertsSelected: boolean;
-  isReceptionSelected: boolean;
-  receptionTier: EventsReceptionTier | '';
-  isKosherUpgradeSelected: boolean;
-}): number {
-  let total = EVENTS_BASE_PRICE;
-  if (input.isFirstCourseSelected) total += EVENTS_FIRST_COURSE_UPGRADE.pricePerPortion;
-  if (input.isDessertsSelected) total += EVENTS_DESSERTS_UPGRADE.pricePerPortion;
-  if (input.isReceptionSelected) total += getReceptionTierPrice(input.receptionTier);
-  if (input.isKosherUpgradeSelected) total += EVENTS_KOSHER_UPGRADE_PRICE;
+export function calculatePricePerPortion(
+  input: {
+    isFirstCourseSelected: boolean;
+    isDessertsSelected: boolean;
+    isReceptionSelected: boolean;
+    receptionTier: EventsReceptionTier | '';
+    isKosherUpgradeSelected: boolean;
+  },
+  catalog?: {
+    basePrice?: number;
+    firstCourseUpgradePrice?: number;
+    dessertsUpgradePrice?: number;
+    kosherUpgradePrice?: number;
+    receptionTiers?: Array<{ id: string; pricePerPortion: number }>;
+  }
+): number {
+  let total = Number(catalog?.basePrice) || EVENTS_BASE_PRICE;
+  if (input.isFirstCourseSelected) {
+    total += Number(catalog?.firstCourseUpgradePrice) || EVENTS_FIRST_COURSE_UPGRADE.pricePerPortion;
+  }
+  if (input.isDessertsSelected) {
+    total += Number(catalog?.dessertsUpgradePrice) || EVENTS_DESSERTS_UPGRADE.pricePerPortion;
+  }
+  if (input.isReceptionSelected) {
+    const tiers = catalog?.receptionTiers?.length
+      ? catalog.receptionTiers
+      : EVENTS_RECEPTION_BAR_UPGRADE.tiers;
+    const tier = tiers.find((t) => t.id === input.receptionTier);
+    total += Number(tier?.pricePerPortion) || 0;
+  }
+  if (input.isKosherUpgradeSelected) {
+    total += Number(catalog?.kosherUpgradePrice) || EVENTS_KOSHER_UPGRADE_PRICE;
+  }
   return total;
 }
 

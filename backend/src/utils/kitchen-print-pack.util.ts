@@ -4,6 +4,7 @@
  */
 
 import type { KitchenDishAgg, KitchenOrderNote, KitchenReportDTO } from './kitchen-report.util';
+import { isKitchenPackageMetaLine } from './kitchen-report.util';
 import {
   kitchenSizeSortValue,
   looksLikeSizeToken,
@@ -154,6 +155,7 @@ const SHARED_CSS = `
   .day-block + .day-block{page-break-before:always;margin-top:0;padding-top:4px}
   .meal-block{margin-top:10px}
   .meta{color:#333;margin:0 0 12px;line-height:1.55}
+  .portions-banner{font-size:15px;font-weight:800;margin:8px 0 12px;padding:8px 10px;border:2px solid #111;background:#f7f7f7}
   .banner{border:2px solid #111;padding:8px 10px;margin:10px 0 14px;font-weight:700}
   .banner.warn{border-color:#8a1f11;color:#8a1f11}
   .allergy-box{border:2px solid #8a1f11;padding:10px;margin:10px 0 14px;font-weight:700;font-size:14px}
@@ -163,7 +165,7 @@ const SHARED_CSS = `
   thead{display:table-header-group}
   tr{page-break-inside:avoid}
   tbody tr + tr td{border-top-width:1px}
-  .qty{font-size:15px;font-weight:700;text-align:center;white-space:nowrap}
+  .qty{font-size:16px;font-weight:800;text-align:center;white-space:nowrap;min-width:78px}
   .check{width:40px;text-align:center;font-size:16px;font-weight:700}
   .notes-write{min-width:140px;min-height:28px;height:28px}
   .cat{margin-top:16px;font-weight:700;border-bottom:1px solid #666;padding-bottom:4px}
@@ -295,8 +297,34 @@ export function buildKitchenOrderSheetHtml(
   opts: { fontUrl?: string } = {}
 ): string {
   const missing = (order.items || []).filter(
-    (it) => it.missingChoice || it.optionLabel === MISSING_LABEL
+    (it) =>
+      !isKitchenPackageMetaLine({ name: it.name, category: it.category }) &&
+      (it.missingChoice || it.optionLabel === MISSING_LABEL)
   ).length;
+
+  const guests = Math.max(
+    0,
+    Number(order.guestCount) || 0,
+    Number(order.numberOfPortions) || 0
+  );
+  const evening = Math.max(0, Number(order.portionsEvening) || 0);
+  const morning = Math.max(0, Number(order.portionsMorning) || 0);
+  const isEvents = order.orderKind === 'events' || order.cateringKind === 'events';
+  const isCateringShabbat =
+    order.orderKind === 'catering_shabbat' || order.cateringKind === 'shabbat';
+
+  let portionsMeta = '';
+  if (isEvents && guests > 0) {
+    portionsMeta = `<p class="meta portions-banner"><b>מספר אורחים / מנות להכנה:</b> ${esc(guests)}</p>`;
+  } else if (isCateringShabbat && (evening > 0 || morning > 0 || guests > 0)) {
+    const bits = [
+      evening > 0 ? `ערב: ${evening}` : '',
+      morning > 0 ? `בוקר: ${morning}` : '',
+      !evening && !morning && guests > 0 ? `סה״כ מנות: ${guests}` : ''
+    ].filter(Boolean);
+    portionsMeta = `<p class="meta portions-banner"><b>מנות להכנה:</b> ${esc(bits.join(' · '))}</p>`;
+  }
+
   let body = `<section class="order">
 <h1>הזמנה ${esc(order.orderNumber || order.orderId)}</h1>
 <p class="meta">
@@ -308,7 +336,8 @@ export function buildKitchenOrderSheetHtml(
   <b>משלוח/איסוף:</b> ${esc(order.fulfillment || '—')} ·
   <b>שעה:</b> ${esc(order.deliveryTime || '—')}<br/>
   <b>כתובת:</b> ${esc(order.address || order.city || '—')}
-</p>`;
+</p>
+${portionsMeta}`;
 
   if (order.allergies) {
     body += `<div class="allergy-box">אלרגיות: ${esc(order.allergies)}</div>`;
@@ -326,33 +355,65 @@ export function buildKitchenOrderSheetHtml(
   <th class="check">הוכן</th>
   <th class="check">נארז</th>
   <th>מנה</th>
-  <th>גודל / אפשרות</th>
+  ${isEvents ? '' : '<th>גודל / אפשרות</th>'}
   <th>כמות</th>
   <th>הערות מטבח</th>
 </tr></thead><tbody>`;
 
   for (const it of order.items || []) {
+    if (
+      isKitchenPackageMetaLine({
+        name: it.name,
+        category: it.category
+      })
+    ) {
+      continue;
+    }
     const base = dishBaseName(it.name, it.optionLabel || '', it.sizeLabel || '');
     const sizeBits = [it.optionLabel, it.sizeLabel && it.sizeLabel !== it.optionLabel ? it.sizeLabel : '']
       .filter(Boolean)
       .join(' · ');
-    // Prefer a single clear size label (e.g. "250 מ\"ל") over "250 מ\"ל · 250".
-    const sizeDisplay =
+    let sizeDisplay =
       it.optionLabel && /\d/.test(it.optionLabel)
         ? it.optionLabel
-        : sizeBits || '—';
-    // Notes column stays blank for handwritten kitchen notes (never auto-fill descriptions).
+        : sizeBits || '';
+    if (!sizeDisplay) {
+      sizeDisplay = isEvents ? 'לפי מנה' : isCateringShabbat ? 'לפי מנות' : '—';
+    }
+    const qtyNum = Number(it.quantity);
+    const managerQtyText = String(
+      (it as { notes?: string }).notes ||
+        (it as { kitchenNotes?: string }).kitchenNotes ||
+        (it as { description?: string }).description ||
+        ''
+    ).trim();
+    // Events: manager quantity text → quantity column.
+    // All sheets: notes column stays blank for kitchen handwriting.
+    const qtyShow = isEvents
+      ? managerQtyText || (Number.isFinite(qtyNum) && qtyNum > 0 ? String(qtyNum) : '—')
+      : Number.isFinite(qtyNum) && qtyNum > 0
+        ? qtyNum
+        : '—';
+    const unit = isEvents
+      ? ''
+      : String(it.unit || (isCateringShabbat ? 'מנות' : "יח'")).trim();
+    const sizeCell = isEvents
+      ? ''
+      : `<td>${esc(sizeDisplay)}${it.missingChoice ? ' ⚠' : ''}</td>`;
+    const qtyCell = isEvents
+      ? `<td class="qty">${esc(qtyShow)}</td>`
+      : `<td class="qty"><b>${esc(qtyShow)}</b> ${esc(unit)}</td>`;
     body += `<tr>
   <td class="check">☐</td>
   <td class="check">☐</td>
-  <td>${esc(base)}</td>
-  <td>${esc(sizeDisplay)}${it.missingChoice ? ' ⚠' : ''}</td>
-  <td class="qty">${esc(it.quantity)} ${esc(it.unit || '')}</td>
+  <td>${esc(base)}${isEvents && it.missingChoice ? ' ⚠' : ''}</td>
+  ${sizeCell}
+  ${qtyCell}
   <td class="notes-write"></td>
 </tr>`;
   }
   if (!(order.items || []).length) {
-    body += `<tr><td colspan="6">אין מנות</td></tr>`;
+    body += `<tr><td colspan="${isEvents ? 5 : 6}">אין מנות</td></tr>`;
   }
   body += `</tbody></table>
 <div class="hand"><div class="hand-title">הערות כלליות להזמנה</div><div class="hand-space"></div></div>

@@ -28,15 +28,15 @@
         <div class="package-card">
           <h3>ארוחה אחת</h3>
           <div class="price-display">
-            <span class="price-amount">70</span>
+            <span class="price-amount">{{ singleMealPrice }}</span>
             <span class="price-currency">₪</span>
             <span class="price-label">למנה</span>
           </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">6 סוגי סלטים לבחירה</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">2 מנות ראשונות (תוספת 20 ₪ למנה)</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">2 מנות עיקריות</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">3 תוספות</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ saladMinCount }} סוגי סלטים לבחירה</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ firstCourseSlotIndexes.length }} מנות ראשונות (תוספת {{ firstCourseUpgradePrice }} ₪ למנה)</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ mainCourseSlotIndexes.length }} מנות עיקריות</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ sidesSlotIndexes.length }} תוספות</span></li>
           </ul>
         </div>
         
@@ -44,14 +44,14 @@
           <div class="featured-badge">הכי משתלם</div>
           <h3>שתי ארוחות (ערב + בוקר)</h3>
           <div class="price-display">
-            <span class="price-amount">135</span>
+            <span class="price-amount">{{ bothMealsPrice }}</span>
             <span class="price-currency">₪</span>
             <span class="price-label">למנה</span>
           </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">8 סוגי סלטים</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">2 מנות ראשונות (תוספת 20 ₪ למנה לכל ארוחה)</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">2 מנות עיקריות לכל ארוחה</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ saladMaxCount }} סוגי סלטים</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ firstCourseSlotIndexes.length }} מנות ראשונות (תוספת {{ firstCourseUpgradePrice }} ₪ למנה לכל ארוחה)</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ mainCourseSlotIndexes.length }} מנות עיקריות לכל ארוחה</span></li>
             <li><span class="check-icon">✓</span><span class="list-text">הכמות נקבעת לפי מספר הסועדים בכל סעודה. ניתן לבחור סוגי מנות נפרדים לערב ולבוקר.</span></li>
             <li><span class="check-icon">✓</span><span class="list-text">כולל לחמניות (בהזמנה של 20 מנות ומעלה)</span></li>
           </ul>
@@ -82,25 +82,25 @@
         <div class="upgrade-card">
           <h3>סעודה שלישית</h3>
           <p>סלטים + פשטידת ירקות</p>
-          <div class="upgrade-price">+25 ₪ למנה</div>
+          <div class="upgrade-price">+{{ seudaShlishitPrice }} ₪ למנה</div>
         </div>
         
         <div class="upgrade-card">
           <h3>תוספת דג</h3>
           <p>שדרוג למנה עיקרית</p>
-          <div class="upgrade-price">+18 ₪ למנה</div>
+          <div class="upgrade-price">+{{ fishUpgradePrice }} ₪ למנה</div>
         </div>
         
         <div class="upgrade-card">
           <h3>קינוחי ביסקוטי</h3>
           <p>סיום מתוק לארוחה</p>
-          <div class="upgrade-price">8 ₪ לאדם לארוחה</div>
+          <div class="upgrade-price">{{ dessertsPrice }} ₪ לאדם לארוחה</div>
         </div>
         
         <div class="upgrade-card">
           <h3>כשרות מחפוד</h3>
           <p>בשר ועוף מחפוד</p>
-          <div class="upgrade-price">7 ₪ למנה לארוחה</div>
+          <div class="upgrade-price">{{ kosherUpgradePrice }} ₪ למנה לארוחה</div>
         </div>
       </div>
     </div>
@@ -127,7 +127,7 @@
       </div>
       <div class="cta-notes">
         <p class="cta-note">יין, שתייה וכלים חד-פעמיים בתוספת תשלום (לציין בהערות אם מעוניינים).</p>
-        <p class="cta-note">קינוחי ביסקוטי 8 ₪ לאדם לארוחה (לציין בהערות אם מעוניינים).</p>
+        <p class="cta-note">קינוחי ביסקוטי {{ dessertsPrice }} ₪ לאדם לארוחה (לציין בהערות אם מעוניינים).</p>
         <p class="cta-note">איסוף מקייטרינג מגדים או משלוח לכתובת בתשלום.</p>
       </div>
     </div>
@@ -245,7 +245,7 @@
           
           <!-- Section 3: Salads (shared) -->
           <div class="form-section">
-            <h3 class="section-title">סלטים (6-8 לבחירה)</h3>
+            <h3 class="section-title">סלטים ({{ saladMinCount }}-{{ saladMaxCount }} לבחירה)</h3>
             <div class="selects-grid">
               @for (index of saladIndexes; track index) {
                 <div class="form-group">
@@ -271,9 +271,9 @@
               }
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה ראשונה — 2 סוגים לבחירה</h4>
+                <h4 class="subsection-title">מנה ראשונה — {{ firstCourseSlotIndexes.length }} סוגים לבחירה</h4>
                 <div class="selects-grid">
-                  @for (index of courseSlotIndexes; track index) {
+                  @for (index of firstCourseSlotIndexes; track index) {
                     <div class="form-group">
                       <label>מנה ראשונה לערב - בחירה {{ index }}</label>
                       <select [(ngModel)]="orderForm.firstCoursesEvening[index - 1]" [name]="'firstCourseEvening' + index">
@@ -288,9 +288,9 @@
               </div>
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה עיקרית — 2 סוגים לבחירה</h4>
+                <h4 class="subsection-title">מנה עיקרית — {{ mainCourseSlotIndexes.length }} סוגים לבחירה</h4>
                 <div class="selects-grid">
-                  @for (index of courseSlotIndexes; track index) {
+                  @for (index of mainCourseSlotIndexes; track index) {
                     <div class="form-group">
                       <label>מנה עיקרית לערב - בחירה {{ index }}</label>
                       <select [(ngModel)]="orderForm.mainCoursesEvening[index - 1]" [name]="'mainCourseEvening' + index">
@@ -305,7 +305,7 @@
               </div>
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">תוספות — 3 סוגים לבחירה</h4>
+                <h4 class="subsection-title">תוספות — {{ sidesSlotIndexes.length }} סוגים לבחירה</h4>
                 <div class="selects-grid">
                   @for (index of sidesSlotIndexes; track index) {
                     <div class="form-group">
@@ -333,9 +333,9 @@
               }
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה ראשונה — 2 סוגים לבחירה</h4>
+                <h4 class="subsection-title">מנה ראשונה — {{ firstCourseSlotIndexes.length }} סוגים לבחירה</h4>
                 <div class="selects-grid">
-                  @for (index of courseSlotIndexes; track index) {
+                  @for (index of firstCourseSlotIndexes; track index) {
                     <div class="form-group">
                       <label>מנה ראשונה לבוקר - בחירה {{ index }}</label>
                       <select [(ngModel)]="orderForm.firstCoursesMorning[index - 1]" [name]="'firstCourseMorning' + index">
@@ -350,9 +350,9 @@
               </div>
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה עיקרית — 2 סוגים לבחירה</h4>
+                <h4 class="subsection-title">מנה עיקרית — {{ mainCourseSlotIndexes.length }} סוגים לבחירה</h4>
                 <div class="selects-grid">
-                  @for (index of courseSlotIndexes; track index) {
+                  @for (index of mainCourseSlotIndexes; track index) {
                     <div class="form-group">
                       <label>מנה עיקרית לבוקר - בחירה {{ index }}</label>
                       <select [(ngModel)]="orderForm.mainCoursesMorning[index - 1]" [name]="'mainCourseMorning' + index">
@@ -367,7 +367,7 @@
               </div>
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">תוספות — 3 סוגים לבחירה</h4>
+                <h4 class="subsection-title">תוספות — {{ sidesSlotIndexes.length }} סוגים לבחירה</h4>
                 <div class="selects-grid">
                   @for (index of sidesSlotIndexes; track index) {
                     <div class="form-group">
@@ -391,7 +391,7 @@
           
           <!-- Section 7: Seuda Shlishit -->
           <div class="form-section">
-            <h3 class="section-title">סעודה שלישית (תוספת 25 ₪ למנה)</h3>
+            <h3 class="section-title">סעודה שלישית (תוספת {{ seudaShlishitPrice }} ₪ למנה)</h3>
             <div class="radio-group">
               <label class="radio-label">
                 <input type="radio" name="seudaShlishit" value="yes" [(ngModel)]="orderForm.seudaShlishit">
@@ -403,7 +403,7 @@
               </label>
             </div>
             @if (orderForm.seudaShlishit === 'yes') {
-              <p class="info-text">כולל סלטים, פשטידה, ודג בתוספת 18 ₪</p>
+              <p class="info-text">כולל סלטים, פשטידה, ודג בתוספת {{ fishUpgradePrice }} ₪</p>
             }
           </div>
           

@@ -467,6 +467,23 @@ export class AdminKitchenReportComponent implements OnInit, OnDestroy {
     return (o.items || []).reduce((sum, it) => sum + (Number(it?.quantity) || 0), 0);
   }
 
+  /** Guests / portions header number for catering orders (events & shabbat). */
+  orderGuestOrPortions(o: DayOrder): number | null {
+    const guests = Number((o as { guestCount?: number | null }).guestCount);
+    const portions = Number((o as { numberOfPortions?: number | null }).numberOfPortions);
+    const evening = Number((o as { portionsEvening?: number | null }).portionsEvening);
+    const morning = Number((o as { portionsMorning?: number | null }).portionsMorning);
+    const fromBreakdown =
+      (Number.isFinite(evening) && evening > 0 ? evening : 0) +
+      (Number.isFinite(morning) && morning > 0 ? morning : 0);
+    const n = Math.max(
+      Number.isFinite(guests) && guests > 0 ? guests : 0,
+      Number.isFinite(portions) && portions > 0 ? portions : 0,
+      fromBreakdown
+    );
+    return n > 0 ? Math.trunc(n) : null;
+  }
+
   isOrderExpanded(orderId: string): boolean {
     return this.expandedOrderIds.has(orderId);
   }

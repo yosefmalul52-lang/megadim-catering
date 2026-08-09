@@ -15,7 +15,8 @@ import StoreSettings from '../models/store-settings.model';
 import { assertEventDateOpen, normalizeOpenDateRules, normalizeOpenDates } from '../utils/open-date-rules';
 import {
   computeAdminRecalculatedTotals,
-  isGatewayLockedPaymentStatus
+  isGatewayLockedPaymentStatus,
+  resolveLineUnitPrice
 } from '../utils/order-admin-pricing.util';
 import {
   buildAdminArchiveTabFilter,
@@ -1288,14 +1289,21 @@ export class OrderService {
                 name: existing.name,
                 price: existing.price
               });
+            const adminPriced = resolveLineUnitPrice(item, Number(existing.price) || 0);
+            const useAdmin = adminPriced.priceSource === 'admin';
             return {
               productId: String(existing.productId || productIdRaw || ''),
               name: String(existing.name || productName),
-              price: Number(existing.price) || 0,
+              price: useAdmin ? adminPriced.price : Number(existing.price) || 0,
               quantity,
               category: String(existing.category || item.category || '').trim(),
               imageUrl: String(existing.imageUrl || item.imageUrl || '').trim(),
               description,
+              priceSource: useAdmin
+                ? 'admin'
+                : String(existing?.priceSource || '').toLowerCase() === 'admin'
+                  ? 'admin'
+                  : 'catalog',
               selectedOption: toStoredOption(preservedOption)
             };
           }
@@ -1322,6 +1330,10 @@ export class OrderService {
             category: String(item.category || existing?.category || '').trim(),
             imageUrl: String(item.imageUrl || existing?.imageUrl || '').trim(),
             description,
+            priceSource:
+              String(item?.priceSource || '').toLowerCase() === 'admin' || price === 0
+                ? 'admin'
+                : 'catalog',
             selectedOption: toStoredOption(selectedOption)
           };
         }
@@ -1351,13 +1363,19 @@ export class OrderService {
             item.description !== undefined
               ? String(item.description || '').trim()
               : String(existing?.description || holidayProduct.description || '').trim();
+          const priced = resolveLineUnitPrice(item, authenticPrice);
           return {
             productId: productIdRaw,
             name: formatItemDisplayName(holidayProduct.name, selectedOption) || holidayProduct.name,
-            price: authenticPrice,
+            price: priced.price,
             quantity,
             category: holidayProduct.category,
-            selectedOption: toStoredOption(selectedOption),
+            priceSource: priced.priceSource,
+            selectedOption: toStoredOption(
+              selectedOption
+                ? { ...selectedOption, price: priced.priceSource === 'admin' ? priced.price : selectedOption.price }
+                : selectedOption
+            ),
             imageUrl: holidayProduct.imageUrl,
             description
           };
@@ -1556,13 +1574,19 @@ export class OrderService {
           productIdToSave = `${baseProductId}-size-${matchedSizeIdx}`;
         }
 
+        const priced = resolveLineUnitPrice(item, authenticPrice);
         return {
           productId: productIdToSave,
           name: nameToSave,
-          price: authenticPrice,
+          price: priced.price,
           quantity,
           category: String(item.category || (product as any).category || existing?.category || '').trim(),
-          selectedOption: toStoredOption(selectedOption),
+          priceSource: priced.priceSource,
+          selectedOption: toStoredOption(
+            selectedOption && priced.priceSource === 'admin'
+              ? { ...selectedOption, price: priced.price }
+              : selectedOption
+          ),
           imageUrl: String(item.imageUrl || (product as any).imageUrl || existing?.imageUrl || '').trim(),
           description
         };

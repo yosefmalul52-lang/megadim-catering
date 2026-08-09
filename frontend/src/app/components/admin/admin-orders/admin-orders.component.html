@@ -1527,6 +1527,7 @@
                           <div
                             class="editable-item-row"
                             [class.editable-item-row--with-size]="getEditableItemSizeChoices(item).length > 0"
+                            [class.editable-item-row--events]="isEventCateringOrder(selectedOrder)"
                           >
                             <span class="editable-item-name" [title]="item.name">{{ item.baseName || item.name }}</span>
                             @if (getEditableItemSizeChoices(item).length > 0) {
@@ -1545,16 +1546,36 @@
                             }
                             <input
                               type="number"
-                              min="1"
-                              class="input-item-qty"
-                              [ngModel]="item.quantity"
-                              (ngModelChange)="item.quantity = +$event"
-                              [attr.aria-label]="'כמות עבור ' + (item.baseName || item.name)"
+                              min="0"
+                              step="0.01"
+                              class="input-item-price"
+                              [ngModel]="item.unitPrice"
+                              (ngModelChange)="onEditableUnitPriceChange(item, $event)"
+                              [attr.aria-label]="'מחיר יחידה עבור ' + (item.baseName || item.name)"
+                              title="מחיר ליחידה (0 = חינם)"
+                            />
+                            @if (!isEventCateringOrder(selectedOrder)) {
+                              <input
+                                type="number"
+                                min="1"
+                                class="input-item-qty"
+                                [ngModel]="item.quantity"
+                                (ngModelChange)="item.quantity = +$event"
+                                [attr.aria-label]="'כמות עבור ' + (item.baseName || item.name)"
+                              />
+                            }
+                            <input
+                              type="text"
+                              class="input-item-kitchen-notes"
+                              [(ngModel)]="item.kitchenNotes"
+                              [attr.aria-label]="(isEventCateringOrder(selectedOrder) ? 'כמויות עבור ' : 'הערות מטבח עבור ') + (item.baseName || item.name)"
+                              [placeholder]="isEventCateringOrder(selectedOrder) ? 'כמויות להכנה...' : 'הערות מטבח'"
+                              [title]="isEventCateringOrder(selectedOrder) ? 'כמויות להכנה (יופיעו בעמודת כמות בדוח)' : 'הערות מטבח'"
                             />
                             <button
                               type="button"
                               class="btn-remove-item"
-                              (click)="removeEditableItem(getCateringItemGlobalIndex(getCateringItemsByCategory().indexOf(group), $index))"
+                              (click)="removeEditableItemRef(item)"
                               title="הסר פריט"
                             >
                               <i class="fas fa-times"></i>
@@ -1583,6 +1604,11 @@
                       <button type="button" class="btn-add-catering-item" (click)="addCateringItem()">
                         <i class="fas fa-plus"></i>
                       </button>
+                    </div>
+
+                    <div class="local-subtotal">
+                      <span>סה"כ ביניים לעריכה:</span>
+                      <strong>₪{{ editableSubtotal | number:'1.2-2' }}</strong>
                     </div>
 
                     <div class="edit-items-actions">
@@ -1619,6 +1645,16 @@
                             }
                           </select>
                         }
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          class="input-item-price"
+                          [ngModel]="item.unitPrice"
+                          (ngModelChange)="onEditableUnitPriceChange(item, $event)"
+                          [attr.aria-label]="'מחיר יחידה עבור ' + (item.baseName || item.name)"
+                          title="מחיר ליחידה (0 = חינם)"
+                        />
                         <input
                           type="number"
                           min="1"
@@ -1700,7 +1736,9 @@
                                 <div class="catering-view-item">
                                   <i class="fas fa-check catering-check-icon"></i>
                                   <div class="catering-view-item-text">
-                                    <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }</span>
+                                    <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }
+                                      <span class="item-quantity">×{{ effectiveItemQuantity(selectedOrder, item) }}</span>
+                                    </span>
                                     @if (item.kitchenNotes) {
                                       <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
                                     }
@@ -1722,8 +1760,16 @@
                             <div class="catering-view-item">
                               <i class="fas fa-check catering-check-icon"></i>
                               <div class="catering-view-item-text">
-                                <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }</span>
-                                @if (item.kitchenNotes) {
+                                <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }
+                                  @if (isEventCateringOrder(selectedOrder)) {
+                                    @if (item.kitchenNotes) {
+                                      <span class="item-quantity"> · {{ item.kitchenNotes }}</span>
+                                    }
+                                  } @else {
+                                    <span class="item-quantity">×{{ effectiveItemQuantity(selectedOrder, item) }}</span>
+                                  }
+                                </span>
+                                @if (item.kitchenNotes && !isEventCateringOrder(selectedOrder)) {
                                   <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
                                 }
                               </div>
@@ -1743,7 +1789,7 @@
                       <div class="order-item">
                         <div class="item-info">
                           <span class="item-name">{{ displayItemBaseName(item) }}</span>
-                          <span class="item-quantity">x{{ item.quantity }}</span>
+                          <span class="item-quantity">×{{ effectiveItemQuantity(selectedOrder, item) }}</span>
                           @if (displayItemSize(item); as size) {
                             <span class="item-price">({{ size }})</span>
                           }
@@ -1760,7 +1806,13 @@
               <div class="details-section kitchen-prep-section">
                 <div class="kitchen-prep-header">
                   <h3>דף הכנה למטבח</h3>
-                  <p class="kitchen-prep-hint">הערות להכנה — לא נשלחות ללקוח. מלאו לפני הדפסה לצוות המטבח.</p>
+                  @if (isEventCateringOrder(selectedOrder)) {
+                    <p class="kitchen-prep-hint">
+                      מלאו כמויות להכנה לכל מנה — יופיעו בעמודת הכמות בדוח המטבח ובדוח ההזמנה. עמודת הערות מטבח בהדפסה ריקה לכתיבה ידנית.
+                    </p>
+                  } @else {
+                    <p class="kitchen-prep-hint">הערות להכנה — לא נשלחות ללקוח. מלאו לפני הדפסה לצוות המטבח.</p>
+                  }
                 </div>
                 @if (kitchenPrepLines.length === 0) {
                   <p class="kitchen-prep-empty">אין פריטים להצגה</p>
@@ -1771,7 +1823,12 @@
                         <tr>
                           <th>קטגוריה</th>
                           <th>פריט</th>
-                          <th>הערות למטבח</th>
+                          @if (isEventCateringOrder(selectedOrder)) {
+                            <th>כמויות</th>
+                          } @else {
+                            <th>כמות</th>
+                            <th>הערות למטבח</th>
+                          }
                         </tr>
                       </thead>
                       <tbody>
@@ -1779,15 +1836,28 @@
                           <tr>
                             <td>{{ line.category }}</td>
                             <td>{{ line.name }}</td>
-                            <td>
-                              <input
-                                type="text"
-                                class="kitchen-prep-input"
-                                [(ngModel)]="kitchenPrepLines[$index].kitchenNotes"
-                                [name]="'kitchenPrep' + $index"
-                                placeholder="כמויות, הוראות הכנה, הבהרות..."
-                              />
-                            </td>
+                            @if (isEventCateringOrder(selectedOrder)) {
+                              <td>
+                                <input
+                                  type="text"
+                                  class="kitchen-prep-input"
+                                  [(ngModel)]="kitchenPrepLines[$index].kitchenNotes"
+                                  [name]="'kitchenPrepQty' + $index"
+                                  placeholder="למשל: 8 מגשים / 3 ק״ג..."
+                                />
+                              </td>
+                            } @else {
+                              <td>{{ line.quantity }}</td>
+                              <td>
+                                <input
+                                  type="text"
+                                  class="kitchen-prep-input"
+                                  [(ngModel)]="kitchenPrepLines[$index].kitchenNotes"
+                                  [name]="'kitchenPrep' + $index"
+                                  placeholder="כמויות, הוראות הכנה, הבהרות..."
+                                />
+                              </td>
+                            }
                           </tr>
                         }
                       </tbody>
@@ -1802,6 +1872,8 @@
                     >
                       @if (isSavingKitchenPrep) {
                         <i class="fas fa-spinner fa-spin"></i> שומר...
+                      } @else if (isEventCateringOrder(selectedOrder)) {
+                        שמור כמויות
                       } @else {
                         שמור הערות מטבח
                       }
@@ -1879,7 +1951,7 @@
                     <span class="summary-value">₪{{ (selectedOrder.deliveryFee ?? selectedOrder.customerDetails?.deliveryFee) | number:'1.2-2' }}</span>
                   </div>
                 }
-                <div class="summary-row">
+                <div class="summary-row summary-row--order-total">
                   <span class="summary-label">סה"כ הזמנה:</span>
                   <span class="summary-value">₪{{ selectedOrder.totalPrice | number:'1.2-2' }}</span>
                 </div>

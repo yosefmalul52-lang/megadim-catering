@@ -21,6 +21,7 @@ import {
   effectiveLineQuantity,
   extractAllergies,
   extractSpecialRequests,
+  isKitchenPackageMetaLine,
   kitchenOrderKindLabel,
   parseDateKey,
   parseKitchenOrderKindFilter,
@@ -153,6 +154,7 @@ function implicitAssignmentsFromOrder(
   for (const item of order.items || []) {
     const name = String(item?.name || '').trim();
     if (!name) continue;
+    if (isKitchenPackageMetaLine(item)) continue;
     const qty = effectiveLineQuantity(order, item);
     if (qty <= 0) continue;
     const orderItemKey = buildOrderItemKey(item);
@@ -243,6 +245,27 @@ export async function getPrepDayReport(query: Record<string, unknown>) {
         })
     );
     const prep = order ? resolvePreparation(order) : { eventDateKey: null };
+    const planned = Number(t.plannedQuantity);
+    let quantity = Number.isFinite(planned) && planned > 0 ? planned : 0;
+    if (quantity <= 0 && order) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      const match =
+        items.find((it: any) => buildOrderItemKey(it) === orderItemKey) ||
+        items.find(
+          (it: any) =>
+            dishIdentityKey({
+              name: String(it?.name || ''),
+              selectedOption: it?.selectedOption,
+              category: it?.category
+            }) === orderItemKey
+        );
+      if (match) {
+        quantity = effectiveLineQuantity(order, match);
+      } else {
+        const snapQty = Number(snap.orderedQuantity ?? snap.quantity);
+        if (Number.isFinite(snapQty) && snapQty > 0) quantity = snapQty;
+      }
+    }
     explicit.push({
       id: String(t._id),
       orderId: String(t.orderId),
@@ -253,7 +276,7 @@ export async function getPrepDayReport(query: Record<string, unknown>) {
       sizeLabel: String(snap.sizeLabel || ''),
       category: String(snap.category || 'כללי'),
       unit: String(t.unit || snap.unit || "יח'"),
-      quantity: Number(t.plannedQuantity) > 0 ? Number(t.plannedQuantity) : 0,
+      quantity,
       prepDate: plannedStartToPrepDate(t.plannedStartAt),
       deliveryDate: prep.eventDateKey || t.orderSnapshot?.eventDate || null,
       orderKind: order ? orderKindFromOrderDoc(order) : 'shabbat_ready',
@@ -348,7 +371,9 @@ export async function upsertPrepAssignment(
   const prepDate = parseDateKey(input.prepDate);
   if (!prepDate) throw httpError('תאריך הכנה לא תקין');
   const qty = Number(input.quantity);
-  if (!Number.isFinite(qty) || qty < 0) throw httpError('כמות לא תקינה');
+  if (!Number.isFinite(qty) || qty <= 0) {
+    throw httpError('כמות הקצאה חייבת להיות גדולה מ־0');
+  }
   const plannedStartAt = prepDateToPlannedStart(prepDate);
   const title = String(input.dishName || '').trim();
   if (!title) throw httpError('שם מנה חובה');
