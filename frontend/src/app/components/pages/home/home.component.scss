@@ -250,7 +250,7 @@ $radius: 4px;
 
   &__title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.95rem, 1.8rem + 1.1vw, 2.55rem);
+    font-size: clamp(1.85rem, 3.8vw, 2.45rem);
     font-weight: 400;
     color: $navy;
     margin: 0;
@@ -849,7 +849,7 @@ $featured-gray: #f3f3f3;
 
   &__spotlight-title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.75rem, 1.6rem + 1vw, 2.3rem);
+    font-size: clamp(1.45rem, 3vw, 1.95rem);
     font-weight: 400;
     color: $navy;
     margin: 0;
@@ -1027,7 +1027,7 @@ $featured-gray: #f3f3f3;
 
   &__title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.75rem, 1.6rem + 1vw, 2.3rem);
+    font-size: clamp(1.45rem, 2.8vw, 1.85rem);
     color: $navy;
     margin: 0 0 0.85rem;
     line-height: 1.28;

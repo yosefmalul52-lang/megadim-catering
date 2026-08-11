@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { VideoSource } from '../../utils/video.utils';
+import { TranslateModule } from '@ngx-translate/core';
 
 export interface VideoPlayerModalData {
   title?: string;
@@ -16,7 +17,7 @@ export interface VideoPlayerModalData {
 @Component({
   selector: 'app-video-player-modal',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TranslateModule],
   template: `
     <div class="video-modal">
       <div class="modal-header">
@@ -44,7 +45,7 @@ export interface VideoPlayerModalData {
         ></video>
         <div *ngIf="!isYoutube && !data.videoUrl" class="playback-error">
           <mat-icon>error_outline</mat-icon>
-          <p>לא ניתן להפעיל את הסרטון. כתובת הווידאו חסרה.</p>
+          <p>{{ 'GALLERY.PLAYBACK_ERROR' | translate }}</p>
         </div>
       </div>
     </div>
@@ -52,7 +53,7 @@ export interface VideoPlayerModalData {
   styles: [
     `
       .video-modal {
-        direction: rtl;
+        direction: inherit;
       }
 
       .modal-header {

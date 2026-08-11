@@ -79,9 +79,8 @@ html {
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  /* Site-wide type: ~18px base (112.5% of browser 16px).
-     Keeps rem scale consistent site-wide; body/UI hierarchy stays proportional. */
-  font-size: 112.5%;
+  /* Keep browser default root (~16px) so rem-based UI matches local/production. */
+  font-size: 100%;
 }
 
 body {

@@ -636,5 +636,17 @@
     "ORDER_UNTIL": "Order until {{date}}",
     "SEO_TITLE": "{{name}} - Megadim Catering | Ready for Shabbat & holidays",
     "SEO_DESC": "Special dishes for {{name}}. Order until {{date}}."
+  },
+  "GALLERY": {
+    "TITLE": "A taste of our events..",
+    "LOADING_ARIA": "Loading gallery",
+    "LOADING": "Loading gallery...",
+    "VIDEO": "Video",
+    "IMAGE": "Photo",
+    "VIDEO_ALT": "Video from a Megadim event",
+    "IMAGE_ALT": "Photo from a Megadim event",
+    "PLAY_VIDEO": "Play video",
+    "ZOOM_IMAGE": "Enlarge photo",
+    "PLAYBACK_ERROR": "Unable to play this video. The video URL is missing."
   }
 }

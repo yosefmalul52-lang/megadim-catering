@@ -8,6 +8,7 @@ import { GalleryService, GalleryItem } from '../../services/gallery.service';
 import { VideoPlayerModalComponent } from './video-player-modal.component';
 import { ImageLightboxModalComponent } from './image-lightbox-modal.component';
 import { resolveVideoSource } from '../../utils/video.utils';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 export interface UnifiedMediaItem {
   id: string;
@@ -24,7 +25,7 @@ const GENERIC_TITLES = new Set(['אירוע מגדים', 'megadim event']);
 @Component({
   selector: 'app-video-section',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatIconModule, TranslateModule],
   templateUrl: './video-section.component.html',
   styleUrls: ['./video-section.component.scss']
 })
@@ -32,6 +33,7 @@ export class VideoSectionComponent implements OnInit {
   private videoService = inject(VideoService);
   private galleryService = inject(GalleryService);
   private dialog = inject(MatDialog);
+  private translate = inject(TranslateService);
 
   private readonly minDisplayCount = 10;
 
@@ -281,11 +283,15 @@ export class VideoSectionComponent implements OnInit {
   }
 
   getTypeLabel(item: UnifiedMediaItem): string {
-    return item.type === 'video' ? 'סרטון' : 'תמונה';
+    return item.type === 'video'
+      ? this.translate.instant('GALLERY.VIDEO')
+      : this.translate.instant('GALLERY.IMAGE');
   }
 
   getAriaLabel(item: UnifiedMediaItem): string {
-    const kind = item.type === 'video' ? 'הפעלת סרטון' : 'הגדלת תמונה';
+    const kind = item.type === 'video'
+      ? this.translate.instant('GALLERY.PLAY_VIDEO')
+      : this.translate.instant('GALLERY.ZOOM_IMAGE');
     const title = this.sanitizeTitle(item.title);
     return title ? `${kind}: ${title}` : kind;
   }
