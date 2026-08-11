@@ -13,6 +13,8 @@ import { MatListModule } from '@angular/material/list';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { LanguageService } from '../../../services/language.service';
+import { LocaleService } from '../../../i18n/locale.service';
+import { localizeNavPath } from '../../../i18n/locale.util';
 import { CartService } from '../../../services/cart.service';
 import { SearchService } from '../../../services/search.service';
 import { AuthService } from '../../../services/auth.service';
@@ -44,6 +46,7 @@ export class HeaderComponent implements OnInit {
   @Input() sidenav?: MatSidenav;
   
   languageService = inject(LanguageService);
+  localeService = inject(LocaleService);
   translateService = inject(TranslateService);
   cartService = inject(CartService);
   searchService = inject(SearchService);
@@ -72,11 +75,23 @@ export class HeaderComponent implements OnInit {
   }
 
   get profileLink(): string {
-    return institutionProfileLink(this.currentUser?.role);
+    return this.navPath(institutionProfileLink(this.currentUser?.role));
   }
 
   get isInstitutionUser(): boolean {
     return this.currentUser?.role === 'institution';
+  }
+
+  get homeLink(): string {
+    return this.navPath('/');
+  }
+
+  navPath(path: string): string {
+    return localizeNavPath(path, this.localeService.locale);
+  }
+
+  switchLocale(locale: 'he' | 'en'): void {
+    this.localeService.switchTo(locale);
   }
 
   ngOnInit(): void {
@@ -84,9 +99,8 @@ export class HeaderComponent implements OnInit {
       username: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(3)]]
     });
-    // Set fallback language (replaces deprecated setDefaultLang)
     this.translateService.setFallbackLang('he');
-    this.translateService.use(this.languageService.currentLanguage);
+    this.translateService.use(this.localeService.locale);
     
     // Subscribe to search state
     this.searchService.isSearchOpen$.subscribe(isOpen => {

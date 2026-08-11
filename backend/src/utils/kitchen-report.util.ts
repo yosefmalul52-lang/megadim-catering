@@ -102,8 +102,13 @@ export type KitchenOrderLineItem = {
   category: string;
   unit: string;
   quantity: number;
-  /** Admin kitchen prep notes (from item.description). */
+  /**
+   * Manager quantity text (item.description) for events / Shabbat catering —
+   * shown in the quantity column in the kitchen report UI.
+   */
   notes?: string;
+  /** Free-text kitchen notes (item.kitchenRemark); shown in notes column. */
+  kitchenRemark?: string;
   missingChoice?: boolean;
 };
 
@@ -1185,6 +1190,7 @@ export function buildKitchenReportDto(
       unit: string;
       key: string;
       description: string;
+      kitchenRemark: string;
       productId?: string;
       missingChoice?: boolean;
     }> = [];
@@ -1213,6 +1219,7 @@ export function buildKitchenReportDto(
       if (mealFilter && lineMeal !== mealFilter) continue;
 
       const desc = String(item?.description || '').trim();
+      const kitchenRemark = String(item?.kitchenRemark || '').trim();
       const labels = resolveKitchenOptionLabels(item, catalogOptions);
       const missingChoice = labels.optionLabel === 'בחירה חסרה לבדיקה';
       const displayName = stripSizeSuffixFromItemName(name) || name;
@@ -1239,6 +1246,7 @@ export function buildKitchenReportDto(
           category
         }),
         description: desc,
+        kitchenRemark,
         productId: String(item?.productId || '').trim() || undefined,
         missingChoice
       });
@@ -1293,8 +1301,13 @@ export function buildKitchenReportDto(
     if (fulfillment === 'משלוח') prepGroup.deliveries += 1;
     if (fulfillment === 'איסוף עצמי') prepGroup.pickups += 1;
 
+    const managerQtyKinds: KitchenOrderKind[] = ['events', 'catering_shabbat'];
+    const usesManagerQtyText = managerQtyKinds.includes(orderKind);
+
     for (const line of matchedLines) {
-      if (line.description) itemNotes.push({ dishName: line.name, note: line.description });
+      // For events/Shabbat catering, description is quantity text — real notes live on kitchenRemark.
+      const freeNote = usesManagerQtyText ? line.kitchenRemark : line.description || line.kitchenRemark;
+      if (freeNote) itemNotes.push({ dishName: line.name, note: freeNote });
       orderItems.push({
         productId: line.productId,
         name: line.name,
@@ -1304,6 +1317,7 @@ export function buildKitchenReportDto(
         unit: line.unit,
         quantity: line.qty,
         notes: line.description || undefined,
+        kitchenRemark: line.kitchenRemark || undefined,
         missingChoice: line.missingChoice || undefined
       });
 

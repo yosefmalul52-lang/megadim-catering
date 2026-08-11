@@ -2,23 +2,31 @@ import { Component, OnInit, inject, ViewChild, ElementRef } from '@angular/core'
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { MenuService, MenuItem } from '../../../../../services/menu.service';
 import { CartService } from '../../../../../services/cart.service';
 import { SeoService } from '../../../../../services/seo.service';
+import { LocaleService } from '../../../../../i18n/locale.service';
+import {
+  localizedProductDescription,
+  localizedProductName
+} from '../../../../../i18n/localized-content';
 
 @Component({
   selector: 'app-salad-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TranslateModule],
   template: `
     <div class="salad-detail-page">
       <div class="container">
         <!-- Breadcrumbs -->
         <nav class="breadcrumbs" aria-label="breadcrumb">
-          <a routerLink="/ready-for-shabbat/salads">סלטים</a>
+          <a [routerLink]="localeService.localizePath('/ready-for-shabbat')">{{ 'PRODUCT.BREADCRUMB_MENU' | translate }}</a>
           <span class="separator">/</span>
-          <span class="current">{{ salad?.name || '' }}</span>
+          <a [routerLink]="localeService.localizePath('/ready-for-shabbat/salads')">{{ 'CATEGORIES.SALADS' | translate }}</a>
+          <span class="separator">/</span>
+          <span class="current">{{ displayName(salad) }}</span>
         </nav>
 
         <div class="product-layout" *ngIf="salad">
@@ -31,7 +39,7 @@ import { SeoService } from '../../../../../services/seo.service';
             >
               <img 
                 [src]="salad.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                [alt]="salad.name"
+                [alt]="displayName(salad)"
                 class="product-img"
                 #productImage
                 loading="eager"
@@ -42,38 +50,40 @@ import { SeoService } from '../../../../../services/seo.service';
           <!-- Left Side - Product Info -->
           <div class="product-info">
             <div class="product-header">
-              <h1 class="product-name">{{ salad.name }}</h1>
+              <h1 class="product-name">{{ displayName(salad) }}</h1>
             </div>
 
             <!-- Product Description -->
             <div class="product-description">
-              <h3 class="description-title">תיאור המוצר:</h3>
-              <p>{{ salad.description }}</p>
+              <h3 class="description-title">{{ 'PRODUCT.DESCRIPTION' | translate }}:</h3>
+              <p>{{ displayDescription(salad) }}</p>
             </div>
 
             <!-- Price and Size -->
             <div class="price-size-section">
               <div class="price-section">
-                <span class="price-label">מחיר:</span>
+                <span class="price-label">{{ 'CART.PRICE' | translate }}:</span>
                 <span class="price">₪{{ currentPrice }}</span>
               </div>
               <div class="size-selector-group">
-                <label for="size-select" class="size-label">גודל:</label>
+                <label for="size-select" class="size-label">{{ 'PRODUCT.CHOOSE_SIZE' | translate }}</label>
                 <div class="size-buttons">
                   <button 
                     class="size-btn" 
                     [class.active]="selectedSize === 'small'"
                     (click)="selectSize('small')"
+                    [attr.aria-label]="sizeDisplayLabel('small') + ' — ' + displayName(salad)"
                   >
-                    <span class="size-weight">250 גרם</span>
+                    <span class="size-weight">{{ sizeDisplayLabel('small') }}</span>
                     <span class="size-price">₪17</span>
                   </button>
                   <button 
                     class="size-btn" 
                     [class.active]="selectedSize === 'large'"
                     (click)="selectSize('large')"
+                    [attr.aria-label]="sizeDisplayLabel('large') + ' — ' + displayName(salad)"
                   >
-                    <span class="size-weight">500 גרם</span>
+                    <span class="size-weight">{{ sizeDisplayLabel('large') }}</span>
                     <span class="size-price">₪29</span>
                   </button>
                 </div>
@@ -82,13 +92,13 @@ import { SeoService } from '../../../../../services/seo.service';
 
             <!-- Quantity Section -->
             <div class="quantity-section">
-              <label class="quantity-label">כמות:</label>
+              <label class="quantity-label">{{ 'CART.QUANTITY' | translate }}:</label>
               <div class="quantity-controls">
                 <button 
                   class="quantity-btn minus" 
                   (click)="decreaseQuantity()"
                   [disabled]="quantity <= 1"
-                  aria-label="הפחת כמות"
+                  [attr.aria-label]="('CART.QUANTITY' | translate) + ' −'"
                 >
                   <i class="fas fa-minus"></i>
                 </button>
@@ -99,13 +109,13 @@ import { SeoService } from '../../../../../services/seo.service';
                   min="1"
                   max="10"
                   (change)="onQuantityChange()"
-                  aria-label="כמות"
+                  [attr.aria-label]="'CART.QUANTITY' | translate"
                 >
                 <button 
                   class="quantity-btn plus" 
                   (click)="increaseQuantity()"
                   [disabled]="quantity >= 10"
-                  aria-label="הגדל כמות"
+                  [attr.aria-label]="('CART.QUANTITY' | translate) + ' +'"
                 >
                   <i class="fas fa-plus"></i>
                 </button>
@@ -117,10 +127,10 @@ import { SeoService } from '../../../../../services/seo.service';
               class="btn-add-to-cart"
               (click)="addToCart()"
               [disabled]="!salad.isAvailable"
-              [attr.aria-label]="'הוסף לסל ' + salad.name"
+              [attr.aria-label]="('PRODUCT.ADD_TO_CART' | translate) + ' ' + displayName(salad)"
             >
               <i class="fas fa-shopping-cart"></i>
-              הוסף לסל
+              {{ 'PRODUCT.ADD_TO_CART' | translate }}
             </button>
 
             <!-- Tags -->
@@ -142,18 +152,17 @@ import { SeoService } from '../../../../../services/seo.service';
         <!-- Loading State -->
         <div *ngIf="!salad && !isLoading" class="not-found">
           <i class="fas fa-exclamation-circle"></i>
-          <h2>סלט לא נמצא</h2>
-          <p>הסלט המבוקש לא נמצא במערכת.</p>
+          <h2>{{ 'PRODUCT.EMPTY' | translate }}</h2>
           <button class="btn-back" (click)="goBack()">
             <i class="fas fa-arrow-right"></i>
-            חזור לסלטים
+            {{ 'PRODUCT.BACK_TO_MENU' | translate }}
           </button>
         </div>
 
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
           <i class="fas fa-spinner fa-spin"></i>
-          <span>טוען פרטי סלט...</span>
+          <span>{{ 'PRODUCT.LOADING' | translate }}</span>
         </div>
       </div>
     </div>
@@ -369,7 +378,7 @@ import { SeoService } from '../../../../../services/seo.service';
       text-align: center;
       border: none;
       border-left: 1px solid rgba(0,0,0,0.08);
-      border-right: 1px solid rgba(0,0,0,0.08);
+      border-inline-end: 1px solid rgba(0,0,0,0.08);
       font-size: 1rem;
       font-weight: 600;
       color: #1f3540;
@@ -781,12 +790,28 @@ export class SaladDetailComponent implements OnInit {
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
   private seoService = inject(SeoService);
+  readonly localeService = inject(LocaleService);
 
   salad: MenuItem | null = null;
   isLoading = true;
   selectedSize: 'small' | 'large' = 'small';
   quantity = 1;
   currentPrice = 0;
+
+  displayName(item: MenuItem | null | undefined): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem | null | undefined): string {
+    return localizedProductDescription(item, this.localeService.locale);
+  }
+
+  /** Display size with localized grams unit. */
+  sizeDisplayLabel(size: 'small' | 'large'): string {
+    const grams = size === 'small' ? 250 : 500;
+    const unit = this.localeService.locale === 'en' ? 'g' : 'גרם';
+    return `${grams} ${unit}`;
+  }
   ngOnInit(): void {
     // Scroll to top when component initializes
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -823,9 +848,10 @@ export class SaladDetailComponent implements OnInit {
         
         if (found) {
           this.salad = found;
+          const seoName = this.displayName(found);
           this.seoService.updateTags({
-            title: `${found.name} | קייטרינג מגדים - סלטים`,
-            description: found.description || found.name,
+            title: `${seoName} | קייטרינג מגדים - סלטים`,
+            description: this.displayDescription(found) || seoName,
             image: found.imageUrl
           });
           this.updatePrice();
@@ -841,9 +867,10 @@ export class SaladDetailComponent implements OnInit {
         const found = this.getFeaturedSaladById(id);
         if (found) {
           this.salad = found;
+          const seoName = this.displayName(found);
           this.seoService.updateTags({
-            title: `${found.name} | קייטרינג מגדים - סלטים`,
-            description: found.description || found.name,
+            title: `${seoName} | קייטרינג מגדים - סלטים`,
+            description: this.displayDescription(found) || seoName,
             image: found.imageUrl
           });
           this.updatePrice();
@@ -918,8 +945,11 @@ export class SaladDetailComponent implements OnInit {
     }
 
     const sizeLabel = this.getSizeLabel(this.selectedSize);
+    const sizeLabelEn = this.selectedSize === 'small' ? '250 g' : '500 g';
+    const baseEn = this.salad.nameEn || this.salad.name;
     const selectedOption = {
       label: sizeLabel,
+      labelEn: sizeLabelEn,
       amount: sizeLabel,
       price,
       optionId: this.selectedSize,
@@ -932,9 +962,11 @@ export class SaladDetailComponent implements OnInit {
       this.cartService.addItem({
         id: `${saladId}-${this.selectedSize}`,
         name: `${this.salad.name} (${sizeLabel})`,
+        nameEn: `${baseEn} (${sizeLabelEn})`,
         price: price,
         imageUrl: this.salad.imageUrl || '/assets/images/placeholder-dish.jpg',
         description: this.salad.description,
+        descriptionEn: this.salad.descriptionEn,
         category: this.salad.category,
         selectedOption
       });
@@ -962,7 +994,7 @@ export class SaladDetailComponent implements OnInit {
 
 
   goBack(): void {
-    this.router.navigate(['/ready-for-shabbat/salads']);
+    this.router.navigateByUrl(this.localeService.localizePath('/ready-for-shabbat/salads'));
   }
 
   onImageMouseMove(event: MouseEvent): void {

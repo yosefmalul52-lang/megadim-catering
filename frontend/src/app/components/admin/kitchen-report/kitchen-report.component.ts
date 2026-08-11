@@ -234,6 +234,33 @@ export class AdminKitchenReportComponent implements OnInit, OnDestroy {
     return this.report?.orderNotes || [];
   }
 
+  /** Presentational: delivery orders in current dayOrders list. */
+  get dayDeliveryCount(): number {
+    return this.dayOrders.filter((o) => o.fulfillment === 'משלוח').length;
+  }
+
+  /** Presentational: pickup orders in current dayOrders list. */
+  get dayPickupCount(): number {
+    return this.dayOrders.filter((o) => o.fulfillment === 'איסוף עצמי').length;
+  }
+
+  /** Presentational: sum of kitchen units across dayOrders. */
+  get dayPortionsTotal(): number {
+    return this.dayOrders.reduce((sum, o) => sum + this.orderKitchenUnits(o), 0);
+  }
+
+  /** Presentational: meal grouping for summary cards. */
+  get dayMealsSummary(): Array<{ meal: string; count: number }> {
+    const map = new Map<string, number>();
+    for (const o of this.dayOrders) {
+      const meal = o.meal || 'לא משויך';
+      map.set(meal, (map.get(meal) || 0) + 1);
+    }
+    return Array.from(map.entries())
+      .map(([meal, count]) => ({ meal, count }))
+      .sort((a, b) => b.count - a.count || a.meal.localeCompare(b.meal, 'he'));
+  }
+
   get missingChoiceLines(): number {
     return Number(this.report?.summary?.missingChoiceLines || 0);
   }

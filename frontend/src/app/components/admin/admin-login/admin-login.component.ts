@@ -25,7 +25,7 @@ import { CommonModule } from '@angular/common';
       padding: 0 2rem;
     }
     h1 {
-      color: #0e1a24;
+      color: #1F2D3D;
       margin-bottom: 2rem;
     }
     p {

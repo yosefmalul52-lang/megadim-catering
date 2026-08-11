@@ -1,706 +1,817 @@
 <div class="ops-dashboard" dir="rtl">
   <div class="ops-shell">
-    <header class="ops-topbar">
-      <div class="ops-title-wrap">
-        <h1>לוח בקרה</h1>
-        <p>סקירת עסק, תפעול והכנסות לפי הטווח שנבחר</p>
-        @if (generatedAtLabel) {
-          <time class="ops-title-stamp">עודכן {{ generatedAtLabel }}</time>
-        } @else {
-          <span class="ops-title-stamp">טוען נתונים…</span>
-        }
-        @if (staleWarning) {
-          <span class="stale-flag">לא הצלחנו לעדכן — מוצגים נתונים קודמים</span>
-        }
+
+    <!-- Topbar — Web3 bright style -->
+    <header class="dash-workspace-header wm-topbar">
+      <div class="dash-workspace-copy wm-topbar-copy">
+        <p class="dash-greeting">
+          @if (greetingName) {
+            שלום, {{ greetingName }}
+          } @else {
+            שלום
+          }
+        </p>
+        <h1 class="dash-page-title">לוח בקרה</h1>
+        <p class="dash-page-sub">סקירה תפעולית של הכנסות, הזמנות ופריטים שדורשים טיפול עכשיו</p>
+        <div class="dash-meta-row">
+          @if (generatedAtLabel) {
+            <time class="dash-stamp">עודכן {{ generatedAtLabel }}</time>
+          } @else {
+            <span class="dash-stamp">טוען נתונים…</span>
+          }
+          @if (staleWarning) {
+            <span class="dash-stale">לא הצלחנו לעדכן — מוצגים נתונים קודמים</span>
+          }
+        </div>
       </div>
-      <div class="ops-topbar-controls" role="group" aria-label="פילטרים ופעולות">
-        <label class="ops-select-wrap">
-          <span class="sr-only">טווח תאריכים</span>
-          <select
-            [ngModel]="primaryPreset"
-            (ngModelChange)="selectPrimaryPreset($event)"
-            aria-label="טווח תאריכים"
+
+      <div class="dash-workspace-controls wm-topbar-actions" role="group" aria-label="פילטרים ופעולות">
+        <div class="dash-control-cluster">
+          <label class="dash-field">
+            <span class="dash-field-label">תקופה</span>
+            <select
+              [ngModel]="primaryPreset"
+              (ngModelChange)="selectPrimaryPreset($event)"
+              aria-label="טווח תאריכים"
+            >
+              @for (p of primaryPresetOptions; track p.key) {
+                <option [ngValue]="p.key">{{ p.label }}</option>
+              }
+            </select>
+          </label>
+          @if (primaryPreset === 'custom') {
+            <label class="dash-field">
+              <span class="sr-only">מתאריך</span>
+              <input type="date" [(ngModel)]="primaryFrom" [attr.max]="primaryTo || null" />
+            </label>
+            <label class="dash-field">
+              <span class="sr-only">עד תאריך</span>
+              <input type="date" [(ngModel)]="primaryTo" [attr.min]="primaryFrom || null" />
+            </label>
+            <button type="button" class="dash-btn ghost" (click)="applyPrimaryCustomRange()">החל</button>
+          }
+          <label class="dash-field">
+            <span class="dash-field-label">ניווט</span>
+            <select [ngModel]="quickNavKey" (ngModelChange)="onQuickNav($event)" aria-label="מעבר מהיר">
+              <option value="">מעבר מהיר…</option>
+              @for (q of quickNavOptions; track q.key) {
+                <option [value]="q.key">{{ q.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <div class="dash-action-cluster">
+          <button
+            type="button"
+            class="dash-btn icon"
+            (click)="reload()"
+            [disabled]="isLoading && !overview"
+            [attr.aria-busy]="isRefreshing"
+            aria-label="רענון"
+            title="רענון"
           >
-            @for (p of primaryPresetOptions; track p.key) {
-              <option [ngValue]="p.key">{{ p.label }}</option>
-            }
-          </select>
-        </label>
-        @if (primaryPreset === 'custom') {
-          <label class="ops-field inline">
-            <span class="sr-only">מתאריך</span>
-            <input type="date" [(ngModel)]="primaryFrom" [attr.max]="primaryTo || null" />
-          </label>
-          <label class="ops-field inline">
-            <span class="sr-only">עד תאריך</span>
-            <input type="date" [(ngModel)]="primaryTo" [attr.min]="primaryFrom || null" />
-          </label>
-          <button type="button" class="ops-btn primary" (click)="applyPrimaryCustomRange()">החל</button>
-        }
-        <label class="ops-select-wrap">
-          <span class="sr-only">מעבר מהיר</span>
-          <select [ngModel]="quickNavKey" (ngModelChange)="onQuickNav($event)" aria-label="מעבר מהיר">
-            <option value="">מעבר מהיר…</option>
-            @for (q of quickNavOptions; track q.key) {
-              <option [value]="q.key">{{ q.label }}</option>
-            }
-          </select>
-        </label>
-        <a class="ops-btn primary" routerLink="/admin/orders" [queryParams]="{ create: '1' }">
-          <i class="fas fa-plus" aria-hidden="true"></i>
-          הזמנה ידנית
-        </a>
-        <button
-          type="button"
-          class="ops-btn icon"
-          (click)="reload()"
-          [disabled]="isLoading && !overview"
-          [attr.aria-busy]="isRefreshing"
-          aria-label="רענון"
-          title="רענון"
-        >
-          <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing" aria-hidden="true"></i>
-        </button>
+            <i class="fas fa-sync-alt" [class.fa-spin]="isRefreshing" aria-hidden="true"></i>
+          </button>
+          <a class="dash-btn primary" routerLink="/admin/orders" [queryParams]="{ create: '1' }">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            הזמנה ידנית
+          </a>
+        </div>
       </div>
     </header>
 
     @if (primaryRangeError) {
-      <div class="inline-error" role="alert">{{ primaryRangeError }}</div>
+      <div class="dash-alert error" role="alert">{{ primaryRangeError }}</div>
     }
 
     @if (isLoading && !overview) {
-      <div class="skeleton-stack" aria-busy="true" aria-label="טוען דשבורד">
-        <div class="sk sk-header"></div>
-        <div class="sk-row sk-kpi-row">
-          <div class="sk"></div><div class="sk"></div><div class="sk"></div>
-          <div class="sk"></div><div class="sk"></div><div class="sk"></div>
+      <div class="dash-skeleton" aria-busy="true" aria-label="טוען דשבורד">
+        <div class="sk sk-hero"></div>
+        <div class="sk-side">
+          <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
         </div>
-        <div class="sk sk-actions"></div>
-        <div class="sk-row">
-          <div class="sk"></div><div class="sk"></div><div class="sk"></div>
-        </div>
-        <div class="sk sk-md"></div>
-        <div class="sk sk-lg"></div>
+        <div class="sk sk-wide"></div>
+        <div class="sk sk-wide"></div>
       </div>
     }
 
     @if (errorMessage && !overview) {
-      <div class="state-box error" role="alert">
+      <div class="dash-alert error" role="alert">
         <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
         <div>
           <strong>לא ניתן לטעון את לוח העבודה</strong>
           <p>{{ errorMessage }}</p>
-          <button type="button" class="ops-btn primary" (click)="reload()">נסה שוב</button>
+          <button type="button" class="dash-btn primary" (click)="reload()">נסה שוב</button>
         </div>
       </div>
     }
 
     @if (overview) {
       @if (isRefreshing) {
-        <div class="refresh-banner" role="status">
+        <div class="dash-refresh" role="status">
           <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
           מעדכן נתונים…
         </div>
       }
 
-      @if (primaryKpiCards.length) {
-        <section class="metrics-section" aria-label="מדדים ראשיים">
-          <div class="metrics-grid">
-            @for (card of primaryKpiCards; track card.key) {
-              <a
-                class="metric-card"
-                [attr.data-tone]="card.tone"
-                [routerLink]="card.link"
-                [queryParams]="card.queryParams || null"
-                [fragment]="card.fragment || undefined"
-                [attr.title]="card.tooltipHe || null"
-                [attr.aria-label]="card.title + ': ' + card.valueLabel"
-              >
-                <div class="metric-icon" aria-hidden="true"><i class="fas" [ngClass]="kpiIcon(card.key)"></i></div>
-                <div class="metric-body">
-                  <span class="metric-label">{{ card.title }}</span>
-                  <span class="metric-value" [class.insufficient]="card.insufficient">{{ card.valueLabel }}</span>
-                  <span class="metric-sub">{{ card.hint }}</span>
-                  @if (card.change) {
-                    <span class="metric-change" [ngClass]="'tone-' + card.change.tone" [attr.aria-label]="card.change.ariaLabel">
-                      {{ card.change.label }}
-                    </span>
+      <!-- StatGrid — 4 KPI cards -->
+      <section class="wm-stat-grid" aria-label="מדדים ראשיים">
+        @for (card of statGridCards; track card.key) {
+          <a
+            class="hifi-card wm-stat-card"
+            [attr.data-kpi]="card.key"
+            [routerLink]="card.link"
+            [queryParams]="card.queryParams || null"
+            [fragment]="card.fragment || undefined"
+            [attr.title]="card.tooltipHe || null"
+            [attr.aria-label]="card.title + ': ' + card.valueLabel"
+          >
+            <div class="wm-stat-head">
+              <span class="wm-stat-icon" [attr.data-tone]="kpiIconTone(card.key)" aria-hidden="true">
+                <i class="fas" [ngClass]="kpiIcon(card.key)"></i>
+              </span>
+              <span class="wm-stat-label">{{ card.title }}</span>
+            </div>
+            <div class="wm-stat-value" [class.insufficient]="card.insufficient">{{ card.valueLabel }}</div>
+            <div class="wm-stat-foot">
+              @if (card.change) {
+                <span class="hifi-change sm" [ngClass]="'tone-' + card.change.tone" [attr.aria-label]="card.change.ariaLabel">
+                  {{ card.change.label }}
+                </span>
+              }
+              <span class="wm-stat-hint">{{ card.hint }}</span>
+            </div>
+            @if (card.key === 'ordersCreated') {
+              <div class="hifi-progress" aria-hidden="true">
+                <div
+                  class="hifi-progress-fill tone-mint"
+                  [style.width.%]="finance.totalOrders > 0 ? (finance.paidOrders / finance.totalOrders) * 100 : 0"
+                ></div>
+              </div>
+            }
+          </a>
+        }
+      </section>
+
+      <!-- Portfolio (revenue + chart) + Markets (attention) -->
+      <section class="wm-mid ta-grid" aria-label="ביצועים וטיפול">
+        <article class="hifi-card hifi-revenue wm-portfolio ta-col-7">
+          <div class="wm-card-head">
+            <h2 class="wm-card-title">ביצועי הכנסות</h2>
+            <div class="segmented wm-range-tabs" role="group" aria-label="טווח תצוגה">
+              @for (p of portfolioRangeTabs; track p.key) {
+                <button
+                  type="button"
+                  class="segmented-btn"
+                  [class.active]="primaryPreset === p.key"
+                  (click)="selectPrimaryPreset(p.key)"
+                >
+                  {{ p.label }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="hifi-revenue-top">
+            <div class="hifi-revenue-copy">
+              <span class="hifi-kicker">הכנסות בפועל</span>
+              <div class="hifi-kpi-value">{{ formatMoney(finance.capturedRevenue) }}</div>
+              <div class="hifi-revenue-meta">
+                <span class="hifi-change" [ngClass]="'tone-' + revenueChange.tone">{{ revenueChange.label }}</span>
+                <span class="hifi-hint">לפי כללי הבקרה הכספית · {{ financeRangeLabel }}</span>
+              </div>
+            </div>
+            <div class="hifi-revenue-stats">
+              <div class="hifi-stat">
+                <span class="hifi-stat-label">צפוי</span>
+                <strong class="hifi-stat-value">{{ formatMoney(finance.expectedRevenue) }}</strong>
+              </div>
+              <div class="hifi-stat">
+                <span class="hifi-stat-label">שולם</span>
+                <strong class="hifi-stat-value">{{ formatCount(finance.paidOrders) }}</strong>
+              </div>
+              <div class="hifi-stat">
+                <span class="hifi-stat-label">ממתינים</span>
+                <strong class="hifi-stat-value" data-testid="awaiting-amount">{{ formatMoney(finance.awaitingAmount) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="hifi-chart-block">
+            <div class="hifi-chart-head">
+              <span class="hifi-chart-title">מגמת הכנסות</span>
+              <label class="dash-field compact">
+                <span class="sr-only">מדד מגמה</span>
+                <select
+                  [ngModel]="trendMetric"
+                  (ngModelChange)="setTrendMetric($event)"
+                  aria-label="מדד מגמה"
+                >
+                  @for (opt of trendMetricOptions; track opt.key) {
+                    <option [ngValue]="opt.key">{{ opt.label }}</option>
                   }
-                </div>
-              </a>
-            }
-          </div>
-        </section>
-      } @else if (isRefreshing) {
-        <div class="sk-row sk-kpi-row" aria-busy="true" aria-label="טוען מדדים ראשיים">
-          <div class="sk"></div><div class="sk"></div><div class="sk"></div>
-          <div class="sk"></div><div class="sk"></div><div class="sk"></div>
-        </div>
-      }
-
-      <!-- 1. Action items / businessReview alerts -->
-      <section id="needs-attention" class="ops-section action-section" [class.has-issues]="filteredReviewAlerts.length > 0 || visibleActionItems.length > 0">
-        <div class="section-head">
-          <div class="section-title-wrap">
-            <span class="section-icon" [class.urgent]="filteredReviewAlerts.length > 0 || visibleActionItems.length > 0" aria-hidden="true">
-              <i class="fas" [class.fa-exclamation-triangle]="filteredReviewAlerts.length > 0 || visibleActionItems.length > 0" [class.fa-check]="filteredReviewAlerts.length === 0 && visibleActionItems.length === 0"></i>
-            </span>
-            <div>
-              <h2>דורש טיפול עכשיו</h2>
-              <p class="section-sub">התראות ותפעול שדורשים תגובה מהצוות</p>
+                </select>
+              </label>
             </div>
-          </div>
-          @if (reviewAlerts.length > 0) {
-            <label class="ops-select-wrap">
-              <span class="sr-only">סינון חומרה</span>
-              <select
-                [ngModel]="alertSeverityFilter"
-                (ngModelChange)="setAlertSeverityFilter($event)"
-                aria-label="סינון חומרת התראות"
-              >
-                @for (opt of alertSeverityOptions; track opt.key) {
-                  <option [ngValue]="opt.key">{{ opt.label }}</option>
-                }
-              </select>
-            </label>
-          } @else if (actionItems.length > 5) {
-            <button type="button" class="link-btn" (click)="showAllActions = !showAllActions">
-              {{ showAllActions ? 'הצג פחות' : 'הצג הכול (' + actionItems.length + ')' }}
-            </button>
-          }
-        </div>
-
-        @if (reviewAlerts.length > 0) {
-          @if (filteredReviewAlerts.length === 0) {
-            <div class="all-clear" role="status">
-              <i class="fas fa-filter" aria-hidden="true"></i>
-              <span>אין התראות בסינון שנבחר.</span>
-            </div>
-          } @else {
-            <ul class="action-list">
-              @for (item of filteredReviewAlerts; track item.id) {
-                <li class="action-card" [attr.data-severity]="item.severity === 'critical' ? 'critical' : item.severity === 'warning' ? 'high' : 'medium'">
-                  <div class="action-body">
-                    <div class="action-top">
-                      <span class="sev-pill" [attr.data-severity]="item.severity">{{ reviewSeverityLabel(item.severity) }}</span>
-                      <strong>{{ item.titleHe }}</strong>
-                      <a class="action-cta" [routerLink]="hrefPath(item.href)" [queryParams]="hrefQuery(item.href)">
-                        פתח הזמנה
-                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                      </a>
-                    </div>
-                    <p>{{ item.explanationHe }}</p>
-                    <div class="action-meta">
-                      @if (item.orderNumber || item.customerName) {
-                        <span>{{ item.orderNumber ? '#' + item.orderNumber : '' }}{{ item.orderNumber && item.customerName ? ' · ' : '' }}{{ item.customerName || '' }}</span>
-                      }
-                      @if (item.relevantDate) {
-                        <span><i class="fas fa-truck" aria-hidden="true"></i> {{ item.relevantDate }}</span>
-                      }
-                    </div>
-                    <a class="action-cta action-cta-mobile" [routerLink]="hrefPath(item.href)" [queryParams]="hrefQuery(item.href)">
-                      פתח הזמנה
-                    </a>
-                  </div>
-                </li>
-              }
-            </ul>
-            @if (hasMoreReviewAlerts) {
-              <button type="button" class="link-btn" (click)="showAllReviewAlerts = !showAllReviewAlerts">
-                {{ showAllReviewAlerts ? 'הצג פחות' : 'הצג הכול' }}
-              </button>
-            }
-          }
-
-          @if (actionItems.length) {
-            <h3 class="subhead ops-subhead">תפעול נוסף</h3>
-            <ul class="action-list">
-              @for (item of visibleActionItems; track item.id) {
-                <li class="action-card" [attr.data-severity]="item.severity">
-                  <div class="action-body">
-                    <div class="action-top">
-                      <span class="sev-pill" [attr.data-severity]="item.severity">{{ severityLabel(item.severity) }}</span>
-                      <strong>{{ item.title }}</strong>
-                      <a class="action-cta" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
-                        {{ item.actionLabel }}
-                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                      </a>
-                    </div>
-                    <p>{{ item.description }}</p>
-                    <div class="action-meta">
-                      @if (item.orderNumber || item.customerName) {
-                        <span>{{ item.orderNumber ? '#' + item.orderNumber : '' }}{{ item.orderNumber && item.customerName ? ' · ' : '' }}{{ item.customerName || '' }}</span>
-                      }
-                      @if (item.eventDate) {
-                        <span><i class="fas fa-truck" aria-hidden="true"></i> אספקה {{ item.eventDate }}</span>
-                      }
-                      @if (item.amount != null) {
-                        <span>{{ formatMoney(item.amount) }}</span>
-                      }
-                    </div>
-                    <a class="action-cta action-cta-mobile" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
-                      {{ item.actionLabel }}
-                    </a>
-                  </div>
-                </li>
-              }
-            </ul>
-            @if (actionItems.length > 5) {
-              <button type="button" class="link-btn" (click)="showAllActions = !showAllActions">
-                {{ showAllActions ? 'הצג פחות' : 'הצג הכול (' + actionItems.length + ')' }}
-              </button>
-            }
-          }
-        } @else {
-          @if (visibleActionItems.length === 0) {
-            <div class="all-clear" role="status">
-              <i class="fas fa-check-circle" aria-hidden="true"></i>
-              <span>אין בעיות דחופות כרגע — אפשר להתמקד בהכנות.</span>
-            </div>
-          } @else {
-            <ul class="action-list">
-              @for (item of visibleActionItems; track item.id) {
-                <li class="action-card" [attr.data-severity]="item.severity">
-                  <div class="action-body">
-                    <div class="action-top">
-                      <span class="sev-pill" [attr.data-severity]="item.severity">{{ severityLabel(item.severity) }}</span>
-                      <strong>{{ item.title }}</strong>
-                      <a class="action-cta" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
-                        {{ item.actionLabel }}
-                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                      </a>
-                    </div>
-                    <p>{{ item.description }}</p>
-                    <div class="action-meta">
-                      @if (item.orderNumber || item.customerName) {
-                        <span>{{ item.orderNumber ? '#' + item.orderNumber : '' }}{{ item.orderNumber && item.customerName ? ' · ' : '' }}{{ item.customerName || '' }}</span>
-                      }
-                      @if (item.eventDate) {
-                        <span><i class="fas fa-truck" aria-hidden="true"></i> אספקה {{ item.eventDate }}</span>
-                      }
-                      @if (item.amount != null) {
-                        <span>{{ formatMoney(item.amount) }}</span>
-                      }
-                    </div>
-                    <a class="action-cta action-cta-mobile" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
-                      {{ item.actionLabel }}
-                    </a>
-                  </div>
-                </li>
-              }
-            </ul>
-          }
-        }
-      </section>
-
-      <!-- 2. Today / Tomorrow — compact snapshot -->
-      <section class="ops-section day-section">
-        <div class="section-head">
-          <div class="section-title-wrap">
-            <span class="section-icon" aria-hidden="true"><i class="fas fa-clipboard-list"></i></span>
-            <div>
-              <h2>תמונת מצב</h2>
-              <p class="section-sub">הזמנות פעילות לפי מועד אספקה</p>
-            </div>
-          </div>
-          <label class="ops-select-wrap">
-            <span class="sr-only">בחירת יום</span>
-            <select [(ngModel)]="dayView" name="dayView" aria-label="בחירת יום">
-              @for (opt of dayViewOptions; track opt.key) {
-                <option [ngValue]="opt.key">{{ opt.label }}</option>
-              }
-            </select>
-          </label>
-        </div>
-
-        @if (activeDaySummary; as day) {
-          @if (day.ordersCount === 0) {
-            <div class="empty-compact" role="status">
-              <i class="fas fa-inbox" aria-hidden="true"></i>
-              <span>אין הזמנות למועד זה.</span>
-              <span class="empty-links">
-                <a routerLink="/admin/orders" [queryParams]="{ create: '1' }">הזמנה ידנית</a>
-                <a routerLink="/admin/orders">כל ההזמנות</a>
-              </span>
-            </div>
-          } @else {
-            <div class="day-grid day-grid--compact">
-              <a class="day-metric" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date }">
-                <span class="dm-value">{{ formatCount(day.ordersCount) }}</span>
-                <span class="dm-label">הזמנות</span>
-              </a>
-              <div class="day-metric static">
-                <span class="dm-value">{{ formatCount(day.portionsTotal) }}</span>
-                <span class="dm-label">מנות</span>
+            @if (hasTrendData) {
+              <div class="hifi-chart-canvas">
+                <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" [type]="'bar'"></canvas>
               </div>
-              <a class="day-metric" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, fulfillment: 'delivery' }">
-                <span class="dm-value">{{ formatCount(day.deliveries) }}</span>
-                <span class="dm-label">משלוחים</span>
-              </a>
-              <a class="day-metric" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, fulfillment: 'pickup' }">
-                <span class="dm-value">{{ formatCount(day.pickups) }}</span>
-                <span class="dm-label">איסופים</span>
-              </a>
-              <a class="day-metric warn" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, statusTab: 'pending' }">
-                <span class="dm-value">{{ formatCount(day.awaitingApproval) }}</span>
-                <span class="dm-label">ממתינות לאישור</span>
-              </a>
-            </div>
-            @if ((day.unknownFulfillment || 0) > 0) {
-              <p class="day-note warn-text">סוג אספקה חסר ב־{{ formatCount(day.unknownFulfillment || 0) }} הזמנות</p>
-            }
-          }
-        }
-      </section>
-
-      <!-- 3. Prep — accordion (closed by default) -->
-      <section class="ops-section prep-section" [class.is-open]="prepExpanded" aria-labelledby="prep-heading">
-        <button
-          type="button"
-          class="prep-accordion-toggle"
-          (click)="togglePrepPanel()"
-          [attr.aria-expanded]="prepExpanded"
-          aria-controls="prep-panel-body"
-        >
-          <div class="prep-toggle-main">
-            <span class="prep-toggle-icon" aria-hidden="true"><i class="fas fa-utensils"></i></span>
-            <div class="prep-toggle-copy">
-              <h2 id="prep-heading">הכנות קרובות</h2>
-              <p class="section-sub">המועד הבא עם הזמנות פעילות</p>
-              @if (prep?.eventDate) {
-                <p class="prep-date-line">מועד אספקה: <strong>{{ prep!.eventDate }}</strong></p>
-              }
-            </div>
-          </div>
-          <div class="prep-toggle-aside">
-            @if (prep?.eventDate && !prepExpanded) {
-              <span class="prep-peek">
-                {{ formatCount(prep!.ordersCount) }} הזמנות · {{ formatCount(prep!.portionsTotal) }} מנות
-              </span>
-            }
-            <a
-              class="link-btn"
-              routerLink="/admin/kitchen-report"
-              (click)="$event.stopPropagation()"
-            >דוח מטבח</a>
-            <span class="prep-chevron" aria-hidden="true">
-              <i class="fas" [class.fa-chevron-up]="prepExpanded" [class.fa-chevron-down]="!prepExpanded"></i>
-            </span>
-          </div>
-        </button>
-
-        @if (prepExpanded) {
-          <div id="prep-panel-body" class="prep-panel-body">
-            @if (prep && prep.eventDate) {
-              <div class="prep-kpi-row" aria-label="סיכום הכנות">
-                <div class="prep-kpi">
-                  <strong>{{ formatCount(prep.ordersCount) }}</strong>
-                  <span>הזמנות</span>
-                </div>
-                <div class="prep-kpi">
-                  <strong>{{ formatCount(prep.portionsTotal) }}</strong>
-                  <span>מנות להכנה</span>
+            } @else {
+              <div class="region-empty soft">
+                <i class="fas fa-chart-bar" aria-hidden="true"></i>
+                <div>
+                  <strong>אין נתוני מגמה</strong>
+                  <p>בחרו טווח עם פעילות כדי לראות גרף עמודות.</p>
                 </div>
               </div>
+            }
+          </div>
+        </article>
 
-              @if (prepTopItems.length) {
-                <h3 class="prep-block-title">מנות להכנה</h3>
-                <ul class="prep-dish-list">
-                  @for (item of prepTopItems; track item.name) {
-                    <li>
-                      <span class="prep-dish-name">{{ item.name }}</span>
-                      <strong class="prep-dish-qty">{{ formatCount(item.quantity) }}</strong>
+        <!-- Markets-style: attention list -->
+        <aside class="wm-markets-col ta-col-5" aria-label="דורש תשומת לב">
+          <section
+            id="needs-attention"
+            class="hifi-card region-attention wm-markets-panel"
+            [class.has-issues]="filteredReviewAlerts.length > 0 || visibleActionItems.length > 0"
+            aria-labelledby="attention-heading"
+          >
+            <div class="wm-card-head">
+              <h2 id="attention-heading" class="wm-card-title">דורש טיפול</h2>
+              <a class="dash-link" routerLink="/admin/orders">הכול</a>
+            </div>
+
+            @if (reviewAlerts.length > 0) {
+              <label class="dash-field compact wm-markets-filter">
+                <span class="sr-only">סינון חומרה</span>
+                <select
+                  [ngModel]="alertSeverityFilter"
+                  (ngModelChange)="setAlertSeverityFilter($event)"
+                  aria-label="סינון חומרת התראות"
+                >
+                  @for (opt of alertSeverityOptions; track opt.key) {
+                    <option [ngValue]="opt.key">{{ opt.label }}</option>
+                  }
+                </select>
+              </label>
+            }
+
+            @if (reviewAlerts.length > 0) {
+              @if (filteredReviewAlerts.length === 0) {
+                <div class="region-empty soft">
+                  <i class="fas fa-filter" aria-hidden="true"></i>
+                  <div>
+                    <strong>אין התראות בסינון</strong>
+                    <p>נסו חומרה אחרת או אפסו את הסינון.</p>
+                  </div>
+                </div>
+              } @else {
+                <ul class="attention-list wm-markets-list">
+                  @for (item of filteredReviewAlerts; track item.id) {
+                    <li [attr.data-severity]="item.severity === 'critical' ? 'critical' : item.severity === 'warning' ? 'high' : 'medium'">
+                      <div class="attention-row">
+                        <span class="sev" [attr.data-severity]="item.severity">{{ reviewSeverityLabel(item.severity) }}</span>
+                        <div class="attention-body">
+                          <strong>{{ item.titleHe }}</strong>
+                          <p>{{ item.explanationHe }}</p>
+                        </div>
+                        <a class="dash-btn ghost sm" [routerLink]="hrefPath(item.href)" [queryParams]="hrefQuery(item.href)">
+                          פתח
+                        </a>
+                      </div>
                     </li>
                   }
                 </ul>
+                @if (hasMoreReviewAlerts) {
+                  <button type="button" class="dash-link" (click)="showAllReviewAlerts = !showAllReviewAlerts">
+                    {{ showAllReviewAlerts ? 'הצג פחות' : 'הצג הכול' }}
+                  </button>
+                }
               }
 
-              @if (prep.notesOrders.length) {
-                <h3 class="prep-block-title">הזמנות עם הערות</h3>
-                <ul class="prep-notes-list">
-                  @for (n of prep.notesOrders; track n.id) {
-                    <li>
-                      <a routerLink="/admin/orders" [queryParams]="{ orderId: n.id }">
-                        #{{ n.orderNumber || n.id.slice(-8) }}
-                        @if (n.customerName) { — {{ n.customerName }} }
-                      </a>
-                      @if (n.notePreview) {
-                        <p>{{ n.notePreview }}</p>
-                      }
+              @if (actionItems.length) {
+                <h3 class="region-subhead">תפעול נוסף</h3>
+                <ul class="attention-list secondary wm-markets-list">
+                  @for (item of visibleActionItems; track item.id) {
+                    <li [attr.data-severity]="item.severity">
+                      <div class="attention-row">
+                        <span class="sev" [attr.data-severity]="item.severity">{{ severityLabel(item.severity) }}</span>
+                        <div class="attention-body">
+                          <strong>{{ item.title }}</strong>
+                          <p>{{ item.description }}</p>
+                        </div>
+                        <a class="dash-btn ghost sm" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
+                          {{ item.actionLabel }}
+                        </a>
+                      </div>
                     </li>
                   }
                 </ul>
               }
             } @else {
-              <div class="empty-compact">
-                <i class="fas fa-calendar-check" aria-hidden="true"></i>
-                אין מועד הכנה קרוב עם הזמנות פעילות
-              </div>
+              @if (visibleActionItems.length === 0) {
+                <div class="region-clear">
+                  <i class="fas fa-check-circle" aria-hidden="true"></i>
+                  <div>
+                    <strong>הכול תקין כרגע</strong>
+                    <p>אין בעיות דחופות — אפשר להתמקד בהכנות.</p>
+                  </div>
+                </div>
+              } @else {
+                <ul class="attention-list wm-markets-list">
+                  @for (item of visibleActionItems; track item.id) {
+                    <li [attr.data-severity]="item.severity">
+                      <div class="attention-row">
+                        <span class="sev" [attr.data-severity]="item.severity">{{ severityLabel(item.severity) }}</span>
+                        <div class="attention-body">
+                          <strong>{{ item.title }}</strong>
+                          <p>{{ item.description }}</p>
+                        </div>
+                        <a class="dash-btn ghost sm" [routerLink]="hrefPath(item.actionHref)" [queryParams]="hrefQuery(item.actionHref)">
+                          {{ item.actionLabel }}
+                        </a>
+                      </div>
+                    </li>
+                  }
+                </ul>
+                @if (actionItems.length > 5) {
+                  <button type="button" class="dash-link" (click)="showAllActions = !showAllActions">
+                    {{ showAllActions ? 'הצג פחות' : 'הצג הכול (' + actionItems.length + ')' }}
+                  </button>
+                }
+              }
             }
-          </div>
-        }
+          </section>
+        </aside>
       </section>
 
-      <!-- Compact: returning customers + breakdown -->
-      @if (returningCustomersList.length || breakdownByKind.length || breakdownByFulfillment.length) {
-        <section class="ops-section compact-review-section" aria-labelledby="compact-review-heading">
-          <div class="section-head">
-            <div class="section-title-wrap">
-              <span class="section-icon" aria-hidden="true"><i class="fas fa-layer-group"></i></span>
+      <!-- Delivery + prep -->
+      <div class="wm-ops-row">
+        <aside class="hifi-delivery-stack" aria-label="אספקה קרובה">
+          <section class="hifi-card ops-day">
+            <div class="region-head compact">
               <div>
-                <h2 id="compact-review-heading">פירוט מהיר</h2>
-                <p class="section-sub">לקוחות חוזרים וחלוקה בטווח שנבחר</p>
+                <h2>האספקה הקרובה</h2>
+                <p>מועד, לקוח, מנות וסטטוס</p>
               </div>
+              <label class="dash-field compact">
+                <span class="sr-only">בחירת יום</span>
+                <select [(ngModel)]="dayView" name="dayView" aria-label="בחירת יום">
+                  @for (opt of dayViewOptions; track opt.key) {
+                    <option [ngValue]="opt.key">{{ opt.label }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+
+            @if (activeDaySummary; as day) {
+              @if (day.ordersCount === 0) {
+                <div class="region-empty soft">
+                  <i class="fas fa-truck" aria-hidden="true"></i>
+                  <div>
+                    <strong>אין הזמנות למועד זה</strong>
+                    <p>בחרו יום אחר או צרו הזמנה ידנית.</p>
+                    <span class="empty-links">
+                      <a routerLink="/admin/orders" [queryParams]="{ create: '1' }">הזמנה ידנית</a>
+                      <a routerLink="/admin/orders">כל ההזמנות</a>
+                    </span>
+                  </div>
+                </div>
+              } @else {
+                <div class="delivery-hero">
+                  <div class="delivery-time">
+                    <span class="delivery-time-label">מועד אספקה</span>
+                    <strong class="delivery-time-value">{{ day.date }}</strong>
+                  </div>
+                  <span
+                    class="delivery-status"
+                    [class.is-warn]="day.awaitingApproval > 0"
+                    [class.is-ok]="day.awaitingApproval === 0"
+                  >
+                    @if (day.awaitingApproval > 0) {
+                      {{ formatCount(day.awaitingApproval) }} ממתינות לאישור
+                    } @else {
+                      מוכן לתפעול
+                    }
+                  </span>
+                </div>
+
+                <dl class="delivery-facts">
+                  <div>
+                    <dt>לקוח / הזמנה</dt>
+                    <dd>
+                      @if (day.nearestCustomerName || day.nearestOrderNumber) {
+                        {{ day.nearestCustomerName || '—' }}
+                        @if (day.nearestOrderNumber) {
+                          <span class="muted"> · #{{ day.nearestOrderNumber }}</span>
+                        }
+                      } @else {
+                        —
+                      }
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>מנות</dt>
+                    <dd class="num">{{ formatCount(day.portionsTotal) }}</dd>
+                  </div>
+                  <div>
+                    <dt>הזמנות ביום</dt>
+                    <dd class="num">{{ formatCount(day.ordersCount) }}</dd>
+                  </div>
+                </dl>
+
+                <div class="ops-day-links">
+                  <a routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, fulfillment: 'delivery' }">
+                    {{ formatCount(day.deliveries) }} משלוחים
+                  </a>
+                  <a routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, fulfillment: 'pickup' }">
+                    {{ formatCount(day.pickups) }} איסופים
+                  </a>
+                  <a class="warn" routerLink="/admin/orders" [queryParams]="{ eventFrom: day.date, eventTo: day.date, statusTab: 'pending' }">
+                    {{ formatCount(day.awaitingApproval) }} ממתינות
+                  </a>
+                </div>
+                @if ((day.unknownFulfillment || 0) > 0) {
+                  <p class="ops-note warn">סוג אספקה חסר ב־{{ formatCount(day.unknownFulfillment || 0) }} הזמנות</p>
+                }
+              }
+            }
+          </section>
+
+          <section class="hifi-card ops-prep" [class.is-open]="prepExpanded">
+            <button
+              type="button"
+              class="ops-prep-toggle"
+              (click)="togglePrepPanel()"
+              [attr.aria-expanded]="prepExpanded"
+              aria-controls="prep-panel-body"
+            >
+              <div>
+                <h2 id="prep-heading">הכנות קרובות</h2>
+                @if (prep?.eventDate) {
+                  <p>מועד אספקה: <strong>{{ prep!.eventDate }}</strong></p>
+                } @else {
+                  <p>המועד הבא עם הזמנות פעילות</p>
+                }
+              </div>
+              <div class="ops-prep-aside">
+                @if (prep?.eventDate && !prepExpanded) {
+                  <span class="ops-peek">{{ formatCount(prep!.ordersCount) }} · {{ formatCount(prep!.portionsTotal) }} מנות</span>
+                }
+                <a class="dash-link" routerLink="/admin/kitchen-report" (click)="$event.stopPropagation()">דוח מטבח</a>
+                <i class="fas" [class.fa-chevron-up]="prepExpanded" [class.fa-chevron-down]="!prepExpanded" aria-hidden="true"></i>
+              </div>
+            </button>
+
+            @if (prepExpanded) {
+              <div id="prep-panel-body" class="ops-prep-body">
+                @if (prep && prep.eventDate) {
+                  <div class="ops-prep-kpis">
+                    <div><strong>{{ formatCount(prep.ordersCount) }}</strong><span>הזמנות</span></div>
+                    <div><strong>{{ formatCount(prep.portionsTotal) }}</strong><span>מנות</span></div>
+                  </div>
+                  @if (prepTopItems.length) {
+                    <ul class="ops-dish-list">
+                      @for (item of prepTopItems; track item.name) {
+                        <li>
+                          <span>{{ item.name }}</span>
+                          <strong>{{ formatCount(item.quantity) }}</strong>
+                        </li>
+                      }
+                    </ul>
+                  }
+                  @if (prep.notesOrders.length) {
+                    <h3 class="region-subhead">עם הערות</h3>
+                    <ul class="ops-notes">
+                      @for (n of prep.notesOrders; track n.id) {
+                        <li>
+                          <a routerLink="/admin/orders" [queryParams]="{ orderId: n.id }">
+                            #{{ n.orderNumber || n.id.slice(-8) }}
+                            @if (n.customerName) { — {{ n.customerName }} }
+                          </a>
+                          @if (n.notePreview) {
+                            <p>{{ n.notePreview }}</p>
+                          }
+                        </li>
+                      }
+                    </ul>
+                  }
+                } @else {
+                  <div class="region-empty soft">
+                    <strong>אין מועד הכנה קרוב</strong>
+                    <p>כשיופיעו הזמנות פעילות — הן יוצגו כאן.</p>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </aside>
+      </div>
+
+      <!-- Table cards -->
+      <div class="dash-lower ta-grid wm-tables">
+        <section class="hifi-card region-activity wm-table-card ta-col-7" aria-labelledby="activity-heading">
+          <div class="wm-card-head">
+            <div>
+              <h2 id="activity-heading" class="wm-card-title">הזמנות אחרונות</h2>
+              <p class="wm-card-sub">לוח פעילות לפי חלון אספקה</p>
+            </div>
+            <div class="segmented" role="group" aria-label="חלון אספקה">
+              @for (opt of upcomingWindowOptions; track opt.key) {
+                <button
+                  type="button"
+                  class="segmented-btn"
+                  [class.active]="upcomingWindow === opt.key"
+                  (click)="setUpcomingWindow(opt.key)"
+                >
+                  {{ opt.label }}
+                </button>
+              }
             </div>
           </div>
-          <div class="compact-review-grid">
-            @if (returningCustomersList.length) {
-              <div class="panel-lite">
-                <h3 class="subhead">לקוחות חוזרים</h3>
-                <ul class="prep-items">
-                  @for (c of returningCustomersList; track c.identityKeyHash) {
-                    <li>
-                      <span>{{ c.displayName }}</span>
-                      <strong>{{ formatCount(c.orderCount) }} · {{ formatMoney(c.paidTotal) }}</strong>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
-            @if (breakdownByKind.length) {
-              <div class="panel-lite">
-                <h3 class="subhead">לפי סוג הזמנה</h3>
-                <ul class="breakdown-bars">
-                  @for (row of breakdownByKind; track row.key) {
-                    <li>
-                      <div class="bb-top">
-                        <span>{{ row.labelHe }}</span>
-                        <strong>{{ formatCount(row.count) }} · {{ row.percent }}%</strong>
-                      </div>
-                      <div class="bb-track" aria-hidden="true"><span class="bb-fill" [style.width.%]="row.percent"></span></div>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
-            @if (breakdownByFulfillment.length) {
-              <div class="panel-lite">
-                <h3 class="subhead">לפי מילוי</h3>
-                <ul class="breakdown-bars">
-                  @for (row of breakdownByFulfillment; track row.key) {
-                    <li>
-                      <div class="bb-top">
-                        <span>{{ row.labelHe }}</span>
-                        <strong>{{ formatCount(row.count) }} · {{ row.percent }}%</strong>
-                      </div>
-                      <div class="bb-track" aria-hidden="true"><span class="bb-fill tone-2" [style.width.%]="row.percent"></span></div>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
-          </div>
-        </section>
-      }
 
-      <!-- 5. Top selling by category for selected date range (default: last 30 days) -->
-      <section class="ops-section sales-section">
-        <div class="section-head">
-          <div class="section-title-wrap">
-            <span class="section-icon sales-icon" aria-hidden="true"><i class="fas fa-trophy"></i></span>
+          @if (upcomingOrders.length === 0) {
+            <div class="region-empty soft">
+              <i class="fas fa-inbox" aria-hidden="true"></i>
+              <div>
+                <strong>אין הזמנות בחלון שנבחר</strong>
+                <p>שנו את החלון או צרו הזמנה חדשה.</p>
+              </div>
+            </div>
+          } @else {
+            <div class="wm-table-surface">
+              <div class="activity-table-wrap">
+                <table class="activity-table">
+                  <thead>
+                    <tr>
+                      <th>הזמנה</th>
+                      <th>לקוח</th>
+                      <th>מועד</th>
+                      <th>סטטוס</th>
+                      <th>סכום</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (o of upcomingOrders; track o.id || o.orderNumber) {
+                      <tr [class.has-exception]="orderHasException(o)">
+                        <td>
+                          <a routerLink="/admin/orders" [queryParams]="{ orderId: o.id }">
+                            #{{ o.orderNumber || (o.id ? ('' + o.id).slice(-8) : '—') }}
+                          </a>
+                          @if (isTestOrderRow(o)) {
+                            <span class="test-tag">בדיקה</span>
+                          }
+                        </td>
+                        <td>{{ o.customerName || '—' }}</td>
+                        <td>{{ o.eventDate || '—' }}</td>
+                        <td>
+                          <span class="pill" [attr.data-status]="o.status">{{ statusLabel(o.status || '') }}</span>
+                        </td>
+                        <td class="num">{{ formatMoney(+o.totalPrice) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <a class="wm-table-cta dash-btn ghost" routerLink="/admin/orders">
+              לכל ההזמנות
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            </a>
+          }
+        </section>
+
+        <section class="hifi-card ops-status wm-table-card ta-col-5" aria-label="סטטוס הזמנות">
+          <div class="wm-card-head">
+            <div>
+              <h2 class="wm-card-title">מצב הזמנות</h2>
+              <p class="wm-card-sub">חלוקה לפי סטטוס בטווח</p>
+            </div>
+          </div>
+
+          @if (overview.ordersByStatus?.length) {
+            <div class="wm-table-surface">
+              <ul class="status-bars" aria-label="תרשים סטטוס">
+                @for (row of overview.ordersByStatus; track row.status) {
+                  <li>
+                    <a
+                      class="status-bar-row"
+                      [attr.data-status]="row.status"
+                      routerLink="/admin/orders"
+                      [queryParams]="{ statusTab: row.status }"
+                    >
+                      <div class="status-bar-top">
+                        <span class="status-label">{{ statusLabel(row.status) }}</span>
+                        <strong class="status-count">{{ formatCount(row.count) }}</strong>
+                      </div>
+                      <div class="status-bar-track" aria-hidden="true">
+                        <span
+                          class="status-bar-fill"
+                          [style.width.%]="statusBarPercent(row.count)"
+                        ></span>
+                      </div>
+                    </a>
+                  </li>
+                }
+              </ul>
+            </div>
+          } @else {
+            <div class="region-empty soft">
+              <i class="fas fa-chart-pie" aria-hidden="true"></i>
+              <div>
+                <strong>אין נתוני סטטוס</strong>
+                <p>כשיופיעו הזמנות בטווח — החלוקה תוצג כאן.</p>
+              </div>
+            </div>
+          }
+        </section>
+      </div>
+
+      <!-- משני: פירוט / מנות / מדדים / תובנות — אותן קריאות ופילטרים -->
+      <div class="dash-secondary">
+
+        @if (returningCustomersList.length || breakdownByKind.length || breakdownByFulfillment.length) {
+          <section class="hifi-card sec-panel" aria-labelledby="compact-review-heading">
+            <h2 id="compact-review-heading">פירוט מהיר</h2>
+            <div class="sec-grid">
+              @if (returningCustomersList.length) {
+                <div>
+                  <h3>לקוחות חוזרים</h3>
+                  <ul class="sec-list">
+                    @for (c of returningCustomersList; track c.identityKeyHash) {
+                      <li>
+                        <span>{{ c.displayName }}</span>
+                        <strong>{{ formatCount(c.orderCount) }} · {{ formatMoney(c.paidTotal) }}</strong>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+              @if (breakdownByKind.length) {
+                <div>
+                  <h3>לפי סוג הזמנה</h3>
+                  <ul class="breakdown-bars">
+                    @for (row of breakdownByKind; track row.key) {
+                      <li>
+                        <div class="bb-top">
+                          <span>{{ row.labelHe }}</span>
+                          <strong>{{ formatCount(row.count) }} · {{ row.percent }}%</strong>
+                        </div>
+                        <div class="bb-track" aria-hidden="true"><span class="bb-fill" [style.width.%]="row.percent"></span></div>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+              @if (breakdownByFulfillment.length) {
+                <div>
+                  <h3>לפי מילוי</h3>
+                  <ul class="breakdown-bars">
+                    @for (row of breakdownByFulfillment; track row.key) {
+                      <li>
+                        <div class="bb-top">
+                          <span>{{ row.labelHe }}</span>
+                          <strong>{{ formatCount(row.count) }} · {{ row.percent }}%</strong>
+                        </div>
+                        <div class="bb-track" aria-hidden="true"><span class="bb-fill tone-2" [style.width.%]="row.percent"></span></div>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        <section class="hifi-card sec-panel sales-panel">
+          <div class="region-head">
             <div>
               <h2>מנות נמכרות</h2>
-              <p class="section-sub">3 המובילות בכל קטגוריה · {{ salesRangeLabel }}</p>
+              <p>3 המובילות בכל קטגוריה · {{ salesRangeLabel }}</p>
             </div>
           </div>
-        </div>
-        <div class="filters-bar" role="group" aria-label="סינון תאריכים למנות נמכרות">
-          <label class="ops-select-wrap">
-            <span class="sr-only">טווח מנות נמכרות</span>
-            <select
-              [ngModel]="salesPreset"
-              (ngModelChange)="selectSalesPreset($event)"
-              aria-label="טווח מנות נמכרות"
-            >
-              @for (p of presetOptions; track p.key) {
-                <option [ngValue]="p.key">{{ p.label }}</option>
-              }
-            </select>
-          </label>
-          @if (salesPreset === 'custom') {
-            <div class="custom-range">
-              <label class="ops-field inline"><span class="sr-only">מתאריך</span><input type="date" [(ngModel)]="salesCustomFrom" [attr.max]="salesCustomTo || null" /></label>
-              <label class="ops-field inline"><span class="sr-only">עד תאריך</span><input type="date" [(ngModel)]="salesCustomTo" [attr.min]="salesCustomFrom || null" /></label>
-              <button type="button" class="ops-btn primary" (click)="applySalesCustomRange()">החל</button>
-            </div>
-          }
-          @if (salesRangeError) {
-            <div class="inline-error" role="alert">{{ salesRangeError }}</div>
-          }
-        </div>
-
-        @if (!selectedSalesCategories.length) {
-          <div class="empty-compact" role="status">
-            <i class="fas fa-utensils" aria-hidden="true"></i>
-            אין מנות נמכרות בטווח שנבחר
-          </div>
-        } @else {
-          <div class="sales-categories">
-            @for (cat of selectedSalesCategories; track cat.category) {
-              <article class="sales-cat-card" [attr.data-tone]="salesTone(cat.category)">
-                <h3 class="sales-cat-title">{{ cat.category }}</h3>
-                <ol class="sales-rank-list">
-                  @for (item of cat.items; track item.name; let i = $index) {
-                    <li>
-                      <span class="rank-num" aria-hidden="true">{{ i + 1 }}</span>
-                      <span class="rank-name">{{ item.name }}</span>
-                      <span class="rank-meta">
-                        <strong>{{ formatCount(item.quantity) }}</strong>
-                        <span class="muted">{{ formatMoney(item.revenue) }}</span>
-                      </span>
-                    </li>
-                  }
-                </ol>
-              </article>
+          <div class="sec-filters" role="group" aria-label="סינון תאריכים למנות נמכרות">
+            <label class="dash-field">
+              <span class="dash-field-label">טווח</span>
+              <select
+                [ngModel]="salesPreset"
+                (ngModelChange)="selectSalesPreset($event)"
+                aria-label="טווח מנות נמכרות"
+              >
+                @for (p of presetOptions; track p.key) {
+                  <option [ngValue]="p.key">{{ p.label }}</option>
+                }
+              </select>
+            </label>
+            @if (salesPreset === 'custom') {
+              <label class="dash-field"><span class="sr-only">מתאריך</span><input type="date" [(ngModel)]="salesCustomFrom" [attr.max]="salesCustomTo || null" /></label>
+              <label class="dash-field"><span class="sr-only">עד תאריך</span><input type="date" [(ngModel)]="salesCustomTo" [attr.min]="salesCustomFrom || null" /></label>
+              <button type="button" class="dash-btn ghost" (click)="applySalesCustomRange()">החל</button>
+            }
+            @if (salesRangeError) {
+              <div class="dash-alert error inline" role="alert">{{ salesRangeError }}</div>
             }
           </div>
-        }
-      </section>
-
-      <!-- 6. Financial -->
-      <section class="ops-section finance-section">
-        <div class="section-head">
-          <div class="section-title-wrap">
-            <span class="section-icon" aria-hidden="true"><i class="fas fa-chart-line"></i></span>
-            <div>
-              <h2>לוח מדדים עסקי</h2>
-              <p class="section-sub">הכנסות בפועל לפי כללי החישוב המאושרים · השוואה לתקופה קודמת</p>
+          @if (!selectedSalesCategories.length) {
+            <div class="region-empty soft">
+              <strong>אין מנות נמכרות</strong>
+              <p>אין נתונים בטווח שנבחר.</p>
             </div>
-          </div>
-        </div>
-        <div class="filters-bar" role="group" aria-label="סינון מדדים">
-          <label class="ops-select-wrap">
-            <span class="sr-only">טווח כספי</span>
-            <select
-              [ngModel]="selectedPreset"
-              (ngModelChange)="selectPreset($event)"
-              aria-label="טווח כספי"
-            >
-              @for (p of presetOptions; track p.key) {
-                <option [ngValue]="p.key">{{ p.label }}</option>
+          } @else {
+            <div class="sales-categories">
+              @for (cat of selectedSalesCategories; track cat.category) {
+                <article class="sales-cat" [attr.data-tone]="salesTone(cat.category)">
+                  <h3>{{ cat.category }}</h3>
+                  <ol>
+                    @for (item of cat.items; track item.name; let i = $index) {
+                      <li>
+                        <span class="rank">{{ i + 1 }}</span>
+                        <span class="name">{{ item.name }}</span>
+                        <span class="meta"><strong>{{ formatCount(item.quantity) }}</strong> {{ formatMoney(item.revenue) }}</span>
+                      </li>
+                    }
+                  </ol>
+                </article>
               }
-            </select>
-          </label>
-          @if (selectedPreset === 'custom') {
-            <div class="custom-range">
-              <label class="ops-field inline"><span class="sr-only">מתאריך</span><input type="date" [(ngModel)]="customFrom" [attr.max]="customTo || null" /></label>
-              <label class="ops-field inline"><span class="sr-only">עד תאריך</span><input type="date" [(ngModel)]="customTo" [attr.min]="customFrom || null" /></label>
-              <button type="button" class="ops-btn primary" (click)="applyCustomRange()">החל</button>
             </div>
           }
-          <div class="metric-filters">
-            <label class="ops-select-wrap labeled">
-              <span>סוג הזמנה</span>
+        </section>
+
+        <section class="hifi-card sec-panel finance-panel">
+          <div class="region-head">
+            <div>
+              <h2>מדדים עסקיים מפורטים</h2>
+              <p>סינון מתקדם והשוואות לתקופה קודמת</p>
+            </div>
+          </div>
+          <div class="sec-filters finance-filters" role="group" aria-label="סינון מדדים">
+            <label class="dash-field">
+              <span class="dash-field-label">טווח כספי</span>
+              <select [ngModel]="selectedPreset" (ngModelChange)="selectPreset($event)" aria-label="טווח כספי">
+                @for (p of presetOptions; track p.key) {
+                  <option [ngValue]="p.key">{{ p.label }}</option>
+                }
+              </select>
+            </label>
+            @if (selectedPreset === 'custom') {
+              <label class="dash-field"><span class="sr-only">מתאריך</span><input type="date" [(ngModel)]="customFrom" [attr.max]="customTo || null" /></label>
+              <label class="dash-field"><span class="sr-only">עד תאריך</span><input type="date" [(ngModel)]="customTo" [attr.min]="customFrom || null" /></label>
+              <button type="button" class="dash-btn ghost" (click)="applyCustomRange()">החל</button>
+            }
+            <label class="dash-field">
+              <span class="dash-field-label">סוג הזמנה</span>
               <select [(ngModel)]="orderKindFilter" name="orderKindFilter" (ngModelChange)="onMetricFilterChange()">
                 @for (o of orderKindOptions; track o.key) {
                   <option [value]="o.key">{{ o.label }}</option>
                 }
               </select>
             </label>
-            <label class="ops-select-wrap labeled">
-              <span>סטטוס הזמנה</span>
+            <label class="dash-field">
+              <span class="dash-field-label">סטטוס</span>
               <select [(ngModel)]="statusFilter" name="statusFilter" (ngModelChange)="onMetricFilterChange()">
                 @for (o of statusOptions; track o.key) {
                   <option [value]="o.key">{{ o.label }}</option>
                 }
               </select>
             </label>
-            <label class="ops-select-wrap labeled">
-              <span>סטטוס תשלום</span>
+            <label class="dash-field">
+              <span class="dash-field-label">תשלום</span>
               <select [(ngModel)]="paymentStatusFilter" name="paymentStatusFilter" (ngModelChange)="onMetricFilterChange()">
                 @for (o of paymentStatusOptions; track o.key) {
                   <option [value]="o.key">{{ o.label }}</option>
                 }
               </select>
             </label>
+            @if (rangeError) {
+              <div class="dash-alert error inline" role="alert">{{ rangeError }}</div>
+            }
           </div>
-          @if (rangeError) {
-            <div class="inline-error" role="alert">{{ rangeError }}</div>
+
+          @if (finance.zeroPriceWarning) {
+            <div class="dash-alert warn" role="status">
+              <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+              <div>
+                <strong>הכנסות חלקיות</strong>
+                <p>{{ finance.zeroPriceWarning }}</p>
+              </div>
+            </div>
           }
-        </div>
 
-        @if (finance.zeroPriceWarning) {
-          <div class="state-box warn" role="status">
-            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-            <div>
-              <strong>הכנסות חלקיות</strong>
-              <p>{{ finance.zeroPriceWarning }}</p>
-            </div>
+          <div class="finance-detail-grid">
+            <div><span class="mini-label">מספר הזמנות</span><strong>{{ formatCount(finance.totalOrders) }}</strong></div>
+            <div><span class="mini-label">ממוצע להזמנה</span><strong>{{ formatMoney(finance.averageOrderValue) }}</strong><span class="hifi-change sm" [ngClass]="'tone-' + aovChange.tone">{{ aovChange.label }}</span></div>
+            <div><span class="mini-label">לקוחות חדשים</span><strong>{{ formatCount(finance.newCustomers) }}</strong><span class="hifi-change sm" [ngClass]="'tone-' + newCustomersChange.tone">{{ newCustomersChange.label }}</span></div>
+            <div><span class="mini-label">לקוחות חוזרים</span><strong>{{ formatCount(finance.returningCustomers) }}</strong><span class="hifi-change sm" [ngClass]="'tone-' + returningChange.tone">{{ returningChange.label }}</span></div>
+            <div><span class="mini-label">בוטלו</span><strong>{{ formatCount(finance.cancelledOrders) }}</strong></div>
+            <div class="tone-warn"><span class="mini-label">תשלומים ממתינים</span><strong data-testid="awaiting-count">{{ formatCount(finance.awaitingPayments) }}</strong></div>
+            <div class="tone-danger"><span class="mini-label">תשלומים שנכשלו</span><strong>{{ formatCount(finance.failedPayments) }} · {{ formatMoney(finance.failedAmount) }}</strong></div>
+            <div><span class="mini-label">חשבוניות חיצוניות</span><strong>{{ formatMoney(finance.externalInvoicesAmount) }}</strong><span class="mini-label">{{ formatCount(finance.externalInvoicesCount) }} · לא בהכנסות בפועל</span></div>
           </div>
-        }
 
-        <div class="finance-layout">
-          <div class="finance-hero">
-            <span class="kpi-icon" aria-hidden="true"><i class="fas fa-coins"></i></span>
-            <span class="dm-label">הכנסות בפועל</span>
-            <span class="hero-value">{{ formatMoney(finance.capturedRevenue) }}</span>
-            <span class="stat-change" [ngClass]="'tone-' + revenueChange.tone">{{ revenueChange.label }}</span>
-          </div>
-          <div class="finance-metrics">
-            <div class="finance-card">
-              <span class="dm-label">הכנסות צפויות (אירועים שטרם שולמו)</span>
-              <span class="dm-value">{{ formatMoney(finance.expectedRevenue) }}</span>
-            </div>
-            <div class="finance-card">
-              <span class="dm-label">מספר הזמנות</span>
-              <span class="dm-value">{{ formatCount(finance.totalOrders) }}</span>
-            </div>
-            <div class="finance-card">
-              <span class="dm-label">הזמנות ששולמו</span>
-              <span class="dm-value">{{ formatCount(finance.paidOrders) }}</span>
-              <span class="stat-change" [ngClass]="'tone-' + paidChange.tone">{{ paidChange.label }}</span>
-            </div>
-            <div class="finance-card">
-              <span class="dm-label">ממוצע להזמנה</span>
-              <span class="dm-value">{{ formatMoney(finance.averageOrderValue) }}</span>
-              <span class="stat-change" [ngClass]="'tone-' + aovChange.tone">{{ aovChange.label }}</span>
-            </div>
-            <div class="finance-card secondary">
-              <span class="dm-label">לקוחות חדשים</span>
-              <span class="dm-value">{{ formatCount(finance.newCustomers) }}</span>
-              <span class="stat-change" [ngClass]="'tone-' + newCustomersChange.tone">{{ newCustomersChange.label }}</span>
-            </div>
-            <div class="finance-card secondary">
-              <span class="dm-label">לקוחות חוזרים</span>
-              <span class="dm-value">{{ formatCount(finance.returningCustomers) }}</span>
-              <span class="stat-change" [ngClass]="'tone-' + returningChange.tone">{{ returningChange.label }}</span>
-            </div>
-            <div class="finance-card">
-              <span class="dm-label">הזמנות שבוטלו</span>
-              <span class="dm-value">{{ formatCount(finance.cancelledOrders) }}</span>
-            </div>
-            <div class="finance-card warn">
-              <span class="dm-label">תשלומים ממתינים</span>
-              <span class="dm-value" data-testid="awaiting-amount">{{ formatMoney(finance.awaitingAmount) }}</span>
-              <span class="muted" data-testid="awaiting-count">{{ formatCount(finance.awaitingPayments) }} הזמנות</span>
-            </div>
-            <div class="finance-card danger">
-              <span class="dm-label">תשלומים שנכשלו</span>
-              <span class="dm-value">{{ formatMoney(finance.failedAmount) }}</span>
-              <span class="muted">{{ formatCount(finance.failedPayments) }} הזמנות</span>
-            </div>
-            <div class="finance-card">
-              <span class="dm-label">חשבוניות חיצוניות</span>
-              <span class="dm-value">{{ formatMoney(finance.externalInvoicesAmount) }}</span>
-              <span class="muted">{{ formatCount(finance.externalInvoicesCount) }} · לא בהכנסות בפועל</span>
-            </div>
-          </div>
-        </div>
-
-        @if (ordersByType.length) {
-          <div class="panel-lite" style="margin-top: 1rem">
-            <h3 class="subhead">חלוקה לפי סוג הזמנה</h3>
-            <ul class="prep-items">
+          @if (ordersByType.length) {
+            <h3 class="region-subhead">חלוקה לפי סוג הזמנה</h3>
+            <ul class="sec-list">
               @for (row of ordersByType; track row.orderKind || row.orderType || $index) {
                 <li>
                   <span>{{ row.orderKindLabel || row.orderType || '—' }}</span>
@@ -708,30 +819,23 @@
                 </li>
               }
             </ul>
-          </div>
-        }
+          }
 
-        @if (paidTopDishes.length) {
-          <div class="panel-lite" style="margin-top: 1rem">
-            <h3 class="subhead">מנות מובילות (שולם)</h3>
-            <ul class="prep-items">
+          @if (paidTopDishes.length) {
+            <h3 class="region-subhead">מנות מובילות (שולם)</h3>
+            <ul class="sec-list">
               @for (item of paidTopDishes; track item.name + (item.category || '')) {
                 <li>
                   <span>{{ item.name }}@if (item.category) { <span class="muted"> · {{ item.category }}</span> }</span>
-                  <strong>
-                    {{ formatCount(item.quantity) }}
-                    @if (item.revenue != null) { · {{ formatMoney(item.revenue) }} }
-                  </strong>
+                  <strong>{{ formatCount(item.quantity) }}@if (item.revenue != null) { · {{ formatMoney(item.revenue) }} }</strong>
                 </li>
               }
             </ul>
-          </div>
-        }
+          }
 
-        @if (topDishes.length) {
-          <div class="panel-lite" style="margin-top: 1rem">
-            <h3 class="subhead">מנות מובילות</h3>
-            <ul class="prep-items">
+          @if (topDishes.length) {
+            <h3 class="region-subhead">מנות מובילות</h3>
+            <ul class="sec-list">
               @for (item of topDishes; track item.name) {
                 <li>
                   <span>{{ item.name }}</span>
@@ -739,57 +843,20 @@
                 </li>
               }
             </ul>
-          </div>
-        }
-
-        <div class="panel-lite chart-lite finance-chart">
-          <div class="chart-head-row">
-            <div>
-              <h3 class="subhead">מגמה</h3>
-              <p class="section-sub chart-sub">התפתחות לאורך הטווח שנבחר · מדדי KPI ראשיים לפי הגדרת שולם בבקרה כספית</p>
-            </div>
-            <label class="ops-select-wrap">
-              <span class="sr-only">מדד מגמה</span>
-              <select
-                [ngModel]="trendMetric"
-                (ngModelChange)="setTrendMetric($event)"
-                aria-label="מדד מגמה"
-              >
-                @for (opt of trendMetricOptions; track opt.key) {
-                  <option [ngValue]="opt.key">{{ opt.label }}</option>
-                }
-              </select>
-            </label>
-          </div>
-          @if (hasTrendData) {
-            <div class="chart-wrapper-sm">
-              <canvas baseChart [data]="trendChartData" [options]="trendChartOptions" [type]="'line'"></canvas>
-            </div>
-          } @else {
-            <div class="empty-compact">אין נתוני מגמה</div>
           }
-        </div>
-      </section>
-
-      <!-- 7. Insights -->
-      @if (insights.length) {
-        <section class="ops-section insights-section">
-          <div class="section-head">
-            <div class="section-title-wrap">
-              <span class="section-icon" aria-hidden="true"><i class="fas fa-lightbulb"></i></span>
-              <div>
-                <h2>תובנות</h2>
-                <p class="section-sub">סיכום קצר מהנתונים בטווח</p>
-              </div>
-            </div>
-          </div>
-          <ul class="insights-list">
-            @for (ins of insights; track ins.id) {
-              <li>{{ ins.text }}</li>
-            }
-          </ul>
         </section>
-      }
+
+        @if (insights.length) {
+          <section class="hifi-card sec-panel insights-panel">
+            <h2>תובנות</h2>
+            <ul class="insights-list">
+              @for (ins of insights; track ins.id) {
+                <li>{{ ins.text }}</li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
     }
   </div>
 </div>

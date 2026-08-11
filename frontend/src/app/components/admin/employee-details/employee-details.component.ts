@@ -147,7 +147,7 @@ interface Employee {
     .employee-details-page {
       padding: 2rem;
       min-height: 100vh;
-      background: #f3f4f6;
+      background: #F5F7FA;
     }
 
     .container {
@@ -166,11 +166,11 @@ interface Employee {
     .btn-back {
       padding: 0.75rem 1.5rem;
       background: white;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #E2E8F0;
       border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
-      color: #475569;
+      color: #55615a;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
@@ -179,7 +179,7 @@ interface Employee {
 
     .btn-back:hover {
       background: #f1f5f9;
-      border-color: #cbd5e1;
+      border-color: #E2E8F0;
     }
 
     .page-title {
@@ -188,12 +188,12 @@ interface Employee {
       gap: 0.75rem;
       font-size: 1.75rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       margin: 0;
     }
 
     .page-title i {
-      color: #10b981;
+      color: #65B69D;
     }
 
     /* Controls */
@@ -217,29 +217,29 @@ interface Employee {
 
     .date-picker-group label {
       font-weight: 600;
-      color: #475569;
+      color: #55615a;
     }
 
     .month-picker {
       padding: 0.75rem 1rem;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #E2E8F0;
       border-radius: 8px;
       font-size: 1rem;
       font-weight: 600;
-      color: #1e293b;
+      color: #1c2520;
       background: white;
       cursor: pointer;
     }
 
     .month-picker:focus {
       outline: none;
-      border-color: #10b981;
+      border-color: #65B69D;
       box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
 
     .btn-export {
       padding: 0.75rem 1.5rem;
-      background: #10b981;
+      background: #65B69D;
       color: white;
       border: none;
       border-radius: 8px;
@@ -252,13 +252,13 @@ interface Employee {
     }
 
     .btn-export:hover:not(:disabled) {
-      background: #059669;
+      background: #1F2D3D;
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
     }
 
     .btn-export:disabled {
-      opacity: 0.5;
+      /* disabled visual without fading text */ color: #687789; border-color: #E2E8F0; background: #F8FAFC;
       cursor: not-allowed;
     }
 
@@ -266,13 +266,13 @@ interface Employee {
     .loading {
       text-align: center;
       padding: 4rem 2rem;
-      color: #64748b;
+      color: #6d776f;
     }
 
     .loading i {
       font-size: 2.5rem;
       margin-bottom: 1rem;
-      color: #10b981;
+      color: #65B69D;
     }
 
     .error-message {
@@ -298,20 +298,20 @@ interface Employee {
     .card-title {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       margin-bottom: 1.5rem;
     }
 
     .empty-state {
       text-align: center;
       padding: 3rem 2rem;
-      color: #64748b;
+      color: #6d776f;
     }
 
     .empty-state i {
       font-size: 3rem;
       margin-bottom: 1rem;
-      color: #cbd5e1;
+      color: #E2E8F0;
     }
 
     /* Timesheet Table */
@@ -321,31 +321,31 @@ interface Employee {
     }
 
     .timesheet-table thead {
-      background: #f8fafc;
+      background: #F5F7FA;
     }
 
     .timesheet-table th {
       padding: 1rem;
       text-align: right;
       font-weight: 600;
-      color: #475569;
-      border-bottom: 2px solid #e2e8f0;
+      color: #55615a;
+      border-bottom: 2px solid #E2E8F0;
       font-size: 0.9rem;
     }
 
     .timesheet-table td {
       padding: 1rem;
       text-align: right;
-      color: #1e293b;
-      border-bottom: 1px solid #e2e8f0;
+      color: #1c2520;
+      border-bottom: 1px solid #E2E8F0;
     }
 
     .timesheet-table tbody tr:hover {
-      background: #f8fafc;
+      background: #F5F7FA;
     }
 
     .timesheet-table tbody tr.missing-clockout {
-      background: #fef2f2;
+      background: #FDEBEC;
     }
 
     .timesheet-table .missing {
@@ -355,7 +355,7 @@ interface Employee {
 
     .timesheet-table .wage-cell {
       font-weight: 600;
-      color: #059669;
+      color: #1F2D3D;
     }
 
     /* Summary Card */
@@ -364,7 +364,7 @@ interface Employee {
       border-radius: 12px;
       padding: 2rem;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border-top: 3px solid #10b981;
+      border-top: 3px solid #65B69D;
     }
 
     .summary-row {
@@ -389,22 +389,22 @@ interface Employee {
 
     .summary-label {
       font-size: 0.9rem;
-      color: #64748b;
+      color: #6d776f;
       font-weight: 600;
     }
 
     .summary-value {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
     }
 
     .summary-value.hours {
-      color: #3b82f6;
+      color: #65B69D;
     }
 
     .summary-value.cost {
-      color: #059669;
+      color: #1F2D3D;
       font-size: 2rem;
     }
 

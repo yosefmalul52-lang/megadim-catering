@@ -9,11 +9,16 @@ import {
   pushCateringOrderItems,
   resolveMealCourseLines,
 } from '../utils/catering-lines';
-import { validateShabbatCateringSelection, cateringLineNames } from '../utils/catering-validation';
+import { validateShabbatCateringSelection, cateringLineNames, wantsShabbatFirstCourseUpgrade } from '../utils/catering-validation';
 import {
   catalogToPublicDto,
   getOrCreateEventsCatalog
 } from '../services/events-catering-catalog.service';
+import {
+  getOrCreateShabbatCatalog,
+  shabbatCatalogToPublicDto
+} from '../services/shabbat-catering-catalog.service';
+import { computeShabbatCateringTotals } from '../utils/shabbat-catering-pricing.util';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -227,7 +232,16 @@ export class CateringController {
       throw createValidationError('deliveryType must be pickup or delivery');
     }
 
-    validateShabbatCateringSelection(body, mealTime as 'evening' | 'morning' | 'both');
+    const shabbatDoc = await getOrCreateShabbatCatalog();
+    const shabbatRates = shabbatCatalogToPublicDto(shabbatDoc);
+
+    validateShabbatCateringSelection(body, mealTime as 'evening' | 'morning' | 'both', {
+      firstCourseSlotCount: shabbatRates.firstCourseSlotCount,
+      mainCourseSlotCount: shabbatRates.mainCourseSlotCount,
+      sidesSlotCount: shabbatRates.sideSlotCount
+    });
+
+    const firstCourseUpgrade = wantsShabbatFirstCourseUpgrade(body);
 
     const firstCourses = resolveMealCourseLines(
       body,
@@ -303,6 +317,20 @@ export class CateringController {
     if (payload.remarks) notesparts.push(payload.remarks);
     const combinedNotes = notesparts.join(' | ') || undefined;
 
+    // Price from live Shabbat catalog (events-parity). Delivery fee stays 0 until admin sets manually.
+    const pricing = computeShabbatCateringTotals(
+      {
+        mealTime: payload.mealTime,
+        numberOfPortions: portions.numberOfPortions,
+        seudaShlishit: payload.seudaShlishit,
+        firstCourseUpgrade,
+        fishUpgrade: body.fishUpgrade === true,
+        desserts: body.desserts === true,
+        kosherUpgrade: body.kosherUpgrade === true
+      },
+      shabbatRates
+    );
+
     const orderDoc: Record<string, unknown> = {
       orderType: 'catering' as const,
       cateringKind: 'shabbat' as const,
@@ -313,10 +341,15 @@ export class CateringController {
         eventDate: payload.eventDate,
         address: payload.address || undefined,
         deliveryType: payload.deliveryType || undefined,
-        notes: combinedNotes
+        notes: combinedNotes,
+        pricePerPortion: pricing.pricePerPortion,
+        subtotal: pricing.foodSubtotal,
+        deliveryFee: 0
       },
       items: buildCateringItems(),
-      totalPrice: 0,
+      subtotal: pricing.foodSubtotal,
+      deliveryFee: 0,
+      totalPrice: pricing.foodSubtotal,
       status: 'pending',
       isTestOrder: false,
       numberOfPortions: portions.numberOfPortions,
@@ -353,7 +386,15 @@ export class CateringController {
 
     if (ownerEmail && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       try {
-        await emailService.sendCateringOrderEmails(payload, ownerEmail, payload.email);
+        await emailService.sendCateringOrderEmails(
+          {
+            ...payload,
+            total: pricing.foodSubtotal,
+            pricePerPortion: pricing.pricePerPortion
+          },
+          ownerEmail,
+          payload.email
+        );
       } catch (emailErr: unknown) {
         console.error(
           'Catering: email failed after order was saved (orderId=%s):',

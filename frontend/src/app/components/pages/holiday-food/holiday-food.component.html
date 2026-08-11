@@ -12,11 +12,11 @@
     <div class="container hero-content">
       <div class="title-wrapper">
         <span class="side-line"></span>
-        <h1 class="main-title">מגדים לאירועי שבת וחג</h1>
+        <h1 class="main-title">{{ 'HOLIDAY_FOOD.TITLE' | translate }}</h1>
         <span class="side-line"></span>
       </div>
       <p class="hero-desc">
-        קייטרינג מגדים מציע מבחר גדול של אוכל ביתי טעים ואיכותי שישדרג לכם את עונג שבת וחג. פתרון מושלם לאירוח ללא מאמץ.
+        {{ 'HOLIDAY_FOOD.HERO_DESC' | translate }}
       </p>
     </div>
   </section>
@@ -26,34 +26,34 @@
     <div class="container">
       <div class="packages-grid">
         <div class="package-card">
-          <h3>ארוחה אחת</h3>
+          <h3>{{ 'HOLIDAY_FOOD.SINGLE_MEAL' | translate }}</h3>
           <div class="price-display">
             <span class="price-amount">{{ singleMealPrice }}</span>
             <span class="price-currency">₪</span>
-            <span class="price-label">למנה</span>
+            <span class="price-label">{{ 'HOLIDAY_FOOD.PER_PORTION' | translate }}</span>
           </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">{{ saladMinCount }} סוגי סלטים לבחירה</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">{{ firstCourseSlotIndexes.length }} מנות ראשונות (תוספת {{ firstCourseUpgradePrice }} ₪ למנה)</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">{{ mainCourseSlotIndexes.length }} מנות עיקריות</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">{{ sidesSlotIndexes.length }} תוספות</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.SALADS_CHOICE' | translate:{ count: saladMinCount } }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.FIRST_COURSES' | translate:{ count: firstCourseSlotIndexes.length, price: firstCourseUpgradePrice } }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.MAIN_COURSES' | translate:{ count: mainCourseSlotIndexes.length } }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.SIDES' | translate:{ count: sidesSlotIndexes.length } }}</span></li>
           </ul>
         </div>
         
         <div class="package-card featured">
-          <div class="featured-badge">הכי משתלם</div>
-          <h3>שתי ארוחות (ערב + בוקר)</h3>
+          <div class="featured-badge">{{ 'HOLIDAY_FOOD.BEST_VALUE' | translate }}</div>
+          <h3>{{ 'HOLIDAY_FOOD.BOTH_MEALS' | translate }}</h3>
           <div class="price-display">
             <span class="price-amount">{{ bothMealsPrice }}</span>
             <span class="price-currency">₪</span>
-            <span class="price-label">למנה</span>
+            <span class="price-label">{{ 'HOLIDAY_FOOD.PER_PORTION' | translate }}</span>
           </div>
           <ul class="features-list">
-            <li><span class="check-icon">✓</span><span class="list-text">{{ saladMaxCount }} סוגי סלטים</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">{{ firstCourseSlotIndexes.length }} מנות ראשונות (תוספת {{ firstCourseUpgradePrice }} ₪ למנה לכל ארוחה)</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">{{ mainCourseSlotIndexes.length }} מנות עיקריות לכל ארוחה</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">הכמות נקבעת לפי מספר הסועדים בכל סעודה. ניתן לבחור סוגי מנות נפרדים לערב ולבוקר.</span></li>
-            <li><span class="check-icon">✓</span><span class="list-text">כולל לחמניות (בהזמנה של 20 מנות ומעלה)</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.SALADS_COUNT' | translate:{ count: saladMaxCount } }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.FIRST_COURSES_BOTH' | translate:{ count: firstCourseSlotIndexes.length, price: firstCourseUpgradePrice } }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.MAIN_COURSES_EACH' | translate:{ count: mainCourseSlotIndexes.length } }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.BOTH_MEALS_NOTE' | translate }}</span></li>
+            <li><span class="check-icon">✓</span><span class="list-text">{{ 'HOLIDAY_FOOD.ROLLS_NOTE' | translate }}</span></li>
           </ul>
         </div>
       </div>
@@ -64,7 +64,7 @@
   <section class="info-section">
     <div class="container">
       <div class="info-box">
-        <p>הכמות נקבעת לפי מספר הסועדים. הבחירה היא של סוגי מנות לגיוון ההזמנה.</p>
+        <p>{{ 'HOLIDAY_FOOD.INFO' | translate }}</p>
       </div>
     </div>
   </section>
@@ -74,33 +74,33 @@
     <div class="container">
       <div class="section-title-wrapper">
         <span class="side-line"></span>
-        <h2 class="section-title">תוספות ושדרוגים</h2>
+        <h2 class="section-title">{{ 'HOLIDAY_FOOD.UPGRADES_TITLE' | translate }}</h2>
         <span class="side-line"></span>
       </div>
       
       <div class="upgrades-grid">
         <div class="upgrade-card">
-          <h3>סעודה שלישית</h3>
-          <p>סלטים + פשטידת ירקות</p>
-          <div class="upgrade-price">+{{ seudaShlishitPrice }} ₪ למנה</div>
+          <h3>{{ 'HOLIDAY_FOOD.SEUDA_SHLISHIT' | translate }}</h3>
+          <p>{{ 'HOLIDAY_FOOD.SEUDA_SHLISHIT_DESC' | translate }}</p>
+          <div class="upgrade-price">{{ 'HOLIDAY_FOOD.PLUS_PER_PORTION' | translate:{ price: seudaShlishitPrice } }}</div>
         </div>
         
         <div class="upgrade-card">
-          <h3>תוספת דג</h3>
-          <p>שדרוג למנה עיקרית</p>
-          <div class="upgrade-price">+{{ fishUpgradePrice }} ₪ למנה</div>
+          <h3>{{ 'HOLIDAY_FOOD.FISH_UPGRADE' | translate }}</h3>
+          <p>{{ 'HOLIDAY_FOOD.FISH_UPGRADE_DESC' | translate }}</p>
+          <div class="upgrade-price">{{ 'HOLIDAY_FOOD.PLUS_PER_PORTION' | translate:{ price: fishUpgradePrice } }}</div>
         </div>
         
         <div class="upgrade-card">
-          <h3>קינוחי ביסקוטי</h3>
-          <p>סיום מתוק לארוחה</p>
-          <div class="upgrade-price">{{ dessertsPrice }} ₪ לאדם לארוחה</div>
+          <h3>{{ 'HOLIDAY_FOOD.DESSERTS' | translate }}</h3>
+          <p>{{ 'HOLIDAY_FOOD.DESSERTS_DESC' | translate }}</p>
+          <div class="upgrade-price">{{ 'HOLIDAY_FOOD.DESSERTS_PRICE' | translate:{ price: dessertsPrice } }}</div>
         </div>
         
         <div class="upgrade-card">
-          <h3>כשרות מחפוד</h3>
-          <p>בשר ועוף מחפוד</p>
-          <div class="upgrade-price">{{ kosherUpgradePrice }} ₪ למנה לארוחה</div>
+          <h3>{{ 'HOLIDAY_FOOD.KOSHER_UPGRADE' | translate }}</h3>
+          <p>{{ 'HOLIDAY_FOOD.KOSHER_UPGRADE_DESC' | translate }}</p>
+          <div class="upgrade-price">{{ 'HOLIDAY_FOOD.KOSHER_PRICE' | translate:{ price: kosherUpgradePrice } }}</div>
         </div>
       </div>
     </div>
@@ -118,17 +118,17 @@
           rel="noopener noreferrer"
         >
           <mat-icon>download</mat-icon>
-          <span>להורדת התפריט</span>
+          <span>{{ 'HOLIDAY_FOOD.DOWNLOAD_MENU' | translate }}</span>
         </a>
         <button class="cta-btn cta-btn-primary" (click)="toggleOrderForm()">
           <mat-icon>event</mat-icon>
-          <span>טופס הזמנה</span>
+          <span>{{ 'HOLIDAY_FOOD.ORDER_FORM' | translate }}</span>
         </button>
       </div>
       <div class="cta-notes">
-        <p class="cta-note">יין, שתייה וכלים חד-פעמיים בתוספת תשלום (לציין בהערות אם מעוניינים).</p>
-        <p class="cta-note">קינוחי ביסקוטי {{ dessertsPrice }} ₪ לאדם לארוחה (לציין בהערות אם מעוניינים).</p>
-        <p class="cta-note">איסוף מקייטרינג מגדים או משלוח לכתובת בתשלום.</p>
+        <p class="cta-note">{{ 'HOLIDAY_FOOD.NOTE_DRINKS' | translate }}</p>
+        <p class="cta-note">{{ 'HOLIDAY_FOOD.NOTE_DESSERTS' | translate:{ price: dessertsPrice } }}</p>
+        <p class="cta-note">{{ 'HOLIDAY_FOOD.NOTE_PICKUP' | translate }}</p>
       </div>
     </div>
   </section>
@@ -138,7 +138,7 @@
     <div class="order-modal-overlay" (click)="closeModal()">
       <div class="modal-content" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h2>טופס הזמנת אירוע לשבת וחג</h2>
+          <h2>{{ 'HOLIDAY_FOOD.FORM_TITLE' | translate }}</h2>
           <button class="close-btn" (click)="closeModal()">
             <mat-icon>close</mat-icon>
           </button>
@@ -147,30 +147,30 @@
         @if (submitSuccess) {
           <div class="form-success">
             <mat-icon class="success-icon">check_circle</mat-icon>
-            <h3>הבקשה נשלחה בהצלחה!</h3>
-            <p>נציג מטעמנו יחזור אליך בהקדם להשלמת ההזמנה ואישורה.</p>
-            <button type="button" class="close-success-btn" (click)="closeModal()">סגור</button>
+            <h3>{{ 'HOLIDAY_FOOD.SUCCESS_TITLE' | translate }}</h3>
+            <p>{{ 'HOLIDAY_FOOD.SUCCESS_TEXT' | translate }}</p>
+            <button type="button" class="close-success-btn" (click)="closeModal()">{{ 'HOLIDAY_FOOD.CLOSE' | translate }}</button>
           </div>
         } @else {
           <form class="order-form" (ngSubmit)="submitOrder()" novalidate>
           <!-- Section 1: Personal Details -->
           <div class="form-section">
-            <h3 class="section-title">פרטים אישיים</h3>
+            <h3 class="section-title">{{ 'HOLIDAY_FOOD.PERSONAL' | translate }}</h3>
             <div class="form-grid">
               <div class="form-group">
-                <label>שם מלא *</label>
+                <label>{{ 'HOLIDAY_FOOD.FULL_NAME' | translate }}</label>
                 <input type="text" [(ngModel)]="orderForm.fullName" name="fullName" required>
               </div>
               <div class="form-group">
-                <label>טלפון *</label>
+                <label>{{ 'HOLIDAY_FOOD.PHONE' | translate }}</label>
                 <input type="tel" [(ngModel)]="orderForm.phone" name="phone" required>
               </div>
               <div class="form-group">
-                <label>אימייל *</label>
+                <label>{{ 'HOLIDAY_FOOD.EMAIL' | translate }}</label>
                 <input type="email" [(ngModel)]="orderForm.email" name="email" required>
               </div>
               <div class="form-group">
-                <label>תאריך הספקה *</label>
+                <label>{{ 'HOLIDAY_FOOD.EVENT_DATE' | translate }}</label>
                 <mat-form-field appearance="outline" class="full-width">
                   <input
                     matInput
@@ -197,24 +197,24 @@
           
           <!-- Section 2: Meal Time -->
           <div class="form-section">
-            <h3 class="section-title">זמן הארוחה</h3>
+            <h3 class="section-title">{{ 'HOLIDAY_FOOD.MEAL_TIME' | translate }}</h3>
             <div class="radio-group">
               <label class="radio-label">
                 <input type="radio" name="mealTime" value="evening" [(ngModel)]="orderForm.mealTime" (ngModelChange)="onMealTimeChange($event)">
-                <span>ערב שבת</span>
+                <span>{{ 'HOLIDAY_FOOD.EVENING' | translate }}</span>
               </label>
               <label class="radio-label">
                 <input type="radio" name="mealTime" value="morning" [(ngModel)]="orderForm.mealTime" (ngModelChange)="onMealTimeChange($event)">
-                <span>שבת בבוקר</span>
+                <span>{{ 'HOLIDAY_FOOD.MORNING' | translate }}</span>
               </label>
               <label class="radio-label">
                 <input type="radio" name="mealTime" value="both" [(ngModel)]="orderForm.mealTime" (ngModelChange)="onMealTimeChange($event)">
-                <span>שתי ארוחות שבת</span>
+                <span>{{ 'HOLIDAY_FOOD.BOTH' | translate }}</span>
               </label>
             </div>
             @if (showEveningPortions) {
               <div class="form-group portions-field">
-                <label>כמות מנות לערב *</label>
+                <label>{{ 'HOLIDAY_FOOD.PORTIONS_EVENING' | translate }}</label>
                 <input
                   type="number"
                   [(ngModel)]="orderForm.portionsEvening"
@@ -227,7 +227,7 @@
             }
             @if (showMorningPortions) {
               <div class="form-group portions-field">
-                <label>כמות מנות לבוקר *</label>
+                <label>{{ 'HOLIDAY_FOOD.PORTIONS_MORNING' | translate }}</label>
                 <input
                   type="number"
                   [(ngModel)]="orderForm.portionsMorning"
@@ -245,11 +245,11 @@
           
           <!-- Section 3: Salads (shared) -->
           <div class="form-section">
-            <h3 class="section-title">סלטים ({{ saladMinCount }}-{{ saladMaxCount }} לבחירה)</h3>
+            <h3 class="section-title">{{ 'HOLIDAY_FOOD.SALADS_SECTION' | translate:{ min: saladMinCount, max: saladMaxCount } }}</h3>
             <div class="selects-grid">
               @for (index of saladIndexes; track index) {
                 <div class="form-group">
-                  <label>סלטים - בחירה {{ index }}</label>
+                  <label>{{ 'HOLIDAY_FOOD.SALAD_CHOICE' | translate:{ n: index } }}</label>
                   <select [(ngModel)]="orderForm.salads[index - 1]" [name]="'salad' + index">
                     <option value="" hidden></option>
                     @for (salad of availableOptions(saladOptions, orderForm.salads, index - 1); track salad) {
@@ -261,38 +261,55 @@
             </div>
           </div>
 
+          @if (showEveningMealBlock || showMorningMealBlock) {
+            <div class="form-section first-course-upgrade-section">
+              <label class="upgrade-select-row">
+                <input
+                  type="checkbox"
+                  [checked]="isFirstCourseUpgrade"
+                  (change)="onFirstCourseUpgradeToggle($any($event.target).checked)"
+                  name="firstCourseUpgrade"
+                >
+                <span>{{ 'HOLIDAY_FOOD.FIRST_COURSE_UPGRADE' | translate:{ count: firstCourseSlotIndexes.length, price: firstCourseUpgradePrice } }}</span>
+              </label>
+              <p class="upgrade-hint">{{ 'HOLIDAY_FOOD.FIRST_COURSE_UPGRADE_HINT' | translate }}</p>
+            </div>
+          }
+
           @if (showEveningMealBlock) {
             <div class="form-section meal-block">
               @if (orderForm.mealTime === 'both') {
-                <h3 class="section-title">סעודה ראשונה / ערב שבת</h3>
+                <h3 class="section-title">{{ 'HOLIDAY_FOOD.EVENING_BLOCK_BOTH' | translate }}</h3>
               }
               @if (orderForm.mealTime === 'evening') {
-                <h3 class="section-title">מנות לערב שבת</h3>
+                <h3 class="section-title">{{ 'HOLIDAY_FOOD.EVENING_BLOCK' | translate }}</h3>
+              }
+
+              @if (isFirstCourseUpgrade) {
+                <div class="form-section nested-section">
+                  <h4 class="subsection-title">{{ 'HOLIDAY_FOOD.FIRST_COURSE_SUB' | translate:{ count: firstCourseSlotIndexes.length } }}</h4>
+                  <div class="selects-grid">
+                    @for (index of firstCourseSlotIndexes; track index) {
+                      <div class="form-group">
+                        <label>{{ 'HOLIDAY_FOOD.FIRST_EVENING' | translate:{ n: index } }}</label>
+                        <select [(ngModel)]="orderForm.firstCoursesEvening[index - 1]" [name]="'firstCourseEvening' + index">
+                          <option value="" hidden></option>
+                          @for (dish of availableOptions(firstCourseOptions, orderForm.firstCoursesEvening, index - 1); track dish) {
+                            <option [value]="dish">{{ dish }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                  </div>
+                </div>
               }
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה ראשונה — {{ firstCourseSlotIndexes.length }} סוגים לבחירה</h4>
-                <div class="selects-grid">
-                  @for (index of firstCourseSlotIndexes; track index) {
-                    <div class="form-group">
-                      <label>מנה ראשונה לערב - בחירה {{ index }}</label>
-                      <select [(ngModel)]="orderForm.firstCoursesEvening[index - 1]" [name]="'firstCourseEvening' + index">
-                        <option value="" hidden></option>
-                        @for (dish of availableOptions(firstCourseOptions, orderForm.firstCoursesEvening, index - 1); track dish) {
-                          <option [value]="dish">{{ dish }}</option>
-                        }
-                      </select>
-                    </div>
-                  }
-                </div>
-              </div>
-
-              <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה עיקרית — {{ mainCourseSlotIndexes.length }} סוגים לבחירה</h4>
+                <h4 class="subsection-title">{{ 'HOLIDAY_FOOD.MAIN_COURSE_SUB' | translate:{ count: mainCourseSlotIndexes.length } }}</h4>
                 <div class="selects-grid">
                   @for (index of mainCourseSlotIndexes; track index) {
                     <div class="form-group">
-                      <label>מנה עיקרית לערב - בחירה {{ index }}</label>
+                      <label>{{ 'HOLIDAY_FOOD.MAIN_EVENING' | translate:{ n: index } }}</label>
                       <select [(ngModel)]="orderForm.mainCoursesEvening[index - 1]" [name]="'mainCourseEvening' + index">
                         <option value="" hidden></option>
                         @for (dish of availableOptions(mainCourseOptions, orderForm.mainCoursesEvening, index - 1); track dish) {
@@ -305,11 +322,11 @@
               </div>
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">תוספות — {{ sidesSlotIndexes.length }} סוגים לבחירה</h4>
+                <h4 class="subsection-title">{{ 'HOLIDAY_FOOD.SIDES_SUB' | translate:{ count: sidesSlotIndexes.length } }}</h4>
                 <div class="selects-grid">
                   @for (index of sidesSlotIndexes; track index) {
                     <div class="form-group">
-                      <label>תוספת ערב - בחירה {{ index }}</label>
+                      <label>{{ 'HOLIDAY_FOOD.SIDE_EVENING' | translate:{ n: index } }}</label>
                       <select [(ngModel)]="orderForm.sidesEvening[index - 1]" [name]="'sideEvening' + index">
                         <option value="" hidden></option>
                         @for (side of availableOptions(sideDishOptions, orderForm.sidesEvening, index - 1); track side) {
@@ -326,35 +343,37 @@
           @if (showMorningMealBlock) {
             <div class="form-section meal-block">
               @if (orderForm.mealTime === 'both') {
-                <h3 class="section-title">סעודה שנייה / שבת בבוקר</h3>
+                <h3 class="section-title">{{ 'HOLIDAY_FOOD.MORNING_BLOCK_BOTH' | translate }}</h3>
               }
               @if (orderForm.mealTime === 'morning') {
-                <h3 class="section-title">מנות לשבת בבוקר</h3>
+                <h3 class="section-title">{{ 'HOLIDAY_FOOD.MORNING_BLOCK' | translate }}</h3>
+              }
+
+              @if (isFirstCourseUpgrade) {
+                <div class="form-section nested-section">
+                  <h4 class="subsection-title">{{ 'HOLIDAY_FOOD.FIRST_COURSE_SUB' | translate:{ count: firstCourseSlotIndexes.length } }}</h4>
+                  <div class="selects-grid">
+                    @for (index of firstCourseSlotIndexes; track index) {
+                      <div class="form-group">
+                        <label>{{ 'HOLIDAY_FOOD.FIRST_MORNING' | translate:{ n: index } }}</label>
+                        <select [(ngModel)]="orderForm.firstCoursesMorning[index - 1]" [name]="'firstCourseMorning' + index">
+                          <option value="" hidden></option>
+                          @for (dish of availableOptions(firstCourseOptions, orderForm.firstCoursesMorning, index - 1); track dish) {
+                            <option [value]="dish">{{ dish }}</option>
+                          }
+                        </select>
+                      </div>
+                    }
+                  </div>
+                </div>
               }
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה ראשונה — {{ firstCourseSlotIndexes.length }} סוגים לבחירה</h4>
-                <div class="selects-grid">
-                  @for (index of firstCourseSlotIndexes; track index) {
-                    <div class="form-group">
-                      <label>מנה ראשונה לבוקר - בחירה {{ index }}</label>
-                      <select [(ngModel)]="orderForm.firstCoursesMorning[index - 1]" [name]="'firstCourseMorning' + index">
-                        <option value="" hidden></option>
-                        @for (dish of availableOptions(firstCourseOptions, orderForm.firstCoursesMorning, index - 1); track dish) {
-                          <option [value]="dish">{{ dish }}</option>
-                        }
-                      </select>
-                    </div>
-                  }
-                </div>
-              </div>
-
-              <div class="form-section nested-section">
-                <h4 class="subsection-title">מנה עיקרית — {{ mainCourseSlotIndexes.length }} סוגים לבחירה</h4>
+                <h4 class="subsection-title">{{ 'HOLIDAY_FOOD.MAIN_COURSE_SUB' | translate:{ count: mainCourseSlotIndexes.length } }}</h4>
                 <div class="selects-grid">
                   @for (index of mainCourseSlotIndexes; track index) {
                     <div class="form-group">
-                      <label>מנה עיקרית לבוקר - בחירה {{ index }}</label>
+                      <label>{{ 'HOLIDAY_FOOD.MAIN_MORNING' | translate:{ n: index } }}</label>
                       <select [(ngModel)]="orderForm.mainCoursesMorning[index - 1]" [name]="'mainCourseMorning' + index">
                         <option value="" hidden></option>
                         @for (dish of availableOptions(mainCourseOptions, orderForm.mainCoursesMorning, index - 1); track dish) {
@@ -367,11 +386,11 @@
               </div>
 
               <div class="form-section nested-section">
-                <h4 class="subsection-title">תוספות — {{ sidesSlotIndexes.length }} סוגים לבחירה</h4>
+                <h4 class="subsection-title">{{ 'HOLIDAY_FOOD.SIDES_SUB' | translate:{ count: sidesSlotIndexes.length } }}</h4>
                 <div class="selects-grid">
                   @for (index of sidesSlotIndexes; track index) {
                     <div class="form-group">
-                      <label>תוספת בוקר - בחירה {{ index }}</label>
+                      <label>{{ 'HOLIDAY_FOOD.SIDE_MORNING' | translate:{ n: index } }}</label>
                       <select [(ngModel)]="orderForm.sidesMorning[index - 1]" [name]="'sideMorning' + index">
                         <option value="" hidden></option>
                         @for (side of availableOptions(sideDishOptions, orderForm.sidesMorning, index - 1); track side) {
@@ -391,41 +410,41 @@
           
           <!-- Section 7: Seuda Shlishit -->
           <div class="form-section">
-            <h3 class="section-title">סעודה שלישית (תוספת {{ seudaShlishitPrice }} ₪ למנה)</h3>
+            <h3 class="section-title">{{ 'HOLIDAY_FOOD.SEUDA_SECTION' | translate:{ price: seudaShlishitPrice } }}</h3>
             <div class="radio-group">
               <label class="radio-label">
                 <input type="radio" name="seudaShlishit" value="yes" [(ngModel)]="orderForm.seudaShlishit">
-                <span>כן</span>
+                <span>{{ 'HOLIDAY_FOOD.YES' | translate }}</span>
               </label>
               <label class="radio-label">
                 <input type="radio" name="seudaShlishit" value="no" [(ngModel)]="orderForm.seudaShlishit">
-                <span>לא</span>
+                <span>{{ 'HOLIDAY_FOOD.NO' | translate }}</span>
               </label>
             </div>
             @if (orderForm.seudaShlishit === 'yes') {
-              <p class="info-text">כולל סלטים, פשטידה, ודג בתוספת {{ fishUpgradePrice }} ₪</p>
+              <p class="info-text">{{ 'HOLIDAY_FOOD.SEUDA_INFO' | translate:{ price: fishUpgradePrice } }}</p>
             }
           </div>
           
           <!-- Section 8: Delivery/Pickup -->
           <div class="form-section">
-            <h3 class="section-title">אספקה</h3>
+            <h3 class="section-title">{{ 'HOLIDAY_FOOD.SUPPLY' | translate }}</h3>
             <div class="radio-group">
               <label class="radio-label">
                 <input type="radio" name="deliveryType" value="pickup" [(ngModel)]="orderForm.deliveryType">
-                <span>איסוף עצמי</span>
+                <span>{{ 'HOLIDAY_FOOD.PICKUP' | translate }}</span>
               </label>
               <label class="radio-label">
                 <input type="radio" name="deliveryType" value="delivery" [(ngModel)]="orderForm.deliveryType">
-                <span>משלוח לכתובת</span>
+                <span>{{ 'HOLIDAY_FOOD.DELIVERY' | translate }}</span>
               </label>
             </div>
             <div class="form-group">
-              <label>כתובת למשלוח</label>
+              <label>{{ 'HOLIDAY_FOOD.ADDRESS' | translate }}</label>
               <input type="text" [(ngModel)]="orderForm.address" name="address">
             </div>
             <div class="form-group">
-              <label>הערות</label>
+              <label>{{ 'HOLIDAY_FOOD.REMARKS' | translate }}</label>
               <textarea [(ngModel)]="orderForm.remarks" name="remarks" rows="4"></textarea>
             </div>
           </div>
@@ -436,7 +455,7 @@
               <p class="form-error-msg">{{ submitError }}</p>
             }
             <button type="submit" class="submit-btn" [disabled]="isSubmitting">
-              {{ isSubmitting ? 'שולח...' : 'שלח הזמנה' }}
+              {{ isSubmitting ? ('HOLIDAY_FOOD.SUBMITTING' | translate) : ('HOLIDAY_FOOD.SUBMIT' | translate) }}
             </button>
           </div>
         </form>

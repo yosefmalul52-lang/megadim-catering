@@ -79,12 +79,17 @@ html {
   height: 100%;
   width: 100%;
   box-sizing: border-box;
+  /* Site-wide type: ~18px base (112.5% of browser 16px).
+     Keeps rem scale consistent site-wide; body/UI hierarchy stays proportional. */
+  font-size: 112.5%;
 }
 
 body {
   margin: 0 !important;
   padding: 0 !important;
   font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
   background-color: #1f3540 !important;
   box-sizing: border-box;
 }
@@ -112,20 +117,29 @@ body {
   color: white !important;
 }
 
-/* === FORCE SCROLLBAR TO RIGHT === */
-/* Force Scrollbar Right */
+/* Scrollbar stays usable; layout direction follows html[dir] (rtl/ltr).
+   Do NOT force direction:ltr on html — that broke Hebrew RTL after
+   public pages switched to direction:inherit. */
 html {
-  direction: ltr !important;
   overflow-y: auto;
   overflow-x: hidden;
   max-width: 100%;
 }
 
-body { 
-  margin: 0; 
-  padding: 0; 
+html[dir='rtl'] {
+  direction: rtl;
+}
+
+html[dir='ltr'] {
+  direction: ltr;
+}
+
+body {
+  margin: 0;
+  padding: 0;
   overflow-x: hidden;
   max-width: 100%;
+  direction: inherit;
 }
 
 /* Prevent site-wide horizontal bleed from layout shells */
@@ -229,19 +243,23 @@ html:has(.admin-layout)::-webkit-scrollbar-corner {
   overflow-x: clip;
 }
 
-/* The App Container handles the actual layout direction */
+/* The App Container follows document direction (html[dir]) */
 .app-container {
   width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  /* Default to RTL if not set by Angular yet */
-  direction: rtl;
+  direction: inherit;
 }
 
-/* Ensure LTR mode works when selected */
-.app-container[dir="ltr"] {
+html[dir='rtl'] .app-container {
+  direction: rtl;
+  text-align: start;
+}
+
+html[dir='ltr'] .app-container {
   direction: ltr;
+  text-align: start;
 }
 
 /* === RESPONSIVE GRID CLASSES FOR PRODUCT CARDS === */
@@ -307,7 +325,7 @@ html:has(.admin-layout)::-webkit-scrollbar-corner {
   padding: 20px;
   display: flex;
   justify-content: flex-start; // RTL: flex-start = right side
-  direction: rtl;
+  direction: inherit;
 }
 
 // EqualWeb lives inside Shadow DOM; pin logic is in index.html.
@@ -401,7 +419,7 @@ $card-gold: #E0C075;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    text-align: right;
+    text-align: start;
   }
 
   .card-title {
@@ -554,5 +572,67 @@ $card-gold: #E0C075;
     background: #ccc;
     color: #888;
     cursor: not-allowed;
+  }
+}
+
+/* === English / LTR public-site polish === */
+html[dir='ltr'] {
+  body,
+  .app-container {
+    direction: ltr;
+    text-align: start;
+    unicode-bidi: isolate;
+  }
+
+  /* Back controls: Hebrew used fa-arrow-right as “back”; flip for English */
+  .btn-gold-back .fa-arrow-right,
+  .back-home-link .fa-arrow-right,
+  .checkout-actions .btn-secondary .fa-arrow-right,
+  a.btn-premium.btn-secondary .fa-arrow-right {
+    transform: scaleX(-1);
+  }
+
+  /* Inputs / selects: keep English punctuation and caret on the left */
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    text-align: start;
+    direction: ltr;
+  }
+
+  /* Phone fields stay LTR digits regardless of surrounding copy */
+  input[type='tel'],
+  input[name='phone'],
+  input[formcontrolname='phone'],
+  input[autocomplete='tel'] {
+    direction: ltr;
+    text-align: start;
+    unicode-bidi: isolate;
+  }
+}
+
+/* === Hebrew / RTL reinforce (after LTR polish changes) === */
+html[dir='rtl'] {
+  body,
+  .app-container {
+    direction: rtl;
+    text-align: start;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):not([type='tel']):not([name='phone']):not([formcontrolname='phone']),
+  textarea,
+  select {
+    text-align: start;
+    direction: inherit;
+  }
+
+  /* Phone numbers stay LTR even on Hebrew pages */
+  input[type='tel'],
+  input[name='phone'],
+  input[formcontrolname='phone'],
+  input[autocomplete='tel'] {
+    direction: ltr;
+    text-align: start;
+    unicode-bidi: isolate;
   }
 }

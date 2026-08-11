@@ -1,158 +1,56 @@
 import { Routes } from '@angular/router';
+import { PUBLIC_ROUTES } from './i18n/public.routes';
 
-const retailBlock = () =>
-  import('./guards/institution-retail-redirect.guard').then((m) => m.institutionRetailRedirectGuard);
-
+/**
+ * Hebrew public routes stay at the root (SEO-preserving).
+ * English mirrors the same tree under /en/...
+ * Admin / portal / employee / kiosk stay outside locale prefixes.
+ */
 export const routes: Routes = [
-  // Public Pages
-  {
-    path: '',
-    canActivate: [retailBlock],
-    loadComponent: () => import('./components/pages/home/home.component').then(m => m.HomeComponent)
-  },
-  {
-    path: 'about',
-    loadComponent: () => import('./components/pages/about-page/about-page.component').then(m => m.AboutPageComponent)
-  },
-  {
-    path: 'events-catering',
-    loadComponent: () => import('./components/pages/events-catering/events-catering.component').then(m => m.EventsCateringComponent)
-  },
-  {
-    path: 'catering',
-    loadComponent: () => import('./components/pages/events-catering/events-catering.component').then(m => m.EventsCateringComponent)
-  },
-  {
-    path: 'ready-for-shabbat',
-    loadChildren: () => import('./components/pages/ready-for-shabbat/ready-for-shabbat.routes').then(m => m.readyForShabbatRoutes)
-  },
-  {
-    path: 'ready-food',
-    loadChildren: () => import('./components/pages/ready-for-shabbat/ready-for-shabbat.routes').then(m => m.readyForShabbatRoutes)
-  },
-  {
-    path: 'shabbat',
-    loadChildren: () => import('./components/pages/ready-for-shabbat/ready-for-shabbat.routes').then(m => m.readyForShabbatRoutes)
-  },
-  {
-    path: 'shabbat-events',
-    loadComponent: () => import('./components/pages/holiday-food/holiday-food.component').then(m => m.HolidayFoodComponent)
-  },
-  {
-    path: 'cholent-bar',
-    loadComponent: () => import('./components/pages/cholent-bar/cholent-bar.component').then(m => m.CholentBarComponent)
-  },
-  {
-    path: 'cholent',
-    loadComponent: () => import('./components/pages/cholent-bar/cholent-bar.component').then(m => m.CholentBarComponent)
-  },
-  {
-    path: 'holiday-food',
-    loadComponent: () => import('./components/pages/holiday-food/holiday-food.component').then(m => m.HolidayFoodComponent)
-  },
-  {
-    path: 'holiday',
-    loadComponent: () => import('./components/pages/holiday-food/holiday-food.component').then(m => m.HolidayFoodComponent)
-  },
-  {
-    path: 'kosher',
-    loadComponent: () => import('./components/pages/kosher-certificate/kosher-certificate.component').then(m => m.KosherCertificateComponent)
-  },
-  {
-    path: 'contact',
-    loadComponent: () => import('./components/pages/contact/contact.component').then(m => m.ContactComponent)
-  },
-  {
-    path: 'cart',
-    canActivate: [retailBlock],
-    loadComponent: () => import('./components/pages/cart-page/cart-page.component').then(m => m.CartPageComponent)
-  },
-  {
-    path: 'checkout',
-    canActivate: [retailBlock],
-    loadComponent: () => import('./components/pages/checkout-page/checkout-page.component').then(m => m.CheckoutPageComponent)
-  },
-  {
-    path: 'order-confirmation/:id',
-    loadComponent: () => import('./components/pages/order-confirmation/order-confirmation.component').then(m => m.OrderConfirmationComponent)
-  },
-  {
-    path: 'my-orders',
-    canActivate: [
-      retailBlock,
-      () => import('./guards/auth.guard').then(m => m.authGuard)
-    ],
-    loadComponent: () => import('./components/pages/my-orders/my-orders.component').then(m => m.MyOrdersComponent)
-  },
-  {
-    path: 'my-account',
-    canActivate: [
-      retailBlock,
-      () => import('./guards/auth.guard').then(m => m.authGuard)
-    ],
-    loadComponent: () => import('@app/components/pages/user-profile/user-profile.component').then(m => m.UserProfileComponent)
-  },
-  {
-    path: 'profile',
-    redirectTo: 'my-account',
-    pathMatch: 'full'
-  },
-  
-  // Auth Pages
-  {
-    path: 'login',
-    loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent)
-  },
-  {
-    path: 'register',
-    loadComponent: () => import('./components/pages/auth/register/register.component').then(m => m.RegisterComponent)
-  },
-  
-  // Time Clock Kiosk (Public - no auth required)
+  // Time Clock Kiosk (always Hebrew)
   {
     path: 'time-clock',
-    loadComponent: () => import('./components/kiosk/time-clock/time-clock.component').then(m => m.TimeClockComponent)
+    loadComponent: () =>
+      import('./components/kiosk/time-clock/time-clock.component').then((m) => m.TimeClockComponent)
   },
-  
-  // Employee Self-Service Portal
+
+  // Employee Self-Service (always Hebrew)
   {
     path: 'employee-login',
-    loadComponent: () => import('./components/employee/employee-login/employee-login.component').then(m => m.EmployeeLoginComponent)
+    loadComponent: () =>
+      import('./components/employee/employee-login/employee-login.component').then(
+        (m) => m.EmployeeLoginComponent
+      )
   },
   {
     path: 'my-zone',
-    loadComponent: () => import('./components/employee/my-zone/my-zone.component').then(m => m.MyZoneComponent),
-    canActivate: [() => import('./guards/employee.guard').then(m => m.employeeGuard)]
+    loadComponent: () =>
+      import('./components/employee/my-zone/my-zone.component').then((m) => m.MyZoneComponent),
+    canActivate: [() => import('./guards/employee.guard').then((m) => m.employeeGuard)]
   },
 
-  // Legal pages
-  {
-    path: 'terms',
-    loadComponent: () => import('./components/pages/terms/terms.component').then(m => m.TermsComponent)
-  },
-  {
-    path: 'accessibility',
-    loadComponent: () => import('./components/pages/accessibility/accessibility.component').then(m => m.AccessibilityComponent)
-  },
-  {
-    path: 'privacy-policy',
-    loadComponent: () => import('./components/pages/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent)
-  },
-  
-  // Institution B2B Portal (isolated from admin shell)
+  // Institution B2B Portal (always Hebrew shell)
   {
     path: 'portal',
     loadChildren: () => import('./components/portal/portal.routes').then((m) => m.portalRoutes)
   },
 
-  // Admin Dashboard (Protected with AuthGuard)
+  // Admin Dashboard (always Hebrew)
   {
     path: 'admin',
-    loadChildren: () => import('./components/admin/admin.routes').then(m => m.adminRoutes),
-    canActivate: [() => import('./guards/auth.guard').then(m => m.authGuard)]
+    loadChildren: () => import('./components/admin/admin.routes').then((m) => m.adminRoutes),
+    canActivate: [() => import('./guards/auth.guard').then((m) => m.authGuard)]
   },
-  
-  // Fallback route
+
+  // English public site
+  {
+    path: 'en',
+    children: PUBLIC_ROUTES
+  },
+
+  // Hebrew public site (default, unprefixed)
+  ...PUBLIC_ROUTES,
+
   {
     path: '**',
     redirectTo: ''

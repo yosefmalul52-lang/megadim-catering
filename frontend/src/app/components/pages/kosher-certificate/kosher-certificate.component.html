@@ -2,18 +2,18 @@
   
   <section class="header-section">
     <div class="container">
-      <h1 class="main-title">כשרות ואיכות ללא פשרות</h1>
+      <h1 class="main-title">{{ 'KOSHER_PAGE.TITLE' | translate }}</h1>
       <p class="description">
-        המטבח שלנו פועל תחת נהלים מחמירים ובפיקוח צמוד, כדי להבטיח לכם אוכל כשר למהדרין ברמה הגבוהה ביותר.
+        {{ 'KOSHER_PAGE.DESC' | translate }}
         <br>
-        <strong>כשרות מהדרין - רבנות מטה בנימין</strong>
+        <strong>{{ 'KOSHER_PAGE.CERT_LINE' | translate }}</strong>
       </p>
     </div>
   </section>
   
   <div class="container certificate-container">
     <div class="certificate-frame">
-      <img [src]="certificateImageUrl" alt="תעודת כשרות קייטרינג מגדים" class="cert-img">
+      <img [src]="certificateImageUrl" [attr.alt]="'KOSHER_PAGE.IMG_ALT' | translate" class="cert-img">
       
       <div class="corner top-right"></div>
       <div class="corner bottom-left"></div>

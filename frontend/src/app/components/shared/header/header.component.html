@@ -1,8 +1,25 @@
 <header class="main-header">
-  <!-- Row 1: Top Bar (minimal - phone only) -->
+  <!-- Row 1: Top Bar (minimal - phone + language) -->
   <div class="top-bar">
     <div class="top-bar-content">
-      <a [href]="contactTelHref" class="mobile-phone-icon" aria-label="Call us">
+      <div class="lang-switch desktop-lang-switch" role="group" [attr.aria-label]="'LANG.SWITCH_LABEL' | translate">
+        <button
+          type="button"
+          class="lang-btn"
+          [class.active]="localeService.locale === 'he'"
+          [attr.aria-pressed]="localeService.locale === 'he'"
+          (click)="switchLocale('he')"
+        >עברית</button>
+        <span class="lang-sep" aria-hidden="true">|</span>
+        <button
+          type="button"
+          class="lang-btn"
+          [class.active]="localeService.locale === 'en'"
+          [attr.aria-pressed]="localeService.locale === 'en'"
+          (click)="switchLocale('en')"
+        >English</button>
+      </div>
+      <a [href]="contactTelHref" class="mobile-phone-icon" [attr.aria-label]="'HEADER.CALL_US' | translate">
         <mat-icon>phone</mat-icon>
       </a>
       <a [href]="contactTelHref" class="desktop-phone-text">
@@ -15,8 +32,8 @@
   <div class="brand-bar">
     <div class="container">
       <!-- Right Side (RTL Start): Main Logo -->
-      <a routerLink="/" class="logo-container">
-        <img src="https://megadim-media.megadim.workers.dev/frontend/static/33e71892b429580c/original.png" alt="קייטרינג מגדים" class="main-logo" loading="eager" fetchpriority="high">
+      <a [routerLink]="homeLink" class="logo-container">
+        <img src="https://megadim-media.megadim.workers.dev/frontend/static/33e71892b429580c/original.png" [attr.alt]="'HEADER.LOGO_ALT' | translate" class="main-logo" loading="eager" fetchpriority="high">
       </a>
       
       <!-- Left Side (RTL End): Kosher stamp + Separator + User Actions -->
@@ -26,27 +43,26 @@
           target="_blank"
           rel="noopener noreferrer"
           class="kosher-logo-link"
-          aria-label="כושרות - עמוד ההמלצה של קייטרינג מגדים"
+          [attr.aria-label]="'HEADER.KOSHER_ARIA' | translate"
         >
           <img
             src="/assets/images/kosher-stamp-logo.png"
-            alt="כשרות"
+            [attr.alt]="'HEADER.KOSHER_ALT' | translate"
             class="kosher-stamp-logo"
             loading="lazy"
           >
         </a>
         <div class="separator"></div>
         <div class="user-actions">
-          <button mat-icon-button class="header-action-icon" aria-label="חיפוש" (click)="onSearchClick()">
+          <button mat-icon-button class="header-action-icon" [attr.aria-label]="'HEADER.SEARCH' | translate" (click)="onSearchClick()">
             <mat-icon>search</mat-icon>
           </button>
           
-          <button mat-icon-button class="header-action-icon cart-btn" aria-label="עגלת קניות" (click)="onCartClick()">
+          <button mat-icon-button class="header-action-icon cart-btn" [attr.aria-label]="'HEADER.CART' | translate" (click)="onCartClick()">
             <mat-icon>shopping_cart</mat-icon>
             <span class="cart-badge" *ngIf="cartSummary.totalItems > 0">{{ cartSummary.totalItems }}</span>
           </button>
           
-          <!-- User/Profile icon only: same row, hover = dropdown; click = /login or /profile -->
           <div
             class="user-menu-wrapper"
             [class.user-menu-closed]="!isUserMenuOpen"
@@ -54,9 +70,9 @@
             (mouseleave)="onUserMenuLeave()"
           >
             <a
-              [routerLink]="(isLoggedIn$ | async) ? profileLink : '/login'"
+              [routerLink]="(isLoggedIn$ | async) ? profileLink : navPath('/login')"
               class="header-action-icon user-icon-trigger"
-              [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? 'לוח בקרה' : isInstitutionUser ? 'פורטל מוסד' : 'הפרופיל שלי') : 'התחבר'"
+              [attr.aria-label]="(isLoggedIn$ | async) ? (currentUser?.role === 'admin' ? ('HEADER.DASHBOARD' | translate) : isInstitutionUser ? ('HEADER.PORTAL' | translate) : ('HEADER.MY_PROFILE' | translate)) : ('HEADER.LOGIN' | translate)"
             >
               <mat-icon [style.color]="(isLoggedIn$ | async) ? '#c5a059' : ''">person</mat-icon>
             </a>
@@ -68,51 +84,51 @@
                       type="email"
                       formControlName="username"
                       class="dropdown-input"
-                      placeholder="אימייל"
+                      [attr.placeholder]="'HEADER.EMAIL' | translate"
                       autocomplete="username"
                     >
                     <input
                       type="password"
                       formControlName="password"
                       class="dropdown-input"
-                      placeholder="סיסמה"
+                      [attr.placeholder]="'HEADER.PASSWORD' | translate"
                       autocomplete="current-password"
                     >
                     <p class="dropdown-login-error" *ngIf="loginError">{{ loginError }}</p>
                     <button type="submit" class="dropdown-btn dropdown-btn-primary" [disabled]="loginForm.invalid || isLoadingLogin">
-                      {{ isLoadingLogin ? 'מתחבר...' : 'התחבר' }}
+                      {{ isLoadingLogin ? ('HEADER.LOGGING_IN' | translate) : ('HEADER.LOGIN' | translate) }}
                     </button>
                   </form>
                   <div class="dropdown-register">
-                    <a routerLink="/register" class="dropdown-link register-link">הרשמה</a>
+                    <a [routerLink]="navPath('/register')" class="dropdown-link register-link">{{ 'HEADER.REGISTER' | translate }}</a>
                   </div>
                 </div>
               </ng-container>
               <ng-template #loggedInDropdown>
                 <div class="dropdown-logged-in">
-                  <p class="dropdown-greeting">שלום, {{ currentUser?.fullName || currentUser?.name || currentUser?.username || 'משתמש' }}</p>
+                  <p class="dropdown-greeting">{{ 'HEADER.HELLO' | translate }}, {{ currentUser?.fullName || currentUser?.name || currentUser?.username || ('HEADER.USER' | translate) }}</p>
                   @if (isInstitutionUser) {
                     <a routerLink="/portal" class="dropdown-item" (click)="closeUserMenu()">
                       <mat-icon>business</mat-icon>
-                      פורטל הזמנות
+                      {{ 'HEADER.PORTAL_ORDERS' | translate }}
                     </a>
                   } @else {
-                    <a routerLink="/profile" class="dropdown-item" (click)="closeUserMenu()">
+                    <a [routerLink]="navPath('/profile')" class="dropdown-item" (click)="closeUserMenu()">
                       <mat-icon>person</mat-icon>
-                      הפרופיל שלי
+                      {{ 'HEADER.MY_PROFILE' | translate }}
                     </a>
-                    <a routerLink="/my-orders" class="dropdown-item" (click)="closeUserMenu()">
+                    <a [routerLink]="navPath('/my-orders')" class="dropdown-item" (click)="closeUserMenu()">
                       <mat-icon>shopping_bag</mat-icon>
-                      ההזמנות שלי
+                      {{ 'HEADER.MY_ORDERS' | translate }}
                     </a>
                   }
                   <a routerLink="/admin" class="dropdown-item" *ngIf="currentUser?.role === 'admin'" (click)="closeUserMenu()">
                     <mat-icon>settings</mat-icon>
-                    לוח בקרה
+                    {{ 'HEADER.DASHBOARD' | translate }}
                   </a>
                   <button type="button" class="dropdown-item logout-btn" (click)="logout()">
                     <mat-icon>logout</mat-icon>
-                    התנתק
+                    {{ 'HEADER.LOGOUT' | translate }}
                   </button>
                 </div>
               </ng-template>
@@ -126,10 +142,10 @@
   <!-- Row 3: Navigation Bar (Navy) -->
   <div class="nav-bar">
     <nav class="desktop-nav">
-      <a *ngFor="let link of navLinks" [routerLink]="link.path" routerLinkActive="active-link" [routerLinkActiveOptions]="link.path === '/' ? { exact: true } : { exact: false }">{{ link.labelKey | translate }}</a>
+      <a *ngFor="let link of navLinks" [routerLink]="navPath(link.path)" routerLinkActive="active-link" [routerLinkActiveOptions]="link.path === '/' ? { exact: true } : { exact: false }">{{ link.labelKey | translate }}</a>
     </nav>
     
-    <button mat-icon-button class="mobile-menu-btn" (click)="sidenav?.toggle()">
+    <button mat-icon-button class="mobile-menu-btn" (click)="sidenav?.toggle()" [attr.aria-label]="'HEADER.MENU' | translate">
       <mat-icon>menu</mat-icon>
     </button>
   </div>

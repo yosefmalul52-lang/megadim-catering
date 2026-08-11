@@ -59,7 +59,16 @@ export interface CreateCheckoutOrderRequest {
   address?: { city?: string; street?: string; apartment?: string } | string;
   deliveryMethod: 'delivery' | 'pickup';
   eventDate?: string;
-  items: Array<{ id: string; name: string; quantity: number; price: number; category?: string; imageUrl?: string }>;
+  items: Array<{
+    id: string;
+    name: string;
+    nameEn?: string;
+    quantity: number;
+    price: number;
+    category?: string;
+    imageUrl?: string;
+    selectedOption?: Record<string, unknown>;
+  }>;
   subtotal: number;
   deliveryFee: number;
   totalAmount: number;
@@ -74,4 +83,9 @@ export interface CreateCheckoutOrderRequest {
   userId?: string | null;
   /** Optional UTM / campaign attribution from the client. */
   marketingData?: Record<string, string>;
+  /**
+   * Public storefront locale that created the order.
+   * Server validates allowlist; manual orders are forced to 'he'.
+   */
+  sourceLocale?: 'he' | 'en';
 }

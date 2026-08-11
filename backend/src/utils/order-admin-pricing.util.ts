@@ -214,7 +214,7 @@ export function computeAdminRecalculatedTotals(
   if (isCatering && portionTotal != null && itemsSubtotal <= 0) {
     return {
       subtotal: portionTotal,
-      totalPrice: portionTotal,
+      totalPrice: roundMoney(portionTotal + deliveryFee),
       deliveryFee,
       source: 'portion_rate',
       locked: false
@@ -224,13 +224,16 @@ export function computeAdminRecalculatedTotals(
   // Catering menus often store dish rows at price 0. Do not wipe an existing quote
   // when there is no portion rate and no item prices.
   if (isCatering && itemsSubtotal <= 0) {
-    const prevKeep = Number(order.totalPrice) || 0;
-    if (prevKeep > 0) {
+    const prevFood =
+      Number(order.subtotal) > 0
+        ? Number(order.subtotal)
+        : Math.max(0, (Number(order.totalPrice) || 0) - (Number(order.deliveryFee) || 0));
+    if (prevFood > 0 || deliveryFee > 0) {
       return {
-        subtotal: Number(order.subtotal) > 0 ? Number(order.subtotal) : prevKeep,
-        totalPrice: prevKeep,
+        subtotal: prevFood,
+        totalPrice: roundMoney(prevFood + deliveryFee),
         deliveryFee,
-        source: 'unchanged',
+        source: deliveryFee !== (Number(order.deliveryFee) || 0) ? 'items_plus_delivery' : 'unchanged',
         locked: false
       };
     }

@@ -298,6 +298,16 @@ export class OrderController {
     if (body.email && !isValidEmail(body.email)) {
       throw createValidationError('email must be a valid email address');
     }
+    if (body.sourceLocale !== undefined && body.sourceLocale !== null) {
+      if (body.sourceLocale !== 'he' && body.sourceLocale !== 'en') {
+        throw createValidationError('sourceLocale must be "he" or "en"');
+      }
+    }
+    if (manualContext) {
+      body.sourceLocale = 'he';
+    } else if (!body.sourceLocale) {
+      body.sourceLocale = 'he';
+    }
     if (body.eventDate && !manualContext) {
       try {
         await this.orderService.validateEventDateOpen(body.eventDate);
@@ -1051,6 +1061,35 @@ export class OrderController {
       success: true,
       data: updatedOrder,
       message: 'Admin price override saved',
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  /** PATCH /api/order/admin/:id/catering-pricing – update catering PPP / food total / catalog recalc. */
+  updateCateringPricing = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.updateCateringPricing(id, {
+        pricePerPortion: req.body?.pricePerPortion,
+        foodSubtotal: req.body?.foodSubtotal ?? req.body?.subtotal,
+        recalculateFromCatalog: req.body?.recalculateFromCatalog
+      });
+    } catch (err: any) {
+      throw createValidationError(err?.message || 'Failed to update catering pricing');
+    }
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Catering pricing updated',
       timestamp: new Date().toISOString()
     });
   });

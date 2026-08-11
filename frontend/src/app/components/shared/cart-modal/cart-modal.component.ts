@@ -14,8 +14,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatRadioModule } from '@angular/material/radio';
 
 import { HttpClient } from '@angular/common/http';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CartService, CartItem } from '../../../services/cart.service';
 import { LanguageService } from '../../../services/language.service';
+import { LocaleService } from '../../../i18n/locale.service';
+import { localizedProductName } from '../../../i18n/localized-content';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { environment } from '../../../../environments/environment';
 
@@ -33,16 +36,17 @@ import { environment } from '../../../../environments/environment';
     MatButtonModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
-    MatRadioModule
+    MatRadioModule,
+    TranslateModule
   ],
   template: `
     <div class="cart-overlay" [class.open]="isCartOpen" (click)="closeCart()">
-      <div class="cart-modal" [attr.dir]="'rtl'" (click)="$event.stopPropagation()">
+      <div class="cart-modal" [attr.dir]="localeService.locale === 'en' ? 'ltr' : 'rtl'" (click)="$event.stopPropagation()">
         <!-- Cart Header -->
         <div class="cart-header">
           <h2 class="cart-title">
             <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-            {{ languageService.strings.cartTitle }}
+            {{ 'CART.TITLE' | translate }}
             <span class="cart-count" *ngIf="cartSummary.totalItems > 0">
               ({{ cartSummary.totalItems }})
             </span>
@@ -50,7 +54,7 @@ import { environment } from '../../../../environments/environment';
           <button 
             class="close-cart-btn" 
             (click)="closeCart()"
-            [attr.aria-label]="languageService.strings.close"
+            [attr.aria-label]="'CART.CLOSE' | translate"
           >
             <i class="fas fa-times" aria-hidden="true"></i>
           </button>
@@ -61,10 +65,10 @@ import { environment } from '../../../../environments/environment';
           <!-- Empty Cart State -->
           <div class="empty-cart" *ngIf="cartItems.length === 0">
             <i class="fas fa-shopping-cart" aria-hidden="true"></i>
-            <h3>העגלה שלך ריקה</h3>
-            <p>הוסף מנות לעגלה כדי להתחיל הזמנה</p>
+            <h3>{{ 'CART.EMPTY_TITLE' | translate }}</h3>
+            <p>{{ 'CART.EMPTY_HINT' | translate }}</p>
             <button class="btn-back-to-menu" (click)="closeCart()">
-              חזרה לתפריט
+              {{ 'CART.BACK_MENU_SHORT' | translate }}
             </button>
           </div>
           
@@ -77,26 +81,26 @@ import { environment } from '../../../../environments/environment';
               <div class="item-image">
                 <img 
                   [src]="item.imageUrl || 'assets/images/placeholder-dish.jpg'" 
-                  [alt]="item.name"
+                  [alt]="displayName(item)"
                   loading="lazy"
                 >
               </div>
               
               <div class="item-details">
-                <h4 class="item-name">{{ item.name }}</h4>
+                <h4 class="item-name">{{ displayName(item) }}</h4>
                 <p class="item-category" *ngIf="item.category">{{ item.category }}</p>
                 <div class="item-price">₪{{ item.price }}</div>
               </div>
               
               <div class="item-quantity">
                 <label class="sr-only" [attr.for]="'qty-' + item.id">
-                  {{ languageService.strings.quantity }} {{ item.name }}
+                  {{ 'CART.QUANTITY' | translate }} {{ displayName(item) }}
                 </label>
                 <div class="quantity-controls">
                   <button 
                     class="qty-btn minus"
                     (click)="decreaseQuantity(item.id)"
-                    [attr.aria-label]="'הפחת כמות של ' + item.name"
+                    [attr.aria-label]="('CART.QUANTITY' | translate) + ' − ' + displayName(item)"
                     [disabled]="item.quantity <= 1"
                   >
                     <i class="fas fa-minus" aria-hidden="true"></i>
@@ -115,7 +119,7 @@ import { environment } from '../../../../environments/environment';
                   <button 
                     class="qty-btn plus"
                     (click)="increaseQuantity(item.id)"
-                    [attr.aria-label]="'הוסף כמות של ' + item.name"
+                    [attr.aria-label]="('CART.QUANTITY' | translate) + ' + ' + displayName(item)"
                   >
                     <i class="fas fa-plus" aria-hidden="true"></i>
                   </button>
@@ -129,7 +133,7 @@ import { environment } from '../../../../environments/environment';
               <button 
                 class="remove-item-btn"
                 (click)="removeItem(item.id)"
-                [attr.aria-label]="'הסר ' + item.name + ' מהעגלה'"
+                [attr.aria-label]="('CART.REMOVE' | translate) + ' ' + displayName(item)"
               >
                 <i class="fas fa-trash" aria-hidden="true"></i>
               </button>
@@ -141,11 +145,11 @@ import { environment } from '../../../../environments/environment';
         <div class="cart-footer" *ngIf="cartItems.length > 0">
           <div class="cart-summary">
             <div class="summary-row">
-              <span class="summary-label">סה"כ פריטים:</span>
+              <span class="summary-label">{{ 'CART.TOTAL_ITEMS_COLON' | translate }}</span>
               <span class="summary-value">{{ cartSummary.totalItems }}</span>
             </div>
             <div class="summary-row total-row">
-              <span class="summary-label">{{ languageService.strings.total }}:</span>
+              <span class="summary-label">{{ 'CART.TOTAL' | translate }}:</span>
               <span class="summary-value total-price">₪{{ cartSummary.totalPrice }}</span>
             </div>
           </div>
@@ -155,25 +159,25 @@ import { environment } from '../../../../environments/environment';
               type="button"
               class="btn-clear-cart"
               (click)="clearCart()"
-              [attr.aria-label]="'נקה את כל העגלה'"
+              [attr.aria-label]="'CART.CLEAR_ARIA' | translate"
             >
-              ניקוי עגלה
+              {{ 'CART.CLEAR' | translate }}
             </button>
             <button
               type="button"
               class="btn-go-to-cart"
               (click)="goToCart()"
-              [attr.aria-label]="'מעבר לעגלת הקניות'"
+              [attr.aria-label]="'CART.GO_CART_ARIA' | translate"
             >
-              מעבר לעגלת הקניות
+              {{ 'CART.GO_CART' | translate }}
             </button>
             <button
               type="button"
               class="btn-checkout"
               (click)="goToCheckout()"
-              [attr.aria-label]="'ביצוע ההזמנה'"
+              [attr.aria-label]="'CART.PLACE_ORDER_ARIA' | translate"
             >
-              ביצוע ההזמנה
+              {{ 'CART.PLACE_ORDER' | translate }}
             </button>
           </div>
         </div>
@@ -185,6 +189,8 @@ import { environment } from '../../../../environments/environment';
 export class CartModalComponent implements OnInit, OnDestroy {
   cartService = inject(CartService);
   languageService = inject(LanguageService);
+  localeService = inject(LocaleService);
+  private translate = inject(TranslateService);
   settingsService = inject(SiteSettingsService);
   http = inject(HttpClient);
   router = inject(Router);
@@ -257,6 +263,10 @@ export class CartModalComponent implements OnInit, OnDestroy {
     this.cartService.closeCart();
   }
 
+  displayName(item: CartItem): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
   removeItem(itemId: string): void {
     this.cartService.removeItem(itemId);
   }
@@ -285,19 +295,19 @@ export class CartModalComponent implements OnInit, OnDestroy {
   }
 
   clearCart(): void {
-    if (confirm('האם אתה בטוח שברצונך לנקות את העגלה?')) {
+    if (confirm(this.translate.instant('CART.CLEAR_CONFIRM'))) {
       this.cartService.clearCart();
     }
   }
 
   goToCart(): void {
     this.cartService.closeCart();
-    this.router.navigate(['/cart']);
+    this.router.navigateByUrl(this.localeService.localizePath('/cart'));
   }
 
   goToCheckout(): void {
     this.cartService.closeCart();
-    this.router.navigate(['/checkout']);
+    this.router.navigateByUrl(this.localeService.localizePath('/checkout'));
   }
 
   private updateAddressValidators(): void {
@@ -313,11 +323,15 @@ export class CartModalComponent implements OnInit, OnDestroy {
 
   placeOrder(): void {
     if (this.cartItems.length === 0) {
-      this.snackBar.open('העגלה ריקה', 'סגור', {
-        duration: 3000,
-        horizontalPosition: 'start',
-        verticalPosition: 'top'
-      });
+      this.snackBar.open(
+        this.translate.instant('CART.EMPTY_SNACK'),
+        this.translate.instant('CART.CLOSE'),
+        {
+          duration: 3000,
+          horizontalPosition: 'start',
+          verticalPosition: 'top'
+        }
+      );
       return;
     }
 
@@ -377,7 +391,7 @@ export class CartModalComponent implements OnInit, OnDestroy {
         this.cartService.clearCart();
         this.resetCheckoutForm();
         this.closeCart();
-        this.snackBar.open('ההזמנה נשלחה למייל ופתחנו את וואטסאפ להשלמה', 'סגור', {
+        this.snackBar.open('ההזמנה נשלחה למייל ופתחנו את וואטסאפ להשלמה', this.translate.instant('CART.CLOSE'), {
           duration: 4000,
           horizontalPosition: 'start',
           verticalPosition: 'top'
@@ -386,7 +400,7 @@ export class CartModalComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Error sending order email:', err);
-        this.snackBar.open(err.error?.message || 'שגיאה בשליחת ההזמנה למייל', 'סגור', {
+        this.snackBar.open(err.error?.message || 'שגיאה בשליחת ההזמנה למייל', this.translate.instant('CART.CLOSE'), {
           duration: 5000,
           horizontalPosition: 'start',
           verticalPosition: 'top'

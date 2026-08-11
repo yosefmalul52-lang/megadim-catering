@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LocaleService } from '../../../i18n/locale.service';
 
 @Component({
   selector: 'app-accessibility',
@@ -8,5 +9,6 @@ import { CommonModule } from '@angular/common';
   templateUrl: './accessibility.component.html',
   styleUrls: ['./accessibility.component.scss']
 })
-export class AccessibilityComponent {}
-
+export class AccessibilityComponent {
+  readonly localeService = inject(LocaleService);
+}

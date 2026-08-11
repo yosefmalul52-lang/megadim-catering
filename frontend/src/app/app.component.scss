@@ -62,11 +62,41 @@ app-search-bar {
   
   .sidenav-content {
     padding: 2rem 1rem;
-    direction: rtl;
+    direction: inherit;
     
+    .sidenav-lang-switch {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .lang-btn {
+      flex: 1;
+      min-height: 44px;
+      border: 1px solid rgba(224, 192, 117, 0.35);
+      border-radius: 4px;
+      background: transparent;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+
+      &.active {
+        background: #E0C075;
+        color: #1f3540;
+        border-color: #E0C075;
+      }
+
+      &:focus-visible {
+        outline: 2px solid #E0C075;
+        outline-offset: 2px;
+      }
+    }
+
     button {
       width: 100%;
-      text-align: right;
+      text-align: start;
       justify-content: flex-start;
       color: #ffffff !important;
       margin-bottom: 0.5rem;
@@ -105,7 +135,7 @@ app-search-bar {
 // Global direction classes for RTL/LTR support
 [dir="rtl"] {
   .main-content {
-    text-align: right;
+    text-align: start;
   }
 }
 
@@ -135,7 +165,7 @@ app-search-bar {
   align-items: center;
   gap: 1.25rem;
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
-  direction: rtl;
+  direction: inherit;
   font-family: inherit;
 
   .cookie-text {

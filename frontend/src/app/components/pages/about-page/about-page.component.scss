@@ -13,7 +13,7 @@ $border-light: rgba($navy, 0.1);
 $border-gold: rgba($gold, 0.35);
 
 .about-page {
-  direction: rtl;
+  direction: inherit;
   font-family: 'Heebo', sans-serif;
   color: $text;
   background: $white-warm;
@@ -451,7 +451,7 @@ $border-gold: rgba($gold, 0.35);
     flex-direction: row;
     align-items: baseline;
     justify-content: flex-start;
-    text-align: right;
+    text-align: start;
     border-inline-start: none;
     border-bottom: 1px solid rgba($gold, 0.12);
     padding-bottom: 1rem;

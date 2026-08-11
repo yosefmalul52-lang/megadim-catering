@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import Order, { IOrder } from '../models/Order';
 import { ORDER_NOTIFICATION_TYPES } from '../models/OrderNotificationClaim';
-import { generateAdminEmailHtml, generateCustomerEmailHtml, generateCateringCustomerEmailHtml, buildShabbatMealsExtraInfo, OrderTemplateData } from './email-templates';
+import { generateAdminEmailHtml, generateCustomerEmailHtml, generateCustomerEmailHtmlEn, generateCateringCustomerEmailHtml, buildShabbatMealsExtraInfo, OrderTemplateData } from './email-templates';
 import { ORDER_API_DETAIL_SELECT } from '../utils/order-projection.util';
 import {
   normalizeCateringLineItems,
@@ -471,6 +471,15 @@ export class EmailService {
     }
     const customerReplyEmail = (order.customerDetails?.email || '').toString().trim();
     const ownerTemplateData = buildTemplateDataFromOrder(order);
+    const customerItems =
+      order.sourceLocale === 'en'
+        ? (order.items || []).map((item: any) => ({
+            name: String(item.nameEn || item.name || ''),
+            price: Number(item.price) || 0,
+            quantity: Number(item.quantity) || 0,
+            category: item.category
+          }))
+        : ownerTemplateData.cartItems;
     const customerTemplateData: OrderTemplateData = {
       customerName: ownerTemplateData.customerName,
       customerPhone: ownerTemplateData.customerPhone,
@@ -479,7 +488,7 @@ export class EmailService {
       eventDate: ownerTemplateData.eventDate,
       address: ownerTemplateData.address,
       notes: ownerTemplateData.notes,
-      cartItems: ownerTemplateData.cartItems,
+      cartItems: customerItems,
       subtotal: ownerTemplateData.subtotal,
       deliveryFee: ownerTemplateData.deliveryFee,
       totalPrice: ownerTemplateData.totalPrice,
@@ -491,7 +500,9 @@ export class EmailService {
     const ownerHtml = generateAdminEmailHtml(ownerTemplateData);
     const customerHtml = ownerTemplateData.cateringKind
       ? generateCateringCustomerEmailHtml(customerTemplateData)
-      : generateCustomerEmailHtml(customerTemplateData);
+      : order.sourceLocale === 'en'
+        ? generateCustomerEmailHtmlEn(customerTemplateData)
+        : generateCustomerEmailHtml(customerTemplateData);
 
     const ownerSubject = ownerTemplateData.cateringKind
       ? `בקשת קייטרינג חדשה${order.orderNumber ? ` - ${order.orderNumber}` : ''} - ${businessName}`
@@ -508,7 +519,9 @@ export class EmailService {
     if (customerReplyEmail) {
       const customerSubject = ownerTemplateData.cateringKind
         ? `אישור קבלת בקשת קייטרינג${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`
-        : `הזמנתך התקבלה וממתינה לאישור הקייטרינג${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`;
+        : order.sourceLocale === 'en'
+          ? `We received your order${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`
+          : `הזמנתך התקבלה וממתינה לאישור הקייטרינג${order.orderNumber ? ` ${order.orderNumber}` : ''} - ${businessName}`;
       await this.sendMailWithLogging('order:received-customer', {
         from: getWebsiteFromHeader(),
         replyTo: ownerEmail,
@@ -822,6 +835,8 @@ export class EmailService {
       deliveryType: 'pickup' | 'delivery';
       address: string;
       remarks: string;
+      total?: number;
+      pricePerPortion?: number;
     },
     ownerEmail: string,
     customerEmail?: string
@@ -867,6 +882,12 @@ export class EmailService {
       mealTime: data.mealTime,
       seudaShlishit: data.seudaShlishit
     });
+    if (data.pricePerPortion != null && Number(data.pricePerPortion) > 0) {
+      cateringExtraInfo.push({
+        label: 'מחיר למנה (משוער)',
+        value: `₪${Number(data.pricePerPortion)}`
+      });
+    }
 
     const orderData: OrderEmailData = {
       customerName: data.fullName,
@@ -877,7 +898,7 @@ export class EmailService {
       address: data.address || undefined,
       notes: data.remarks && data.remarks.trim() ? data.remarks : undefined,
       items,
-      total: 0,
+      total: Number(data.total) > 0 ? Number(data.total) : 0,
       cateringKind: 'shabbat',
       cateringExtraInfo
     };

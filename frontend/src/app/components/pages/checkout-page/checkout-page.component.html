@@ -1,16 +1,16 @@
-<div class="checkout-page" dir="rtl">
+<div class="checkout-page" [attr.dir]="localeService.locale === 'en' ? 'ltr' : 'rtl'">
   <div class="container">
     <header class="page-header">
       <div class="page-title-wrapper">
         <span class="decorative-line right-line" aria-hidden="true"></span>
-        <h1 class="page-title">ביצוע הזמנה</h1>
+        <h1 class="page-title">{{ 'CHECKOUT.TITLE' | translate }}</h1>
         <span class="decorative-line left-line" aria-hidden="true"></span>
       </div>
     </header>
 
     <div class="empty-state" *ngIf="cartItems.length === 0">
-      <p class="empty-message">העגלה שלך ריקה</p>
-      <a routerLink="/" class="btn-back">חזרה לתפריט</a>
+      <p class="empty-message">{{ 'CHECKOUT.EMPTY' | translate }}</p>
+      <a [routerLink]="localeService.localizePath('/')" class="btn-back">{{ 'CHECKOUT.BACK' | translate }}</a>
     </div>
 
     <div class="payment-error-banner" *ngIf="cartItems.length > 0 && paymentErrorMessage" role="alert">
@@ -24,22 +24,22 @@
           <mat-card-content>
             <form [formGroup]="orderForm" (ngSubmit)="placeOrder()" id="checkout-form">
               <section class="form-group" aria-labelledby="personal-heading">
-                <h2 id="personal-heading" class="section-title">פרטים אישיים</h2>
+                <h2 id="personal-heading" class="section-title">{{ 'CHECKOUT.PERSONAL' | translate }}</h2>
                 <div class="fields-grid">
                   <div class="field-row">
-                    <label class="field-label" for="fullName">שם מלא <span class="required-star">*</span></label>
+                    <label class="field-label" for="fullName">{{ 'CHECKOUT.FULL_NAME' | translate }} <span class="required-star">*</span></label>
                     <input
                       type="text"
                       id="fullName"
                       class="input-premium"
                       formControlName="fullName"
-                      placeholder="הזן שם מלא"
+                      [placeholder]="'CHECKOUT.FULL_NAME_PH' | translate"
                       required
                     >
-                    <span class="field-error" *ngIf="orderForm.get('fullName')?.invalid && orderForm.get('fullName')?.touched">שדה חובה</span>
+                    <span class="field-error" *ngIf="orderForm.get('fullName')?.invalid && orderForm.get('fullName')?.touched">{{ 'CHECKOUT.REQUIRED' | translate }}</span>
                   </div>
                   <div class="field-row">
-                    <label class="field-label" for="phone">טלפון <span class="required-star">*</span></label>
+                    <label class="field-label" for="phone">{{ 'CHECKOUT.PHONE' | translate }} <span class="required-star">*</span></label>
                     <input
                       type="tel"
                       id="phone"
@@ -49,12 +49,12 @@
                       required
                     >
                     <span class="field-error" *ngIf="orderForm.get('phone')?.invalid && orderForm.get('phone')?.touched">
-                      {{ orderForm.get('phone')?.hasError('required') ? 'שדה חובה' : 'אנא הזינו מספר טלפון תקין' }}
+                      {{ orderForm.get('phone')?.hasError('required') ? ('CHECKOUT.REQUIRED' | translate) : ('CHECKOUT.INVALID_PHONE' | translate) }}
                     </span>
                   </div>
                 </div>
                 <div class="field-row field-row-full">
-                  <label class="field-label" for="customerEmail">אימייל <span class="required-star">*</span></label>
+                  <label class="field-label" for="customerEmail">{{ 'CHECKOUT.EMAIL' | translate }} <span class="required-star">*</span></label>
                   <input
                     type="email"
                     id="customerEmail"
@@ -64,11 +64,11 @@
                     required
                   >
                   <span class="field-error" *ngIf="orderForm.get('customerEmail')?.invalid && orderForm.get('customerEmail')?.touched">
-                    {{ orderForm.get('customerEmail')?.hasError('required') ? 'שדה חובה' : 'אנא הזינו כתובת אימייל תקינה' }}
+                    {{ orderForm.get('customerEmail')?.hasError('required') ? ('CHECKOUT.REQUIRED' | translate) : ('CHECKOUT.INVALID_EMAIL' | translate) }}
                   </span>
                 </div>
                 <div class="field-row field-row-full">
-                  <label class="field-label" for="eventDate">תאריך אירוע <span class="required-star">*</span></label>
+                  <label class="field-label" for="eventDate">{{ 'CHECKOUT.EVENT_DATE' | translate }} <span class="required-star">*</span></label>
                   <mat-form-field appearance="outline" class="datepicker-full-width">
                     <input
                       matInput
@@ -77,26 +77,26 @@
                       [min]="minDate"
                       [matDatepicker]="eventDatePicker"
                       formControlName="eventDate"
-                      placeholder="בחר תאריך"
+                      [placeholder]="'CHECKOUT.PICK_DATE' | translate"
                     >
                     <mat-datepicker-toggle matIconSuffix [for]="eventDatePicker"></mat-datepicker-toggle>
                     <mat-datepicker #eventDatePicker></mat-datepicker>
                     <mat-hint class="premium-hint">
                       <i class="fas fa-info-circle" aria-hidden="true"></i>
-                      ניתן להזמין מינימום {{ minimumLeadDays }} ימים מראש
+                      {{ 'CHECKOUT.MIN_LEAD' | translate: { days: minimumLeadDays } }}
                     </mat-hint>
                   </mat-form-field>
-                  <span class="field-error" *ngIf="orderForm.get('eventDate')?.invalid && orderForm.get('eventDate')?.touched">שדה חובה — אנא בחרו תאריך אירוע</span>
+                  <span class="field-error" *ngIf="orderForm.get('eventDate')?.invalid && orderForm.get('eventDate')?.touched">{{ 'CHECKOUT.DATE_REQUIRED' | translate }}</span>
                   <span class="field-hint event-date-hint" *ngIf="eventDateCutoffHint && !eventDateClosedMessage">{{ eventDateCutoffHint }}</span>
                   <span class="field-error" *ngIf="eventDateClosedMessage" role="alert">{{ eventDateClosedMessage }}</span>
                 </div>
               </section>
 
               <section class="form-group" aria-labelledby="delivery-heading">
-                <h3 id="delivery-heading" class="section-subtitle">משלוח ומסירה</h3>
+                <h3 id="delivery-heading" class="section-subtitle">{{ 'CHECKOUT.DELIVERY_SECTION' | translate }}</h3>
                 <div class="delivery-type-group full-width">
-                  <span class="field-label">סוג מסירה <span class="required-star">*</span></span>
-                  <div class="delivery-cards-grid" role="group" aria-label="סוג מסירה">
+                  <span class="field-label">{{ 'CHECKOUT.DELIVERY_TYPE' | translate }} <span class="required-star">*</span></span>
+                  <div class="delivery-cards-grid" role="group" [attr.aria-label]="'CHECKOUT.DELIVERY_TYPE' | translate">
                     <div
                       class="delivery-card"
                       [class.active]="orderForm.get('deliveryType')?.value === 'pickup'"
@@ -107,7 +107,7 @@
                       (keydown.space)="orderForm.get('deliveryType')?.setValue('pickup')"
                     >
                       <i class="fas fa-store" aria-hidden="true"></i>
-                      איסוף עצמי
+                      {{ 'CHECKOUT.PICKUP' | translate }}
                     </div>
                     <div
                       class="delivery-card"
@@ -120,7 +120,7 @@
                       (keydown.space)="onSelectDeliveryCard()"
                     >
                       <i class="fas fa-truck" aria-hidden="true"></i>
-                      משלוח
+                      {{ 'CHECKOUT.DELIVERY' | translate }}
                     </div>
                   </div>
                 </div>
@@ -131,13 +131,13 @@
                   </div>
                   <div class="field-row field-row-full">
                     <div class="custom-dropdown-container">
-                      <label class="field-label" for="city">יישוב <span class="required-star">*</span></label>
+                      <label class="field-label" for="city">{{ 'CHECKOUT.CITY' | translate }} <span class="required-star">*</span></label>
                       <input
                         type="text"
                         id="city"
                         class="input-premium"
                         formControlName="city"
-                        placeholder="חפש יישוב..."
+                        [placeholder]="'CHECKOUT.CITY_PH' | translate"
                         autocomplete="off"
                         (input)="filterCities($event)"
                         (focus)="onCityFocus()"
@@ -150,35 +150,35 @@
                         </li>
                       </ul>
                     </div>
-                    <span class="field-error" *ngIf="orderForm.get('city')?.invalid && orderForm.get('city')?.touched">אנא בחרו עיר</span>
+                    <span class="field-error" *ngIf="orderForm.get('city')?.invalid && orderForm.get('city')?.touched">{{ 'CHECKOUT.CITY_REQUIRED' | translate }}</span>
                     <span class="delivery-fee-loading" *ngIf="deliveryFeeLoading">
-                      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> מחשב דמי משלוח...
+                      <i class="fas fa-spinner fa-spin" aria-hidden="true"></i> {{ 'CHECKOUT.CALCULATING_FEE' | translate }}
                     </span>
                   </div>
                   <div class="field-row field-row-full">
-                    <label class="field-label" for="streetAddress">רחוב ומספר בית <span class="required-star">*</span></label>
+                    <label class="field-label" for="streetAddress">{{ 'CHECKOUT.STREET' | translate }} <span class="required-star">*</span></label>
                     <input
                       type="text"
                       id="streetAddress"
                       class="input-premium"
                       formControlName="streetAddress"
-                      placeholder="רחוב, מספר בית"
+                      [placeholder]="'CHECKOUT.STREET_PH' | translate"
                     >
-                    <small class="helper-text">נא לציין קומה, דירה וקוד כניסה במידה ויש</small>
-                    <span class="field-error" *ngIf="orderForm.get('streetAddress')?.invalid && orderForm.get('streetAddress')?.touched">שדה חובה — אנא הזינו רחוב ומספר בית</span>
+                    <small class="helper-text">{{ 'CHECKOUT.STREET_HELPER' | translate }}</small>
+                    <span class="field-error" *ngIf="orderForm.get('streetAddress')?.invalid && orderForm.get('streetAddress')?.touched">{{ 'CHECKOUT.STREET_REQUIRED' | translate }}</span>
                   </div>
                 </ng-container>
               </section>
 
               <section class="form-group" aria-labelledby="notes-heading">
-                <h3 id="notes-heading" class="section-subtitle">הערות</h3>
+                <h3 id="notes-heading" class="section-subtitle">{{ 'CHECKOUT.NOTES' | translate }}</h3>
                 <div class="field-row field-row-full">
-                  <label class="field-label" for="notes">הערות (אופציונלי)</label>
+                  <label class="field-label" for="notes">{{ 'CHECKOUT.NOTES_OPTIONAL' | translate }}</label>
                   <textarea
                     id="notes"
                     class="input-premium textarea-premium"
                     formControlName="notes"
-                    placeholder="הערות מיוחדות, אלרגיות, או בקשות..."
+                    [placeholder]="'CHECKOUT.NOTES_PH' | translate"
                     rows="4"
                     maxlength="500"
                   ></textarea>
@@ -192,78 +192,78 @@
 
       <aside class="summary-column">
         <div class="summary-card">
-          <div class="summary-header">סיכום ההזמנה</div>
+          <div class="summary-header">{{ 'CHECKOUT.SUMMARY' | translate }}</div>
           <div class="summary-body">
-            <ul class="summary-list" aria-label="פריטים בהזמנה">
+            <ul class="summary-list" [attr.aria-label]="'CHECKOUT.ITEMS' | translate">
               <li class="summary-item" *ngFor="let item of cartItems; trackBy: trackByItemId">
-                <span class="summary-item-name">{{ cleanItemName(item.name) }}</span>
+                <span class="summary-item-name">{{ displayName(item) }}</span>
                 <span class="summary-item-qty">× {{ item.quantity }}</span>
               </li>
             </ul>
             <div class="summary-row summary-delivery-row" *ngIf="orderForm.get('deliveryType')?.value === 'delivery' && (deliveryFee > 0 || isDeliveryFree)">
-              <span class="summary-label">דמי משלוח</span>
+              <span class="summary-label">{{ 'CHECKOUT.DELIVERY_FEE' | translate }}</span>
               <span class="summary-value">
-                <span *ngIf="isDeliveryFree" class="delivery-original">{{ originalDeliveryFee.toFixed(2) }} ש"ח</span>
-                <span *ngIf="isDeliveryFree" class="delivery-free-badge">חינם!</span>
-                <bdi *ngIf="!isDeliveryFree">{{ deliveryFee.toFixed(2) }} ש"ח</bdi>
+                <span *ngIf="isDeliveryFree" class="delivery-original">{{ originalDeliveryFee.toFixed(2) }} {{ 'CART.SHEKEL' | translate }}</span>
+                <span *ngIf="isDeliveryFree" class="delivery-free-badge">{{ 'CHECKOUT.FREE' | translate }}</span>
+                <bdi *ngIf="!isDeliveryFree">{{ deliveryFee.toFixed(2) }} {{ 'CART.SHEKEL' | translate }}</bdi>
               </span>
             </div>
             <div class="coupon-section">
-              <p class="coupon-heading">יש לך קוד קופון?</p>
+              <p class="coupon-heading">{{ 'CHECKOUT.COUPON_Q' | translate }}</p>
               <div class="coupon-row" *ngIf="!appliedCouponCode">
                 <input
                   type="text"
                   class="input-premium coupon-input"
                   [value]="couponCodeInput"
                   (input)="couponCodeInput = $any($event.target).value"
-                  placeholder="יש לך קוד קופון?"
+                  [placeholder]="'CHECKOUT.COUPON_Q' | translate"
                   [disabled]="couponApplying"
                   (keydown.enter)="applyCoupon(); $event.preventDefault()"
                 >
                 <button type="button" class="btn-premium btn-coupon-apply" (click)="applyCoupon()" [disabled]="couponApplying">
-                  <span *ngIf="!couponApplying">הפעל</span>
+                  <span *ngIf="!couponApplying">{{ 'CHECKOUT.APPLY_COUPON' | translate }}</span>
                   <span *ngIf="couponApplying"><i class="fas fa-spinner fa-spin"></i></span>
                 </button>
               </div>
               <div class="coupon-applied" *ngIf="appliedCouponCode">
                 <span class="coupon-code-badge">{{ appliedCouponCode }}</span>
-                <span class="coupon-discount-text">הנחה {{ couponDiscount.toFixed(2) }} ש"ח</span>
-                <span class="coupon-activated-badge"><i class="fas fa-check-circle"></i> הופעל</span>
-                <button type="button" class="btn-remove-coupon" (click)="removeCoupon()" aria-label="הסר קופון">הסר</button>
+                <span class="coupon-discount-text">{{ 'CHECKOUT.COUPON_DISCOUNT' | translate: { amount: couponDiscount.toFixed(2) } }}</span>
+                <span class="coupon-activated-badge"><i class="fas fa-check-circle"></i> {{ 'CHECKOUT.COUPON_APPLIED' | translate }}</span>
+                <button type="button" class="btn-remove-coupon" (click)="removeCoupon()" [attr.aria-label]="'CHECKOUT.REMOVE_COUPON' | translate">{{ 'CHECKOUT.REMOVE' | translate }}</button>
               </div>
               <p class="coupon-error" *ngIf="couponError">{{ couponError }}</p>
             </div>
             <div class="summary-pre-coupon" *ngIf="appliedCouponCode && couponDiscount > 0">
-              <span class="summary-label">סה"כ לפני הנחה</span>
+              <span class="summary-label">{{ 'CHECKOUT.PRE_DISCOUNT' | translate }}</span>
               <span class="summary-value-old">₪{{ (grandTotal + couponDiscount).toFixed(2) }}</span>
             </div>
             <div class="summary-discount-row" *ngIf="appliedCouponCode && couponDiscount > 0">
-              <span class="summary-label">הנחת קופון ({{ appliedCouponCode }})</span>
+              <span class="summary-label">{{ 'CHECKOUT.COUPON_LABEL' | translate: { code: appliedCouponCode } }}</span>
               <span class="summary-value-discount">-₪{{ couponDiscount.toFixed(2) }}</span>
             </div>
             <div class="summary-total-row">
-              <span class="summary-total-label">סה"כ לתשלום</span>
+              <span class="summary-total-label">{{ 'CHECKOUT.TOTAL' | translate }}</span>
               <span class="summary-total-value">₪{{ grandTotal.toFixed(2) }}</span>
             </div>
             <div class="summary-confidence">
-              <span class="confidence-item"><i class="fas fa-lock"></i> הזמנה מאובטחת</span>
-              <span class="confidence-item"><i class="fas fa-leaf"></i> קייטרינג טרי יום-יום</span>
-              <span class="confidence-item"><i class="fas fa-truck"></i> משלוח מבוקר טמפרטורה</span>
+              <span class="confidence-item"><i class="fas fa-lock"></i> {{ 'CHECKOUT.SECURE' | translate }}</span>
+              <span class="confidence-item"><i class="fas fa-leaf"></i> {{ 'CHECKOUT.FRESH' | translate }}</span>
+              <span class="confidence-item"><i class="fas fa-truck"></i> {{ 'CHECKOUT.COLD_CHAIN' | translate }}</span>
             </div>
             <div class="legal-consent-block">
-              בלחיצה על ביצוע הזמנה, אני מאשר/ת שקראתי והסכמתי ל<a routerLink="/terms" target="_blank" rel="noopener">תקנון האתר</a>, ל<a routerLink="/privacy-policy" target="_blank" rel="noopener">מדיניות הפרטיות</a> וקראתי את <a routerLink="/accessibility" target="_blank" rel="noopener">הצהרת הנגישות</a>.
+              {{ 'CHECKOUT.LEGAL_START' | translate }}<a [routerLink]="localeService.localizePath('/terms')" target="_blank" rel="noopener">{{ 'CHECKOUT.TERMS_LINK' | translate }}</a>{{ 'CHECKOUT.LEGAL_PRIVACY_PREFIX' | translate }}<a [routerLink]="localeService.localizePath('/privacy-policy')" target="_blank" rel="noopener">{{ 'CHECKOUT.PRIVACY_LINK' | translate }}</a>{{ 'CHECKOUT.LEGAL_ACCESS_PREFIX' | translate }}<a [routerLink]="localeService.localizePath('/accessibility')" target="_blank" rel="noopener">{{ 'CHECKOUT.ACCESSIBILITY_LINK' | translate }}</a>.
             </div>
             <div [formGroup]="orderForm" class="legal-checkbox-group">
               <input type="checkbox" id="terms" formControlName="termsAccepted">
-              <label for="terms">אני מאשר/ת את האמור לעיל ומסכים/ה לתנאים ולמדיניות הביטולים.</label>
+              <label for="terms">{{ 'CHECKOUT.TERMS_CHECKBOX' | translate }}</label>
             </div>
             <div *ngIf="orderForm.get('termsAccepted')?.invalid && orderForm.get('termsAccepted')?.touched" class="error-text">
-              שדה חובה — יש לאשר את התנאים והמדיניות כדי לבצע הזמנה.
+              {{ 'CHECKOUT.TERMS_ERROR' | translate }}
             </div>
             <div class="checkout-actions">
-              <a routerLink="/cart" class="btn-premium btn-secondary">
+              <a [routerLink]="localeService.localizePath('/cart')" class="btn-premium btn-secondary">
                 <i class="fas fa-arrow-right" aria-hidden="true"></i>
-                חזרה לעגלה
+                {{ 'CHECKOUT.BACK_CART' | translate }}
               </a>
               <button
                 type="submit"
@@ -272,9 +272,9 @@
                 [disabled]="isSubmitDisabled"
               >
                 <mat-spinner *ngIf="isSubmitting" diameter="20"></mat-spinner>
-                <span *ngIf="!isSubmitting">בצע הזמנה</span>
-                <span *ngIf="isSubmitting && !isRedirectingToPayment">שולח הזמנה...</span>
-                <span *ngIf="isSubmitting && isRedirectingToPayment">מעביר לתשלום...</span>
+                <span *ngIf="!isSubmitting">{{ 'CHECKOUT.PLACE_ORDER' | translate }}</span>
+                <span *ngIf="isSubmitting && !isRedirectingToPayment">{{ 'CHECKOUT.SENDING' | translate }}</span>
+                <span *ngIf="isSubmitting && isRedirectingToPayment">{{ 'CHECKOUT.LOADING' | translate }}</span>
               </button>
             </div>
           </div>

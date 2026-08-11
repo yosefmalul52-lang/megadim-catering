@@ -204,7 +204,8 @@ describe('AdminDashboardComponent ops', () => {
     fixture.detectChanges();
     expect(component.activeDaySummary?.ordersCount).toBe(0);
     const html = fixture.nativeElement as HTMLElement;
-    expect(html.querySelector('.empty-compact')).toBeTruthy();
+    expect(html.querySelector('.region-empty')).toBeTruthy();
+    expect(html.querySelector('.ops-day-hero')).toBeFalsy();
     expect(html.querySelector('.day-grid')).toBeFalsy();
   }));
 

@@ -1,10 +1,10 @@
 <div class="home-page">
   <!-- Hero -->
-  <section class="hero" aria-label="ברוכים הבאים לקייטרינג מגדים">
+  <section class="hero" [attr.aria-label]="'HOME.HERO_ARIA' | translate">
     <div class="hero__media">
       <img
         ngSrc="https://megadim-media.megadim.workers.dev/frontend/static/5bf22696b400b875/original.png"
-        alt="קייטרינג בשרי כשר למהדרין לאירועים – שולחן ערוך ומנות בשר פרימיום | קייטרינג מגדים"
+        [alt]="'HOME.HERO_ALT' | translate"
         width="1920"
         height="1080"
         priority
@@ -15,9 +15,9 @@
 
     <div class="hero__inner">
       <p class="hero__tag">
-        <span>כשר למהדרין</span>
+        <span>{{ 'HOME.HERO_TAG_KOSHER' | translate }}</span>
         <span class="hero__tag-sep" aria-hidden="true">|</span>
-        <span>בהנהלת השף ינון אנקרי</span>
+        <span>{{ 'HOME.HERO_TAG_CHEF' | translate }}</span>
       </p>
 
       <h1 class="hero__title">
@@ -41,12 +41,12 @@
       </h1>
 
       <div class="hero__actions">
-        <a class="hero__cta-primary" routerLink="/ready-for-shabbat">לצפייה בתפריט</a>
+        <a class="hero__cta-primary" [routerLink]="navPath('/ready-for-shabbat')">{{ 'HOME.HERO_CTA' | translate }}</a>
       </div>
 
       <p class="hero__proof">
-        @for (item of heroTrustItems; track item; let last = $last) {
-          <span class="hero__proof-item">{{ item }}</span>
+        @for (key of heroTrustKeys; track key; let last = $last) {
+          <span class="hero__proof-item">{{ key | translate }}</span>
           @if (!last) {
             <span class="hero__proof-sep" aria-hidden="true">|</span>
           }
@@ -61,7 +61,7 @@
   <section class="home-paths" aria-labelledby="paths-heading">
     <div class="home-paths__container">
       <header class="home-paths__head">
-        <h2 id="paths-heading" class="home-paths__title">מה תרצו להזמין?</h2>
+        <h2 id="paths-heading" class="home-paths__title">{{ 'HOME.PATHS_TITLE' | translate }}</h2>
       </header>
 
       <div class="home-paths__grid">
@@ -69,11 +69,11 @@
           <a
             class="home-path"
             [class.home-path--featured]="path.featured"
-            [routerLink]="path.route"
+            [routerLink]="navPath(path.route)"
           >
             <img
               [ngSrc]="path.image"
-              [alt]="path.alt"
+              [alt]="path.altKey | translate"
               width="600"
               height="800"
               class="home-path__img"
@@ -81,7 +81,7 @@
             />
             <div class="home-path__overlay" aria-hidden="true"></div>
             <div class="home-path__body">
-              <h3 class="home-path__name">{{ path.title }}</h3>
+              <h3 class="home-path__name">{{ path.titleKey | translate }}</h3>
               <span class="home-path__rule" aria-hidden="true"></span>
             </div>
           </a>
@@ -110,7 +110,7 @@
             <div class="home-chef__photo-wrap">
               <img
                 ngSrc="https://megadim-media.megadim.workers.dev/frontend/static/554c85bbcb2fefbc/original.jpg"
-                alt="השף ינון אנקרי קייטרינג מגדים"
+                [alt]="'HOME.CHEF_ALT' | translate"
                 width="576"
                 height="1024"
                 sizes="(max-width: 640px) 90vw, (max-width: 960px) 50vw, 35vw"
@@ -118,8 +118,8 @@
                 class="home-chef__photo"
               />
               <div class="home-chef__badge">
-                <p class="home-chef__badge-name">השף ינון אנקרי</p>
-                <p class="home-chef__badge-role">מוביל המטבח של מגדים</p>
+                <p class="home-chef__badge-name">{{ 'HOME.CHEF_BADGE_NAME' | translate }}</p>
+                <p class="home-chef__badge-role">{{ 'HOME.CHEF_BADGE_ROLE' | translate }}</p>
               </div>
             </div>
           </div>
@@ -131,44 +131,44 @@
 
         <div class="home-chef__content-panel">
           <header class="home-chef__head">
-            <p class="home-chef__eyebrow">מאחורי המטבח</p>
-            <h2 id="chef-heading" class="home-chef__title">בהנהלת השף ינון אנקרי</h2>
+            <p class="home-chef__eyebrow">{{ 'HOME.CHEF_EYEBROW' | translate }}</p>
+            <h2 id="chef-heading" class="home-chef__title">{{ 'HOME.CHEF_TITLE' | translate }}</h2>
           </header>
 
           <p class="home-chef__text">
-            מאחורי כל מנה של מגדים עומד מטבח שמחבר בין טעם ביתי, חומרי גלם איכותיים, כשרות מהדרין והגשה מוקפדת. השף ינון אנקרי מוביל את התפריטים מתוך הבנה שכל אירוע צריך להרגיש אישי, מדויק ומכובד.
+            {{ 'HOME.CHEF_P1' | translate }}
           </p>
           <p class="home-chef__text">
-            מהתכנון הראשוני של התפריט ועד ההגשה בשטח, הצוות עובד בשיתוף פעולה מלא עם הלקוח — בבחירת מנות, בהתאמה לגודל האירוע ובשמירה על סטנדרט קבוע של טריות, סדר וכשרות מהודרת. כך כל הזמנה מקבלת את אותה תשומת לב, אותה אמינות ואותה רמה מקצועית, בין אם מדובר בשבת משפחתית, באירוע חג או בקייטרינג לאירוע גדול.
+            {{ 'HOME.CHEF_P2' | translate }}
           </p>
 
           <div class="home-chef__menu-card">
             <div class="home-chef__menu-card-intro">
-              <p class="home-chef__menu-card-eyebrow">מה חשוב לנו בכל תפריט</p>
-              <h3 class="home-chef__menu-card-title">כל תפריט נבנה סביב</h3>
+              <p class="home-chef__menu-card-eyebrow">{{ 'HOME.CHEF_MENU_EYEBROW' | translate }}</p>
+              <h3 class="home-chef__menu-card-title">{{ 'HOME.CHEF_MENU_TITLE' | translate }}</h3>
             </div>
 
             <ul class="home-chef__menu-list">
               <li class="home-chef__menu-item">
                 <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">כמות האורחים</span>
+                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_1' | translate }}</span>
               </li>
               <li class="home-chef__menu-item">
                 <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">סגנון האירוע</span>
+                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_2' | translate }}</span>
               </li>
               <li class="home-chef__menu-item">
                 <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">רמת הכשרות</span>
+                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_3' | translate }}</span>
               </li>
               <li class="home-chef__menu-item">
                 <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">אופי ההגשה</span>
+                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_4' | translate }}</span>
               </li>
             </ul>
 
             <p class="home-chef__menu-card-footer">
-              ככה אנחנו בונים תפריט שמרגיש מדויק, מכובד ולא גנרי.
+              {{ 'HOME.CHEF_MENU_FOOTER' | translate }}
             </p>
           </div>
         </div>
@@ -185,7 +185,7 @@
     <div class="reviews__spotlight" aria-live="polite">
       <div class="reviews__spotlight-inner">
         <header class="reviews__head">
-          <h2 id="reviews-heading" class="reviews__spotlight-title">מה אומרים על מגדים אחרי האירוע?</h2>
+          <h2 id="reviews-heading" class="reviews__spotlight-title">{{ 'HOME.REVIEWS_TITLE' | translate }}</h2>
         </header>
 
         <article class="reviews__card">
@@ -219,7 +219,7 @@
           <span class="reviews__quote reviews__quote--close" aria-hidden="true">"</span>
         </article>
 
-        <div class="reviews__dots" role="tablist" aria-label="בחירת המלצה">
+        <div class="reviews__dots" role="tablist" [attr.aria-label]="'HOME.REVIEWS_ARIA' | translate">
           @for (review of testimonials; track review.name; let i = $index) {
             <button
               type="button"
@@ -227,7 +227,7 @@
               role="tab"
               [class.reviews__dot--active]="i === featuredReviewIndex"
               [attr.aria-selected]="i === featuredReviewIndex"
-              [attr.aria-label]="'המלצה ' + (i + 1) + ' מתוך ' + testimonials.length"
+              [attr.aria-label]="'HOME.REVIEW_DOT' | translate: { n: i + 1, total: testimonials.length }"
               (click)="setFeaturedReview(i)"
             ></button>
           }
@@ -236,39 +236,38 @@
     </div>
   </section>
 
-  <section class="home-cta" aria-label="הזמנה">
+  <section class="home-cta" [attr.aria-label]="'HOME.CTA_ARIA' | translate">
     <div class="home-cta__panel">
       <div class="home-cta__layout">
         <div class="home-cta__copy">
-          <h2 class="home-cta__title">שבת נעימה מתחילה כאן</h2>
+          <h2 class="home-cta__title">{{ 'HOME.CTA_TITLE' | translate }}</h2>
           <p class="home-cta__text">
-            מזמינים ממגדים אוכל ביתי, בשרי וכשר למהדרין, מוכן להגשה ולשולחן שבת.
+            {{ 'HOME.CTA_TEXT' | translate }}
           </p>
           <p class="home-cta__trust-line">
-            כשר למהדרין <span aria-hidden="true">|</span> בהנהלת השף ינון אנקרי
-            <span aria-hidden="true">|</span> משלוחים עד הבית
+            {{ 'HOME.CTA_TRUST' | translate }}
           </p>
         </div>
 
         <div class="home-cta__steps-col">
-          <h3 class="home-cta__steps-title">איך זה עובד?</h3>
+          <h3 class="home-cta__steps-title">{{ 'HOME.STEPS_TITLE' | translate }}</h3>
           <ol class="home-cta__steps">
             <li class="home-cta__step">
               <span class="home-cta__step-num" aria-hidden="true">01</span>
-              <span class="home-cta__step-label">בוחרים מנות</span>
+              <span class="home-cta__step-label">{{ 'HOME.STEP_1' | translate }}</span>
             </li>
             <li class="home-cta__step">
               <span class="home-cta__step-num" aria-hidden="true">02</span>
-              <span class="home-cta__step-label">שולחים הזמנה</span>
+              <span class="home-cta__step-label">{{ 'HOME.STEP_2' | translate }}</span>
             </li>
             <li class="home-cta__step">
               <span class="home-cta__step-num" aria-hidden="true">03</span>
-              <span class="home-cta__step-label">מקבלים אוכל מוכן לשבת</span>
+              <span class="home-cta__step-label">{{ 'HOME.STEP_3' | translate }}</span>
             </li>
           </ol>
           <div class="home-cta__actions">
-            <a class="btn btn--gold" routerLink="/ready-for-shabbat">לתפריט השבת</a>
-            <a class="btn btn--outline" routerLink="/contact">דברו איתנו</a>
+            <a class="btn btn--gold" [routerLink]="navPath('/ready-for-shabbat')">{{ 'HOME.CTA' | translate }}</a>
+            <a class="btn btn--outline" [routerLink]="navPath('/contact')">{{ 'HOME.CTA_CONTACT' | translate }}</a>
           </div>
         </div>
       </div>

@@ -25,10 +25,7 @@ interface ShoppingListByCategory {
         <!-- Top Toolbar -->
         <div class="toolbar">
           <div class="toolbar-left">
-            <h1 class="page-title">
-              <i class="fas fa-shopping-basket"></i>
-              רשימת קניות מרוכזת
-            </h1>
+            <p class="page-description">ריכוז כמויות לפי קטגוריה להזמנות בטווח</p>
           </div>
           <div class="toolbar-right">
             <div class="safety-margin-toggle">
@@ -102,7 +99,7 @@ interface ShoppingListByCategory {
     .shopping-list-page {
       padding: 2rem;
       min-height: 100vh;
-      background: #f3f4f6;
+      background: #F5F7FA;
     }
 
     .container {
@@ -115,16 +112,28 @@ interface ShoppingListByCategory {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2rem;
-      padding: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.25rem;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid #E2E8F0;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px rgba(20, 45, 34, 0.06);
     }
 
     .toolbar-left {
       display: flex;
       align-items: center;
+      flex: 1 1 200px;
+      min-width: 0;
+    }
+
+    .page-description {
+      margin: 0;
+      color: #6d776f;
+      font-size: 0.875rem;
+      font-weight: 500;
     }
 
     .page-title {
@@ -133,18 +142,19 @@ interface ShoppingListByCategory {
       gap: 0.75rem;
       font-size: 1.75rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       margin: 0;
     }
 
     .page-title i {
-      color: #10b981;
+      color: #65B69D;
     }
 
     .toolbar-right {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
     }
 
     /* Toggle Switch */
@@ -165,7 +175,7 @@ interface ShoppingListByCategory {
       width: 44px;
       height: 24px;
       appearance: none;
-      background: #cbd5e1;
+      background: #E2E8F0;
       border-radius: 9999px;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -186,7 +196,7 @@ interface ShoppingListByCategory {
     }
 
     .toggle-switch input[type="checkbox"]:checked {
-      background: #10b981;
+      background: #65B69D;
     }
 
     .toggle-switch input[type="checkbox"]:checked::before {
@@ -195,7 +205,7 @@ interface ShoppingListByCategory {
 
     .toggle-label-text {
       font-weight: 600;
-      color: #475569;
+      color: #55615a;
       font-size: 0.9rem;
       user-select: none;
     }
@@ -203,7 +213,7 @@ interface ShoppingListByCategory {
     /* Export Button */
     .btn-export {
       padding: 0.75rem 1.5rem;
-      background: #10b981;
+      background: #65B69D;
       color: white;
       border: none;
       border-radius: 8px;
@@ -217,7 +227,7 @@ interface ShoppingListByCategory {
     }
 
     .btn-export:hover {
-      background: #059669;
+      background: #1F2D3D;
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
     }
@@ -225,8 +235,8 @@ interface ShoppingListByCategory {
     .btn-print {
       padding: 0.75rem 1.5rem;
       background: #fff;
-      color: #1e293b;
-      border: 1px solid #cbd5e1;
+      color: #1c2520;
+      border: 1px solid #E2E8F0;
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
@@ -238,12 +248,12 @@ interface ShoppingListByCategory {
     }
 
     .btn-print:hover:not(:disabled) {
-      background: #f8fafc;
-      border-color: #94a3b8;
+      background: #F5F7FA;
+      border-color: #8a948d;
     }
 
     .btn-print:disabled {
-      opacity: 0.5;
+      /* disabled visual without fading text */ color: #687789; border-color: #E2E8F0; background: #F8FAFC;
       cursor: not-allowed;
     }
 
@@ -251,13 +261,13 @@ interface ShoppingListByCategory {
     .loading {
       text-align: center;
       padding: 4rem 2rem;
-      color: #64748b;
+      color: #6d776f;
     }
 
     .loading i {
       font-size: 2.5rem;
       margin-bottom: 1rem;
-      color: #10b981;
+      color: #65B69D;
     }
 
     .error-message {
@@ -286,18 +296,18 @@ interface ShoppingListByCategory {
 
     .empty-state i {
       font-size: 4rem;
-      color: #cbd5e1;
+      color: #E2E8F0;
       margin-bottom: 1rem;
     }
 
     .empty-state h3 {
-      color: #475569;
+      color: #55615a;
       margin-bottom: 0.5rem;
       font-size: 1.5rem;
     }
 
     .empty-state p {
-      color: #64748b;
+      color: #6d776f;
     }
 
     /* Categories Grid */
@@ -318,7 +328,7 @@ interface ShoppingListByCategory {
     /* Category Header */
     .category-header {
       padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid #E2E8F0;
       background: white;
     }
 
@@ -331,13 +341,13 @@ interface ShoppingListByCategory {
     .category-title {
       font-size: 1.25rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       margin: 0;
     }
 
     .category-badge {
       background: #d1fae5;
-      color: #065f46;
+      color: #287C67;
       padding: 0.375rem 0.75rem;
       border-radius: 9999px;
       font-size: 0.875rem;
@@ -355,7 +365,7 @@ interface ShoppingListByCategory {
       gap: 1rem;
       padding: 0.75rem 1.5rem;
       align-items: center;
-      border-bottom: 1px dotted #e2e8f0;
+      border-bottom: 1px dotted #E2E8F0;
     }
 
     .item-row.last-row {
@@ -363,24 +373,24 @@ interface ShoppingListByCategory {
     }
 
     .item-row:hover {
-      background: #f8fafc;
+      background: #F5F7FA;
     }
 
     .item-name {
       font-weight: 600;
-      color: #1e293b;
+      color: #1c2520;
       text-align: right;
     }
 
     .item-quantity {
       font-size: 1.25rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       text-align: center;
     }
 
     .item-unit {
-      color: #64748b;
+      color: #6d776f;
       font-size: 0.9rem;
       text-align: left;
     }
@@ -617,7 +627,7 @@ export class ShoppingListComponent implements OnInit {
           margin: 0 0 6px; font-size: 1rem; font-weight: 800;
           border-bottom: 1px solid #111; padding-bottom: 4px;
         }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { border: 1px solid #111; padding: 5px 8px; text-align: right; vertical-align: top; color: #000; }
         th { background: #f4f4f4; font-weight: 700; }
         .done-col { width: 36px; text-align: center; }

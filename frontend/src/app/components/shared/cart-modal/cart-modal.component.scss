@@ -628,18 +628,18 @@ $gold-focus-glow: rgba(224, 192, 117, 0.15);
 ::ng-deep .checkout-form-section {
   .mat-mdc-form-field {
     width: 100%;
-    direction: rtl;
+    direction: inherit;
 
     .mat-mdc-text-field-wrapper {
-      direction: rtl;
+      direction: inherit;
       padding: 0;
     }
 
     .mat-mdc-form-field-input-control,
     input.mat-mdc-input-element,
     textarea.mat-mdc-input-element {
-      direction: rtl;
-      text-align: right;
+      direction: inherit;
+      text-align: start;
       padding: 12px 15px !important;
       border-radius: 8px;
       border: 1px solid $brand-input-border;
@@ -675,11 +675,11 @@ $gold-focus-glow: rgba(224, 192, 117, 0.15);
     }
 
     .mat-mdc-form-field-label {
-      text-align: right;
+      text-align: start;
     }
 
     .mat-mdc-form-field-hint-wrapper {
-      direction: rtl;
+      direction: inherit;
     }
   }
 
@@ -745,7 +745,7 @@ $gold-focus-glow: rgba(224, 192, 117, 0.15);
 
   .delivery-type-label {
     display: block;
-    font-size: 12px;
+    font-size: 0.8125rem;
     color: rgba($brand-dark, 0.7);
     margin-bottom: 8px;
   }
@@ -811,6 +811,6 @@ $gold-focus-glow: rgba(224, 192, 117, 0.15);
 }
 
 ::ng-deep .mat-mdc-snack-bar-container {
-  direction: rtl;
-  text-align: right;
+  direction: inherit;
+  text-align: start;
 }

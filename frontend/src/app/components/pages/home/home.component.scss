@@ -22,7 +22,7 @@ $radius: 4px;
   padding: 0;
   background: $white;
   overflow: visible;
-  direction: rtl;
+  direction: inherit;
 }
 
 @keyframes hero-cursor-blink {
@@ -250,7 +250,7 @@ $radius: 4px;
 
   &__title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.85rem, 3.8vw, 2.45rem);
+    font-size: clamp(1.95rem, 1.8rem + 1.1vw, 2.55rem);
     font-weight: 400;
     color: $navy;
     margin: 0;
@@ -339,7 +339,7 @@ $radius: 4px;
     position: relative;
     z-index: 1;
     padding: 2.1rem 1.75rem 2rem;
-    text-align: right;
+    text-align: start;
   }
 
   &__name {
@@ -526,7 +526,7 @@ $featured-gray: #f3f3f3;
   &__content-panel {
     grid-area: copy;
     position: relative;
-    text-align: right;
+    text-align: start;
     padding: clamp(0.25rem, 1.5vw, 0.75rem) 0;
   }
 
@@ -638,7 +638,7 @@ $featured-gray: #f3f3f3;
   &__badge-role {
     margin: 0.22rem 0 0;
     font-family: 'Heebo', sans-serif;
-    font-size: 0.74rem;
+    font-size: 0.8125rem;
     font-weight: 500;
     color: $chef-gold;
     letter-spacing: 0.03em;
@@ -650,7 +650,7 @@ $featured-gray: #f3f3f3;
 
   &__eyebrow {
     font-family: 'Heebo', sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.8125rem;
     font-weight: 700;
     letter-spacing: 0.18em;
     color: $chef-gold;
@@ -721,13 +721,13 @@ $featured-gray: #f3f3f3;
   }
 
   &__menu-card-intro {
-    text-align: right;
+    text-align: start;
   }
 
   &__menu-card-eyebrow {
     margin: 0 0 0.45rem;
     font-family: 'Heebo', sans-serif;
-    font-size: 0.78rem;
+    font-size: 0.875rem;
     font-weight: 600;
     letter-spacing: 0.08em;
     color: $chef-gold;
@@ -759,7 +759,7 @@ $featured-gray: #f3f3f3;
     gap: 0.55rem;
     min-height: 5.25rem;
     padding: 0.85rem 0.7rem;
-    text-align: right;
+    text-align: start;
     background: rgba(0, 0, 0, 0.14);
     border: 1px solid rgba($chef-gold, 0.14);
     border-radius: 8px;
@@ -779,7 +779,7 @@ $featured-gray: #f3f3f3;
     width: 1.25rem;
     height: 1.25rem;
     font-family: 'Heebo', sans-serif;
-    font-size: 0.65rem;
+    font-size: 0.8125rem;
     font-weight: 700;
     line-height: 1;
     color: $chef-gold;
@@ -804,13 +804,13 @@ $featured-gray: #f3f3f3;
     font-size: clamp(1rem, 1.85vw, 1.02rem);
     line-height: 1.6;
     color: $chef-card-text;
-    text-align: right;
+    text-align: start;
   }
 }
 
 // ─── Reviews (closing conversion — part 1) ───────────────────
 .reviews {
-  direction: rtl;
+  direction: inherit;
   position: relative;
   scroll-margin-top: 5rem;
 
@@ -849,7 +849,7 @@ $featured-gray: #f3f3f3;
 
   &__spotlight-title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.45rem, 3vw, 1.95rem);
+    font-size: clamp(1.75rem, 1.6rem + 1vw, 2.3rem);
     font-weight: 400;
     color: $navy;
     margin: 0;
@@ -1016,7 +1016,7 @@ $featured-gray: #f3f3f3;
     grid-template-columns: 1fr 1fr;
     gap: clamp(2rem, 4vw, 3.25rem);
     align-items: start;
-    text-align: right;
+    text-align: start;
   }
 
   &__copy {
@@ -1027,7 +1027,7 @@ $featured-gray: #f3f3f3;
 
   &__title {
     font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.45rem, 2.8vw, 1.85rem);
+    font-size: clamp(1.75rem, 1.6rem + 1vw, 2.3rem);
     color: $navy;
     margin: 0 0 0.85rem;
     line-height: 1.28;

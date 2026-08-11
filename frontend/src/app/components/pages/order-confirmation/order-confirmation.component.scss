@@ -63,8 +63,8 @@ $whatsapp-green-dark: #20bd5a;
   min-height: 70vh;
   background: linear-gradient(180deg, #fefaf2 0%, #f7ecd3 38%, $brand-bg 100%);
   padding: 2rem 0 4rem;
-  direction: rtl;
-  text-align: right;
+  direction: inherit;
+  text-align: start;
 }
 
 .container {
@@ -238,12 +238,12 @@ $whatsapp-green-dark: #20bd5a;
 
 // ---- Next steps (timeline / bullets) ----
 .next-steps {
-  text-align: right;
+  text-align: start;
   margin-bottom: 2.25rem;
   padding: 1.5rem 1.5rem 1.5rem 0;
   background: rgba($brand-dark, 0.02);
   border-radius: 14px;
-  border-right: 4px solid $brand-gold;
+  border-inline-start: 4px solid $brand-gold;
 }
 
 .next-steps-title {

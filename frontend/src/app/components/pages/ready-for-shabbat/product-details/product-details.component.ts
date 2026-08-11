@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { MenuService, MenuItem, PricingOption, PriceVariant } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
@@ -10,37 +11,42 @@ import { HolidayEventService } from '../../../../services/holiday-event.service'
 import { HolidayCatalogService } from '../../../../services/holiday-catalog.service';
 import { HOLIDAY_CART_CATEGORY, mapHolidayEventToMenuItems } from '../../../../utils/holiday-menu.utils';
 import { switchMap, tap } from 'rxjs/operators';
+import { LocaleService } from '../../../../i18n/locale.service';
+import {
+  localizedOptionLabel,
+  localizedProductDescription,
+  localizedProductName
+} from '../../../../i18n/localized-content';
 
 @Component({
   selector: 'app-product-details',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TranslateModule],
   template: `
     <div class="product-details-page">
       <div class="container">
         <!-- Breadcrumbs -->
         <nav class="breadcrumbs" aria-label="breadcrumb">
-          <a routerLink="/ready-for-shabbat">אוכל מוכן לשבת</a>
+          <a [routerLink]="localeService.localizePath('/ready-for-shabbat')">{{ 'PRODUCT.BREADCRUMB_MENU' | translate }}</a>
           <span class="separator">/</span>
           <a [routerLink]="getCategoryLink()">{{ getCategoryName() }}</a>
           <span class="separator">/</span>
-          <span class="current">{{ product?.name || '' }}</span>
+          <span class="current">{{ displayName(product) }}</span>
         </nav>
 
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
           <i class="fas fa-spinner fa-spin"></i>
-          <span>טוען פרטי מוצר...</span>
+          <span>{{ 'PRODUCT.LOADING' | translate }}</span>
         </div>
 
         <!-- Product Not Found -->
         <div *ngIf="!isLoading && !product" class="not-found">
           <i class="fas fa-exclamation-circle"></i>
-          <h2>מוצר לא נמצא</h2>
-          <p>המוצר המבוקש לא נמצא במערכת.</p>
+          <h2>{{ 'PRODUCT.EMPTY' | translate }}</h2>
           <button class="btn-back" (click)="goBack()">
             <i class="fas fa-arrow-right"></i>
-            חזור לקטלוג
+            {{ 'PRODUCT.BACK_TO_MENU' | translate }}
           </button>
         </div>
 
@@ -51,7 +57,7 @@ import { switchMap, tap } from 'rxjs/operators';
             <div class="image-container">
               <img 
                 [src]="product.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                [alt]="product.name"
+                [alt]="displayName(product)"
                 class="product-img"
                 loading="eager"
               >
@@ -61,33 +67,34 @@ import { switchMap, tap } from 'rxjs/operators';
           <!-- Left Side - Product Info -->
           <div class="product-info">
             <div class="product-header">
-              <h1 class="product-name">{{ product.name }}</h1>
+              <h1 class="product-name">{{ displayName(product) }}</h1>
             </div>
 
             <!-- Product Description -->
             <div class="product-description">
-              <h3 class="description-title">תיאור המוצר:</h3>
-              <p>{{ product.description || 'תיאור המוצר יופיע כאן' }}</p>
+              <h3 class="description-title">{{ 'PRODUCT.DESCRIPTION' | translate }}:</h3>
+              <p>{{ displayDescription(product) }}</p>
             </div>
 
             <!-- Price and Size Section -->
             <div class="price-size-section">
               <div class="price-section">
-                <span class="price-label">מחיר:</span>
+                <span class="price-label">{{ 'CART.PRICE' | translate }}:</span>
                 <span class="price">₪{{ getCurrentPrice() }}</span>
               </div>
               
               <!-- Size Selector (only if product has pricing options/variants) -->
               <div class="size-selector-group" *ngIf="hasSizeOptions()">
-                <label class="size-label">גודל:</label>
+                <label class="size-label">{{ 'PRODUCT.CHOOSE_SIZE' | translate }}</label>
                 <div class="size-buttons">
                   <button 
                     *ngFor="let option of getSizeOptions(); let i = index"
                     class="size-btn" 
                     [class.active]="selectedSizeIndex === i"
                     (click)="selectSize(i)"
+                    [attr.aria-label]="sizeDisplayLabel(option) + ' — ' + displayName(product)"
                   >
-                    <span class="size-weight">{{ getSizeLabel(option) }}</span>
+                    <span class="size-weight">{{ sizeDisplayLabel(option) }}</span>
                     <span class="size-price">₪{{ getSizePrice(option) }}</span>
                   </button>
                 </div>
@@ -96,13 +103,13 @@ import { switchMap, tap } from 'rxjs/operators';
 
             <!-- Quantity Section -->
             <div class="quantity-section">
-              <label class="quantity-label">כמות:</label>
+              <label class="quantity-label">{{ 'CART.QUANTITY' | translate }}:</label>
               <div class="quantity-controls">
                 <button 
                   class="quantity-btn minus" 
                   (click)="decreaseQuantity()"
                   [disabled]="quantity <= 1"
-                  aria-label="הפחת כמות"
+                  [attr.aria-label]="('CART.QUANTITY' | translate) + ' −'"
                 >
                   <i class="fas fa-minus"></i>
                 </button>
@@ -113,13 +120,13 @@ import { switchMap, tap } from 'rxjs/operators';
                   min="1"
                   max="10"
                   (change)="onQuantityChange()"
-                  aria-label="כמות"
+                  [attr.aria-label]="'CART.QUANTITY' | translate"
                 >
                 <button 
                   class="quantity-btn plus" 
                   (click)="increaseQuantity()"
                   [disabled]="quantity >= 10"
-                  aria-label="הגדל כמות"
+                  [attr.aria-label]="('CART.QUANTITY' | translate) + ' +'"
                 >
                   <i class="fas fa-plus"></i>
                 </button>
@@ -131,10 +138,10 @@ import { switchMap, tap } from 'rxjs/operators';
               class="btn-add-to-cart"
               (click)="addToCart()"
               [disabled]="!product.isAvailable"
-              [attr.aria-label]="'הוסף לסל ' + product.name"
+              [attr.aria-label]="('PRODUCT.ADD_TO_CART' | translate) + ' ' + displayName(product)"
             >
               <i class="fas fa-shopping-cart"></i>
-              הוסף לסל
+              {{ 'PRODUCT.ADD_TO_CART' | translate }}
             </button>
 
             <!-- Tags -->
@@ -415,7 +422,7 @@ import { switchMap, tap } from 'rxjs/operators';
       text-align: center;
       border: none;
       border-left: 1px solid rgba(0,0,0,0.08);
-      border-right: 1px solid rgba(0,0,0,0.08);
+      border-inline-end: 1px solid rgba(0,0,0,0.08);
       font-size: 1rem;
       font-weight: 600;
       color: #1f3540;
@@ -627,12 +634,29 @@ export class ProductDetailsComponent implements OnInit {
   private seoService = inject(SeoService);
   private holidayEventService = inject(HolidayEventService);
   private holidayCatalog = inject(HolidayCatalogService);
+  private translate = inject(TranslateService);
+  readonly localeService = inject(LocaleService);
 
   product: MenuItem | null = null;
   isLoading = true;
   quantity = 1;
   category: string = '';
   selectedSizeIndex: number = 0;
+
+  displayName(item: MenuItem | null | undefined): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem | null | undefined): string {
+    return localizedProductDescription(item, this.localeService.locale);
+  }
+
+  sizeDisplayLabel(option: PricingOption | PriceVariant): string {
+    return localizedOptionLabel(
+      { label: this.getSizeLabel(option), labelEn: (option as PricingOption).labelEn },
+      this.localeService.locale
+    );
+  }
 
   ngOnInit(): void {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -692,9 +716,11 @@ export class ProductDetailsComponent implements OnInit {
         this.product = product;
         
         if (this.product) {
+          const seoName = this.displayName(this.product);
+          const seoDesc = this.displayDescription(this.product) || seoName;
           this.seoService.updateTags({
-            title: `${this.product.name} | קייטרינג מגדים`,
-            description: this.product.description || this.product.name,
+            title: `${seoName} | קייטרינג מגדים`,
+            description: seoDesc,
             image: this.product.imageUrl
           });
           if (this.hasSizeOptions()) {
@@ -792,13 +818,16 @@ export class ProductDetailsComponent implements OnInit {
     const baseId = String(this.product.id ?? this.product._id ?? '');
     if (!baseId) return;
 
+    const baseEn = this.product.nameEn || this.product.name;
     let itemName = this.product.name;
+    let itemNameEn = baseEn;
     let price = this.getCurrentPrice();
     // Stable cart line id: same product + same size = same line (quantity merged)
     let cartLineId = baseId;
     let selectedOption:
       | {
           label: string;
+          labelEn?: string;
           amount?: string;
           price: number;
           optionId?: string;
@@ -812,12 +841,15 @@ export class ProductDetailsComponent implements OnInit {
       if (options[this.selectedSizeIndex]) {
         const option = options[this.selectedSizeIndex];
         const label = this.getSizeLabel(option);
+        const labelEn = String((option as PricingOption).labelEn || label || '').trim();
         itemName = `${this.product.name} (${label})`;
+        itemNameEn = `${baseEn} (${labelEn || label})`;
         price = this.getSizePrice(option);
         cartLineId = `${baseId}-size-${this.selectedSizeIndex}`;
         const amount = String((option as { amount?: string }).amount || label || '').trim();
         selectedOption = {
           label: String(label || '').trim(),
+          labelEn: (option as PricingOption).labelEn || undefined,
           amount: amount || undefined,
           price: Number(price) || 0,
           optionId: String(this.selectedSizeIndex),
@@ -831,9 +863,11 @@ export class ProductDetailsComponent implements OnInit {
       {
         id: cartLineId,
         name: itemName,
+        nameEn: itemNameEn,
         price,
         imageUrl: this.product.imageUrl ?? '',
         description: this.product.description,
+        descriptionEn: this.product.descriptionEn,
         category: this.product.category,
         selectedOption
       },
@@ -878,37 +912,40 @@ export class ProductDetailsComponent implements OnInit {
     
     if (categoryToMap) {
       const routeCategory = this.getCategoryRoute(categoryToMap);
-      return `/ready-for-shabbat/${routeCategory}`;
+      return this.localeService.localizePath(`/ready-for-shabbat/${routeCategory}`);
     }
     
-    return '/ready-for-shabbat';
+    return this.localeService.localizePath('/ready-for-shabbat');
   }
 
   getCategoryName(): string {
-    if (!this.category) {
-      // Try to get category from product
-      if (this.product && this.product.category) {
-        return this.product.category;
-      }
-      return 'מוצרים';
-    }
-    
-    const categoryNames: { [key: string]: string } = {
-      'main': 'מנות עיקריות',
-      'main-dishes': 'מנות עיקריות',
-      'fish': 'דגים',
-      'salads': 'סלטים',
-      'desserts': 'ממולאים',
-      'sides': 'תוספות',
-      'side-dishes': 'תוספות',
-      'holiday': HOLIDAY_CART_CATEGORY
+    const keyMap: { [key: string]: string } = {
+      main: 'CATEGORIES.MAIN',
+      'main-dishes': 'CATEGORIES.MAIN',
+      fish: 'CATEGORIES.FISH',
+      salads: 'CATEGORIES.SALADS',
+      desserts: 'CATEGORIES.DESSERTS',
+      stuffed: 'CATEGORIES.STUFFED',
+      sides: 'CATEGORIES.SIDES',
+      'side-dishes': 'CATEGORIES.SIDES',
+      holiday: 'CATEGORIES.HOLIDAY'
     };
+
+    if (!this.category) {
+      if (this.product && this.product.category) {
+        const route = this.getCategoryRoute(this.product.category);
+        const key = keyMap[route];
+        return key ? this.translate.instant(key) : this.product.category;
+      }
+      return this.translate.instant('CATEGORIES.MAIN');
+    }
 
     if (this.category === 'holiday' && this.product?.category) {
       return this.product.category;
     }
 
-    return categoryNames[this.category] || 'מוצרים';
+    const key = keyMap[this.category];
+    return key ? this.translate.instant(key) : this.translate.instant('CATEGORIES.MAIN');
   }
 
   goBack(): void {
@@ -921,9 +958,9 @@ export class ProductDetailsComponent implements OnInit {
     
     if (categoryToMap) {
       const routeCategory = this.getCategoryRoute(categoryToMap);
-      this.router.navigate(['/ready-for-shabbat', routeCategory]);
+      this.router.navigateByUrl(this.localeService.localizePath(`/ready-for-shabbat/${routeCategory}`));
     } else {
-      this.router.navigate(['/ready-for-shabbat']);
+      this.router.navigateByUrl(this.localeService.localizePath('/ready-for-shabbat'));
     }
   }
 }

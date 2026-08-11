@@ -1,4 +1,4 @@
-<div class="confirmation-page" dir="rtl">
+<div class="confirmation-page">
   <div class="container">
     <article class="card">
       <div class="icon-wrap">
@@ -9,21 +9,21 @@
           </svg>
         </span>
       </div>
-      <h1 class="title">תודה שהזמנתם!</h1>
-      <p class="subtitle">ההזמנה התקבלה בהצלחה</p>
+      <h1 class="title">{{ 'ORDER.THANKS' | translate }}</h1>
+      <p class="subtitle">{{ 'ORDER.RECEIVED' | translate }}</p>
 
       @if (displayOrderNumber) {
         <div class="order-receipt">
           <div class="order-receipt-inner">
-            <span class="order-label">מספר הזמנה</span>
+            <span class="order-label">{{ 'ORDER.ORDER_NUMBER' | translate }}</span>
             <div class="order-value-row">
               <span class="order-value">{{ displayOrderNumber }}</span>
               <button type="button"
                       class="copy-btn"
                       (click)="copyOrderId()"
                       [class.copied]="copied"
-                      [attr.aria-label]="copied ? 'הועתק' : 'העתק מספר הזמנה'"
-                      title="{{ copied ? 'הועתק!' : 'העתק' }}">
+                      [attr.aria-label]="copied ? ('ORDER.COPIED_ARIA' | translate) : ('ORDER.COPY_ARIA' | translate)"
+                      [attr.title]="copied ? ('ORDER.COPIED' | translate) : ('ORDER.COPY' | translate)">
                 @if (copied) {
                   <span class="copy-icon copied-icon"><i class="fas fa-check"></i></span>
                 } @else {
@@ -35,40 +35,40 @@
         </div>
       }
 
-      <section class="next-steps" aria-label="מה קורה עכשיו">
-        <h2 class="next-steps-title">מה קורה עכשיו?</h2>
+      <section class="next-steps" [attr.aria-label]="'ORDER.NEXT_ARIA' | translate">
+        <h2 class="next-steps-title">{{ 'ORDER.NEXT_TITLE' | translate }}</h2>
         <ul class="next-steps-list">
           <li class="next-step">
             <span class="next-step-icon next-step-icon-success" aria-hidden="true"><i class="fas fa-circle-check"></i></span>
-            <span>הזמנתכם התקבלה בהצלחה במערכת.</span>
+            <span>{{ 'ORDER.STEP_1' | translate }}</span>
           </li>
           <li class="next-step">
             <span class="next-step-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
-            <span>אישור הזמנה מפורט יישלח אליכם בקרוב למייל.</span>
+            <span>{{ 'ORDER.STEP_2' | translate }}</span>
           </li>
           <li class="next-step">
             <span class="next-step-icon" aria-hidden="true"><i class="fas fa-headset"></i></span>
-            <span>נציג מטעמנו ייצור עמכם קשר בהקדם להשלמת תהליך התשלום.</span>
+            <span>{{ 'ORDER.STEP_3' | translate }}</span>
           </li>
         </ul>
         <p class="next-steps-closing">
           <i class="fas fa-heart" aria-hidden="true"></i>
-          <span>נשמח לעמוד לשירותכם לכל שאלה או בקשה.</span>
+          <span>{{ 'ORDER.CLOSING' | translate }}</span>
         </p>
       </section>
 
       <div class="actions">
-        <a routerLink="/" class="btn btn-home">
+        <a [routerLink]="localeService.localizePath('/')" class="btn btn-home">
           <i class="fas fa-home" aria-hidden="true"></i>
-          <span>חזרה לדף הבית</span>
+          <span>{{ 'ORDER.BACK_HOME' | translate }}</span>
         </a>
         <a [href]="whatsappHref"
            target="_blank"
            rel="noopener noreferrer"
            class="btn btn-whatsapp"
-           aria-label="שלח לנו הודעה בוואטסאפ">
+           [attr.aria-label]="'ORDER.WA_ARIA' | translate">
           <i class="fab fa-whatsapp" aria-hidden="true"></i>
-          <span>יש לך שאלה? שלח לנו הודעה</span>
+          <span>{{ 'ORDER.WA_QUESTION' | translate }}</span>
         </a>
       </div>
     </article>

@@ -6,15 +6,15 @@
   (close)="closePopup()"
 ></app-page-popup>
 <div class="category-header-actions">
-  <button class="btn-gold-back" routerLink="/ready-for-shabbat">
-    <i class="fas fa-arrow-right"></i> חזרה לתפריט
+  <button class="btn-gold-back" [routerLink]="localeService.localizePath('/ready-for-shabbat')">
+    <i class="fas fa-arrow-right"></i> {{ 'PRODUCT.BACK_TO_MENU' | translate }}
   </button>
 </div>
 
 <header class="luxury-category-header">
   <span class="decorative-line"></span>
   <span class="decorative-diamond"></span>
-  <h1>דגים</h1>
+  <h1>{{ 'CATEGORIES.FISH' | translate }}</h1>
   <span class="decorative-diamond"></span>
   <span class="decorative-line"></span>
 </header>
@@ -24,34 +24,34 @@
     <!-- Loading State -->
     <div *ngIf="isLoading" class="loading">
       <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-      <span>טוען דגים...</span>
+      <span>{{ 'PRODUCT.LOADING' | translate }}</span>
     </div>
 
     <!-- Fish Grid -->
     <div class="product-grid unified-menu-grid" *ngIf="!isLoading">
       <div *ngFor="let dish of fishDishes" class="product-card">
         <div class="card-image-wrapper">
-          <img [ngSrc]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="dish.name" width="400" height="300" (click)="viewDetails(dish)">
-          <div class="badge" *ngIf="dish.isPopular === true">מומלץ</div>
-          <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
+          <img [ngSrc]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="displayName(dish)" width="400" height="300" (click)="viewDetails(dish)">
+          <div class="badge" *ngIf="dish.isPopular === true">{{ 'PRODUCT.RECOMMENDED' | translate }}</div>
+          <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">{{ 'PRODUCT.OOS' | translate }}</span>
         </div>
 
         <div class="card-content">
-          <h4 class="card-title" (click)="viewDetails(dish)">{{ dish.name }}</h4>
-          <p class="card-desc">{{ dish.description }}</p>
+          <h4 class="card-title" (click)="viewDetails(dish)">{{ displayName(dish) }}</h4>
+          <p class="card-desc">{{ displayDescription(dish) }}</p>
           
           <div class="card-price">
             <span class="currency">₪</span>{{ getPrice(dish) }}
-            <span class="unit" *ngIf="dish.pricePer100g"> / ליחידה (משוער)</span>
+            <span class="unit" *ngIf="dish.pricePer100g"> / {{ 'PRODUCT.PER_UNIT' | translate }}</span>
           </div>
 
           <div class="card-actions">
             <button class="btn-details" (click)="viewDetails(dish)">
-              פרטים
+              {{ 'PRODUCT.DETAILS' | translate }}
             </button>
             <button class="btn-add" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
               <mat-icon>shopping_cart</mat-icon>
-              הוספה לסל
+              {{ 'PRODUCT.ADDING' | translate }}
             </button>
           </div>
         </div>
@@ -61,8 +61,7 @@
     <!-- Empty State -->
     <div *ngIf="!isLoading && fishDishes.length === 0" class="empty-state">
       <i class="fas fa-fish" aria-hidden="true"></i>
-      <h3>אין דגים זמינים כרגע</h3>
-      <p>אנחנו עובדים על הוספת מנות חדשות. חזור בקרוב!</p>
+      <h3>{{ 'PRODUCT.EMPTY' | translate }}</h3>
     </div>
   </div>
 </div>

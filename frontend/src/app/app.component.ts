@@ -14,6 +14,8 @@ import { ToastComponent } from './components/shared/toast/toast.component';
 import { WhatsappCtaComponent } from './components/shared/whatsapp-cta/whatsapp-cta.component';
 
 import { LanguageService } from './services/language.service';
+import { LocaleService } from './i18n/locale.service';
+import { localizeNavPath } from './i18n/locale.util';
 import { MarketingService } from './services/marketing.service';
 import { AnalyticsService } from './services/analytics.service';
 import { MetaPixelService } from './services/meta-pixel.service';
@@ -43,7 +45,23 @@ import { isInstitutionAllowedPath } from './utils/auth-redirect';
     <mat-sidenav-container class="mat-sidenav-wrapper" autosize>
       <mat-sidenav #sidenav mode="over" position="start" class="mobile-sidenav">
         <div class="sidenav-content">
-          <button mat-button *ngFor="let link of navLinks" [routerLink]="link.path" (click)="sidenav.close()">{{ link.labelKey | translate }}</button>
+          <div class="sidenav-lang-switch" role="group" [attr.aria-label]="'LANG.SWITCH_LABEL' | translate">
+            <button
+              type="button"
+              class="lang-btn"
+              [class.active]="localeService.locale === 'he'"
+              [attr.aria-pressed]="localeService.locale === 'he'"
+              (click)="localeService.switchTo('he')"
+            >עברית</button>
+            <button
+              type="button"
+              class="lang-btn"
+              [class.active]="localeService.locale === 'en'"
+              [attr.aria-pressed]="localeService.locale === 'en'"
+              (click)="localeService.switchTo('en')"
+            >English</button>
+          </div>
+          <button mat-button *ngFor="let link of navLinks" [routerLink]="navPath(link.path)" (click)="sidenav.close()">{{ link.labelKey | translate }}</button>
         </div>
       </mat-sidenav>
       
@@ -65,15 +83,15 @@ import { isInstitutionAllowedPath } from './utils/auth-redirect';
     </mat-sidenav-container>
 
     <!-- Cookie Consent Banner (GDPR / Israeli Privacy Law compliant) -->
-    <div class="cookie-banner" *ngIf="showCookieBanner && !isPortalRoute" role="dialog" aria-label="העדפות עוגיות">
+    <div class="cookie-banner" *ngIf="showCookieBanner && !isPortalRoute" role="dialog" [attr.aria-label]="'COOKIE.ARIA' | translate">
       <p class="cookie-text">
-        אתר זה עושה שימוש בעוגיות (Cookies) כדי להבטיח לך את חווית הגלישה הטובה ביותר, לאבטח את החיבור שלך ולשמור את סל הקניות. למידע נוסף, קרא את
-        <a routerLink="/privacy-policy" class="cookie-link">מדיניות הפרטיות</a>
-        שלנו.
+        {{ 'COOKIE.TEXT_BEFORE' | translate }}
+        <a [routerLink]="navPath('/privacy-policy')" class="cookie-link">{{ 'COOKIE.PRIVACY' | translate }}</a>
+        {{ 'COOKIE.TEXT_AFTER' | translate }}
       </p>
       <div class="cookie-actions">
-        <button type="button" class="accept-btn" (click)="acceptAll()">אישור הכל</button>
-        <button type="button" class="reject-btn" (click)="rejectAll()">דחה הכל</button>
+        <button type="button" class="accept-btn" (click)="acceptAll()">{{ 'COOKIE.ACCEPT' | translate }}</button>
+        <button type="button" class="reject-btn" (click)="rejectAll()">{{ 'COOKIE.REJECT' | translate }}</button>
       </div>
     </div>
 
@@ -88,6 +106,7 @@ import { isInstitutionAllowedPath } from './utils/auth-redirect';
 })
 export class AppComponent implements OnInit {
   private languageService = inject(LanguageService);
+  readonly localeService = inject(LocaleService);
   private router = inject(Router);
   private platformId = inject(PLATFORM_ID);
   private analyticsService = inject(AnalyticsService);
@@ -101,12 +120,18 @@ export class AppComponent implements OnInit {
   showCookieBanner = false;
   navLinks = MAIN_NAV_LINKS;
 
+  navPath(path: string): string {
+    return localizeNavPath(path, this.localeService.locale);
+  }
+
   constructor() {
     // Instantiate early so UTMs are captured from the landing URL and subsequent navigations.
     inject(MarketingService);
   }
 
   ngOnInit(): void {
+    this.localeService.start();
+
     if (typeof localStorage !== 'undefined') {
       const consent = localStorage.getItem('cookieConsent');
       // Show banner only if no valid choice yet (legacy 'accepted' treated as 'all')
@@ -116,9 +141,6 @@ export class AppComponent implements OnInit {
     // Subscribe to language changes to update content direction
     this.languageService.currentLanguage$.subscribe(lang => {
       this.textDir = lang === 'he' ? 'rtl' : 'ltr';
-      if (isPlatformBrowser(this.platformId)) {
-        document.documentElement.setAttribute('lang', lang);
-      }
     });
 
     this.analyticsService.initializeAnalytics();

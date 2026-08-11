@@ -1796,6 +1796,14 @@ $border: #e2e8f0;
   grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) 88px minmax(140px, 1.4fr) 42px;
 }
 
+.editable-item-row--shabbat-qty {
+  grid-template-columns: 1fr 88px minmax(110px, 1fr) minmax(110px, 1fr) 42px;
+}
+
+.editable-item-row--shabbat-qty.editable-item-row--with-size {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) 88px minmax(100px, 1fr) minmax(100px, 1fr) 42px;
+}
+
 .editable-item-name {
   font-weight: 600;
   color: $brand-dark;
@@ -1824,7 +1832,8 @@ $border: #e2e8f0;
   min-height: 38px;
 }
 
-.input-item-kitchen-notes {
+.input-item-kitchen-notes,
+.input-item-kitchen-remark {
   width: 100%;
   border: 1px solid $border;
   border-radius: 4px;
@@ -1852,7 +1861,8 @@ $border: #e2e8f0;
   .editable-item-row--with-size .input-item-size,
   .editable-item-row--with-size .input-item-price,
   .editable-item-row--with-size .input-item-qty,
-  .editable-item-row--with-size .input-item-kitchen-notes {
+  .editable-item-row--with-size .input-item-kitchen-notes,
+  .editable-item-row--with-size .input-item-kitchen-remark {
     grid-column: 1 / -1;
   }
 }

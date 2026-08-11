@@ -19,7 +19,7 @@
   align-items: center;
   justify-content: center;
   padding: $spacing-lg;
-  direction: rtl;
+  direction: inherit;
   
   &.open {
     opacity: 1;
@@ -42,7 +42,7 @@
   transform: scale(0.95) translateY(20px);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  direction: rtl;
+  direction: inherit;
   
   .auth-overlay.open & {
     transform: scale(1) translateY(0);
@@ -118,7 +118,7 @@
 // ============================================
 .modal-content {
   padding: $spacing-xl;
-  direction: rtl;
+  direction: inherit;
 }
 
 .modal-header {
@@ -224,7 +224,7 @@
   color: $color-danger;
   font-size: $font-size-sm;
   font-weight: 500;
-  text-align: right;
+  text-align: start;
   animation: shake 0.4s ease-in-out;
   position: relative;
 
@@ -298,7 +298,7 @@
   font-weight: 500;
   color: $color-navy;
   font-size: $font-size-sm;
-  text-align: right;
+  text-align: start;
   font-family: $font-family-primary;
 }
 
@@ -346,7 +346,7 @@
   font-family: $font-family-primary;
   transition: all 0.2s ease;
   box-sizing: border-box;
-  text-align: right;
+  text-align: start;
   background-color: $color-white;
   color: $color-navy;
   line-height: 1.5;
@@ -379,7 +379,7 @@
   color: $color-danger;
   font-size: $font-size-sm;
   margin-top: $spacing-xs;
-  text-align: right;
+  text-align: start;
   font-weight: 500;
   padding-right: $spacing-xs;
 }

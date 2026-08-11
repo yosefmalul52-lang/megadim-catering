@@ -8,6 +8,7 @@ export type HolidayProductWeightUnit = 'unit' | '100g';
 
 export interface HolidayPricingOption {
   label: string;
+  labelEn?: string;
   amount: string;
   price: number;
 }
@@ -15,8 +16,10 @@ export interface HolidayPricingOption {
 export interface HolidayEventProduct {
   _id?: string;
   title: string;
+  titleEn?: string;
   price: number;
   description: string;
+  descriptionEn?: string;
   imageUrl: string;
   pricingType?: HolidayProductPricingType;
   weightUnit?: HolidayProductWeightUnit;

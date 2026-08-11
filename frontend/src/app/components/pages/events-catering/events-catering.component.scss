@@ -7,7 +7,7 @@ $text-dark: #333;
 $text-gray: #4b5563;
 
 .events-page {
-  direction: rtl;
+  direction: inherit;
   font-family: 'Heebo', sans-serif;
   color: $text-dark;
 }
@@ -178,7 +178,7 @@ $text-gray: #4b5563;
           display: flex;
           align-items: flex-start; // Aligns icon to top of multi-line text
           justify-content: flex-end; // Aligns content to the right (in RTL)
-          text-align: right; // Ensures text block is right-aligned
+          text-align: start; // Ensures text block is right-aligned
           gap: 10px; // Space between icon and text
           margin-bottom: 15px;
           font-size: 1.05rem;
@@ -196,7 +196,7 @@ $text-gray: #4b5563;
           
           .list-text {
             flex: 1;
-            text-align: right;
+            text-align: start;
           }
         }
       }
@@ -291,7 +291,7 @@ $text-gray: #4b5563;
 
 .reception-card-with-tabs {
   .tier-tab-panel .compact-features {
-    text-align: right;
+    text-align: start;
     align-items: flex-end;
     margin-top: 0.5rem;
   }
@@ -410,7 +410,7 @@ $text-gray: #4b5563;
         display: flex;
         align-items: flex-start;
         justify-content: flex-end;
-        text-align: right;
+        text-align: start;
         gap: 10px;
         margin-bottom: 18px;
         font-size: 1.05rem;
@@ -428,7 +428,7 @@ $text-gray: #4b5563;
 
         .list-text {
           flex: 1;
-          text-align: right;
+          text-align: start;
         }
 
         &.extra-offer {
@@ -1004,8 +1004,8 @@ $ev-white: #ffffff;
   border-top: 4px solid $ev-gold;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   position: relative;
-  direction: rtl;
-  text-align: right;
+  direction: inherit;
+  text-align: start;
 
   .form-success {
     padding: 60px 32px;
@@ -1061,7 +1061,7 @@ $ev-white: #ffffff;
       font-weight: 700;
       color: $ev-dark;
       margin: 0;
-      text-align: right;
+      text-align: start;
       flex: 1;
     }
 
@@ -1084,13 +1084,13 @@ $ev-white: #ffffff;
 
   .order-form {
     padding: 30px;
-    direction: rtl;
-    text-align: right;
+    direction: inherit;
+    text-align: start;
 
     .course-card {
       background: $ev-white;
       padding: 2rem 1.25rem 1.5rem;
-      text-align: right;
+      text-align: start;
       box-shadow: 0 12px 28px rgba($ev-dark, 0.08);
       border-top: 4px solid $ev-gold;
 
@@ -1103,7 +1103,7 @@ $ev-white: #ffffff;
         font-weight: 700;
         color: $ev-dark;
         margin: 0 0 0.75rem;
-        text-align: right;
+        text-align: start;
       }
 
       .price-display {
@@ -1151,7 +1151,7 @@ $ev-white: #ffffff;
           font-size: 0.92rem;
           color: #444;
           width: 100%;
-          text-align: right;
+          text-align: start;
 
           .check-icon {
             color: $ev-gold;
@@ -1161,7 +1161,7 @@ $ev-white: #ffffff;
 
           .list-text {
             flex: 1;
-            text-align: right;
+            text-align: start;
           }
         }
       }
@@ -1169,7 +1169,7 @@ $ev-white: #ffffff;
 
     .form-section {
       margin-bottom: 40px;
-      text-align: right;
+      text-align: start;
 
       .section-title {
         font-size: 1.4rem;
@@ -1210,7 +1210,7 @@ $ev-white: #ffffff;
       }
 
       .form-group {
-        text-align: right;
+        text-align: start;
         min-width: 0;
         width: 100%;
         display: flex;
@@ -1226,7 +1226,7 @@ $ev-white: #ffffff;
           font-weight: 700;
           color: $ev-dark;
           margin-bottom: 0.5rem;
-          text-align: right;
+          text-align: start;
         }
 
         input[type="text"],
@@ -1248,8 +1248,8 @@ $ev-white: #ffffff;
           color: #1a1a1a;
           box-sizing: border-box;
           transition: border-color 0.2s;
-          direction: rtl;
-          text-align: right;
+          direction: inherit;
+          text-align: start;
 
           &:focus {
             outline: none;
@@ -1276,13 +1276,13 @@ $ev-white: #ffffff;
           margin: 6px 0 0;
           font-size: 0.9rem;
           color: #b91c1c;
-          text-align: right;
+          text-align: start;
         }
       }
 
       ::ng-deep mat-form-field.event-date-field {
         width: 100%;
-        direction: rtl;
+        direction: inherit;
         margin: 0;
         display: block;
 
@@ -1337,8 +1337,8 @@ $ev-white: #ffffff;
           font-size: 1rem;
           font-family: 'Heebo', sans-serif;
           color: #1a1a1a;
-          direction: rtl;
-          text-align: right;
+          direction: inherit;
+          text-align: start;
         }
 
         .mat-datepicker-toggle {
@@ -1440,7 +1440,7 @@ $ev-white: #ffffff;
           margin: 0 0 0.75rem;
           padding-bottom: 0.35rem;
           border-bottom: 2px solid $ev-gold;
-          text-align: right;
+          text-align: start;
         }
       }
     }
@@ -1455,7 +1455,7 @@ $ev-white: #ffffff;
       .upgrade-option {
         padding: 1rem 0;
         border-bottom: 1px solid #eee;
-        text-align: right;
+        text-align: start;
 
         &:last-child {
           border-bottom: none;
@@ -1474,7 +1474,7 @@ $ev-white: #ffffff;
           font-size: 1rem;
           font-weight: 600;
           color: #444;
-          text-align: right;
+          text-align: start;
 
           input[type='checkbox'] {
             width: 18px;
@@ -1489,7 +1489,7 @@ $ev-white: #ffffff;
           padding-top: 0.25rem;
 
           .tier-tabs {
-            direction: rtl;
+            direction: inherit;
             max-width: 280px;
 
             .tier-tab {

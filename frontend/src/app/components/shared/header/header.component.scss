@@ -42,11 +42,54 @@ $white: #FFFFFF;
   
   .top-bar-content {
     display: grid;
-    // 3 columns: Left (empty/spacer), Center (Phone), Right (Button)
+    // 3 columns: Left (lang), Center (Phone), Right (spacer)
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     width: 100%;
     position: relative;
+
+    .desktop-lang-switch {
+      grid-column: 1;
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 44px;
+
+      @media (max-width: 600px) {
+        display: none;
+      }
+    }
+
+    .lang-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 10px;
+      border: 0;
+      background: transparent;
+      color: rgba(224, 192, 117, 0.75);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 4px;
+
+      &.active {
+        color: #1f3540;
+        background: #E0C075;
+      }
+
+      &:focus-visible {
+        outline: 2px solid #E0C075;
+        outline-offset: 2px;
+      }
+    }
+
+    .lang-sep {
+      color: rgba(224, 192, 117, 0.45);
+      font-weight: 400;
+      user-select: none;
+    }
     
     // 1. Phone in the Middle
     .desktop-phone-text {
@@ -412,7 +455,7 @@ $white: #FFFFFF;
     border: none;
     background: none;
     width: 100%;
-    text-align: right;
+    text-align: start;
     cursor: pointer;
     transition: background 0.2s;
     mat-icon {

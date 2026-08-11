@@ -2,17 +2,31 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
 import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
+import { LocaleService } from '../../../../i18n/locale.service';
+import {
+  localizedProductDescription,
+  localizedProductName
+} from '../../../../i18n/localized-content';
 
 @Component({
   selector: 'app-fish',
   standalone: true,
-  imports: [CommonModule, NgOptimizedImage, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
+  imports: [
+    CommonModule,
+    NgOptimizedImage,
+    RouterModule,
+    MatIconModule,
+    TranslateModule,
+    PageBannerComponent,
+    PagePopupComponent
+  ],
   templateUrl: './fish.component.html',
   styleUrls: ['./fish.component.scss']
 })
@@ -22,6 +36,7 @@ export class FishComponent implements OnInit {
   private settingsService = inject(SiteSettingsService);
   private seoService = inject(SeoService);
   private router = inject(Router);
+  readonly localeService = inject(LocaleService);
 
   settings: SiteSettings | null = null;
   showPopup = false;
@@ -58,6 +73,14 @@ export class FishComponent implements OnInit {
     this.showPopup = false;
   }
 
+  displayName(item: MenuItem): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem): string {
+    return localizedProductDescription(item, this.localeService.locale);
+  }
+
   addToCart(item: MenuItem): void {
     if (!this.isAvailable(item)) return;
     const price = this.getPrice(item);
@@ -69,16 +92,20 @@ export class FishComponent implements OnInit {
     this.cartService.addItem({
       id: item.id || item._id || '',
       name: item.name,
+      nameEn: item.nameEn,
       price: price,
       imageUrl: item.imageUrl,
       description: item.description,
+      descriptionEn: item.descriptionEn,
       category: item.category || 'fish'
     });
   }
 
   viewDetails(item: MenuItem): void {
     const id = item.id || item._id;
-    if (id) this.router.navigate(['/ready-for-shabbat/fish', id]);
+    if (id) {
+      this.router.navigateByUrl(this.localeService.localizePath(`/ready-for-shabbat/fish/${id}`));
+    }
   }
 
   getPrice(item: MenuItem): number {

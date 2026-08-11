@@ -286,7 +286,8 @@ export class LanguageService {
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }
-    document.documentElement.setAttribute('lang', language);
+    document.documentElement.setAttribute('lang', language === 'en' ? 'en-US' : 'he');
+    document.documentElement.setAttribute('dir', language === 'en' ? 'ltr' : 'rtl');
   }
 
   // Helper method to get a specific string

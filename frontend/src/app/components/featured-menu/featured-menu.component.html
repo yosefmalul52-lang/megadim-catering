@@ -1,19 +1,19 @@
 <section class="featured-menu-section" aria-labelledby="featured-menu-title">
   <div class="container">
-    <h2 id="featured-menu-title" class="featured-title">מה מתבשל אצלנו?!</h2>
+    <h2 id="featured-menu-title" class="featured-title">{{ 'FEATURED.TITLE' | translate }}</h2>
 
     <div class="category-carousel">
       <button
         type="button"
         class="carousel-nav"
         (click)="scrollCategories(-1)"
-        aria-label="גלול קטגוריות אחורה"
+        [attr.aria-label]="'FEATURED.SCROLL_BACK' | translate"
       >
         <mat-icon aria-hidden="true">chevron_right</mat-icon>
       </button>
 
       <div class="category-carousel__viewport">
-        <nav class="category-track" #categoryTrack aria-label="קטגוריות תפריט">
+        <nav class="category-track" #categoryTrack [attr.aria-label]="'FEATURED.CATS_ARIA' | translate">
           @for (category of categories; track category.id) {
             <a
               class="category-chip"
@@ -21,10 +21,20 @@
             >
               <span class="category-chip__ring" aria-hidden="true">
                 <span class="category-chip__circle">
-                  <img [src]="category.image" [alt]="category.name" loading="lazy" />
+                  <img
+                    [src]="category.image"
+                    [alt]="category.nameKey ? (category.nameKey | translate) : category.name"
+                    loading="lazy"
+                  />
                 </span>
               </span>
-              <span class="category-chip__label">{{ category.name }}</span>
+              <span class="category-chip__label">
+                @if (category.nameKey) {
+                  {{ category.nameKey | translate }}
+                } @else {
+                  {{ category.name }}
+                }
+              </span>
             </a>
           }
         </nav>
@@ -34,7 +44,7 @@
         type="button"
         class="carousel-nav"
         (click)="scrollCategories(1)"
-        aria-label="גלול קטגוריות קדימה"
+        [attr.aria-label]="'FEATURED.SCROLL_FWD' | translate"
       >
         <mat-icon aria-hidden="true">chevron_left</mat-icon>
       </button>
@@ -43,11 +53,11 @@
     @if (isLoading) {
       <div class="loading-state">
         <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-        <span>טוען מנות...</span>
+        <span>{{ 'FEATURED.LOADING' | translate }}</span>
       </div>
     } @else if (displayedProducts.length === 0) {
       <div class="empty-state">
-        <p>לא הוגדרו מנות מומלצות להצגה בדף הבית</p>
+        <p>{{ 'FEATURED.EMPTY' | translate }}</p>
       </div>
     } @else {
       <div class="products-grid">
@@ -55,26 +65,26 @@
           <article class="product-card">
             <a
               class="product-card__image-link"
-              [routerLink]="['/ready-for-shabbat', 'product', getItemId(item)]"
+              [routerLink]="productRoute(item)"
             >
               <img
                 [src]="item.imageUrl || 'assets/images/placeholder-dish.jpg'"
-                [alt]="item.name"
+                [alt]="displayName(item)"
                 loading="lazy"
                 class="product-card__image"
               />
               @if (item.isPopular) {
-                <span class="badge badge--recommended">מומלץ</span>
+                <span class="badge badge--recommended">{{ 'FEATURED.RECOMMENDED' | translate }}</span>
               }
               @if (!isAvailable(item)) {
-                <span class="badge badge--oos">חסר במלאי</span>
+                <span class="badge badge--oos">{{ 'FEATURED.OOS' | translate }}</span>
               }
             </a>
 
             <div class="product-card__body">
-              <h3 class="product-card__title">{{ item.name }}</h3>
-              @if (item.description) {
-                <p class="product-card__desc">{{ item.description }}</p>
+              <h3 class="product-card__title">{{ displayName(item) }}</h3>
+              @if (displayDescription(item); as desc) {
+                <p class="product-card__desc">{{ desc }}</p>
               }
               @if (getServingHint(item); as hint) {
                 <p class="product-card__portion">{{ hint }}</p>
@@ -85,11 +95,11 @@
 
               <div class="product-card__footer">
                 @if (!isAvailable(item)) {
-                  <button type="button" class="btn-oos" disabled>חסר במלאי</button>
+                  <button type="button" class="btn-oos" disabled>{{ 'FEATURED.OOS' | translate }}</button>
                 } @else {
                   <div class="product-card__cart-row">
                     <button type="button" class="btn-add" (click)="addToCart(item)">
-                      הוספה לסל
+                      {{ 'FEATURED.ADD' | translate }}
                     </button>
                     <app-quantity-selector
                       mode="unit"

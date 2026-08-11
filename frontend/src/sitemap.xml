@@ -1,65 +1,197 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <!-- Production: https://www.megadim-catering.com -->
+  <!-- Production: https://www.megadim-catering.com — Hebrew + English (/en) pairs -->
   <url>
     <loc>https://www.megadim-catering.com/</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/" />
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.megadim-catering.com/ready-for-shabbat</loc>
+    <loc>https://www.megadim-catering.com/en</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/" />
     <changefreq>weekly</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
+    <loc>https://www.megadim-catering.com/ready-for-shabbat</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/ready-for-shabbat" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/ready-for-shabbat" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/ready-for-shabbat" />
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/ready-for-shabbat</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/ready-for-shabbat" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/ready-for-shabbat" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/ready-for-shabbat" />
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://www.megadim-catering.com/about</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/about" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/about" />
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/about</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/about" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/about" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/about" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.megadim-catering.com/contact</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/contact" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/contact" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/contact" />
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/contact</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/contact" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/contact" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/contact" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.megadim-catering.com/events-catering</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/events-catering" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/events-catering" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/events-catering" />
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/events-catering</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/events-catering" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/events-catering" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/events-catering" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.megadim-catering.com/catering</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/catering" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/catering" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/catering" />
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://www.megadim-catering.com/en/catering</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/catering" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/catering" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/catering" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.megadim-catering.com/cholent-bar</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/cholent-bar" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/cholent-bar" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/cholent-bar" />
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.megadim-catering.com/shabbat-events</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.megadim-catering.com/kosher</loc>
+    <loc>https://www.megadim-catering.com/en/cholent-bar</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/cholent-bar" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/cholent-bar" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/cholent-bar" />
     <changefreq>monthly</changefreq>
     <priority>0.65</priority>
   </url>
   <url>
+    <loc>https://www.megadim-catering.com/shabbat-events</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/shabbat-events" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/shabbat-events" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/shabbat-events" />
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/shabbat-events</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/shabbat-events" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/shabbat-events" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/shabbat-events" />
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/kosher</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/kosher" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/kosher" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/kosher" />
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/kosher</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/kosher" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/kosher" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/kosher" />
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.megadim-catering.com/terms</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/terms" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/terms" />
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/terms</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/terms" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/terms" />
+    <changefreq>yearly</changefreq>
+    <priority>0.35</priority>
   </url>
   <url>
     <loc>https://www.megadim-catering.com/accessibility</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/accessibility" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/accessibility" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/accessibility" />
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
+    <loc>https://www.megadim-catering.com/en/accessibility</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/accessibility" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/accessibility" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/accessibility" />
+    <changefreq>yearly</changefreq>
+    <priority>0.35</priority>
+  </url>
+  <url>
     <loc>https://www.megadim-catering.com/privacy-policy</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/privacy-policy" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/privacy-policy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/privacy-policy" />
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.megadim-catering.com/en/privacy-policy</loc>
+    <xhtml:link rel="alternate" hreflang="he" href="https://www.megadim-catering.com/privacy-policy" />
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://www.megadim-catering.com/en/privacy-policy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.megadim-catering.com/privacy-policy" />
+    <changefreq>yearly</changefreq>
+    <priority>0.35</priority>
   </url>
 </urlset>

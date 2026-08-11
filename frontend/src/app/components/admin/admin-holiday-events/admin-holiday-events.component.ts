@@ -107,12 +107,14 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
     products: Array<{
       _id?: string;
       title: string;
+      titleEn?: string;
       price: number;
       description: string;
+      descriptionEn?: string;
       imageUrl: string;
       pricingType: 'fixed' | 'variants';
       weightUnit: 'unit' | '100g';
-      pricingOptions: Array<{ label: string; amount: string; price: number }>;
+      pricingOptions: Array<{ label: string; labelEn?: string; amount: string; price: number }>;
       isAvailable: boolean;
     }>;
   } | null {
@@ -126,23 +128,33 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
     const products = this.productsArray.controls
       .map((c) => c.getRawValue())
       .filter((p) => (p.name || '').trim())
-      .map((p) => ({
-        _id: p._id || undefined,
-        title: String(p.name).trim(),
-        price: Number(p.price) || 0,
-        description: (p.description || '').trim(),
-        imageUrl: (p.imageUrl || '').trim(),
-        pricingType: (p.pricingType === 'variants' ? 'variants' : 'fixed') as 'fixed' | 'variants',
-        weightUnit: (p.weightUnit === '100g' ? '100g' : 'unit') as 'unit' | '100g',
-        pricingOptions: Array.isArray(p.pricingOptions)
-          ? p.pricingOptions.map((o: { label?: string; amount?: string; price?: number }) => ({
-              label: String(o.label || '').trim(),
-              amount: String(o.amount ?? '').trim(),
-              price: Number(o.price) || 0
-            }))
-          : [],
-        isAvailable: p.isAvailable !== false
-      }));
+      .map((p) => {
+        const titleEn = String(p.nameEn || '').trim();
+        const descriptionEn = String(p.descriptionEn || '').trim();
+        return {
+          _id: p._id || undefined,
+          title: String(p.name).trim(),
+          ...(titleEn ? { titleEn } : {}),
+          price: Number(p.price) || 0,
+          description: (p.description || '').trim(),
+          ...(descriptionEn ? { descriptionEn } : {}),
+          imageUrl: (p.imageUrl || '').trim(),
+          pricingType: (p.pricingType === 'variants' ? 'variants' : 'fixed') as 'fixed' | 'variants',
+          weightUnit: (p.weightUnit === '100g' ? '100g' : 'unit') as 'unit' | '100g',
+          pricingOptions: Array.isArray(p.pricingOptions)
+            ? p.pricingOptions.map((o: { label?: string; labelEn?: string; amount?: string; price?: number }) => {
+                const labelEn = String(o.labelEn || '').trim();
+                return {
+                  label: String(o.label || '').trim(),
+                  ...(labelEn ? { labelEn } : {}),
+                  amount: String(o.amount ?? '').trim(),
+                  price: Number(o.price) || 0
+                };
+              })
+            : [],
+          isAvailable: p.isAvailable !== false
+        };
+      });
 
     return {
       name: String(raw.name).trim(),
@@ -269,19 +281,23 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
   createProductGroup(product?: {
     _id?: string;
     title?: string;
+    titleEn?: string;
     price?: number;
     description?: string;
+    descriptionEn?: string;
     imageUrl?: string;
     pricingType?: 'fixed' | 'variants';
     weightUnit?: 'unit' | '100g';
-    pricingOptions?: Array<{ label: string; amount: string; price: number }>;
+    pricingOptions?: Array<{ label: string; labelEn?: string; amount: string; price: number }>;
     isAvailable?: boolean;
   }): FormGroup {
     return this.fb.group({
       _id: [product?._id || ''],
       name: [(product?.title || '').trim(), Validators.required],
+      nameEn: [(product?.titleEn || '').trim()],
       price: [product?.price ?? 0, [Validators.required, Validators.min(0)]],
       description: [product?.description || ''],
+      descriptionEn: [product?.descriptionEn || ''],
       imageUrl: [product?.imageUrl || ''],
       pricingType: [product?.pricingType === 'variants' ? 'variants' : 'fixed'],
       weightUnit: [product?.weightUnit === '100g' ? '100g' : 'unit'],
@@ -295,8 +311,10 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
     this.productModalEditing = false;
     this.productModalInitial = {
       name: '',
+      nameEn: '',
       price: 0,
       description: '',
+      descriptionEn: '',
       imageUrl: '',
       pricingType: 'fixed',
       weightUnit: 'unit',
@@ -313,8 +331,10 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
     this.productModalInitial = {
       _id: raw._id || undefined,
       name: raw.name,
+      nameEn: raw.nameEn || '',
       price: raw.price,
       description: raw.description,
+      descriptionEn: raw.descriptionEn || '',
       imageUrl: raw.imageUrl,
       pricingType: raw.pricingType === 'variants' ? 'variants' : 'fixed',
       weightUnit: raw.weightUnit === '100g' ? '100g' : 'unit',
@@ -334,8 +354,10 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
     const patch = {
       _id: value._id || '',
       name: value.name,
+      nameEn: value.nameEn || '',
       price: value.price,
       description: value.description,
+      descriptionEn: value.descriptionEn || '',
       imageUrl: value.imageUrl,
       pricingType: value.pricingType,
       weightUnit: value.weightUnit,
@@ -349,8 +371,10 @@ export class AdminHolidayEventsComponent implements OnInit, OnDestroy {
       this.productsArray.push(this.createProductGroup({
         _id: value._id,
         title: value.name,
+        titleEn: value.nameEn,
         price: value.price,
         description: value.description,
+        descriptionEn: value.descriptionEn,
         imageUrl: value.imageUrl,
         pricingType: value.pricingType,
         weightUnit: value.weightUnit,

@@ -5,15 +5,19 @@ import { Router } from '@angular/router';
 import { AuthService, User } from '../../../services/auth.service';
 import { OrderService, Order, OrderItem } from '../../../services/order.service';
 import { CartService, CartItem } from '../../../services/cart.service';
+import { TranslateModule } from '@ngx-translate/core';
+import { LocaleService } from '../../../i18n/locale.service';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-user-profile',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink, TranslateModule],
   templateUrl: './user-profile.component.html',
   styleUrls: ['./user-profile.component.scss']
 })
 export class UserProfileComponent implements OnInit {
+  readonly localeService = inject(LocaleService);
   private authService = inject(AuthService);
   private orderService = inject(OrderService);
   private cartService = inject(CartService);

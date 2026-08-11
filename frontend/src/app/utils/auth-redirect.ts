@@ -1,10 +1,11 @@
 import { Router } from '@angular/router';
+import { stripLocalePrefix } from '../i18n/locale.util';
 
 /** Paths institution users may visit outside /portal (login only). */
 export const INSTITUTION_ALLOWED_PATH_PREFIXES = ['/portal', '/login'] as const;
 
 export function isInstitutionAllowedPath(url: string): boolean {
-  const path = (url || '/').split('?')[0];
+  const path = stripLocalePrefix((url || '/').split('?')[0]);
   return INSTITUTION_ALLOWED_PATH_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`)
   );
@@ -19,7 +20,8 @@ export function navigateAfterLogin(router: Router, role: string | undefined): vo
   } else if (r === 'institution') {
     router.navigate(['/portal']);
   } else {
-    router.navigate(['/']);
+    const isEn = (router.url || '').startsWith('/en');
+    router.navigateByUrl(isEn ? '/en' : '/');
   }
 }
 

@@ -4,6 +4,7 @@
  */
 
 import MenuItem from '../models/menuItem';
+import { MENU_EN_BY_HE_NAME } from '../data/menu-en-translations';
 
 const CHOLENT_BAR_MARKER_NAME = 'קוגל ירושלמי';
 
@@ -30,9 +31,12 @@ const CHOLENT_BAR_ITEMS = [
 ];
 
 function toMenuItemDoc(row: typeof CHOLENT_BAR_ITEMS[0]) {
+  const en = MENU_EN_BY_HE_NAME[row.name];
   return {
     name: row.name,
+    ...(en?.nameEn ? { nameEn: en.nameEn } : {}),
     description: row.description || undefined,
+    ...(en?.descriptionEn ? { descriptionEn: en.descriptionEn } : {}),
     price: row.price,
     category: row.category,
     imageUrl: '',

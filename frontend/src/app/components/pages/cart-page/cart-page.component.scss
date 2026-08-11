@@ -16,7 +16,7 @@ $shadow-soft: 0 4px 16px rgba(31, 53, 64, 0.06);
   min-height: 70vh;
   background-color: $brand-bg;
   padding: 2rem 0 4rem;
-  direction: rtl;
+  direction: inherit;
 }
 
 .container {
@@ -339,7 +339,7 @@ $shadow-soft: 0 4px 16px rgba(31, 53, 64, 0.06);
   align-items: center;
   margin-bottom: 0.5rem;
   font-size: 0.95rem;
-  text-align: right;
+  text-align: start;
 
   .summary-label {
     color: rgba($brand-dark, 0.75);
@@ -384,7 +384,7 @@ $shadow-soft: 0 4px 16px rgba(31, 53, 64, 0.06);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  text-align: right;
+  text-align: start;
 
   i {
     color: $brand-gold;

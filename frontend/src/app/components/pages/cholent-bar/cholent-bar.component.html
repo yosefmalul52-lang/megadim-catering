@@ -10,7 +10,7 @@
     
     <!-- Header Section -->
     <header class="menu-header">
-      <h1 class="restaurant-title">הצ'ולנט בר של מגדים</h1>
+      <h1 class="restaurant-title">{{ 'CHOLENT.TITLE' | translate }}</h1>
       <div class="header-divider"></div>
     </header>
 
@@ -22,13 +22,13 @@
     <!-- Closed state message (when not open and no order functionality) -->
     <div *ngIf="!isLoading && !isCholentBarOpen()" class="cholent-closed-message">
       <i class="fas fa-clock"></i>
-      <p>{{ cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00' }}</p>
+      <p>{{ cholentClosedMessage || ('CHOLENT.CLOSED_DEFAULT' | translate) }}</p>
     </div>
 
     <!-- Loading State -->
     <div *ngIf="isLoading" class="loading">
       <i class="fas fa-spinner fa-spin"></i>
-      <span>טוען תפריט...</span>
+      <span>{{ 'CHOLENT.LOADING' | translate }}</span>
     </div>
 
     <!-- Menu Content: sections from API, grouped by category -->
@@ -38,20 +38,20 @@
         class="menu-section"
       >
         <h2 class="section-title">
-          <span>{{ group.categoryLabel }}</span>
+          <span>{{ group.categoryLabelKey | translate }}</span>
         </h2>
         <div class="menu-items">
           <div *ngFor="let dish of group.items" class="menu-item">
             <div class="menu-row">
               <div class="item-details">
-                <span class="item-name">{{ dish.name }}</span>
+                <span class="item-name">{{ displayName(dish) }}</span>
                 <span class="item-dots"></span>
               </div>
               <div class="item-actions">
                 <span class="item-price">{{ getPrice(dish) }} ₪</span>
               </div>
             </div>
-            <p class="item-desc">{{ dish.description }}</p>
+            <p class="item-desc" *ngIf="displayDescription(dish)">{{ displayDescription(dish) }}</p>
           </div>
         </div>
       </section>
@@ -59,7 +59,7 @@
 
     <!-- Empty State -->
     <div *ngIf="!isLoading && itemsGroupedByCategory.length === 0" class="empty-state">
-      <p>אין מנות זמינות כרגע</p>
+      <p>{{ 'CHOLENT.EMPTY' | translate }}</p>
     </div>
 
   </div>

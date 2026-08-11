@@ -9,7 +9,7 @@ $darker-navy: #082030;
   color: $white;
   padding: 80px 0 30px 0;
   font-family: 'Heebo', sans-serif;
-  direction: rtl;
+  direction: inherit;
   
   .container {
     max-width: 1200px;
@@ -40,7 +40,7 @@ $darker-navy: #082030;
         content: '';
         position: absolute;
         bottom: 0;
-        right: 0;
+        inset-inline-start: 0;
         width: 100%; // Full width of the title text
         height: 2px;
         background-color: $gold;

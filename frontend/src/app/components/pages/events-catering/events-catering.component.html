@@ -12,12 +12,12 @@
     <div class="container hero-content">
       <div class="title-wrapper">
         <span class="side-line"></span>
-        <h1 class="main-title">קייטרינג לאירועים</h1>
+        <h1 class="main-title">{{ 'EVENTS.TITLE' | translate }}</h1>
         <span class="side-line"></span>
       </div>
-      <p class="hero-subtitle">מחפשים קייטרינג שמשלב טעם מעולה, נראות מרשימה ושירות שאפשר לסמוך עליו?</p>
+      <p class="hero-subtitle">{{ 'EVENTS.SUBTITLE' | translate }}</p>
       <p class="hero-desc">
-        בקייטרינג מגדים אתם מקבלים תפריט איכותי, גמיש ומדויק. אנחנו מלווים אתכם משלב התכנון ועד האספקה, עם דגש על אוכל טרי והתאמה מלאה לאופי האירוע.
+        {{ 'EVENTS.HERO_DESC' | translate }}
       </p>
     </div>
   </section>
@@ -27,21 +27,21 @@
     <div class="container">
       <div class="section-title-wrapper">
         <span class="side-line"></span>
-        <h2 class="section-title">תפריט בסיסי לאירוע</h2>
+        <h2 class="section-title">{{ 'EVENTS.BASE_MENU' | translate }}</h2>
         <span class="side-line"></span>
       </div>
 
       <div class="base-single-showcase">
         <div class="course-card main-course">
-          <h3>{{ basePackage.title }}</h3>
+          <h3>{{ label(basePackage.title) }}</h3>
           <div class="price-display">
             <span class="price-amount">{{ basePackage.pricePerPortion }}</span>
             <span class="price-currency">₪</span>
-            <span class="price-label">למנה</span>
+            <span class="price-label">{{ 'EVENTS.PER_PORTION' | translate }}</span>
           </div>
           <ul class="features-list">
             @for (item of basePackage.includes; track item) {
-              <li><span class="check-icon">✓</span><span class="list-text">{{ item }}</span></li>
+              <li><span class="check-icon">✓</span><span class="list-text">{{ label(item) }}</span></li>
             }
           </ul>
         </div>
@@ -54,42 +54,42 @@
     <div class="container">
       <div class="section-title-wrapper">
         <span class="side-line"></span>
-        <h2 class="section-title">שדרוגים ותוספות</h2>
+        <h2 class="section-title">{{ 'EVENTS.UPGRADES' | translate }}</h2>
         <span class="side-line"></span>
       </div>
 
       <div class="courses-grid upgrades-three-grid">
         <div class="course-card upgrade-card-static">
-          <h3>{{ firstCourseUpgrade.title }}</h3>
+          <h3>{{ label(firstCourseUpgrade.title) }}</h3>
           <div class="price-display">
             <span class="price-amount">{{ firstCourseUpgrade.pricePerPortion }}</span>
             <span class="price-currency">₪</span>
-            <span class="price-label">למנה</span>
+            <span class="price-label">{{ 'EVENTS.PER_PORTION' | translate }}</span>
           </div>
           <ul class="features-list">
             @for (item of firstCourseUpgrade.includes; track item) {
-              <li><span class="check-icon">✓</span><span class="list-text">{{ item }}</span></li>
+              <li><span class="check-icon">✓</span><span class="list-text">{{ label(item) }}</span></li>
             }
           </ul>
         </div>
 
         <div class="course-card upgrade-card-static">
-          <h3>{{ dessertsUpgrade.title }}</h3>
+          <h3>{{ label(dessertsUpgrade.title) }}</h3>
           <div class="price-display">
             <span class="price-amount">{{ dessertsUpgrade.pricePerPortion }}</span>
             <span class="price-currency">₪</span>
-            <span class="price-label">למנה</span>
+            <span class="price-label">{{ 'EVENTS.PER_PORTION' | translate }}</span>
           </div>
           <ul class="features-list">
             @for (item of dessertsUpgrade.includes; track item) {
-              <li><span class="check-icon">✓</span><span class="list-text">{{ item }}</span></li>
+              <li><span class="check-icon">✓</span><span class="list-text">{{ label(item) }}</span></li>
             }
           </ul>
         </div>
 
         <div class="course-card upgrade-card-static reception-card-with-tabs">
-          <h3>{{ receptionBarUpgrade.title }}</h3>
-          <p class="reception-note-inline">{{ receptionBarUpgrade.minStationsNote }}</p>
+          <h3>{{ label(receptionBarUpgrade.title) }}</h3>
+          <p class="reception-note-inline">{{ label(receptionBarUpgrade.minStationsNote) }}</p>
 
           <div class="tier-tabs" role="tablist">
             @for (tier of receptionBarUpgrade.tiers; track tier.id) {
@@ -101,7 +101,7 @@
                 [attr.aria-selected]="previewReceptionTab === tier.id"
                 (click)="setPreviewReceptionTab(tier.id)"
               >
-                {{ tier.title }}
+                {{ label(tier.title) }}
               </button>
             }
           </div>
@@ -111,11 +111,11 @@
               <div class="price-display">
                 <span class="price-amount">{{ tier.pricePerPortion }}</span>
                 <span class="price-currency">₪</span>
-                <span class="price-label">למנה</span>
+                <span class="price-label">{{ 'EVENTS.PER_PORTION' | translate }}</span>
               </div>
               <ul class="features-list">
                 @for (feature of tier.features; track feature) {
-                  <li><span class="check-icon">✓</span><span class="list-text">{{ feature }}</span></li>
+                  <li><span class="check-icon">✓</span><span class="list-text">{{ label(feature) }}</span></li>
                 }
               </ul>
             </div>
@@ -126,8 +126,8 @@
       <div class="kosher-banner">
         <mat-icon>verified</mat-icon>
         <div class="kosher-text">
-          <h3>כשרות מהודרת – שקט נפשי מלא</h3>
-          <p>אפשרות לכשרות מהדרין מחפוד (בשר ועוף) | <strong>תוספת של 7 ₪ למנה</strong></p>
+          <h3>{{ 'EVENTS.KOSHER_CARD_TITLE' | translate }}</h3>
+          <p>{{ 'EVENTS.KOSHER_CARD_TEXT' | translate }} | <strong>{{ 'EVENTS.KOSHER_CARD_EXTRA' | translate:{ price: kosherUpgradePrice } }}</strong></p>
         </div>
       </div>
     </div>
@@ -138,30 +138,30 @@
     <div class="container">
       <div class="section-title-wrapper">
         <span class="side-line"></span>
-        <h2 class="section-title">תנאים ומשלוחים</h2>
+        <h2 class="section-title">{{ 'EVENTS.TERMS_TITLE' | translate }}</h2>
         <span class="side-line"></span>
       </div>
 
       <div class="conditions-grid">
         <div class="condition-item">
           <mat-icon>shopping_cart</mat-icon>
-          <div><strong>מינימום הזמנה:</strong> 600 ₪</div>
+          <div><strong>{{ 'EVENTS.MIN_ORDER' | translate }}</strong> {{ 'EVENTS.MIN_ORDER_VAL' | translate }}</div>
         </div>
         <div class="condition-item">
           <mat-icon>event_busy</mat-icon>
-          <div><strong>דד-ליין:</strong> עד יומיים לפני, שעה 13:00</div>
+          <div><strong>{{ 'EVENTS.DEADLINE' | translate }}</strong> {{ 'EVENTS.DEADLINE_VAL' | translate }}</div>
         </div>
         <div class="condition-item">
           <mat-icon>edit_note</mat-icon>
-          <div><strong>תפריט:</strong> מותאם אישית לפי רצון הלקוח</div>
+          <div><strong>{{ 'EVENTS.MENU_CUSTOM' | translate }}</strong> {{ 'EVENTS.MENU_CUSTOM_VAL' | translate }}</div>
         </div>
         <div class="condition-item">
           <mat-icon>local_shipping</mat-icon>
-          <div><strong>משלוח:</strong> 200–600 ₪ (לפי מרחק) או איסוף עצמי</div>
+          <div><strong>{{ 'EVENTS.DELIVERY_LABEL' | translate }}</strong> {{ 'EVENTS.DELIVERY_VAL' | translate }}</div>
         </div>
         <div class="condition-item note">
           <mat-icon>info</mat-icon>
-          <div><strong>תוספות (בתשלום):</strong> יין, שתייה, חד"פ, תפעול</div>
+          <div><strong>{{ 'EVENTS.EXTRAS' | translate }}</strong> {{ 'EVENTS.EXTRAS_VAL' | translate }}</div>
         </div>
       </div>
     </div>
@@ -179,11 +179,11 @@
           rel="noopener noreferrer"
         >
           <mat-icon>download</mat-icon>
-          <span>להורדת התפריט</span>
+          <span>{{ 'EVENTS.DOWNLOAD_MENU' | translate }}</span>
         </a>
         <button class="cta-btn cta-btn-primary" (click)="openOrderForm()">
           <mat-icon>event</mat-icon>
-          <span>טופס הזמנה</span>
+          <span>{{ 'EVENTS.ORDER_FORM' | translate }}</span>
         </button>
       </div>
     </div>
@@ -192,11 +192,11 @@
   <!-- Order Form Modal -->
   @if (showOrderForm) {
     <div class="events-order-overlay" (click)="closeOrderForm()">
-      <div class="events-order-modal" dir="rtl" (click)="$event.stopPropagation()">
+      <div class="events-order-modal" (click)="$event.stopPropagation()">
 
         <div class="modal-header">
-          <h2>טופס הזמנת קייטרינג לאירוע</h2>
-          <button class="close-btn" type="button" (click)="closeOrderForm()" aria-label="סגור">
+          <h2>{{ 'EVENTS.FORM_TITLE' | translate }}</h2>
+          <button class="close-btn" type="button" (click)="closeOrderForm()" [attr.aria-label]="'EVENTS.CLOSE' | translate">
             <mat-icon>close</mat-icon>
           </button>
         </div>
@@ -204,31 +204,31 @@
         @if (submitSuccess) {
           <div class="form-success">
             <mat-icon class="success-icon">check_circle</mat-icon>
-            <h3>הבקשה נשלחה בהצלחה!</h3>
-            <p>נציג מטעמנו יחזור אליך בהקדם להשלמת ההזמנה ואישורה.</p>
-            <button type="button" class="close-success-btn" (click)="closeOrderForm()">סגור</button>
+            <h3>{{ 'EVENTS.SUCCESS_TITLE' | translate }}</h3>
+            <p>{{ 'EVENTS.SUCCESS_TEXT' | translate }}</p>
+            <button type="button" class="close-success-btn" (click)="closeOrderForm()">{{ 'EVENTS.CLOSE' | translate }}</button>
           </div>
         } @else {
-          <form class="order-form" dir="rtl" (ngSubmit)="submitOrder()" novalidate>
+          <form class="order-form" (ngSubmit)="submitOrder()" novalidate>
 
             <!-- Personal Details -->
             <div class="form-section">
-              <h3 class="section-title">פרטים אישיים</h3>
+              <h3 class="section-title">{{ 'EVENTS.PERSONAL' | translate }}</h3>
               <div class="form-grid">
                 <div class="form-group">
-                  <label>שם מלא *</label>
+                  <label>{{ 'EVENTS.FULL_NAME' | translate }}</label>
                   <input type="text" [(ngModel)]="orderForm.fullName" name="fullName" required>
                 </div>
                 <div class="form-group">
-                  <label>טלפון *</label>
+                  <label>{{ 'EVENTS.PHONE' | translate }}</label>
                   <input type="tel" [(ngModel)]="orderForm.phone" name="phone" required>
                 </div>
                 <div class="form-group">
-                  <label>אימייל *</label>
+                  <label>{{ 'EVENTS.EMAIL' | translate }}</label>
                   <input type="email" [(ngModel)]="orderForm.email" name="email" required>
                 </div>
                 <div class="form-group">
-                  <label>מספר אורחים משוער *</label>
+                  <label>{{ 'EVENTS.GUESTS' | translate }}</label>
                   <input type="number" [(ngModel)]="orderForm.guestCount" name="guestCount" required min="1">
                 </div>
               </div>
@@ -236,19 +236,19 @@
 
             <!-- Event Details -->
             <div class="form-section">
-              <h3 class="section-title">פרטי האירוע</h3>
+              <h3 class="section-title">{{ 'EVENTS.EVENT_DETAILS' | translate }}</h3>
               <div class="form-grid">
                 <div class="form-group">
-                  <label>סוג האירוע *</label>
+                  <label>{{ 'EVENTS.EVENT_TYPE' | translate }}</label>
                   <select [(ngModel)]="orderForm.eventType" name="eventType" required>
-                    <option value="" disabled>בחר סוג אירוע</option>
-                    @for (type of EVENT_TYPES; track type) {
-                      <option [value]="type">{{ type }}</option>
+                    <option value="" disabled>{{ 'EVENTS.EVENT_TYPE_PLACEHOLDER' | translate }}</option>
+                    @for (type of eventTypeOptions; track type.value) {
+                      <option [value]="type.value">{{ type.labelKey | translate }}</option>
                     }
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>תאריך האירוע *</label>
+                  <label>{{ 'EVENTS.EVENT_DATE' | translate }}</label>
                   <mat-form-field appearance="outline" class="full-width event-date-field">
                     <input
                       matInput
@@ -267,26 +267,26 @@
                   }
                 </div>
                 <div class="form-group form-group-span-full">
-                  <label>מיקום האירוע</label>
-                  <input type="text" [(ngModel)]="orderForm.venue" name="venue" placeholder="שם האולם / כתובת">
+                  <label>{{ 'EVENTS.VENUE' | translate }}</label>
+                  <input type="text" [(ngModel)]="orderForm.venue" name="venue" [placeholder]="'EVENTS.VENUE_PLACEHOLDER' | translate">
                 </div>
               </div>
             </div>
 
             <!-- Base Menu selections -->
             <div class="form-section menu-form-base">
-              <h3 class="section-title">תפריט בסיסי לאירוע</h3>
+              <h3 class="section-title">{{ 'EVENTS.BASE_MENU' | translate }}</h3>
               <div class="base-item-selections">
                 <div class="selection-group">
-                  <h4 class="selection-group-title">8 סוגי סלטים</h4>
+                  <h4 class="selection-group-title">{{ 'EVENTS.SALADS_GROUP' | translate }}</h4>
                   <div class="selects-grid">
                     @for (idx of saladIndexes; track idx) {
                       <div class="form-group">
-                        <label>סלט {{ idx }}</label>
+                        <label>{{ 'EVENTS.SALAD_N' | translate:{ n: idx } }}</label>
                         <select [(ngModel)]="orderForm.salads[idx - 1]" [name]="'salad' + idx">
-                          <option value="" disabled selected>בחר סלט...</option>
+                          <option value="" disabled selected>{{ 'EVENTS.CHOOSE_SALAD' | translate }}</option>
                           @for (opt of saladOptions; track opt) {
-                            <option [value]="opt">{{ opt }}</option>
+                            <option [value]="opt">{{ label(opt) }}</option>
                           }
                         </select>
                       </div>
@@ -295,15 +295,15 @@
                 </div>
 
                 <div class="selection-group">
-                  <h4 class="selection-group-title">מנה עיקרית — 2 סוגים לבחירה</h4>
+                  <h4 class="selection-group-title">{{ 'EVENTS.MAIN_GROUP' | translate }}</h4>
                   <div class="selects-grid">
                     @for (idx of mainCourseIndexes; track idx) {
                       <div class="form-group">
-                        <label>סוג {{ idx }}</label>
+                        <label>{{ 'EVENTS.TYPE_N' | translate:{ n: idx } }}</label>
                         <select [(ngModel)]="orderForm.mainCourses[idx - 1]" [name]="'mainCourse' + idx">
-                          <option value="" disabled selected>בחר סוג מנה עיקרית...</option>
+                          <option value="" disabled selected>{{ 'EVENTS.CHOOSE_MAIN' | translate }}</option>
                           @for (opt of mainCourseOptions; track opt) {
-                            <option [value]="opt">{{ opt }}</option>
+                            <option [value]="opt">{{ label(opt) }}</option>
                           }
                         </select>
                       </div>
@@ -312,15 +312,15 @@
                 </div>
 
                 <div class="selection-group">
-                  <h4 class="selection-group-title">3 תוספות</h4>
+                  <h4 class="selection-group-title">{{ 'EVENTS.SIDES_GROUP' | translate }}</h4>
                   <div class="selects-grid">
                     @for (idx of sideIndexes; track idx) {
                       <div class="form-group">
-                        <label>תוספת {{ idx }}</label>
+                        <label>{{ 'EVENTS.SIDE_N' | translate:{ n: idx } }}</label>
                         <select [(ngModel)]="orderForm.sides[idx - 1]" [name]="'side' + idx">
-                          <option value="" disabled selected>בחר תוספת...</option>
+                          <option value="" disabled selected>{{ 'EVENTS.CHOOSE_SIDE' | translate }}</option>
                           @for (opt of sideDishOptions; track opt) {
-                            <option [value]="opt">{{ opt }}</option>
+                            <option [value]="opt">{{ label(opt) }}</option>
                           }
                         </select>
                       </div>
@@ -332,7 +332,7 @@
 
             <!-- Upgrades -->
             <div class="form-section menu-form-upgrades">
-              <h3 class="section-title">שדרוגים ותוספות</h3>
+              <h3 class="section-title">{{ 'EVENTS.UPGRADES' | translate }}</h3>
               <div class="upgrade-options">
 
                 <div class="upgrade-option" [class.active]="isFirstCourseSelected">
@@ -343,18 +343,18 @@
                       (change)="onFirstCourseToggle($any($event.target).checked)"
                       name="upgradeFirstCourse"
                     >
-                    <span>{{ firstCourseUpgrade.title }}</span>
+                    <span>{{ label(firstCourseUpgrade.title) }}</span>
                   </label>
                   @if (isFirstCourseSelected) {
                     <div class="upgrade-selections">
                       <div class="selects-grid compact-grid">
                         @for (idx of firstCourseIndexes; track idx) {
                           <div class="form-group">
-                            <label>מנה ראשונה {{ idx }}</label>
+                            <label>{{ 'EVENTS.FIRST_N' | translate:{ n: idx } }}</label>
                             <select [(ngModel)]="firstCourses[idx - 1]" [name]="'firstCourse' + idx">
-                              <option value="" disabled selected>בחר מנה ראשונה...</option>
+                              <option value="" disabled selected>{{ 'EVENTS.CHOOSE_FIRST' | translate }}</option>
                               @for (opt of firstCourseUpgradeOptions; track opt) {
-                                <option [value]="opt">{{ opt }}</option>
+                                <option [value]="opt">{{ label(opt) }}</option>
                               }
                             </select>
                           </div>
@@ -372,7 +372,7 @@
                       (change)="onDessertsToggle($any($event.target).checked)"
                       name="upgradeDesserts"
                     >
-                    <span>{{ dessertsUpgrade.title }}</span>
+                    <span>{{ label(dessertsUpgrade.title) }}</span>
                   </label>
                 </div>
 
@@ -384,7 +384,7 @@
                       (change)="onReceptionToggle($any($event.target).checked)"
                       name="upgradeReception"
                     >
-                    <span>{{ receptionBarUpgrade.title }}</span>
+                    <span>{{ label(receptionBarUpgrade.title) }}</span>
                   </label>
                   @if (isReceptionSelected) {
                     <div class="upgrade-selections">
@@ -398,7 +398,7 @@
                             [attr.aria-selected]="receptionTier === tier.id"
                             (click)="onReceptionTierChange(tier.id)"
                           >
-                            {{ tier.title }}
+                            {{ label(tier.title) }}
                           </button>
                         }
                       </div>
@@ -414,7 +414,7 @@
                       (change)="onKosherToggle($any($event.target).checked)"
                       name="kosherUpgrade"
                     >
-                    <span>כשרות מהדרין מחפוד (בשר ועוף) — תוספת {{ kosherUpgradePrice }} ₪ למנה</span>
+                    <span>{{ 'EVENTS.KOSHER_CHECK' | translate:{ price: kosherUpgradePrice } }}</span>
                   </label>
                 </div>
               </div>
@@ -422,25 +422,25 @@
 
             <!-- Delivery + Notes -->
             <div class="form-section">
-              <h3 class="section-title">אספקה והערות</h3>
+              <h3 class="section-title">{{ 'EVENTS.SUPPLY_NOTES' | translate }}</h3>
               <div class="radio-group">
                 <label class="radio-label">
                   <input type="radio" name="deliveryType" value="pickup" [(ngModel)]="orderForm.deliveryType">
-                  <span>איסוף עצמי</span>
+                  <span>{{ 'EVENTS.PICKUP' | translate }}</span>
                 </label>
                 <label class="radio-label">
                   <input type="radio" name="deliveryType" value="delivery" [(ngModel)]="orderForm.deliveryType">
-                  <span>משלוח לכתובת</span>
+                  <span>{{ 'EVENTS.DELIVERY' | translate }}</span>
                 </label>
               </div>
               @if (orderForm.deliveryType === 'delivery') {
                 <div class="form-group" style="margin-top:16px;">
-                  <label>כתובת למשלוח</label>
+                  <label>{{ 'EVENTS.ADDRESS' | translate }}</label>
                   <input type="text" [(ngModel)]="orderForm.address" name="address">
                 </div>
               }
               <div class="form-group" style="margin-top:16px;">
-                <label>הערות</label>
+                <label>{{ 'EVENTS.NOTES' | translate }}</label>
                 <textarea [(ngModel)]="orderForm.notes" name="notes" rows="4"></textarea>
               </div>
             </div>
@@ -450,7 +450,7 @@
                 <p class="form-error-msg">{{ submitError }}</p>
               }
               <button type="submit" class="submit-btn" [disabled]="isSubmitting">
-                {{ isSubmitting ? 'שולח...' : 'שלח הזמנה' }}
+                {{ isSubmitting ? ('EVENTS.SUBMITTING' | translate) : ('EVENTS.SUBMIT' | translate) }}
               </button>
             </div>
 

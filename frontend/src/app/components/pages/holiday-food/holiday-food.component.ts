@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { TranslateModule } from '@ngx-translate/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { EventsCatalogService, ShabbatCatalogDto } from '../../../services/events-catalog.service';
 import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
@@ -20,6 +21,7 @@ import {
   OpenDateSettings,
   resolveCutoffTime
 } from '../../../utils/open-date-rules';
+import { LocaleService } from '../../../i18n/locale.service';
 
 type MealTime = 'evening' | 'morning' | 'both' | '';
 
@@ -63,7 +65,8 @@ const DEFAULT_SIDE_DISH_OPTIONS = [
     MatDatepickerModule,
     MatNativeDateModule,
     PageBannerComponent,
-    PagePopupComponent
+    PagePopupComponent,
+    TranslateModule
   ],
   templateUrl: './holiday-food.component.html',
   styleUrls: ['./holiday-food.component.scss']
@@ -72,6 +75,7 @@ export class HolidayFoodComponent implements OnInit {
   settingsService = inject(SiteSettingsService);
   private http = inject(HttpClient);
   private eventsCatalogService = inject(EventsCatalogService);
+  readonly localeService = inject(LocaleService);
   settings: SiteSettings | null = null;
   eventsMenuUrl: string = '';
   showPopup = false;
@@ -116,6 +120,8 @@ export class HolidayFoodComponent implements OnInit {
   showMorningPortions = false;
   portionsError: string | null = null;
   menuSelectionError: string | null = null;
+  /** Optional paid first-course upgrade (events-parity). */
+  isFirstCourseUpgrade = false;
 
   orderForm = {
     fullName: '',
@@ -269,6 +275,15 @@ export class HolidayFoodComponent implements OnInit {
     }
   }
 
+  onFirstCourseUpgradeToggle(checked: boolean): void {
+    this.isFirstCourseUpgrade = checked;
+    this.menuSelectionError = null;
+    if (!checked) {
+      this.clearArraySlots(this.orderForm.firstCoursesEvening);
+      this.clearArraySlots(this.orderForm.firstCoursesMorning);
+    }
+  }
+
   /** Dropdown options excluding items already chosen in the same group (current slot kept). */
   availableOptions(options: string[], selections: string[], slotIndex: number): string[] {
     const used = new Set<string>();
@@ -354,9 +369,13 @@ export class HolidayFoodComponent implements OnInit {
     const sideSlots = this.sidesSlotIndexes.length;
 
     if (this.showEveningMealBlock) {
+      if (this.isFirstCourseUpgrade) {
+        err =
+          this.assertNoDuplicates(this.orderForm.firstCoursesEvening, 'מנות ראשונות לערב') ||
+          this.assertExactCount(this.orderForm.firstCoursesEvening, firstSlots, 'מנות ראשונות לערב');
+        if (err) return err;
+      }
       err =
-        this.assertNoDuplicates(this.orderForm.firstCoursesEvening, 'מנות ראשונות לערב') ||
-        this.assertExactCount(this.orderForm.firstCoursesEvening, firstSlots, 'מנות ראשונות לערב') ||
         this.assertNoDuplicates(this.orderForm.mainCoursesEvening, 'מנות עיקריות לערב') ||
         this.assertExactCount(this.orderForm.mainCoursesEvening, mainSlots, 'מנות עיקריות לערב') ||
         this.assertNoDuplicates(this.orderForm.sidesEvening, 'תוספות לערב') ||
@@ -365,9 +384,13 @@ export class HolidayFoodComponent implements OnInit {
     }
 
     if (this.showMorningMealBlock) {
+      if (this.isFirstCourseUpgrade) {
+        err =
+          this.assertNoDuplicates(this.orderForm.firstCoursesMorning, 'מנות ראשונות לבוקר') ||
+          this.assertExactCount(this.orderForm.firstCoursesMorning, firstSlots, 'מנות ראשונות לבוקר');
+        if (err) return err;
+      }
       err =
-        this.assertNoDuplicates(this.orderForm.firstCoursesMorning, 'מנות ראשונות לבוקר') ||
-        this.assertExactCount(this.orderForm.firstCoursesMorning, firstSlots, 'מנות ראשונות לבוקר') ||
         this.assertNoDuplicates(this.orderForm.mainCoursesMorning, 'מנות עיקריות לבוקר') ||
         this.assertExactCount(this.orderForm.mainCoursesMorning, mainSlots, 'מנות עיקריות לבוקר') ||
         this.assertNoDuplicates(this.orderForm.sidesMorning, 'תוספות לבוקר') ||
@@ -464,15 +487,20 @@ export class HolidayFoodComponent implements OnInit {
       seudaShlishit: this.orderForm.seudaShlishit,
       deliveryType: this.orderForm.deliveryType,
       address: this.orderForm.address,
-      remarks: this.orderForm.remarks
+      remarks: this.orderForm.remarks,
+      firstCourseUpgrade: this.isFirstCourseUpgrade
     };
 
     if (this.showEveningMealBlock) {
-      payload['firstCoursesEvening'] = this.nonEmptySelections(this.orderForm.firstCoursesEvening);
+      payload['firstCoursesEvening'] = this.isFirstCourseUpgrade
+        ? this.nonEmptySelections(this.orderForm.firstCoursesEvening)
+        : [];
       payload['mainCoursesEvening'] = this.nonEmptySelections(this.orderForm.mainCoursesEvening);
     }
     if (this.showMorningMealBlock) {
-      payload['firstCoursesMorning'] = this.nonEmptySelections(this.orderForm.firstCoursesMorning);
+      payload['firstCoursesMorning'] = this.isFirstCourseUpgrade
+        ? this.nonEmptySelections(this.orderForm.firstCoursesMorning)
+        : [];
       payload['mainCoursesMorning'] = this.nonEmptySelections(this.orderForm.mainCoursesMorning);
     }
 

@@ -1,13 +1,13 @@
 <div class="category-header-actions">
-  <button class="btn-gold-back" routerLink="/ready-for-shabbat">
-    <i class="fas fa-arrow-right"></i> חזרה לתפריט
+  <button class="btn-gold-back" [routerLink]="localeService.localizePath('/ready-for-shabbat')">
+    <i class="fas fa-arrow-right"></i> {{ 'PRODUCT.BACK_TO_MENU' | translate }}
   </button>
 </div>
 
 <header class="luxury-category-header">
   <span class="decorative-line"></span>
   <span class="decorative-diamond"></span>
-  <h1>תוספות</h1>
+  <h1>{{ 'CATEGORIES.SIDES' | translate }}</h1>
   <span class="decorative-diamond"></span>
   <span class="decorative-line"></span>
 </header>
@@ -17,7 +17,7 @@
     <!-- Loading State -->
     <div *ngIf="isLoading" class="loading">
       <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-      <span>טוען תוספות...</span>
+      <span>{{ 'PRODUCT.LOADING' | translate }}</span>
     </div>
 
     <!-- Sides Grid -->
@@ -27,18 +27,18 @@
         class="product-card"
       >
         <div class="card-image-wrapper">
-          <img [ngSrc]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="dish.name" width="400" height="300" (click)="viewDetails(dish)">
-          <div class="badge" *ngIf="dish.isPopular === true">מומלץ</div>
-          <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
+          <img [ngSrc]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" [alt]="displayName(dish)" width="400" height="300" (click)="viewDetails(dish)">
+          <div class="badge" *ngIf="dish.isPopular === true">{{ 'PRODUCT.RECOMMENDED' | translate }}</div>
+          <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">{{ 'PRODUCT.OOS' | translate }}</span>
         </div>
 
         <div class="card-content">
-          <h4 class="card-title" (click)="viewDetails(dish)">{{ dish.name }}</h4>
-          <p class="card-desc">{{ dish.description }}</p>
+          <h4 class="card-title" (click)="viewDetails(dish)">{{ displayName(dish) }}</h4>
+          <p class="card-desc">{{ displayDescription(dish) }}</p>
 
           <!-- Price Per 100g Display -->
           <div class="price-unit" *ngIf="dish.pricePer100g && !hasPricingOptions(dish) && !hasPricingVariants(dish)">
-            מחיר ל-100 גרם: ₪{{ dish.pricePer100g }}
+            {{ 'PRODUCT.PRICE_100G' | translate }} ₪{{ dish.pricePer100g }}
           </div>
 
           <!-- Pricing Options (Dropdown) -->
@@ -48,24 +48,24 @@
             [value]="getSelectedOptionIndex(dish.id || dish._id || '')"
             (change)="selectPricingOption(dish.id || dish._id || '', $event)"
           >
-            <option value="">בחרו אפשרות</option>
+            <option value="">{{ 'PRODUCT.CHOOSE_OPTION' | translate }}</option>
             <option *ngFor="let option of getPricingOptions(dish); let i = index" [value]="i">
-              {{ option.label }} - {{ option.amount }} - ₪{{ option.price }}
+              {{ optionLabel(option) }} - {{ option.amount }} - ₪{{ option.price }}
             </option>
           </select>
 
           <!-- Size Selection (pricingVariants) -->
           <div class="size-selection" *ngIf="!hasPricingOptions(dish) && hasPricingVariants(dish)">
-            <label class="size-label">בחרו גודל:</label>
+            <label class="size-label">{{ 'PRODUCT.CHOOSE_SIZE' | translate }}</label>
             <div class="size-options">
               <button 
                 *ngFor="let variant of getPricingVariants(dish); let i = index"
                 class="size-btn"
                 [class.active]="getSelectedVariantIndex(dish.id || dish._id || '') === i"
                 (click)="selectVariant(dish.id || dish._id || '', i)"
-                [attr.aria-label]="'בחרו ' + variant.label + ' עבור ' + dish.name"
+                [attr.aria-label]="optionLabel(variant) + ' — ' + displayName(dish)"
               >
-                <span class="size-weight">{{ variant.label }}</span>
+                <span class="size-weight">{{ optionLabel(variant) }}</span>
                 <span class="size-price">₪{{ variant.price }}</span>
               </button>
             </div>
@@ -73,23 +73,23 @@
 
           <div class="card-price" *ngIf="!hasPricingOptions(dish) && !hasPricingVariants(dish) && dish.price">
             <span class="currency">₪</span>{{ getPrice(dish) }}
-            <span class="unit" *ngIf="dish.pricePer100g"> / ליחידה (משוער)</span>
+            <span class="unit" *ngIf="dish.pricePer100g"> / {{ 'PRODUCT.PER_UNIT' | translate }}</span>
           </div>
           <div class="card-price" *ngIf="(hasPricingOptions(dish) || hasPricingVariants(dish)) && hasSelectedOption(dish)">
             <span class="currency">₪</span>{{ getSelectedPrice(dish) }}
           </div>
 
           <div class="error-message" *ngIf="hasValidationError(dish.id || dish._id || '')">
-            נא לבחור גודל תחילה
+            {{ 'PRODUCT.SELECT_SIZE_FIRST' | translate }}
           </div>
 
           <div class="card-actions">
             <button class="btn-details" (click)="viewDetails(dish)">
-              פרטים
+              {{ 'PRODUCT.DETAILS' | translate }}
             </button>
             <button class="btn-add" (click)="addToCart(dish)" [disabled]="!isAvailable(dish)">
               <mat-icon>shopping_cart</mat-icon>
-              הוספה לסל
+              {{ 'PRODUCT.ADDING' | translate }}
             </button>
           </div>
         </div>
@@ -99,9 +99,7 @@
     <!-- Empty State -->
     <div *ngIf="!isLoading && sideDishes.length === 0" class="empty-state">
       <i class="fas fa-utensils" aria-hidden="true"></i>
-      <h3>אין תוספות זמינות כרגע</h3>
-      <p>אנחנו עובדים על הוספת מנות חדשות. חזור בקרוב!</p>
+      <h3>{{ 'PRODUCT.EMPTY' | translate }}</h3>
     </div>
   </div>
 </div>
-

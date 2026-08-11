@@ -1,5 +1,5 @@
-<div class="legal-page" dir="rtl">
-  <div class="container">
+<div class="legal-page">
+  <div class="container" *ngIf="!localeService.isEnglish">
     <h1>הצהרת נגישות</h1>
 
     <p class="last-updated">עודכן לאחרונה: מרץ 2026</p>
@@ -116,5 +116,122 @@
       </p>
     </section>
   </div>
-</div>
 
+  <div class="container" *ngIf="localeService.isEnglish">
+    <h1>Accessibility Statement</h1>
+
+    <p class="last-updated">Last updated: March 2026</p>
+
+    <section>
+      <h2>1. General</h2>
+      <p>
+        We attach great importance to making our website and digital services accessible to the public, and especially to
+        people with disabilities. This website was developed with the aim of meeting Israeli Standard IS 5568 for web
+        accessibility, based on WCAG 2.0 Level AA.
+      </p>
+      <p>
+        This statement presents transparently the accessibility status of the site, adaptations made, areas that still
+        need improvement, and contact channels for accessibility inquiries.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Accessibility level and standards</h2>
+      <p>The website aims to meet accessibility requirements according to:</p>
+      <ul>
+        <li>Israeli Standard IS 5568 – "Guidelines for Web Content Accessibility" (based on WCAG 2.0).</li>
+        <li>W3C Web Content Accessibility Guidelines (WCAG) 2.0 Level AA.</li>
+      </ul>
+      <p>
+        Despite our efforts, some content or components may not yet be fully accessible, including due to third-party
+        dependencies, external systems, or ongoing site updates.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Digital accessibility adaptations</h2>
+      <p>Among other things, the following adaptations have been made (or are applied):</p>
+      <ul>
+        <li>Keyboard-only navigation support – moving between links, buttons and forms using Tab, Shift+Tab, Enter and Esc.</li>
+        <li>Semantic structure of headings, lists and tables where possible, to assist screen readers.</li>
+        <li>Alternative text (alt) for meaningful images, where relevant.</li>
+        <li>Appropriate contrast ratios between text and background on main components, meeting AA requirements.</li>
+        <li>Responsive design for mobile devices.</li>
+        <li>Avoiding, as far as possible, flashing text or elements that may cause special sensitivity.</li>
+      </ul>
+      <p>
+        Some adaptations also rely on browser and operating-system capabilities (such as font enlargement, contrast
+        changes, screen readers, etc.).
+      </p>
+    </section>
+
+    <section>
+      <h2>4. External assistive tools</h2>
+      <p>
+        The website may use accessibility widgets to help with certain adjustments, such as font size, colors, or stopping
+        animations. These tools do not replace built-in accessibility and are only an additional assistance layer.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Physical accessibility arrangements</h2>
+      <p>
+        In addition to digital accessibility, physical accessibility rules also apply to the physical location where
+        service may be provided (such as a pickup point or office).
+      </p>
+      <p class="placeholder">
+        <strong>To be completed by the business owner:</strong><br>
+        [Complete physical accessibility details of the business – disabled parking, access paths, elevators, accessible
+        restrooms, hearing assistance, etc., according to the location: Ma'ale Mikhmas Industrial Zone, Israel.]
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Forms and online inquiries</h2>
+      <p>
+        Contact and order forms on the website were built so they can be completed via keyboard and screen readers as far
+        as possible. If you encounter difficulty filling an online form, you may always contact us by alternative means
+        (phone, email or WhatsApp) as listed on the contact page.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Accessibility coordinator details</h2>
+      <p class="placeholder">
+        <strong>To be completed by the business owner:</strong><br>
+        Accessibility coordinator name: [Name]<br>
+        Phone: [Phone]<br>
+        Email: [Email]
+      </p>
+      <p>
+        You may contact the accessibility coordinator with any question, comment, request or suggestion to improve
+        accessibility of the website or service, and we will be glad to help.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Accessibility inquiries and response</h2>
+      <p>
+        If you encounter an accessibility issue on the website, please let us know and include as much as possible:
+      </p>
+      <ul>
+        <li>Description of the problem.</li>
+        <li>Which page or URL you encountered the difficulty on.</li>
+        <li>Which browser / device / assistive technology was used (e.g. screen reader, magnification software).</li>
+      </ul>
+      <p>
+        We will try to handle your inquiry as soon as possible, in accordance with legal requirements and reasonable
+        implementation considerations.
+      </p>
+    </section>
+
+    <section>
+      <h2>9. Disclaimers</h2>
+      <p>
+        Despite our efforts to make all parts of the website accessible, some components or content may still not be fully
+        accessible, including due to technological limitations, third-party dependencies, or content uploaded by external
+        parties. We will continue to improve website accessibility on an ongoing basis.
+      </p>
+    </section>
+  </div>
+</div>

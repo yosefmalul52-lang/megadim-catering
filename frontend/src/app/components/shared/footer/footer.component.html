@@ -4,93 +4,92 @@
     <div class="footer-grid">
       
       <div class="footer-col brand-col">
-        <h2 class="footer-logo">מגדים</h2>
+        <h2 class="footer-logo">{{ 'HOME.BRAND' | translate }}</h2>
         <p class="brand-desc">
-          שירותי קייטרינג כשר למהדרין ברמה הגבוהה ביותר.
-          אוכל ביתי, טרי ואיכותי לשבתות, חגים ואירועים.
+          {{ 'FOOTER.BRAND_DESC' | translate }}
         </p>
         <div class="social-icons">
-          <a href="https://www.facebook.com/Megadimcatering/" target="_blank" rel="noopener noreferrer" class="social-btn" aria-label="פייסבוק"><i class="fab fa-facebook-f"></i></a>
-          <a href="https://www.instagram.com/megadim_catering/" target="_blank" rel="noopener noreferrer" class="social-btn" aria-label="אינסטגרם"><i class="fab fa-instagram"></i></a>
-          <a [href]="whatsappLink" target="_blank" rel="noopener noreferrer" class="social-btn"><i class="fab fa-whatsapp"></i></a>
+          <a href="https://www.facebook.com/Megadimcatering/" target="_blank" rel="noopener noreferrer" class="social-btn" [attr.aria-label]="'FOOTER.FACEBOOK' | translate"><i class="fab fa-facebook-f"></i></a>
+          <a href="https://www.instagram.com/megadim_catering/" target="_blank" rel="noopener noreferrer" class="social-btn" [attr.aria-label]="'FOOTER.INSTAGRAM' | translate"><i class="fab fa-instagram"></i></a>
+          <a [href]="whatsappLink" target="_blank" rel="noopener noreferrer" class="social-btn" [attr.aria-label]="'FOOTER.WHATSAPP' | translate"><i class="fab fa-whatsapp"></i></a>
         </div>
       </div>
       
       <div class="footer-col links-col">
-        <h3 class="col-title">קישורים מהירים</h3>
-        <nav class="footer-nav" aria-label="קישורים מהירים">
+        <h3 class="col-title">{{ 'FOOTER.QUICK_LINKS' | translate }}</h3>
+        <nav class="footer-nav" [attr.aria-label]="'FOOTER.QUICK_LINKS' | translate">
           <ul>
             <li>
               <span class="link-bullet" aria-hidden="true"></span>
-              <a routerLink="/">דף הבית</a>
+              <a [routerLink]="navPath('/')">{{ 'NAV.HOME' | translate }}</a>
             </li>
             <li>
               <span class="link-bullet" aria-hidden="true"></span>
-              <a routerLink="/shabbat-events">קייטרינג לאירועי שבת וחג</a>
+              <a [routerLink]="navPath('/shabbat-events')">{{ 'NAV.HOLIDAY_CATERING' | translate }}</a>
             </li>
             <li>
               <span class="link-bullet" aria-hidden="true"></span>
-              <a routerLink="/ready-food">אוכל מוכן לשבת וחג</a>
+              <a [routerLink]="navPath('/ready-food')">{{ 'NAV.READY_FOOD' | translate }}</a>
             </li>
             <li>
               <span class="link-bullet" aria-hidden="true"></span>
-              <a routerLink="/events-catering">קייטרינג לאירועים</a>
+              <a [routerLink]="navPath('/events-catering')">{{ 'NAV.CATERING' | translate }}</a>
             </li>
             <li>
               <span class="link-bullet" aria-hidden="true"></span>
-              <a routerLink="/about">אודותינו</a>
+              <a [routerLink]="navPath('/about')">{{ 'NAV.ABOUT' | translate }}</a>
             </li>
             <li>
               <span class="link-bullet" aria-hidden="true"></span>
-              <a routerLink="/contact">צור קשר</a>
+              <a [routerLink]="navPath('/contact')">{{ 'NAV.CONTACT' | translate }}</a>
             </li>
           </ul>
         </nav>
       </div>
       
       <div class="footer-col contact-col">
-        <h3 class="col-title">יצירת קשר</h3>
+        <h3 class="col-title">{{ 'FOOTER.CONTACT' | translate }}</h3>
         <ul class="contact-list">
           <li>
             <mat-icon>phone</mat-icon>
             <div class="info">
-              <span>טלפון להזמנות:</span>
+              <span>{{ 'FOOTER.PHONE_LABEL' | translate }}</span>
               <a [href]="contactTelHref">{{ contactPhone }}</a>
             </div>
           </li>
           <li>
             <mat-icon>email</mat-icon>
             <div class="info">
-              <span>אימייל:</span>
+              <span>{{ 'FOOTER.EMAIL_LABEL' | translate }}</span>
               <a href="mailto:Office&#64;megadim-catering.com">Office&#64;megadim-catering.com</a>
             </div>
           </li>
           <li>
             <mat-icon>location_on</mat-icon>
             <div class="info">
-              <span>כתובת:</span>
-              <span>א.ת מעלה מכמש, ישראל</span>
+              <span>{{ 'FOOTER.ADDRESS_LABEL' | translate }}</span>
+              <span>{{ 'FOOTER.ADDRESS' | translate }}</span>
             </div>
           </li>
         </ul>
       </div>
       
       <div class="footer-col hours-col">
-        <h3 class="col-title">שעות פעילות</h3>
+        <h3 class="col-title">{{ 'FOOTER.BUSINESS_HOURS' | translate }}</h3>
         <ul class="hours-list">
           <li>
-            <span class="day">ראשון - חמישי:</span>
+            <span class="day">{{ 'FOOTER.HOURS_WEEKDAYS' | translate }}</span>
             <span class="time">08:00 - 20:00</span>
           </li>
           <li>
-            <span class="day">יום שישי:</span>
+            <span class="day">{{ 'FOOTER.HOURS_FRIDAY' | translate }}</span>
             <span class="time">08:00 - 14:00</span>
           </li>
         </ul>
         
         <div class="kosher-badge">
           <mat-icon>verified</mat-icon>
-          <span>כשר למהדרין</span>
+          <span>{{ 'FOOTER.KOSHER' | translate }}</span>
         </div>
       </div>
     </div>
@@ -98,15 +97,15 @@
     <div class="footer-divider"></div>
     <div class="footer-bottom">
       <p class="copyright">
-        © 2026 כל הזכויות שמורות ל-
-        <a href="https://www.jt-solutions.org/" target="_blank" rel="noopener noreferrer">J-T Solutions</a>.
+        © {{ currentYear }} {{ 'FOOTER.RIGHTS' | translate }}
       </p>
       <div class="bottom-links">
-        <a routerLink="/accessibility">הצהרת נגישות</a>
+        <a [routerLink]="navPath('/accessibility')">{{ 'FOOTER.ACCESSIBILITY' | translate }}</a>
         <span class="sep">|</span>
-        <a routerLink="/terms">תקנון האתר</a>
+        <a [routerLink]="navPath('/terms')">{{ 'FOOTER.TERMS' | translate }}</a>
+        <span class="sep">|</span>
+        <a [routerLink]="navPath('/privacy-policy')">{{ 'FOOTER.PRIVACY' | translate }}</a>
       </div>
     </div>
   </div>
 </footer>
-

@@ -21,7 +21,7 @@ $cream-text: #f8f1e6;
   align-items: center;
   padding: clamp(2.75rem, 6vw, 4.25rem) clamp(1.25rem, 4vw, 2rem) clamp(3rem, 6vw, 4rem);
   background: $white;
-  direction: rtl;
+  direction: inherit;
   font-family: 'Heebo', sans-serif;
   position: relative;
   overflow-x: hidden;
@@ -72,7 +72,7 @@ $cream-text: #f8f1e6;
 }
 
 .contact-hero__trust-item {
-  font-size: 0.78rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: $navy;
   padding: 0.35rem 0.75rem;
@@ -256,7 +256,7 @@ $cream-text: #f8f1e6;
 }
 
 .contact-info-label {
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: $gold-deep;
@@ -323,8 +323,8 @@ $cream-text: #f8f1e6;
   border-radius: 4px;
   font-size: 1rem;
   font-family: inherit;
-  text-align: right;
-  direction: rtl;
+  text-align: start;
+  direction: inherit;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   box-sizing: border-box;
   background: $cream;
@@ -355,13 +355,18 @@ $cream-text: #f8f1e6;
 
 .form-label-float {
   position: absolute;
-  right: 0.75rem;
+  inset-inline-end: 0.75rem;
+  inset-inline-start: auto;
   top: 0.9rem;
   font-size: 0.98rem;
   color: rgba($navy, 0.5);
   pointer-events: none;
   transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease;
   transform-origin: top right;
+}
+
+:host-context(html[dir='ltr']) .form-label-float {
+  transform-origin: top left;
 }
 
 .form-textarea {
@@ -514,7 +519,7 @@ $cream-text: #f8f1e6;
   }
 
   .contact-hero__trust-item {
-    font-size: 0.74rem;
+    font-size: 0.8125rem;
   }
 }
 

@@ -1,23 +1,25 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { filter, take } from 'rxjs/operators';
 import { AuthService, LoginCredentials, RegisterCredentials } from '../../services/auth.service';
 import { navigateAfterLogin } from '../../utils/auth-redirect';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { LocaleService } from '../../i18n/locale.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, TranslateModule],
   template: `
     <div class="login-container">
       <div class="login-card">
-        <a routerLink="/" class="back-home-link"><i class="fa-solid fa-arrow-right"></i> חזרה לדף הבית</a>
+        <a [routerLink]="localeService.localizePath('/')" class="back-home-link"><i class="fa-solid fa-arrow-right"></i> {{ 'AUTH.BACK_HOME' | translate }}</a>
         <div class="login-header">
           <div class="logo-container">
-            <h1 class="login-title">התחברות</h1>
-            <p class="login-subtitle">התחבר לחשבון שלך</p>
+            <h1 class="login-title">{{ 'AUTH.LOGIN_TITLE' | translate }}</h1>
+            <p class="login-subtitle">{{ 'AUTH.LOGIN_SUB' | translate }}</p>
           </div>
         </div>
 
@@ -38,8 +40,8 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
           <div class="user-info">
             <i class="fas fa-user-check" aria-hidden="true"></i>
             <div class="user-details">
-              <p class="user-name">{{ currentUser?.fullName || currentUser?.username || 'משתמש מחובר' }}</p>
-              <p class="user-role">{{ currentUser?.role === 'admin' ? 'מנהל' : currentUser?.role === 'user' ? 'לקוח' : 'משתמש' }}</p>
+              <p class="user-name">{{ currentUser?.fullName || currentUser?.username || ('AUTH.LOGGED_IN_USER' | translate) }}</p>
+              <p class="user-role">{{ roleLabel }}</p>
             </div>
           </div>
           <button
@@ -49,7 +51,7 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
             [disabled]="isLoading"
           >
             <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
-            התנתק
+            {{ 'AUTH.LOGOUT' | translate }}
           </button>
         </div>
 
@@ -58,7 +60,7 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
           <div class="form-group" [class.error]="errors.username || errorMessage">
             <label for="login-username" class="form-label">
               <i class="fas fa-envelope" aria-hidden="true"></i>
-              אימייל
+              {{ 'AUTH.EMAIL' | translate }}
             </label>
             <div class="input-wrapper">
               <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
@@ -81,7 +83,7 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
           <div class="form-group" [class.error]="errors.password || errorMessage">
             <label for="login-password" class="form-label">
               <i class="fas fa-lock" aria-hidden="true"></i>
-              סיסמה
+              {{ 'AUTH.PASSWORD' | translate }}
             </label>
             <div class="input-wrapper">
               <i class="fas fa-lock input-icon" aria-hidden="true"></i>
@@ -93,7 +95,7 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
                 [(ngModel)]="loginCredentials.password"
                 required
                 autocomplete="current-password"
-                placeholder="הזן סיסמה"
+                [placeholder]="'AUTH.PASSWORD_PLACEHOLDER' | translate"
                 [disabled]="isLoading"
               >
             </div>
@@ -108,15 +110,15 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
           >
             <span *ngIf="!isLoading">
               <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
-              התחבר
+              {{ 'AUTH.SUBMIT_LOGIN' | translate }}
             </span>
             <span *ngIf="isLoading">
               <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-              מתחבר...
+              {{ 'AUTH.LOGGING_IN' | translate }}
             </span>
           </button>
           <p class="auth-footer">
-            אין לך חשבון? <a routerLink="/register" class="auth-footer-link">להרשמה</a>
+            {{ 'AUTH.NO_ACCOUNT_CTA' | translate }} <a [routerLink]="localeService.localizePath('/register')" class="auth-footer-link">{{ 'AUTH.REGISTER_LINK' | translate }}</a>
           </p>
         </form>
       </div>
@@ -125,6 +127,9 @@ import { navigateAfterLogin } from '../../utils/auth-redirect';
   styleUrls: ['./login.component.scss']
 })
 export class LoginComponent implements OnInit {
+  readonly localeService = inject(LocaleService);
+  private translate = inject(TranslateService);
+
   isLoginMode = true; // Toggle between login and sign up
   isLoading = false;
   errorMessage = '';
@@ -145,6 +150,13 @@ export class LoginComponent implements OnInit {
     password: '',
     address: ''
   };
+
+  get roleLabel(): string {
+    const role = this.currentUser?.role;
+    if (role === 'admin') return this.translate.instant('AUTH.ROLE_ADMIN');
+    if (role === 'user') return this.translate.instant('AUTH.ROLE_CUSTOMER');
+    return this.translate.instant('AUTH.ROLE_USER');
+  }
 
   constructor(
     private authService: AuthService,
@@ -224,10 +236,10 @@ export class LoginComponent implements OnInit {
     // Validate
     if (!this.loginCredentials.username || !this.loginCredentials.password) {
       if (!this.loginCredentials.username) {
-        this.errors.username = 'אימייל נדרש';
+        this.errors.username = this.translate.instant('AUTH.EMAIL_REQUIRED');
       }
       if (!this.loginCredentials.password) {
-        this.errors.password = 'סיסמה נדרשת';
+        this.errors.password = this.translate.instant('AUTH.PASSWORD_REQUIRED');
       }
       // Continue anyway for debugging
       console.warn('⚠️ Missing credentials, but proceeding anyway...');
@@ -283,13 +295,13 @@ export class LoginComponent implements OnInit {
         this.errors.fullName = 'שם מלא נדרש';
       }
       if (!this.registerCredentials.username) {
-        this.errors.username = 'אימייל נדרש';
+        this.errors.username = this.translate.instant('AUTH.EMAIL_REQUIRED');
       }
       if (!this.registerCredentials.phone) {
         this.errors.phone = 'טלפון נדרש';
       }
       if (!this.registerCredentials.password) {
-        this.errors.password = 'סיסמה נדרשת';
+        this.errors.password = this.translate.instant('AUTH.PASSWORD_REQUIRED');
       } else if (this.registerCredentials.password.length < 3) {
         this.errors.password = 'סיסמה חייבת להכיל לפחות 3 תווים';
       }

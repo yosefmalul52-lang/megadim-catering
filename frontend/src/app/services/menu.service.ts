@@ -17,6 +17,7 @@ export interface PriceVariant {
 
 export interface PricingOption {
   label: string;  // e.g., "Small Tray", "Large Tray"
+  labelEn?: string;
   price: number;
   amount: string; // e.g., "10 people", "250 גרם"
 }
@@ -25,8 +26,10 @@ export interface MenuItem {
   _id?: string; // MongoDB ID from backend
   id?: string; // Alias for _id for frontend compatibility
   name: string;
+  nameEn?: string;
   category: string;
   description: string;
+  descriptionEn?: string;
   price?: number; // Optional: for backward compatibility or fixed-price items
   pricePer100g?: number; // Optional: price per 100 grams (for admin-controlled display)
   pricingVariants?: PriceVariant[]; // Array of size/price variants (legacy)

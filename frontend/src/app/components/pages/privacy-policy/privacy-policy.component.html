@@ -1,5 +1,5 @@
-<div class="legal-page" dir="rtl">
-  <div class="container">
+<div class="legal-page">
+  <div class="container" *ngIf="!localeService.isEnglish">
     <h1>מדיניות פרטיות</h1>
     <p class="intro">קייטרינג מגדים מכבד את פרטיותך. מדיניות זו מתארת אילו נתונים אנו אוספים, כיצד אנו משתמשים בהם, כיצד אנו שומרים עליהם ומהן זכויותיך לפי חוק הגנת הפרטיות.</p>
 
@@ -60,5 +60,68 @@
     <p>למימוש הזכויות נא לפנות אלינו בכתב (אימייל או טופס יצירת קשר באתר). נטפל בבקשה בתוך פרק זמן סביר כפי שנדרש על פי החוק.</p>
 
     <p class="updated">עדכון אחרון: מדיניות זו עשויה להתעדכן מעת לעת. שינויים משמעותיים יפורסמו בעמוד זה.</p>
+  </div>
+
+  <div class="container" *ngIf="localeService.isEnglish">
+    <h1>Privacy Policy</h1>
+    <p class="intro">Megadim Catering respects your privacy. This policy describes what data we collect, how we use it, how we protect it, and your rights under the Israeli Privacy Protection Law.</p>
+
+    <h2>Information we collect</h2>
+    <p>We collect information you voluntarily provide when registering, ordering or contacting us:</p>
+    <ul>
+      <li>Full name and contact details (phone, email)</li>
+      <li>Delivery or pickup address (city, street, house number)</li>
+      <li>Order details: products, event date, notes and preferences</li>
+      <li>Order history and service interactions (for customer service and service improvement)</li>
+    </ul>
+    <p>We do not collect sensitive information (such as religion or origin) beyond what you provide in the context of kosher requirements or an event.</p>
+
+    <h2>Use of information</h2>
+    <p>Information is used only for legitimate business purposes:</p>
+    <ul>
+      <li>Fulfilling and completing orders, including delivery and pickup coordination</li>
+      <li>Customer service, responding to inquiries, and handling complaints or refunds</li>
+      <li>Necessary communications about the order (confirmations, delivery updates, changes)</li>
+      <li>Improving the service and website (using aggregated, non-identifying data, subject to law)</li>
+    </ul>
+    <p>We do not use your personal information for proactive marketing (spam) without your explicit consent.</p>
+
+    <h2>Information security and retention</h2>
+    <p>We take reasonable measures to protect information:</p>
+    <ul>
+      <li>Secure infrastructure (HTTPS) for data transfer between browser and server</li>
+      <li>User authentication via secure HttpOnly cookies – the token is not accessible to scripts in the browser, reducing risk of theft or leakage of login details</li>
+      <li>Data storage on servers with restricted access and encryption consistent with industry practice</li>
+    </ul>
+    <p>We retain information as long as needed for orders, customer service and legal obligations (including accounts and documents). Afterwards, data may be deleted or anonymized according to internal policy and your requests.</p>
+
+    <h2>Cookies</h2>
+    <p>The website uses cookies for essential operations:</p>
+    <ul>
+      <li><strong>Authentication cookies (HttpOnly):</strong> to keep you signed in securely – the browser sends them automatically to the server; site scripts cannot read the cookie contents</li>
+      <li><strong>Shopping cart:</strong> storing cart items during browsing (cookie or local storage) so your order is not lost</li>
+      <li><strong>Site preferences:</strong> such as language or cookie consent (where relevant)</li>
+    </ul>
+    <p>We do not use cookies for cross-site advertising tracking without your consent. Continued use after the relevant notice constitutes consent to the cookies described in this policy.</p>
+
+    <h2>Sharing with third parties</h2>
+    <p>We do not sell or rent your personal information. Sharing occurs only when required to fulfill the order or by law:</p>
+    <ul>
+      <li><strong>Logistics and delivery providers:</strong> name, phone and address – only to deliver the order</li>
+      <li><strong>Payment channels:</strong> details required to process payment (per the payment provider's policy). <strong>We undertake not to store or transfer your full credit-card details beyond what is required and secured for charging.</strong></li>
+      <li><strong>Lawful authorities:</strong> when required by law</li>
+    </ul>
+    <p>We choose providers that commit to protecting information and use it only for the purpose for which it was shared.</p>
+
+    <h2>User rights</h2>
+    <p>Under the Privacy Protection Law, you have the right to:</p>
+    <ul>
+      <li><strong>Access:</strong> request to see which personal data about you we hold</li>
+      <li><strong>Correction:</strong> request correction of inaccurate or outdated information</li>
+      <li><strong>Deletion:</strong> request deletion of information, subject to legal limits (e.g. retention for accounts or claims)</li>
+    </ul>
+    <p>To exercise these rights, contact us in writing (email or the contact form). We will handle the request within a reasonable time as required by law.</p>
+
+    <p class="updated">Last update: This policy may be updated from time to time. Significant changes will be published on this page.</p>
   </div>
 </div>

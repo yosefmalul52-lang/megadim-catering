@@ -8,11 +8,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { EventsCatalogService, EventsCatalogDto } from '../../../services/events-catalog.service';
 import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { environment } from '../../../../environments/environment';
+import { LocaleService } from '../../../i18n/locale.service';
+import { eventsDisplayLabel } from './events-catering-labels';
 import {
   calculatePricePerPortion,
   calculateTotalEventPrice,
@@ -36,14 +39,21 @@ import {
 @Component({
   selector: 'app-events-catering',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatNativeDateModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatNativeDateModule, PageBannerComponent, PagePopupComponent, TranslateModule],
   templateUrl: './events-catering.component.html',
   styleUrls: ['./events-catering.component.scss']
 })
 export class EventsCateringComponent implements OnInit {
   private http = inject(HttpClient);
   private eventsCatalogService = inject(EventsCatalogService);
+  private translate = inject(TranslateService);
   settingsService = inject(SiteSettingsService);
+  readonly localeService = inject(LocaleService);
+
+  /** Display Hebrew catalog strings in EN when locale is English; values stay Hebrew for the kitchen. */
+  label(he: string): string {
+    return eventsDisplayLabel(he, this.localeService.locale);
+  }
 
   basePackage = { ...EVENTS_BASE_PACKAGE };
   basePrice = EVENTS_BASE_PRICE;
@@ -68,6 +78,17 @@ export class EventsCateringComponent implements OnInit {
 
   readonly EVENT_TYPES = [
     'חתונה', 'בר / בת מצווה', 'אירוע עסקי', 'יום הולדת', 'ברית / קידוש', 'סיום / מסיבה', 'אחר'
+  ];
+
+  /** Hebrew values for backend; EN labels via translate keys. */
+  readonly eventTypeOptions = [
+    { value: 'חתונה', labelKey: 'EVENTS.TYPE_WEDDING' },
+    { value: 'בר / בת מצווה', labelKey: 'EVENTS.TYPE_BNM' },
+    { value: 'אירוע עסקי', labelKey: 'EVENTS.TYPE_CORP' },
+    { value: 'יום הולדת', labelKey: 'EVENTS.TYPE_BDAY' },
+    { value: 'ברית / קידוש', labelKey: 'EVENTS.TYPE_BRIT' },
+    { value: 'סיום / מסיבה', labelKey: 'EVENTS.TYPE_PARTY' },
+    { value: 'אחר', labelKey: 'EVENTS.TYPE_OTHER' }
   ];
 
   settings: SiteSettings | null = null;
@@ -329,15 +350,17 @@ export class EventsCateringComponent implements OnInit {
     this.submitError = '';
 
     const missing: string[] = [];
-    if (!this.orderForm.fullName?.trim()) missing.push('שם מלא');
-    if (!this.orderForm.phone?.trim()) missing.push('טלפון');
-    if (!this.orderForm.email?.trim()) missing.push('אימייל');
-    if (!this.orderForm.guestCount || this.orderForm.guestCount < 1) missing.push('מספר אורחים');
-    if (!this.orderForm.eventType?.trim()) missing.push('סוג האירוע');
+    if (!this.orderForm.fullName?.trim()) missing.push(this.translate.instant('EVENTS.FIELD_FULL_NAME'));
+    if (!this.orderForm.phone?.trim()) missing.push(this.translate.instant('EVENTS.FIELD_PHONE'));
+    if (!this.orderForm.email?.trim()) missing.push(this.translate.instant('EVENTS.FIELD_EMAIL'));
+    if (!this.orderForm.guestCount || this.orderForm.guestCount < 1) {
+      missing.push(this.translate.instant('EVENTS.FIELD_GUESTS'));
+    }
+    if (!this.orderForm.eventType?.trim()) missing.push(this.translate.instant('EVENTS.FIELD_EVENT_TYPE'));
 
     if (this.eventDateControl && !this.dateFilter(this.eventDateControl)) {
-      this.eventDateError = 'ניתן לבחור כל תאריך מהיום ומעלה, חוץ משבת.';
-      this.submitError = this.eventDateError;
+      this.eventDateError = this.translate.instant('EVENTS.ERR_DATE');
+      this.submitError = this.eventDateError || this.translate.instant('EVENTS.ERR_DATE');
       return;
     }
 
@@ -345,15 +368,17 @@ export class EventsCateringComponent implements OnInit {
       this.orderForm.eventDate = this.formatDateForInput(this.eventDateControl);
     }
 
-    if (!this.orderForm.eventDate?.trim()) missing.push('תאריך האירוע');
+    if (!this.orderForm.eventDate?.trim()) missing.push(this.translate.instant('EVENTS.FIELD_EVENT_DATE'));
 
     if (this.isReceptionSelected && !this.receptionTier) {
-      this.submitError = 'נא לבחור רמת בר קבלת פנים';
+      this.submitError = this.translate.instant('EVENTS.ERR_RECEPTION_TIER');
       return;
     }
 
     if (missing.length > 0) {
-      this.submitError = `נא למלא את השדות הבאים: ${missing.join(', ')}`;
+      this.submitError = this.translate.instant('EVENTS.ERR_REQUIRED_FIELDS', {
+        fields: missing.join(', ')
+      });
       return;
     }
 

@@ -3,21 +3,29 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { TranslateModule } from '@ngx-translate/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
+import { LocaleService } from '../../../i18n/locale.service';
+import { localizeNavPath } from '../../../i18n/locale.util';
 import { CONTACT_PHONE_DISPLAY, CONTACT_TEL_HREF, CONTACT_WHATSAPP_HREF } from '../../../constants/contact.constants';
 
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule],
+  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, TranslateModule],
   templateUrl: './footer.component.html',
   styleUrls: ['./footer.component.scss']
 })
 export class FooterComponent implements OnInit {
   settingsService = inject(SiteSettingsService);
+  private localeService = inject(LocaleService);
   currentYear = new Date().getFullYear();
   
   settings: SiteSettings | null = null;
+
+  navPath(path: string): string {
+    return localizeNavPath(path, this.localeService.locale);
+  }
 
   ngOnInit(): void {
     // Fetch site settings

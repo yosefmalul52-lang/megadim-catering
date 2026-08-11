@@ -33,9 +33,11 @@ type EditableOrderItem = {
   priceSource?: 'catalog' | 'admin';
   /**
    * Manager quantity / prep text (stored as item.description).
-   * On events kitchen sheets this is shown in the quantity column.
+   * On events + Shabbat kitchen sheets this is shown in the quantity column.
    */
   kitchenNotes?: string;
+  /** Free-text kitchen notes (stored as item.kitchenRemark). */
+  kitchenRemark?: string;
   selectedOption?: SelectedOptionPayload;
 };
 
@@ -43,8 +45,10 @@ type KitchenPrepLine = {
   name: string;
   category: string;
   quantity: number;
-  /** Manager quantity text (item.description) — shown as כמויות on events. */
+  /** Manager quantity text (item.description) — shown as כמויות on events/Shabbat. */
   kitchenNotes: string;
+  /** Free-text kitchen notes (item.kitchenRemark). */
+  kitchenRemark: string;
 };
 
 type SearchResultItem = {
@@ -148,6 +152,11 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   isEditingShippingCost = false;
   editingShippingCostValue = 0;
   isSavingShippingCost = false;
+  isEditingPricePerPortion = false;
+  editingPricePerPortionValue = 0;
+  isEditingFoodSubtotal = false;
+  editingFoodSubtotalValue = 0;
+  isSavingCateringPricing = false;
   /** True while a capture request is in flight. */
   isCapturing = false;
   /** True while a void request is in flight. */
@@ -892,9 +901,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return false;
   }
 
-  /** Retail (cart/checkout) orders support manual shipping cost edits. */
+  /** Retail + catering delivery orders support manual shipping cost edits. */
   canEditShippingCost(order: Order | null): boolean {
-    return !!order && !this.isCateringOrder(order);
+    if (!order) return false;
+    if (this.isCateringOrder(order)) {
+      const dt = String(order.customerDetails?.deliveryType || '').trim();
+      return dt === 'delivery';
+    }
+    return true;
   }
 
   getShippingCost(order: Order | null): number {
@@ -964,6 +978,170 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Catering (Shabbat/events): show & edit package pricing. */
+  canEditCateringPricing(order: Order | null | undefined): boolean {
+    return !!order && this.isCateringOrder(order);
+  }
+
+  getPricePerPortion(order: Order | null | undefined): number {
+    if (!order) return 0;
+    const fromCd = Number(order.customerDetails?.pricePerPortion);
+    if (Number.isFinite(fromCd) && fromCd > 0) return fromCd;
+    if (order.cateringKind === 'events') {
+      const sub = Number(order.subtotal);
+      if (Number.isFinite(sub) && sub > 0 && sub < 500) return sub;
+    }
+    return 0;
+  }
+
+  getFoodSubtotal(order: Order | null | undefined): number {
+    if (!order) return 0;
+    const sub = Number(order.subtotal ?? order.customerDetails?.subtotal);
+    if (Number.isFinite(sub) && sub >= 0) {
+      if (order.cateringKind === 'events') {
+        const ppp = this.getPricePerPortion(order);
+        const total = Number(order.totalPrice) || 0;
+        const delivery = this.getShippingCost(order);
+        if (ppp > 0 && Math.abs(sub - ppp) < 0.01 && total > ppp) {
+          return Math.max(0, total - delivery);
+        }
+      }
+      return sub;
+    }
+    return Math.max(0, (Number(order.totalPrice) || 0) - this.getShippingCost(order));
+  }
+
+  startEditingPricePerPortion(): void {
+    if (!this.selectedOrder || !this.canEditCateringPricing(this.selectedOrder)) return;
+    this.editingPricePerPortionValue = this.getPricePerPortion(this.selectedOrder);
+    this.isEditingPricePerPortion = true;
+    this.isEditingFoodSubtotal = false;
+  }
+
+  cancelEditingPricePerPortion(): void {
+    this.isEditingPricePerPortion = false;
+  }
+
+  startEditingFoodSubtotal(): void {
+    if (!this.selectedOrder || !this.canEditCateringPricing(this.selectedOrder)) return;
+    this.editingFoodSubtotalValue = this.getFoodSubtotal(this.selectedOrder);
+    this.isEditingFoodSubtotal = true;
+    this.isEditingPricePerPortion = false;
+  }
+
+  cancelEditingFoodSubtotal(): void {
+    this.isEditingFoodSubtotal = false;
+  }
+
+  savePricePerPortion(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.canEditCateringPricing(order) || this.isSavingCateringPricing) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId) return;
+    const rate = Number(this.editingPricePerPortionValue);
+    if (!Number.isFinite(rate) || rate < 0) {
+      this.errorMessage = 'מחיר למנה חייב להיות מספר שאינו שלילי';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+    this.isSavingCateringPricing = true;
+    this.orderService.updateCateringPricing(orderId, { pricePerPortion: rate }).subscribe({
+      next: (updated) => {
+        this.isSavingCateringPricing = false;
+        this.isEditingPricePerPortion = false;
+        const normalized: Order = { ...updated, id: (updated._id || updated.id || '').toString() };
+        this.selectedOrder = normalized;
+        this._patchOrderInLists(orderId, {
+          subtotal: normalized.subtotal,
+          totalPrice: normalized.totalPrice,
+          deliveryFee: normalized.deliveryFee,
+          customerDetails: normalized.customerDetails,
+          adminPriceOverride: normalized.adminPriceOverride
+        });
+        if (normalized.paymentStatus === 'authorized') {
+          this.authorizedAmountMismatchWarning = true;
+        }
+        this.successMessage = 'מחיר למנה עודכן והסכום חושב מחדש';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.isSavingCateringPricing = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון מחיר למנה';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
+  saveFoodSubtotal(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.canEditCateringPricing(order) || this.isSavingCateringPricing) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId) return;
+    const food = Number(this.editingFoodSubtotalValue);
+    if (!Number.isFinite(food) || food < 0) {
+      this.errorMessage = 'סכום ביניים חייב להיות מספר שאינו שלילי';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+    this.isSavingCateringPricing = true;
+    this.orderService.updateCateringPricing(orderId, { foodSubtotal: food }).subscribe({
+      next: (updated) => {
+        this.isSavingCateringPricing = false;
+        this.isEditingFoodSubtotal = false;
+        const normalized: Order = { ...updated, id: (updated._id || updated.id || '').toString() };
+        this.selectedOrder = normalized;
+        this._patchOrderInLists(orderId, {
+          subtotal: normalized.subtotal,
+          totalPrice: normalized.totalPrice,
+          deliveryFee: normalized.deliveryFee,
+          customerDetails: normalized.customerDetails,
+          adminPriceOverride: normalized.adminPriceOverride
+        });
+        if (normalized.paymentStatus === 'authorized') {
+          this.authorizedAmountMismatchWarning = true;
+        }
+        this.successMessage = 'סכום ההזמנה עודכן';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.isSavingCateringPricing = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון סכום ההזמנה';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
+  recalculateShabbatPricingFromCatalog(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.isShabbatCateringOrder(order) || this.isSavingCateringPricing) return;
+    const orderId = (order._id || order.id || '').toString();
+    if (!orderId) return;
+    this.isSavingCateringPricing = true;
+    this.orderService.updateCateringPricing(orderId, { recalculateFromCatalog: true }).subscribe({
+      next: (updated) => {
+        this.isSavingCateringPricing = false;
+        this.isEditingPricePerPortion = false;
+        this.isEditingFoodSubtotal = false;
+        const normalized: Order = { ...updated, id: (updated._id || updated.id || '').toString() };
+        this.selectedOrder = normalized;
+        this._patchOrderInLists(orderId, {
+          subtotal: normalized.subtotal,
+          totalPrice: normalized.totalPrice,
+          deliveryFee: normalized.deliveryFee,
+          customerDetails: normalized.customerDetails,
+          adminPriceOverride: normalized.adminPriceOverride
+        });
+        this.successMessage = 'הסכום חושב מחדש לפי קטלוג שבת';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.isSavingCateringPricing = false;
+        this.errorMessage = err?.error?.message || 'שגיאה בחישוב מחדש מהקטלוג';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
+  }
+
   /** Package/pricing meta rows — not kitchen dishes (mirrors backend isKitchenPackageMetaLine). */
   private isKitchenPackageMetaLine(item: { name?: string; category?: string } | null | undefined): boolean {
     const cat = String(item?.category || '').trim();
@@ -983,9 +1161,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   }
 
   /** True if order is from the Shabbat/holiday catering form (cateringKind:'shabbat' or old orders without cateringKind). */
-  isShabbatCateringOrder(order: Order | null): boolean {
+  isShabbatCateringOrder(order: Order | null | undefined): boolean {
     if (!order) return false;
     return this.isCateringOrder(order) && !this.isEventCateringOrder(order);
+  }
+
+  /**
+   * Events + Shabbat catering: manager text in item.description is the kitchen quantity column.
+   */
+  usesManagerKitchenQty(order: Order | null | undefined): boolean {
+    return this.isEventCateringOrder(order) || this.isShabbatCateringOrder(order);
   }
 
   /** Shabbat/holiday or events catering — kitchen prep sheet applies to both. */
@@ -1518,7 +1703,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Save kitchen prep notes (stored on each order item's description field). */
+  /** Save kitchen prep notes (description = qty text; kitchenRemark = free notes). */
   saveKitchenPrepNotes(): void {
     const order = this.selectedOrder;
     if (!order || !this.supportsKitchenPrepSheet(order)) return;
@@ -1529,8 +1714,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     if (!sourceItems.length) return;
 
     const prepByKey = new Map<string, string>();
+    const remarkByKey = new Map<string, string>();
     this.kitchenPrepLines.forEach((line) => {
       prepByKey.set(`${line.category}::${line.name}`, line.kitchenNotes);
+      remarkByKey.set(`${line.category}::${line.name}`, line.kitchenRemark);
     });
 
     const payloadItems = sourceItems.map((item) => {
@@ -1538,7 +1725,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       const category = String((item as { category?: string }).category || '').trim() || 'כללי';
       const key = `${category}::${name}`;
       const existingDesc = String((item as { description?: string }).description || '').trim();
+      const existingRemark = String((item as { kitchenRemark?: string }).kitchenRemark || '').trim();
       const fromPrep = prepByKey.has(key) ? (prepByKey.get(key) || '').trim() : existingDesc;
+      const fromRemark = remarkByKey.has(key) ? (remarkByKey.get(key) || '').trim() : existingRemark;
       // Notes-only: omit selectedOption so the server preserves the stored size/weight
       // snapshot without re-matching catalog options (avoids collapsing 500→250).
       return {
@@ -1547,7 +1736,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         quantity: Number(item.quantity || 1),
         category,
         price: Number((item as { price?: number }).price || 0),
-        description: this.isKitchenPackageMetaLine(item) ? existingDesc || undefined : fromPrep || undefined
+        description: this.isKitchenPackageMetaLine(item) ? existingDesc || undefined : fromPrep || undefined,
+        kitchenRemark: this.isKitchenPackageMetaLine(item) ? existingRemark : fromRemark
       };
     });
 
@@ -1563,7 +1753,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         };
         replaceInList(this.orders);
         this.refreshKitchenPrepLines();
-        this.successMessage = this.isEventCateringOrder(order) ? 'הכמויות נשמרו' : 'הערות המטבח נשמרו';
+        this.successMessage = this.usesManagerKitchenQty(order) ? 'הכמויות וההערות נשמרו' : 'הערות המטבח נשמרו';
         setTimeout(() => (this.successMessage = ''), 3000);
       },
       error: () => {
@@ -1732,18 +1922,27 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       : 'דוח הכנה למטבח — קייטרינג שבת/חג';
 
     const prepByKey = new Map<string, string>();
+    const remarkByKey = new Map<string, string>();
     const sameOrder =
       this.selectedOrder &&
       (this.selectedOrder._id || this.selectedOrder.id)?.toString() === (order._id || order.id)?.toString();
     if (sameOrder) {
       this.kitchenPrepLines.forEach((line) => {
         prepByKey.set(`${line.category}::${line.name}`, line.kitchenNotes);
+        remarkByKey.set(`${line.category}::${line.name}`, line.kitchenRemark);
       });
     }
 
     const itemsByCategory: Record<
       string,
-      Array<{ name: string; sizeLabel: string; notes: string; missingChoice: boolean; qty: number }>
+      Array<{
+        name: string;
+        sizeLabel: string;
+        notes: string;
+        kitchenRemark: string;
+        missingChoice: boolean;
+        qty: number;
+      }>
     > = {};
     (order.items || []).forEach((item) => {
       const cat = String((item as { category?: string }).category || 'כללי');
@@ -1753,6 +1952,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       const notes =
         prepByKey.get(key) ||
         String((item as { description?: string }).description || '').trim();
+      const kitchenRemark =
+        remarkByKey.get(key) ??
+        String((item as { kitchenRemark?: string }).kitchenRemark || '').trim();
       const so = (item as { selectedOption?: { label?: string; amount?: string; missingForReview?: boolean } })
         .selectedOption;
       let sizeLabel = [so?.label, so?.amount && so.amount !== so.label ? so.amount : '']
@@ -1772,6 +1974,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         name: this.displayItemBaseName({ name }),
         sizeLabel,
         notes,
+        kitchenRemark,
         missingChoice,
         qty: this.effectiveItemQuantity(order, item)
       });
@@ -1803,7 +2006,15 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     const sectionOrder: MealSection[] = ['evening', 'morning', 'salads', 'third', 'other'];
     const sectionItems: Record<
       MealSection,
-      Array<{ category: string; name: string; sizeLabel: string; notes: string; missingChoice: boolean; qty: number }>
+      Array<{
+        category: string;
+        name: string;
+        sizeLabel: string;
+        notes: string;
+        kitchenRemark: string;
+        missingChoice: boolean;
+        qty: number;
+      }>
     > = {
       evening: [],
       morning: [],
@@ -1820,6 +2031,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           name: row.name,
           sizeLabel: row.sizeLabel,
           notes: row.notes,
+          kitchenRemark: row.kitchenRemark,
           missingChoice: row.missingChoice,
           qty: row.qty
         });
@@ -1831,13 +2043,16 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     let totalItemRows = 0;
     let sectionsWithItems = 0;
 
-    const resolveKitchenQty = (
+    const resolveKitchenQtyDisplay = (
       section: MealSection,
-      itemQty: number
-    ): number | string => {
-      // Prefer concrete line quantity (portion-scaled). Fall back to section portions only if line qty missing.
-      if (Number.isFinite(itemQty) && itemQty > 0) return itemQty;
-      return this.getKitchenRowPortionQty(section, portions, isEvents, guestCount);
+      row: { notes: string; qty: number }
+    ): string => {
+      // Shabbat + events: manager quantity text in description → quantity column.
+      const managerText = String(row.notes || '').trim();
+      if (managerText) return managerText;
+      if (Number.isFinite(row.qty) && row.qty > 0) return String(row.qty);
+      const fallback = this.getKitchenRowPortionQty(section, portions, isEvents, guestCount);
+      return fallback != null && fallback !== '' ? String(fallback) : '—';
     };
 
     const renderTable = (section: MealSection): string => {
@@ -1847,9 +2062,10 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           const itemRows = rows
         .map((row) => {
           totalItemRows += 1;
-          const qty = resolveKitchenQty(section, row.qty);
-          // Notes column blank — kitchen handwriting on print.
-          const sizeCell = isEvents
+          const qty = resolveKitchenQtyDisplay(section, row);
+          const notesText = String(row.kitchenRemark || '').trim();
+          // Shabbat catering: quantities live in qty column — no size/option column.
+          const sizeCell = isEvents || isShabbat
             ? ''
             : `<td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>`;
           return `<tr>
@@ -1857,8 +2073,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             <td class="done-col">☐</td>
             <td>${this.escapeKitchenHtml(row.name)}${row.missingChoice ? ' <strong style="color:#8a1f11">⚠ בחירה חסרה</strong>' : ''}</td>
             ${sizeCell}
-            <td class="qty-col">${qty}</td>
-            <td class="notes-col"></td>
+            <td class="qty-col">${this.escapeKitchenHtml(qty)}</td>
+            <td class="notes-col">${this.escapeKitchenHtml(notesText)}</td>
           </tr>`;
         })
         .join('');
@@ -1868,13 +2084,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         body = `<tr>
           <td class="done-col">☐</td>
           <td class="done-col">☐</td>
-          <td colspan="${isEvents ? 3 : 4}">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
+          <td colspan="${isEvents || isShabbat ? 3 : 4}">סעודה שלישית: כן — לפי ${portions.total || 'סה"כ'} מנות</td>
         </tr>`;
         totalItemRows += 1;
       }
 
       sectionsWithItems += 1;
-      const sizeHeader = isEvents ? '' : '<th>גודל / אפשרות</th>';
+      const sizeHeader = isEvents || isShabbat ? '' : '<th>גודל / אפשרות</th>';
       return `
         <div class="meal-section">
           <h2>${sectionLabels[section]}</h2>
@@ -1906,13 +2122,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
               const itemRows = catItems
                 .map((row) => {
                   totalItemRows += 1;
-                  // Events: manager quantity text → quantity column; notes blank for kitchen handwriting.
+                  // Events: manager quantity text → quantity column.
                   const qty = isEvents
                     ? row.notes?.trim() ||
                       (Number.isFinite(row.qty) && row.qty > 0 ? String(row.qty) : '—')
                     : Number.isFinite(row.qty) && row.qty > 0
                       ? row.qty
                       : '—';
+                  const notesText = String(row.kitchenRemark || '').trim();
                   const sizeCell = isEvents
                     ? ''
                     : `<td>${this.escapeKitchenHtml(row.sizeLabel || '—')}</td>`;
@@ -1922,7 +2139,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
                     <td>${this.escapeKitchenHtml(row.name)}${row.missingChoice ? ' <strong style="color:#8a1f11">⚠ בחירה חסרה</strong>' : ''}</td>
                     ${sizeCell}
                     <td class="qty-col">${typeof qty === 'string' ? this.escapeKitchenHtml(qty) : qty}</td>
-                    <td class="notes-col"></td>
+                    <td class="notes-col">${this.escapeKitchenHtml(notesText)}</td>
                   </tr>`;
                 })
                 .join('');
@@ -2031,7 +2248,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         tr.cat-row td{background:#f8f8f8;font-weight:700}
         .done-col{width:40px;text-align:center;font-size:16px;font-weight:700}
         .qty-col{width:88px;text-align:center;white-space:nowrap;font-weight:800;font-size:1.05rem}
-        .notes-col{min-width:140px;min-height:28px;height:28px}
+        .notes-col{min-width:${isShabbat ? '220px' : '140px'};min-height:36px;height:auto}
         .toolbar{margin:12px 0;display:flex;gap:8px}
         .toolbar button{padding:8px 14px;border:1px solid #111;background:#fff;cursor:pointer;font-family:inherit}
         @media print{
@@ -2273,6 +2490,24 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     if (!this.availableMenuItems.length) {
       this.loadAdminMenuCatalog();
     }
+    // Legacy Shabbat catering quotes saved as ₪0 before catalog pricing — heal on open.
+    this.maybeAutoRecalculateShabbatPricing(order);
+  }
+
+  private maybeAutoRecalculateShabbatPricing(order: Order): void {
+    if (!this.isShabbatCateringOrder(order)) return;
+    const total = Number(order.totalPrice) || 0;
+    const food = this.getFoodSubtotal(order);
+    const portions = Math.max(
+      0,
+      Math.trunc(
+        Number(order.numberOfPortions) ||
+          (Number(order.portionsEvening) || 0) + (Number(order.portionsMorning) || 0) ||
+          0
+      )
+    );
+    if (total > 0 || food > 0 || portions <= 0 || this.isSavingCateringPricing) return;
+    this.recalculateShabbatPricingFromCatalog();
   }
 
   /** Admin order editor: include unavailable products (tagged in search UI). */
@@ -2348,7 +2583,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         name: String(item.name || ''),
         category: String((item as { category?: string }).category || 'כללי'),
         quantity: this.effectiveItemQuantity(this.selectedOrder, item),
-        kitchenNotes: String((item as { description?: string }).description || '').trim()
+        kitchenNotes: String((item as { description?: string }).description || '').trim(),
+        kitchenRemark: String((item as { kitchenRemark?: string }).kitchenRemark || '').trim()
       }));
   }
 
@@ -2483,6 +2719,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     this.isEditingItems = false;
     this.isEditingShippingCost = false;
     this.isSavingShippingCost = false;
+    this.isEditingPricePerPortion = false;
+    this.isEditingFoodSubtotal = false;
+    this.isSavingCateringPricing = false;
     this.editableItems = [];
     this.kitchenPrepLines = [];
     this.searchTerm = '';
@@ -2506,6 +2745,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         unitPrice: Number.isFinite(Number((item as any).price)) ? Number((item as any).price) : 0,
         priceSource: existingSource === 'admin' ? 'admin' : 'catalog',
         kitchenNotes: String((item as any).description || '').trim(),
+        kitchenRemark: String((item as any).kitchenRemark || '').trim(),
         selectedOption
       };
     });
@@ -2768,19 +3008,34 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
    */
   getCateringViewItemsByCategory(): {
     category: string;
-    items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
+    items: {
+      name: string;
+      quantity: number;
+      category: string;
+      sizeLabel?: string;
+      kitchenNotes?: string;
+      kitchenRemark?: string;
+    }[];
   }[] {
     if (!this.selectedOrder) return [];
     const categoryOrder = this.getCateringCategoryOrder(this.selectedOrder);
     const grouped: Record<
       string,
-      { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[]
+      {
+        name: string;
+        quantity: number;
+        category: string;
+        sizeLabel?: string;
+        kitchenNotes?: string;
+        kitchenRemark?: string;
+      }[]
     > = {};
     (this.selectedOrder.items || []).forEach((item) => {
       if (this.isEventCateringOrder(this.selectedOrder) && this.isKitchenPackageMetaLine(item)) return;
       const cat = (item as any).category || 'כללי';
       if (!grouped[cat]) grouped[cat] = [];
       const kitchenNotes = String((item as any).description || '').trim();
+      const kitchenRemark = String((item as any).kitchenRemark || '').trim();
       const so = this.selectedOptionPayloadFromItem(item);
       const sizeLabel = so
         ? [so.label, so.amount && so.amount !== so.label ? so.amount : ''].filter(Boolean).join(' · ') ||
@@ -2791,7 +3046,8 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         quantity: Number(item.quantity || 0),
         category: cat,
         sizeLabel,
-        kitchenNotes: kitchenNotes || undefined
+        kitchenNotes: kitchenNotes || undefined,
+        kitchenRemark: kitchenRemark || undefined
       });
     });
     for (const cat of Object.keys(grouped)) {
@@ -2805,7 +3061,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
     const result: {
       category: string;
-      items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
+      items: {
+        name: string;
+        quantity: number;
+        category: string;
+        sizeLabel?: string;
+        kitchenNotes?: string;
+        kitchenRemark?: string;
+      }[];
     }[] = [];
     categoryOrder.forEach((cat) => {
       if (grouped[cat]) result.push({ category: cat, items: grouped[cat] });
@@ -2875,7 +3138,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     legacy?: boolean;
     categories: {
       category: string;
-      items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
+      items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string; kitchenRemark?: string }[];
     }[];
   }> {
     if (!this.selectedOrder || !this.isShabbatCateringOrder(this.selectedOrder)) return [];
@@ -2901,7 +3164,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       legacy?: boolean;
       categories: {
         category: string;
-        items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string }[];
+        items: { name: string; quantity: number; category: string; sizeLabel?: string; kitchenNotes?: string; kitchenRemark?: string }[];
       }[];
     }> = [];
 
@@ -3126,6 +3389,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             price: Number(item.unitPrice ?? item.selectedOption?.price ?? 0),
             priceSource: item.priceSource === 'admin' ? 'admin' : 'catalog',
             description: (item.kitchenNotes || '').trim() || undefined,
+            kitchenRemark: (item.kitchenRemark || '').trim(),
             selectedOption: mapOption(item)
           }))
       : this.editableItems
@@ -3137,6 +3401,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
             price: Number(item.unitPrice ?? item.selectedOption?.price ?? 0),
             priceSource: item.priceSource === 'admin' ? 'admin' : 'catalog',
             description: (item.kitchenNotes || '').trim() || undefined,
+            kitchenRemark: (item.kitchenRemark || '').trim(),
             selectedOption: mapOption(item)
           }))
           .filter((item) => item.productId && item.quantity > 0);

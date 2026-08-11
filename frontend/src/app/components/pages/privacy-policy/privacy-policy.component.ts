@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { LocaleService } from '../../../i18n/locale.service';
 
 @Component({
   selector: 'app-privacy-policy',
@@ -9,4 +10,6 @@ import { RouterModule } from '@angular/router';
   templateUrl: './privacy-policy.component.html',
   styleUrls: ['./privacy-policy.component.scss']
 })
-export class PrivacyPolicyComponent {}
+export class PrivacyPolicyComponent {
+  readonly localeService = inject(LocaleService);
+}

@@ -54,10 +54,10 @@ const getAdminKey = (): string => (environment as { adminSummariesKey?: string }
       <div *ngFor="let s of filtered()" style="background:#fff;border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
           <div>
-            <div style="font-weight:700;color:#0E1A24;">{{ s.title || ('שיחה ' + s.conversationId) }}</div>
-            <div style="font-size:12px;color:#666;">עודכן: {{ s.updatedAt || '-' }}</div>
+            <div style="font-weight:700;color:#1F2D3D;">{{ s.title || ('שיחה ' + s.conversationId) }}</div>
+            <div style="font-size: 13px;color:#666;">עודכן: {{ s.updatedAt || '-' }}</div>
           </div>
-          <div style="text-align:left;font-size:12px;color:#333;">
+          <div style="text-align:left;font-size: 13px;color:#333;">
             {{ s.userIntent || 'אחר' }} | {{ s.extracted?.guestCount || '-' }} אורחים | {{ s.extracted?.eventDate || '-' }} | {{ s.extracted?.location || '-' }}
           </div>
         </div>

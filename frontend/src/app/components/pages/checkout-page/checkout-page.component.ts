@@ -11,6 +11,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { CartService, CartItem } from '../../../services/cart.service';
 import { AuthService } from '../../../services/auth.service';
@@ -19,6 +20,8 @@ import { LocationService } from '../../../services/location.service';
 import { DeliveryService } from '../../../services/delivery.service';
 import { CouponService } from '../../../services/coupon.service';
 import { MarketingService } from '../../../services/marketing.service';
+import { LocaleService } from '../../../i18n/locale.service';
+import { localizedProductName } from '../../../i18n/localized-content';
 import { toYYYYMMDD } from '../../../utils/date.utils';
 import {
   isDateOpenForOrdering,
@@ -44,7 +47,8 @@ import { catchError, debounceTime, map, switchMap, takeUntil } from 'rxjs/operat
     MatDatepickerModule,
     MatNativeDateModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    TranslateModule
   ],
   templateUrl: './checkout-page.component.html',
   styleUrls: ['./checkout-page.component.scss']
@@ -62,6 +66,7 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
   private couponService = inject(CouponService);
   private authService = inject(AuthService);
   private marketingService = inject(MarketingService);
+  localeService = inject(LocaleService);
 
   couponCodeInput = '';
   appliedCouponCode: string | null = null;
@@ -528,6 +533,7 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
     const items = summary.items.map(i => ({
       id: i.id,
       name: i.name,
+      ...(i.nameEn ? { nameEn: i.nameEn } : {}),
       quantity: i.quantity,
       price: i.price,
       ...(i.category ? { category: i.category } : {}),
@@ -536,6 +542,7 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
         ? {
             selectedOption: {
               label: i.selectedOption.label,
+              ...(i.selectedOption.labelEn ? { labelEn: i.selectedOption.labelEn } : {}),
               amount: i.selectedOption.amount,
               price: i.selectedOption.price,
               optionId: i.selectedOption.optionId,
@@ -571,6 +578,7 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
       deliveryFee,
       totalAmount: this.grandTotal,
       notes: (formValue.notes || '').trim() || undefined,
+      sourceLocale: this.localeService.locale === 'en' ? 'en' : 'he',
       ...(this.appliedCouponCode ? { couponCode: this.appliedCouponCode } : {}),
       ...(currentUser?.id ? { userId: currentUser.id } : {}),
       ...(Object.keys(utms).length > 0 ? { marketingData: utms } : {})
@@ -658,6 +666,10 @@ export class CheckoutPageComponent implements OnInit, OnDestroy {
 
   trackByItemId(_index: number, item: CartItem): string {
     return item.id;
+  }
+
+  displayName(item: CartItem): string {
+    return this.cleanItemName(localizedProductName(item, this.localeService.locale));
   }
 
   /** Removes duplicated size from item name, e.g. "250 מ\"ל - 250" → "250 מ\"ל" */

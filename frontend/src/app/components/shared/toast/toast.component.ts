@@ -50,7 +50,7 @@ import { Subject, takeUntil } from 'rxjs';
       flex-direction: column;
       gap: 12px;
       pointer-events: none;
-      direction: rtl;
+      direction: inherit;
     }
 
     .toast {

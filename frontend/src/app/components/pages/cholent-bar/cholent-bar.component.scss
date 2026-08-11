@@ -9,7 +9,7 @@ $gray-text: #777; // Lighter gray for descriptions
 $dotted-line: rgba(0, 0, 0, 0.15); // Extremely subtle dotted line
 
 .cholent-page {
-  direction: rtl;
+  direction: inherit;
   font-family: 'Heebo', 'Georgia', serif; // Elegant serif font
   background: $off-white;
   min-height: 100vh;

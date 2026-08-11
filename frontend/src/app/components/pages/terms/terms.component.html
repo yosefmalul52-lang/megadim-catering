@@ -1,5 +1,5 @@
-<div class="legal-page" dir="rtl">
-  <div class="container">
+<div class="legal-page">
+  <div class="container" *ngIf="!localeService.isEnglish">
     <h1>תקנון אתר ותנאי שימוש</h1>
 
     <p class="last-updated">עודכן לאחרונה: מרץ 2026</p>
@@ -173,6 +173,196 @@
       <p>
         על התקנון יחולו דיני מדינת ישראל בלבד. סמכות השיפוט הבלעדית בכל מחלוקת הנוגעת לתקנון זה ו/או לשימוש באתר
         תהא נתונה לבתי המשפט המוסמכים באזור ירושלים, אלא אם הוסכם אחרת במפורש ובכתב.
+      </p>
+    </section>
+  </div>
+
+  <div class="container" *ngIf="localeService.isEnglish">
+    <h1>Website Terms of Use</h1>
+
+    <p class="last-updated">Last updated: March 2026</p>
+
+    <section>
+      <h2>1. Introduction</h2>
+      <p>
+        This website is operated for the catering and culinary services business ("the Business") and is developed and
+        technically managed by J‑T Solutions ("the Technology Operator"). Use of the website, including browsing,
+        placing an order, or leaving details, constitutes the user's full and irrevocable agreement to these Terms.
+      </p>
+      <p>
+        These Terms are drafted in the masculine for convenience only and apply to all genders. If you do not agree to
+        any of these Terms, please refrain from using the website.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Use of the website</h2>
+      <p>
+        The website allows viewing content, browsing menus, submitting orders, contacting us, and registering for updates.
+        It is prohibited to use the website for any unlawful or harmful purpose, or any purpose that may harm website
+        operations, servers, the Business's reputation, or other users.
+      </p>
+      <p>
+        Without limiting the above, the user undertakes not to: attempt unauthorized access to information systems,
+        alter content, perform large-scale automated scraping, send spam via website forms, or take any other action
+        prohibited by law.
+      </p>
+    </section>
+
+    <section>
+      <h2>3. Orders and payment</h2>
+      <p>
+        Orders on the website are subject to inventory, production capacity, and Business policy. Orders are considered
+        confirmed only after explicit confirmation by the Business (email, WhatsApp, or phone), even if a technical
+        payment confirmation was received.
+      </p>
+      <p>
+        Payment is made by accepted methods shown on the website (e.g. credit card, bank transfer, courier payment, or
+        payment upon pickup). The Business may change supported payment methods from time to time without prior notice.
+      </p>
+      <p>
+        Where payment is processed by a third party (payment gateway), responsibility for information security and the
+        financial transaction is also subject to that third party's terms and privacy policy. The Business and Technology
+        Operator are not liable for damage caused by failures in external clearing systems.
+      </p>
+
+      <h3>Images for illustration only</h3>
+      <p>
+        Images on the website are for illustration only. Because products are handmade food items, differences may occur
+        (including color, size, cut, and presentation) between the image and the product supplied. The company makes every
+        reasonable effort to reflect dishes accurately, but is not liable for such visual differences.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Cancellation and order changes</h2>
+      <p>
+        Because food products are prepared personally to order, the Consumer Protection Law, 5741‑1981 exceptions apply,
+        particularly regarding perishable goods and events on fixed dates.
+      </p>
+      <p>
+        Cancellation or change requests may be made until the deadline set by the Business for each service type (for
+        example a set number of days before the event or delivery), as stated on the website or in the quote. After that
+        deadline, and especially once preparation has begun, cancellation and refunds are not available, in accordance
+        with the Consumer Protection Law on perishable goods and time-specific services.
+      </p>
+      <p>
+        Where a cancellation or change entitles a refund, the refund will follow the original payment method and the
+        timelines of the credit company or processor, after deducting any handling fees if set.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Delivery, pickup and supply liability</h2>
+      <p>
+        Delivery times, service areas and fees appear on the website or in the quote. Delivery times are estimates and
+        depend on load, traffic, weather and other external factors. The Business will make reasonable efforts to meet
+        delivery times but is not liable for delays beyond its control.
+      </p>
+      <p>
+        Products are shipped by a courier company.
+      </p>
+      <p>
+        The customer is responsible for providing accurate address details, up-to-date contact information, and access
+        limitations (entry code, floor, parking, etc.). Failure to provide accurate information or unavailability upon
+        arrival may cause delay or non-delivery, and in some cases additional delivery charges.
+      </p>
+      <p>
+        For self pickup, full responsibility for transporting dishes from the Business to the destination rests with the
+        customer from the moment the order is handed over to the customer or their representative.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Allergies, sensitivities and medical limitation of liability</h2>
+      <p>
+        The kitchen is not a sterile environment; traces of allergens (such as nuts, peanuts, sesame, gluten, dairy,
+        eggs, soy, etc.) may appear even in dishes that do not intentionally contain those ingredients. Despite reasonable
+        precautions, complete separation of ingredients cannot be guaranteed.
+      </p>
+      <p>
+        The customer must inform the Business in advance of any relevant sensitivity or allergy and verify whether
+        adapted dishes can be provided. Ultimate responsibility for consumption by a person with a food allergy or
+        sensitivity rests solely with the customer.
+      </p>
+      <p class="strong">
+        The Business, its employees, partners, and the Technology Operator (J‑T Solutions) shall not be liable for bodily,
+        health or property damage caused by allergies, sensitivities or other medical conditions related to food
+        consumption, including where sensitivities were not disclosed in time.
+      </p>
+    </section>
+
+    <section>
+      <h2>7. Product liability</h2>
+      <p>
+        Resale of food sold by the company to any third party is strictly prohibited. The company has no liability for
+        food quality if the food is resold to a third party.
+      </p>
+      <p>
+        Where the product is delivered directly by the company (self pickup or direct handoff without transfer to a third
+        party), the company is responsible for product quality at the time of handover, subject to reasonable storage and
+        use after handover and applicable law.
+      </p>
+    </section>
+
+    <section>
+      <h2>8. Website use and content liability</h2>
+      <p>
+        Website content (including text, images, prices, menus and dish descriptions) may be updated from time to time.
+        Typos, description errors or mismatches between image and actual dish may occur. In any case, images are for
+        illustration only and the binding price/terms are those finally confirmed when the order is placed and approved.
+      </p>
+      <p>
+        The Technology Operator (J‑T Solutions) is responsible only for technical development and maintenance of the
+        website, and is not a party to food transactions and not liable for culinary content, prices, cancellation policy
+        or Business services. Claims regarding the culinary provider should be directed to the Business only.
+      </p>
+      <p>
+        In no event shall the Business or Technology Operator be liable for any indirect, consequential, special or
+        punitive damages arising from use of the website or inability to use it.
+      </p>
+    </section>
+
+    <section>
+      <h2>9. Intellectual property</h2>
+      <p>
+        All intellectual property rights in the website, including design, source code, structure, digital processes and
+        most UI/UX components, belong to J‑T Solutions or are licensed to it. Copying, reproducing, distributing,
+        reverse-engineering, translating, renting, transferring, broadcasting or any other commercial use of the website
+        code or design without prior written approval is prohibited.
+      </p>
+      <p>
+        Culinary content, including dish names, descriptions, Business logo, trademarks, images and recipes, belongs to
+        the catering Business and/or its lawful owners, and may not be reused, copied or distributed without prior written
+        approval.
+      </p>
+    </section>
+
+    <section>
+      <h2>10. Privacy and information security</h2>
+      <p>
+        Use of the website is also subject to the Business privacy policy as published on the website from time to time.
+        The Business and Technology Operator take reasonable security measures to protect information, but cannot guarantee
+        absolute immunity from breaches or security incidents, and are not liable for damages from events beyond their
+        full control.
+      </p>
+    </section>
+
+    <section>
+      <h2>11. Changes to these Terms</h2>
+      <p>
+        The Business and Technology Operator reserve the right to update these Terms from time to time at their sole
+        discretion, without prior notice. The binding version is the latest version published on the website. Continued
+        use after an update constitutes agreement to the updated Terms.
+      </p>
+    </section>
+
+    <section>
+      <h2>12. Governing law and jurisdiction</h2>
+      <p>
+        These Terms are governed solely by the laws of the State of Israel. Exclusive jurisdiction over any dispute
+        relating to these Terms and/or use of the website lies with the competent courts in the Jerusalem district, unless
+        otherwise expressly agreed in writing.
       </p>
     </section>
   </div>

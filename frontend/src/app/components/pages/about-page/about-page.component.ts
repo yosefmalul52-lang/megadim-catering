@@ -1,58 +1,45 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { SeoService } from '../../../services/seo.service';
+import { LocaleService } from '../../../i18n/locale.service';
 
 interface AboutValue {
   index: string;
-  title: string;
-  text: string;
+  titleKey: string;
+  textKey: string;
 }
 
 @Component({
   selector: 'app-about-page',
   standalone: true,
-  imports: [CommonModule, NgOptimizedImage, RouterLink],
+  imports: [CommonModule, NgOptimizedImage, RouterLink, TranslateModule],
   templateUrl: './about-page.component.html',
   styleUrls: ['./about-page.component.scss'],
 })
 export class AboutPageComponent implements OnInit {
   private seoService = inject(SeoService);
+  readonly localeService = inject(LocaleService);
 
-  readonly closingTrustItems = [
-    'כשר למהדרין',
-    'בהנהלת השף ינון אנקרי',
-    'משלוחים עד הבית',
+  readonly closingTrustKeys = [
+    'ABOUT.TRUST_KOSHER',
+    'ABOUT.TRUST_CHEF',
+    'ABOUT.TRUST_DELIVERY',
   ];
 
   readonly values: AboutValue[] = [
-    {
-      index: '01',
-      title: 'כשרות מהדרין',
-      text: 'פיקוח ברור והקפדה על כל מנה.',
-    },
-    {
-      index: '02',
-      title: 'טעם ביתי ברמה גבוהה',
-      text: 'אוכל עשיר, מוכר ומכובד.',
-    },
-    {
-      index: '03',
-      title: 'התאמה אישית',
-      text: 'תפריט שנבנה לפי האירוע, הקהל והתקציב.',
-    },
-    {
-      index: '04',
-      title: 'שירות מסודר',
-      text: 'מענה ברור, תיאום מראש והגעה בזמן.',
-    },
+    { index: '01', titleKey: 'ABOUT.V1_TITLE', textKey: 'ABOUT.V1_TEXT' },
+    { index: '02', titleKey: 'ABOUT.V2_TITLE', textKey: 'ABOUT.V2_TEXT' },
+    { index: '03', titleKey: 'ABOUT.V3_TITLE', textKey: 'ABOUT.V3_TEXT' },
+    { index: '04', titleKey: 'ABOUT.V4_TITLE', textKey: 'ABOUT.V4_TEXT' },
   ];
 
-  readonly menuFitItems = [
-    'כמות האורחים',
-    'סגנון האירוע',
-    'רמת הכשרות',
-    'אופי ההגשה',
+  readonly menuFitKeys = [
+    'ABOUT.FIT_GUESTS',
+    'ABOUT.FIT_STYLE',
+    'ABOUT.FIT_KOSHER',
+    'ABOUT.FIT_SERVE',
   ];
 
   ngOnInit(): void {

@@ -1212,7 +1212,7 @@ export class AdminInstitutionsComponent implements OnInit {
       .meta { margin: 0 0 14px; font-size: 0.9rem; line-height: 1.7; text-align: center; }
       .meta-line { margin: 2px 0; }
       .section-note { margin: 8px 0 12px; padding: 8px 10px; border: 1px solid #111; font-size: 0.85rem; }
-      table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 13px; }
       th, td { border: 1px solid #111; padding: 5px 7px; text-align: right; vertical-align: top; color: #000; }
       th { background: #f4f4f4; font-weight: 700; }
       .done-col { width: 32px; text-align: center; }
@@ -1222,7 +1222,7 @@ export class AdminInstitutionsComponent implements OnInit {
       .institution-block { page-break-inside: avoid; margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; }
       .institution-block + .institution-block { page-break-before: always; }
       .institution-meta { margin: 4px 0 10px; font-size: 0.85rem; line-height: 1.6; }
-      .menu-cell { white-space: pre-line; font-size: 11px; }
+      .menu-cell { white-space: pre-line; font-size: 13px; }
       button, .no-print { display: none !important; }
     `;
   }

@@ -42,6 +42,7 @@ function normalizePricingOptions(raw: unknown): IHolidayEventProduct['pricingOpt
     .map((opt: any) => {
       const label = String(opt?.label ?? '').trim();
       if (!label) return null;
+      const labelEn = String(opt?.labelEn ?? '').trim();
       const amountRaw = opt?.amount;
       const amount =
         amountRaw != null && amountRaw !== ''
@@ -49,7 +50,7 @@ function normalizePricingOptions(raw: unknown): IHolidayEventProduct['pricingOpt
           : '';
       const price = Number(opt?.price);
       if (!Number.isFinite(price) || price < 0) return null;
-      return { label, amount, price };
+      return { label, ...(labelEn ? { labelEn } : {}), amount, price };
     })
     .filter((o): o is NonNullable<typeof o> => o != null);
 }
@@ -75,10 +76,15 @@ function normalizeProducts(raw: unknown): Partial<IHolidayEventProduct>[] {
       const pricingOptions =
         pricingType === 'variants' ? normalizePricingOptions(p?.pricingOptions) : [];
 
+      const titleEn = String(p?.titleEn ?? p?.nameEn ?? '').trim();
+      const descriptionEn = String(p?.descriptionEn ?? '').trim();
+
       const out: Partial<IHolidayEventProduct> = {
         title,
+        ...(titleEn ? { titleEn } : {}),
         price: Number(p?.price) || 0,
         description: String(p?.description ?? '').trim(),
+        ...(descriptionEn ? { descriptionEn } : {}),
         imageUrl: String(p?.imageUrl ?? '').trim(),
         isAvailable: p?.isAvailable !== false,
         pricingType,
@@ -110,20 +116,28 @@ function mapProduct(p: any, includeAvailability: boolean) {
     weightUnit = 'unit';
   }
 
+  const titleEn = String(p?.titleEn ?? '').trim();
+  const descriptionEn = String(p?.descriptionEn ?? '').trim();
   const base = {
     _id: String(p._id),
     title: p.title,
+    ...(titleEn ? { titleEn } : {}),
     price: Number(p.price) || 0,
     description: p.description,
+    ...(descriptionEn ? { descriptionEn } : {}),
     imageUrl: p.imageUrl,
     pricingType,
     weightUnit,
     pricingOptions: Array.isArray(p.pricingOptions)
-      ? p.pricingOptions.map((opt: any) => ({
-          label: String(opt?.label ?? ''),
-          amount: String(opt?.amount ?? ''),
-          price: Number(opt?.price) || 0
-        }))
+      ? p.pricingOptions.map((opt: any) => {
+          const labelEn = String(opt?.labelEn ?? '').trim();
+          return {
+            label: String(opt?.label ?? ''),
+            ...(labelEn ? { labelEn } : {}),
+            amount: String(opt?.amount ?? ''),
+            price: Number(opt?.price) || 0
+          };
+        })
       : []
   };
   if (includeAvailability) {

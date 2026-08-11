@@ -953,11 +953,11 @@ export class AdminPaymentsComponent implements OnInit, OnDestroy {
       {
         label: this.chartMetric === 'revenue' ? 'הכנסות' : 'עסקאות ששולמו',
         data: currentValues,
-        borderColor: '#1e3a5f',
-        backgroundColor: 'rgba(37, 99, 235, 0.12)',
+        borderColor: '#77A9D8',
+        backgroundColor: 'rgba(134, 179, 229, 0.18)',
         pointRadius: 0,
         pointHoverRadius: 4,
-        pointHoverBackgroundColor: '#1e3a5f',
+        pointHoverBackgroundColor: '#77A9D8',
         tension: 0.35,
         fill: true,
         borderWidth: 2.25
@@ -973,10 +973,11 @@ export class AdminPaymentsComponent implements OnInit, OnDestroy {
       datasets.push({
         label: this.chartMetric === 'revenue' ? 'תקופה קודמת' : 'תקופה קודמת (כמות)',
         data: aligned as number[],
-        borderColor: '#94a3b8',
+        borderColor: '#C6AA4D',
         backgroundColor: 'transparent',
         pointRadius: 0,
         pointHoverRadius: 3,
+        pointHoverBackgroundColor: '#C6AA4D',
         tension: 0.35,
         fill: false,
         borderWidth: 1.5,
@@ -1009,18 +1010,22 @@ export class AdminPaymentsComponent implements OnInit, OnDestroy {
           labels: {
             boxWidth: 10,
             boxHeight: 10,
-            color: '#5a6a74',
-            font: { size: 11, weight: 600 },
+            color: '#526273',
+            font: { size: 13, weight: 600 },
             padding: 8
           }
         },
         tooltip: {
-          backgroundColor: 'rgba(31, 53, 64, 0.94)',
+          backgroundColor: '#ffffff',
+          titleColor: '#1F2D3D',
+          bodyColor: '#1F2D3D',
+          borderColor: '#E2E8F0',
+          borderWidth: 1,
           padding: 10,
           displayColors: false,
-          titleFont: { size: 12, weight: 600 },
-          bodyFont: { size: 12 },
-          cornerRadius: 4,
+          titleFont: { size: 13, weight: 600 },
+          bodyFont: { size: 14 },
+          cornerRadius: 6,
           callbacks: {
             label: (context) => {
               const value = context.parsed.y;
@@ -1033,14 +1038,15 @@ export class AdminPaymentsComponent implements OnInit, OnDestroy {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: '#5a6a74', maxTicksLimit: 8, maxRotation: 0 },
+          ticks: { color: '#526273', maxTicksLimit: 8, maxRotation: 0, font: { size: 13 } },
           border: { display: false }
         },
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(217, 224, 230, 0.9)' },
+          grid: { color: 'rgba(226, 232, 240, 0.95)' },
           ticks: {
-            color: '#5a6a74',
+            color: '#526273',
+            font: { size: 13 },
             callback: (value) => {
               const n = Number(value);
               return isMoney ? this.formatAmount(n) : this.formatCount(n);

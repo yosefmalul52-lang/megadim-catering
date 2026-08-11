@@ -247,36 +247,74 @@ export class OrderService {
           ? [payload.address.city, payload.address.street, payload.address.apartment].filter(Boolean).join(', ')
           : '';
 
-    const orderItems = payload.items.map(item => {
-      const selectedOption = normalizeSelectedOption((item as any).selectedOption, {
-        name: item.name,
-        price: item.price
-      });
-      return {
-        productId: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        category: (item as any).category || this.detectCategoryFromName(item.name),
-        imageUrl: (item as any).imageUrl || (item as any).image || undefined,
-        description: (item as any).description ? String((item as any).description).trim() : undefined,
-        selectedOption: selectedOption
-          ? {
-              label: selectedOption.label,
-              amount: selectedOption.amount,
-              price: selectedOption.price,
-              optionId: selectedOption.optionId,
-              optionName: selectedOption.optionName,
-              valueId: selectedOption.valueId,
-              valueName: selectedOption.valueName,
-              quantity: selectedOption.quantity,
-              priceAdjustment: selectedOption.priceAdjustment
-            }
-          : undefined
-      };
-    });
-
     const isManual = options.isManual === true;
+    const sourceLocale: 'he' | 'en' = isManual
+      ? 'he'
+      : payload.sourceLocale === 'en'
+        ? 'en'
+        : 'he';
+
+    const orderItems = await Promise.all(
+      payload.items.map(async (item) => {
+        const selectedOption = normalizeSelectedOption((item as any).selectedOption, {
+          name: item.name,
+          price: item.price
+        });
+
+        let nameHe = String(item.name || '').trim();
+        let nameEn =
+          typeof (item as any).nameEn === 'string' && (item as any).nameEn.trim()
+            ? String((item as any).nameEn).trim()
+            : undefined;
+
+        // Prefer catalog Hebrew name for kitchen/dashboard; keep English separately.
+        const productId = String(item.id || '').trim();
+        if (productId && mongoose.Types.ObjectId.isValid(productId)) {
+          try {
+            const catalog = await MenuItem.findById(productId).select('name nameEn').lean();
+            if (catalog && (catalog as any).name) {
+              nameHe = String((catalog as any).name).trim() || nameHe;
+            }
+            if (catalog && (catalog as any).nameEn) {
+              nameEn = String((catalog as any).nameEn).trim() || nameEn;
+            }
+          } catch {
+            /* keep client snapshot */
+          }
+        }
+
+        if (sourceLocale === 'en' && !nameEn) {
+          // Client may have sent the English label as `name` before catalog resolve.
+          nameEn = String(item.name || '').trim() || nameHe;
+        }
+
+        return {
+          productId: item.id,
+          name: nameHe,
+          ...(nameEn ? { nameEn } : {}),
+          price: item.price,
+          quantity: item.quantity,
+          category: (item as any).category || this.detectCategoryFromName(nameHe),
+          imageUrl: (item as any).imageUrl || (item as any).image || undefined,
+          description: (item as any).description ? String((item as any).description).trim() : undefined,
+          selectedOption: selectedOption
+            ? {
+                label: selectedOption.label,
+                labelEn: (selectedOption as any).labelEn,
+                amount: selectedOption.amount,
+                price: selectedOption.price,
+                optionId: selectedOption.optionId,
+                optionName: selectedOption.optionName,
+                valueId: selectedOption.valueId,
+                valueName: selectedOption.valueName,
+                quantity: selectedOption.quantity,
+                priceAdjustment: selectedOption.priceAdjustment
+              }
+            : undefined
+        };
+      })
+    );
+
     const status = isManual ? 'processing' : 'pending';
     const customerDetails: Record<string, unknown> = {
       fullName: payload.customerName,
@@ -308,6 +346,7 @@ export class OrderService {
       deliveryFee: payload.deliveryFee ?? null,
       status,
       isTestOrder: false,
+      sourceLocale,
       ...(serviceDate ? { serviceDate } : {}),
       ...(paidAt ? { paidAt } : {}),
       ...(!isManual && options.paymentInitTokenHash && options.paymentInitTokenExpiresAt
@@ -704,7 +743,8 @@ export class OrderService {
               this.mergeMongoQueryParts(sourceFilter, this.buildAdminStatusTabFilter('archive', now))
             )
           ]);
-        const total = pending + processing + ready + failed + cancelled + completed;
+        // Source-tab badge = active work only (not completed / cancelled / archive).
+        const total = pending + processing + ready + failed;
         return [
           source,
           { total, pending, processing, ready, failed, cancelled, completed, archive }
@@ -1251,7 +1291,7 @@ export class OrderService {
       };
     };
 
-    const normalizedItems = await Promise.all(
+    const rawNormalizedItems = await Promise.all(
       newItems.map(async (rawItem: any, index: number) => {
         const item = rawItem || {};
         const productIdRaw = String(item.productId || item.id || '').trim();
@@ -1593,6 +1633,16 @@ export class OrderService {
       })
     );
 
+    // Preserve / update free-text kitchen remarks (separate from description = manager qty text).
+    const normalizedItems = rawNormalizedItems.map((row, index) => {
+      const incoming = newItems[index];
+      const existing = findExistingForIncoming(incoming, index);
+      const kitchenRemark = Object.prototype.hasOwnProperty.call(incoming || {}, 'kitchenRemark')
+        ? String(incoming?.kitchenRemark || '').trim()
+        : String(existing?.kitchenRemark || '').trim();
+      return { ...row, kitchenRemark };
+    });
+
     // Never mutate paymentStatus / Tranzila fields here.
     // Recalculate money fields when unlocked so admin item edits match the displayed total.
     const totals = computeAdminRecalculatedTotals(order as unknown as Record<string, unknown>, {
@@ -1651,20 +1701,12 @@ export class OrderService {
   }
 
   /**
-   * Admin: update retail order shipping (deliveryFee) and recalculate totalPrice.
-   * totalPrice = itemsSubtotal + shippingCost - implicitDiscount (coupon / prior adjustment).
+   * Admin: update order shipping (deliveryFee) and recalculate totalPrice.
+   * Works for retail and catering (manual delivery fee). totalPrice = food + shipping.
    */
   async updateOrderShippingCost(orderId: string, shippingCost: number): Promise<IOrder | null> {
     const order = await Order.findById(orderId).lean();
     if (!order) return null;
-
-    if (
-      (order as any).orderType === 'catering' ||
-      (order as any).numberOfPortions ||
-      (order as any).mealTime
-    ) {
-      throw new Error('Shipping cost cannot be updated for catering orders');
-    }
 
     if (isGatewayLockedPaymentStatus((order as any).paymentStatus)) {
       throw new Error(
@@ -1834,6 +1876,153 @@ export class OrderService {
         $set.subtotal = rounded;
       }
     }
+
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set });
+    if (updateResult.matchedCount === 0) return null;
+
+    const updated = await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean();
+    return updated as IOrder | null;
+  }
+
+  /**
+   * Admin: update catering quote (price per portion and/or food subtotal).
+   * Dish rows stay ₪0 — totals come from portion×rate (or explicit food total) + delivery.
+   * Optional recalculateFromCatalog rebuilds Shabbat totals from the live catalog.
+   */
+  async updateCateringPricing(
+    orderId: string,
+    payload: {
+      pricePerPortion?: unknown;
+      foodSubtotal?: unknown;
+      recalculateFromCatalog?: unknown;
+    }
+  ): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    const row = order as any;
+    const isCatering =
+      row.orderType === 'catering' ||
+      row.cateringKind === 'events' ||
+      row.cateringKind === 'shabbat' ||
+      (row.numberOfPortions != null && String(row.mealTime || '').trim() !== '');
+    if (!isCatering) {
+      throw new Error('ניתן לעדכן תמחור קייטרינג רק להזמנות קייטרינג');
+    }
+
+    if (isGatewayLockedPaymentStatus(row.paymentStatus)) {
+      throw new Error(
+        'לא ניתן לשנות סכום הזמנה שחויבה סופית (captured) ללא מנגנון פיננסי מתאים'
+      );
+    }
+
+    const cd = { ...((row.customerDetails || {}) as Record<string, unknown>) };
+    const deliveryFee = Math.max(0, Number(row.deliveryFee) || Number(cd.deliveryFee) || 0);
+    const portions = Math.max(
+      0,
+      Math.trunc(
+        Number(row.numberOfPortions) ||
+          (Number(row.portionsEvening) || 0) + (Number(row.portionsMorning) || 0) ||
+          Number(row.guestCount) ||
+          0
+      )
+    );
+
+    let nextPricePerPortion: number | null =
+      Number(cd.pricePerPortion) > 0 ? Number(cd.pricePerPortion) : null;
+    let nextFoodSubtotal: number | null = null;
+
+    const wantCatalog = payload.recalculateFromCatalog === true || payload.recalculateFromCatalog === 'true';
+    if (wantCatalog) {
+      if (row.cateringKind === 'events') {
+        throw new Error('חישוב מקטלוג זמין לקייטרינג שבת/חג בלבד');
+      }
+      const { getOrCreateShabbatCatalog, shabbatCatalogToPublicDto } = await import(
+        './shabbat-catering-catalog.service'
+      );
+      const { computeShabbatCateringTotals } = await import('../utils/shabbat-catering-pricing.util');
+      const shabbatDoc = await getOrCreateShabbatCatalog();
+      const rates = shabbatCatalogToPublicDto(shabbatDoc);
+      const notes = String(cd.notes || '');
+      const pricing = computeShabbatCateringTotals(
+        {
+          mealTime: (row.mealTime as 'evening' | 'morning' | 'both') || 'both',
+          numberOfPortions: portions || Number(row.numberOfPortions) || 0,
+          seudaShlishit: /סעודה שלישית:\s*כן/.test(notes) ? 'yes' : 'no'
+        },
+        rates
+      );
+      nextPricePerPortion = pricing.pricePerPortion;
+      nextFoodSubtotal = pricing.foodSubtotal;
+    }
+
+    if (payload.pricePerPortion !== undefined && payload.pricePerPortion !== null && payload.pricePerPortion !== '') {
+      const rate = Number(payload.pricePerPortion);
+      if (!Number.isFinite(rate) || rate < 0) {
+        throw new Error('מחיר למנה חייב להיות מספר שאינו שלילי');
+      }
+      nextPricePerPortion = Math.round(rate * 100) / 100;
+    }
+
+    if (payload.foodSubtotal !== undefined && payload.foodSubtotal !== null && payload.foodSubtotal !== '') {
+      const food = Number(payload.foodSubtotal);
+      if (!Number.isFinite(food) || food < 0) {
+        throw new Error('סכום ביניים חייב להיות מספר שאינו שלילי');
+      }
+      nextFoodSubtotal = Math.round(food * 100) / 100;
+      if (portions > 0) {
+        nextPricePerPortion = Math.round((nextFoodSubtotal / portions) * 100) / 100;
+      }
+    }
+
+    if (nextFoodSubtotal == null && nextPricePerPortion != null && portions > 0) {
+      nextFoodSubtotal = Math.round(nextPricePerPortion * portions * 100) / 100;
+    }
+
+    if (nextFoodSubtotal == null && nextPricePerPortion == null) {
+      throw new Error('יש לספק מחיר למנה, סכום ביניים, או לחשב מחדש מהקטלוג');
+    }
+
+    if (nextPricePerPortion != null) {
+      cd.pricePerPortion = nextPricePerPortion;
+    }
+    if (nextFoodSubtotal != null) {
+      cd.subtotal = nextFoodSubtotal;
+    }
+    cd.deliveryFee = deliveryFee;
+
+    const working = {
+      ...(order as unknown as Record<string, unknown>),
+      customerDetails: cd,
+      adminPriceOverride: null,
+      deliveryFee,
+      subtotal: nextFoodSubtotal ?? (Number(row.subtotal) || 0)
+    };
+    const totals = computeAdminRecalculatedTotals(working, {
+      deliveryFee,
+      pricePerPortion: nextPricePerPortion,
+      numberOfPortions: portions > 0 ? portions : undefined
+    });
+
+    // Prefer explicit food subtotal when provided; otherwise portion×rate / prior quote.
+    const food =
+      nextFoodSubtotal != null
+        ? nextFoodSubtotal
+        : totals.source === 'portion_rate'
+          ? totals.subtotal
+          : Math.max(0, totals.subtotal);
+    const totalPrice = Math.round((food + deliveryFee) * 100) / 100;
+
+    const $set: Record<string, unknown> = {
+      customerDetails: cd,
+      subtotal: food,
+      deliveryFee,
+      totalPrice,
+      adminPriceOverride: null,
+      adminPriceOverrideReason: null,
+      priceOverriddenAt: null,
+      priceOverriddenBy: null
+    };
 
     const updateResult = await Order.updateOne({ _id: orderId }, { $set });
     if (updateResult.matchedCount === 0) return null;

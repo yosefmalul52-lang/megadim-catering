@@ -11,6 +11,12 @@ import { SiteSettingsService, SiteSettings } from '../../../../services/site-set
 import { SeoService } from '../../../../services/seo.service';
 import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
+import { LocaleService } from '../../../../i18n/locale.service';
+import {
+  localizedOptionLabel,
+  localizedProductDescription,
+  localizedProductName
+} from '../../../../i18n/localized-content';
 
 @Component({
   selector: 'app-salads',
@@ -26,15 +32,15 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         (close)="closePopup()"
       ></app-page-popup>
       <div class="category-header-actions">
-        <button class="btn-gold-back" routerLink="/ready-for-shabbat">
-          <i class="fas fa-arrow-right"></i> חזרה לתפריט
+        <button class="btn-gold-back" [routerLink]="localeService.localizePath('/ready-for-shabbat')">
+          <i class="fas fa-arrow-right"></i> {{ 'PRODUCT.BACK_TO_MENU' | translate }}
         </button>
       </div>
 
       <header class="luxury-category-header">
         <span class="decorative-line"></span>
         <span class="decorative-diamond"></span>
-        <h1>סלטים</h1>
+        <h1>{{ 'CATEGORIES.SALADS' | translate }}</h1>
         <span class="decorative-diamond"></span>
         <span class="decorative-line"></span>
       </header>
@@ -44,7 +50,7 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
           <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-          <span>טוען מנות...</span>
+          <span>{{ 'PRODUCT.LOADING' | translate }}</span>
         </div>
 
         <!-- Salads Grid (design aligned with Home "What\'s Cooking" cards) -->
@@ -56,16 +62,16 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
             <div class="card-image-wrapper">
               <img 
                 [src]="salad.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                [alt]="salad.name"
+                [alt]="displayName(salad)"
                 loading="lazy"
               >
-              <div class="badge" *ngIf="salad.isPopular === true">מומלץ</div>
-              <span class="badge badge-out-of-stock" *ngIf="!isAvailable(salad)">לא זמין כרגע</span>
+              <div class="badge" *ngIf="salad.isPopular === true">{{ 'PRODUCT.RECOMMENDED' | translate }}</div>
+              <span class="badge badge-out-of-stock" *ngIf="!isAvailable(salad)">{{ 'PRODUCT.OOS' | translate }}</span>
             </div>
             
             <div class="card-content">
-              <h4 class="card-title">{{ salad.name }}</h4>
-              <p class="card-desc">{{ salad.description }}</p>
+              <h4 class="card-title">{{ displayName(salad) }}</h4>
+              <p class="card-desc">{{ displayDescription(salad) }}</p>
               
               <!-- Price Per 100g (optional line) -->
               <div class="price-unit" *ngIf="salad.pricePer100g">
@@ -79,24 +85,24 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
                 [value]="getSelectedOptionIndex(salad.id || salad._id || '')"
                 (change)="selectPricingOption(salad.id || salad._id || '', $event)"
               >
-                <option value="">בחרו אפשרות</option>
+                <option value="">{{ 'PRODUCT.CHOOSE_OPTION' | translate }}</option>
                 <option *ngFor="let option of getPricingOptions(salad); let i = index" [value]="i">
-                  {{ option.label }} - {{ option.amount }} - ₪{{ option.price }}
+                  {{ optionLabel(option) }} - {{ option.amount }} - ₪{{ option.price }}
                 </option>
               </select>
               
               <!-- Size selection (pricingVariants) - preserved -->
               <div class="size-selection" *ngIf="!hasPricingOptions(salad) && hasPricingVariants(salad)">
-                <label class="size-label">בחרו גודל:</label>
+                <label class="size-label">{{ 'PRODUCT.CHOOSE_SIZE' | translate }}</label>
                 <div class="size-options">
                   <button 
                     *ngFor="let variant of getPricingVariants(salad); let i = index"
                     class="size-btn"
                     [class.active]="getSelectedVariantIndex(salad.id || salad._id || '') === i"
                     (click)="selectVariant(salad.id || salad._id || '', i)"
-                    [attr.aria-label]="'בחרו ' + variant.label + ' עבור ' + salad.name"
+                    [attr.aria-label]="optionLabel(variant) + ' — ' + displayName(salad)"
                   >
-                    <span class="size-weight">{{ variant.label }}</span>
+                    <span class="size-weight">{{ optionLabel(variant) }}</span>
                     <span class="size-price">₪{{ variant.price }}</span>
                   </button>
                 </div>
@@ -106,25 +112,25 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
               <div class="card-price" *ngIf="(hasPricingOptions(salad) || hasPricingVariants(salad)) && hasSelectedOption(salad)">₪{{ getSelectedPrice(salad) }}</div>
               
               <div class="error-message" *ngIf="hasValidationError(salad.id || salad._id || '')">
-                נא לבחור גודל תחילה
+                {{ 'PRODUCT.SELECT_SIZE_FIRST' | translate }}
               </div>
               
               <div class="card-actions">
                 <button 
                   (click)="showDetails(salad)" 
                   class="btn-details"
-                  [attr.aria-label]="'פרטים על ' + salad.name"
+                  [attr.aria-label]="('PRODUCT.DETAILS' | translate) + ' ' + displayName(salad)"
                 >
-                  פרטים
+                  {{ 'PRODUCT.DETAILS' | translate }}
                 </button>
                 <button 
                   (click)="addToCart(salad)" 
                   class="btn-add"
-                  [attr.aria-label]="'הוסף לסל ' + salad.name"
+                  [attr.aria-label]="('PRODUCT.ADD_TO_CART' | translate) + ' ' + displayName(salad)"
                   [disabled]="!isAvailable(salad)"
                 >
                   <mat-icon>shopping_cart</mat-icon>
-                  הוספה לסל
+                  {{ 'PRODUCT.ADDING' | translate }}
                 </button>
               </div>
             </div>
@@ -134,8 +140,7 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         <!-- Empty State -->
         <div *ngIf="showEmptyState()" class="empty-state">
           <i class="fas fa-utensils" aria-hidden="true"></i>
-          <h3>אין סלטים זמינים כרגע</h3>
-          <p>אנחנו עובדים על הוספת סלטים חדשים. חזור בקרוב!</p>
+          <h3>{{ 'PRODUCT.EMPTY' | translate }}</h3>
         </div>
       </div>
     </div>
@@ -164,6 +169,7 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
       justify-content: center;
       width: 100%;
       margin: 60px 0 40px 0; // Generous spacing
+      direction: ltr; // keep decorative lines left/right stable in HE + EN
       
       // The Title Text
       h2 {
@@ -174,6 +180,7 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
         margin: 0;
         white-space: nowrap;
         position: relative;
+        direction: rtl; // Hebrew default; LTR override below
         
         // Optional: Small Diamond dots next to text
         &::before,
@@ -204,15 +211,23 @@ import { PagePopupComponent } from '../../../shared/page-popup/page-popup.compon
       
       // Left Line: Transparent -> Gold
       &::before {
-        background: linear-gradient(to left, #E0C075, transparent);
-        margin-left: 20px;
+        background: linear-gradient(to right, transparent, #E0C075);
+        margin-inline-end: 20px;
+        margin-left: 0;
+        margin-right: 0;
       }
       
       // Right Line: Gold -> Transparent
       &::after {
-        background: linear-gradient(to right, #E0C075, transparent);
-        margin-right: 20px;
+        background: linear-gradient(to left, transparent, #E0C075);
+        margin-inline-start: 20px;
+        margin-left: 0;
+        margin-right: 0;
       }
+    }
+
+    :host-context(html[dir='ltr']) .section-title h2 {
+      direction: ltr;
     }
 
     .loading {
@@ -322,6 +337,7 @@ export class SaladsComponent implements OnInit {
   settingsService = inject(SiteSettingsService);
   seoService = inject(SeoService);
   router = inject(Router);
+  readonly localeService = inject(LocaleService);
 
   settings: SiteSettings | null = null;
   showPopup = false;
@@ -332,6 +348,18 @@ export class SaladsComponent implements OnInit {
   selectedOptions: { [key: string]: number } = {}; // For pricingOptions: itemId -> option index
   selectedVariants: { [key: string]: number } = {}; // For pricingVariants: itemId -> variant index
   validationErrors: { [key: string]: boolean } = {}; // Track validation errors per item
+
+  displayName(item: MenuItem): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem): string {
+    return localizedProductDescription(item, this.localeService.locale);
+  }
+
+  optionLabel(opt: { label?: string; labelEn?: string } | null | undefined): string {
+    return localizedOptionLabel(opt, this.localeService.locale);
+  }
 
   ngOnInit(): void {
     this.seoService.updateTags({
@@ -485,11 +513,14 @@ export class SaladsComponent implements OnInit {
     // Clear validation error if validation passes
     this.validationErrors[itemId] = false;
 
+    const baseEn = item.nameEn || item.name;
     let itemName = item.name;
+    let itemNameEn = baseEn;
     let price = this.getSelectedPrice(item);
     let cartLineId = itemId;
     let selectedOption: {
       label: string;
+      labelEn?: string;
       amount?: string;
       price: number;
       optionId?: string;
@@ -502,15 +533,19 @@ export class SaladsComponent implements OnInit {
       const options = this.getPricingOptions(item);
       if (optionIndex >= 0 && options[optionIndex]) {
         const option = options[optionIndex];
-        itemName = `${item.name} (${option.label} - ${option.amount})`;
+        const label = String(option.label || '').trim();
+        const labelEn = String(option.labelEn || option.label || '').trim();
+        itemName = `${item.name} (${label} - ${option.amount})`;
+        itemNameEn = `${baseEn} (${labelEn || label} - ${option.amount})`;
         price = option.price;
         cartLineId = `${itemId}-size-${optionIndex}`;
         selectedOption = {
-          label: String(option.label || '').trim(),
+          label,
+          labelEn: option.labelEn || undefined,
           amount: String(option.amount || '').trim() || undefined,
           price: Number(option.price) || 0,
           optionId: String(optionIndex),
-          optionName: String(option.label || '').trim() || undefined,
+          optionName: label || undefined,
           valueName: String(option.amount || option.label || '').trim() || undefined
         };
       }
@@ -519,15 +554,19 @@ export class SaladsComponent implements OnInit {
       const variants = this.getPricingVariants(item);
       if (variantIndex >= 0 && variants[variantIndex]) {
         const variant = variants[variantIndex];
-        itemName = `${item.name} (${variant.label})`;
+        const label = String(variant.label || '').trim();
+        const labelEn = String(variant.labelEn || variant.label || '').trim();
+        itemName = `${item.name} (${label})`;
+        itemNameEn = `${baseEn} (${labelEn || label})`;
         price = variant.price;
         cartLineId = `${itemId}-size-${variantIndex}`;
         selectedOption = {
-          label: String(variant.label || '').trim(),
+          label,
+          labelEn: variant.labelEn || undefined,
           amount: String(variant.label || '').trim() || undefined,
           price: Number(variant.price) || 0,
           optionId: String(variantIndex),
-          optionName: String(variant.label || '').trim() || undefined,
+          optionName: label || undefined,
           valueName: String(variant.label || '').trim() || undefined
         };
       }
@@ -537,9 +576,11 @@ export class SaladsComponent implements OnInit {
       {
         id: cartLineId,
         name: itemName,
+        nameEn: itemNameEn,
         price,
         imageUrl: item.imageUrl ?? '',
         description: item.description,
+        descriptionEn: item.descriptionEn,
         category: item.category,
         selectedOption
       },
@@ -573,7 +614,9 @@ export class SaladsComponent implements OnInit {
   }
 
   showDetails(salad: MenuItem): void {
-    this.router.navigate(['/ready-for-shabbat/salads', salad.id || salad._id || '']);
+    this.router.navigateByUrl(
+      this.localeService.localizePath(`/ready-for-shabbat/salads/${salad.id || salad._id || ''}`)
+    );
   }
 
   hasValidationError(itemId: string): boolean {

@@ -128,7 +128,7 @@ interface Employee {
     .employees-page {
       padding: 2rem;
       min-height: 100vh;
-      background: #f3f4f6;
+      background: #F5F7FA;
     }
 
     .container {
@@ -154,17 +154,17 @@ interface Employee {
       gap: 0.75rem;
       font-size: 1.75rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       margin: 0;
     }
 
     .page-title i {
-      color: #10b981;
+      color: #65B69D;
     }
 
     .btn-add-employee {
       padding: 0.75rem 1.5rem;
-      background: #10b981;
+      background: #65B69D;
       color: white;
       border: none;
       border-radius: 8px;
@@ -178,13 +178,13 @@ interface Employee {
     }
 
     .btn-add-employee:hover {
-      background: #059669;
+      background: #1F2D3D;
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
     }
 
     .coming-soon-badge {
-      font-size: 0.75rem;
+      font-size: 13px;
       font-weight: 700;
       padding: 0.2rem 0.45rem;
       background: rgba(255, 255, 255, 0.22);
@@ -196,13 +196,13 @@ interface Employee {
     .loading {
       text-align: center;
       padding: 4rem 2rem;
-      color: #64748b;
+      color: #6d776f;
     }
 
     .loading i {
       font-size: 2.5rem;
       margin-bottom: 1rem;
-      color: #10b981;
+      color: #65B69D;
     }
 
     .error-message {
@@ -249,7 +249,7 @@ interface Employee {
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      background: linear-gradient(135deg, #65B69D 0%, #1F2D3D 100%);
       color: white;
       display: flex;
       align-items: center;
@@ -267,7 +267,7 @@ interface Employee {
     .employee-name {
       font-size: 1.1rem;
       font-weight: 700;
-      color: #1e293b;
+      color: #1c2520;
       margin: 0 0 0.25rem 0;
       white-space: nowrap;
       overflow: hidden;
@@ -278,7 +278,7 @@ interface Employee {
       display: inline-block;
       padding: 0.25rem 0.75rem;
       background: #f1f5f9;
-      color: #475569;
+      color: #55615a;
       border-radius: 9999px;
       font-size: 0.875rem;
       font-weight: 600;
@@ -299,12 +299,12 @@ interface Employee {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #94a3b8;
+      background: #8a948d;
       transition: all 0.3s ease;
     }
 
     .status-indicator.active .status-dot {
-      background: #10b981;
+      background: #65B69D;
       animation: pulse 2s infinite;
     }
 
@@ -320,18 +320,18 @@ interface Employee {
     .status-text {
       font-size: 0.9rem;
       font-weight: 600;
-      color: #64748b;
+      color: #6d776f;
     }
 
     .status-indicator.active .status-text {
-      color: #10b981;
+      color: #65B69D;
     }
 
     /* Employee Details */
     .employee-details {
       margin-bottom: 1rem;
       padding-top: 1rem;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid #E2E8F0;
     }
 
     .detail-row {
@@ -340,7 +340,7 @@ interface Employee {
       gap: 0.5rem;
       margin-bottom: 0.5rem;
       font-size: 0.9rem;
-      color: #64748b;
+      color: #6d776f;
     }
 
     .detail-row:last-child {
@@ -349,7 +349,7 @@ interface Employee {
 
     .detail-row i {
       width: 16px;
-      color: #94a3b8;
+      color: #8a948d;
     }
 
     .pin-row {
@@ -362,12 +362,12 @@ interface Employee {
 
     .pin-code {
       font-size: 1rem;
-      color: #059669;
+      color: #1F2D3D;
     }
 
     .pin-code strong {
       font-size: 1.1rem;
-      color: #047857;
+      color: #287C67;
       font-weight: 700;
     }
 
@@ -377,7 +377,7 @@ interface Employee {
       justify-content: flex-end;
       gap: 0.5rem;
       padding-top: 1rem;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid #E2E8F0;
     }
 
     .action-btn {
@@ -385,7 +385,7 @@ interface Employee {
       height: 36px;
       border: none;
       background: #f1f5f9;
-      color: #64748b;
+      color: #6d776f;
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -395,8 +395,8 @@ interface Employee {
     }
 
     .action-btn:hover {
-      background: #e2e8f0;
-      color: #1e293b;
+      background: #E2E8F0;
+      color: #1c2520;
       transform: scale(1.05);
     }
 
@@ -422,18 +422,18 @@ interface Employee {
 
     .empty-state i {
       font-size: 4rem;
-      color: #cbd5e1;
+      color: #E2E8F0;
       margin-bottom: 1rem;
     }
 
     .empty-state h3 {
-      color: #475569;
+      color: #55615a;
       margin-bottom: 0.5rem;
       font-size: 1.5rem;
     }
 
     .empty-state p {
-      color: #64748b;
+      color: #6d776f;
     }
 
     /* Responsive */

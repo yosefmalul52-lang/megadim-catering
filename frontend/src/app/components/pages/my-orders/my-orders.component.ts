@@ -5,11 +5,13 @@ import { OrderService, Order, OrderItem } from '../../../services/order.service'
 import { AuthService } from '../../../services/auth.service';
 import { CartService, CartItem } from '../../../services/cart.service';
 import { OrderDetailsModalComponent } from '../../modals/order-details-modal/order-details-modal.component';
+import { TranslateModule } from '@ngx-translate/core';
+import { LocaleService } from '../../../i18n/locale.service';
 
 @Component({
   selector: 'app-my-orders',
   standalone: true,
-  imports: [CommonModule, RouterLink, OrderDetailsModalComponent],
+  imports: [CommonModule, RouterLink, OrderDetailsModalComponent, TranslateModule],
   template: `
     <div class="my-orders-page">
       <div class="my-orders-container">
@@ -22,7 +24,7 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
             [disabled]="isLoggingOut"
           >
             <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
-            <span>{{ isLoggingOut ? 'מתנתק...' : 'התנתק' }}</span>
+            <span>{{ isLoggingOut ? ('MY_ORDERS.LOGGING_OUT' | translate) : ('MY_ORDERS.LOGOUT' | translate) }}</span>
           </button>
         </div>
 
@@ -30,11 +32,11 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
         <header class="page-header">
           <span class="decorative-line"></span>
           <span class="decorative-diamond"></span>
-          <h1>ההזמנות שלי</h1>
+          <h1>{{ 'MY_ORDERS.TITLE' | translate }}</h1>
           <span class="decorative-diamond"></span>
           <span class="decorative-line"></span>
           <p *ngIf="!isLoading && orders.length > 0" class="page-header-sub">
-            {{ orders.length === 1 ? 'יש לך הזמנה 1 קודמת' : 'יש לך ' + orders.length + ' הזמנות קודמות' }}
+            {{ orders.length === 1 ? ('MY_ORDERS.COUNT_ONE' | translate) : ('MY_ORDERS.COUNT_MANY' | translate:{ count: orders.length }) }}
           </p>
         </header>
 
@@ -43,7 +45,7 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
           <div class="spinner">
             <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
           </div>
-          <p>טוען את ההזמנות שלך...</p>
+          <p>{{ 'MY_ORDERS.LOADING' | translate }}</p>
         </section>
 
         <!-- Error -->
@@ -57,11 +59,11 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
           <div class="empty-icon">
             <i class="fas fa-shopping-bag" aria-hidden="true"></i>
           </div>
-          <h2>עדיין לא ביצעת הזמנות</h2>
-          <p>כשתזמין פעם ראשונה, כל ההיסטוריה שלך תופיע כאן.</p>
-          <a routerLink="/" class="btn-primary">
+          <h2>{{ 'MY_ORDERS.EMPTY_TITLE' | translate }}</h2>
+          <p>{{ 'MY_ORDERS.EMPTY_TEXT' | translate }}</p>
+          <a [routerLink]="localeService.localizePath('/')" class="btn-primary">
             <i class="fas fa-utensils" aria-hidden="true"></i>
-            להתחלת הזמנה
+            {{ 'MY_ORDERS.START_ORDER' | translate }}
           </a>
         </section>
 
@@ -87,17 +89,17 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
                 <p>{{ formatItems(order.items) }}</p>
               </div>
               <div class="order-total">
-                <span class="total-label">סה"כ לתשלום</span>
+                <span class="total-label">{{ 'MY_ORDERS.TOTAL' | translate }}</span>
                 <span class="total-amount">₪{{ order.totalPrice | number:'1.2-2' }}</span>
               </div>
             </div>
 
             <div class="card-footer">
               <button type="button" class="btn-outline" (click)="viewOrderDetails(order)">
-                <i class="far fa-eye" aria-hidden="true"></i> צפה בפרטים
+                <i class="far fa-eye" aria-hidden="true"></i> {{ 'MY_ORDERS.VIEW' | translate }}
               </button>
               <button type="button" class="btn-primary-gold" (click)="reorder(order)">
-                <i class="fas fa-sync-alt" aria-hidden="true"></i> הזמן שוב
+                <i class="fas fa-sync-alt" aria-hidden="true"></i> {{ 'MY_ORDERS.REORDER' | translate }}
               </button>
             </div>
           </article>
@@ -132,7 +134,6 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
       background: radial-gradient(circle at top left, rgba(197, 160, 89, 0.08), transparent 55%),
                   radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.08), transparent 55%),
                   $bg;
-      direction: rtl;
       display: flex;
       justify-content: center;
       box-sizing: border-box;
@@ -144,7 +145,6 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
       margin: 40px auto;
       padding: 0 20px;
       box-sizing: border-box;
-      direction: rtl;
       position: relative;
     }
 
@@ -316,7 +316,7 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
       margin-bottom: 24px;
       border: 1px solid #f3f4f6;
-      border-right: 4px solid #c5a059;
+      border-inline-start: 4px solid #c5a059;
       overflow: hidden;
       transition: all 0.3s ease;
 
@@ -405,8 +405,8 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
         align-items: center;
         flex-wrap: wrap;
         gap: 16px;
-        direction: rtl;
-        text-align: right;
+        direction: inherit;
+        text-align: start;
 
         .items-summary {
           display: flex;
@@ -415,8 +415,8 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
           color: #4b5563;
           max-width: 60%;
           font-family: $font-he;
-          direction: rtl;
-          text-align: right;
+          direction: inherit;
+          text-align: start;
 
           i {
             color: #c5a059;
@@ -554,6 +554,7 @@ import { OrderDetailsModalComponent } from '../../modals/order-details-modal/ord
   `]
 })
 export class MyOrdersComponent implements OnInit {
+  readonly localeService = inject(LocaleService);
   private orderService = inject(OrderService);
   private authService = inject(AuthService);
   private router = inject(Router);

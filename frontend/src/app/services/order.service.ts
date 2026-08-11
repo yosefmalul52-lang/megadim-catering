@@ -60,6 +60,8 @@ export interface OrderItem {
   };
   imageUrl?: string;
   description?: string;
+  /** Free-text kitchen notes (Shabbat catering); separate from description quantities. */
+  kitchenRemark?: string;
 }
 
 export interface Order {
@@ -73,6 +75,11 @@ export interface Order {
    * 'shabbat' = Shabbat & holiday catering form; 'events' = wedding/corporate events form.
    */
   cateringKind?: 'shabbat' | 'events';
+  /**
+   * Public storefront locale that created the order.
+   * Missing on legacy orders — treat as Hebrew.
+   */
+  sourceLocale?: 'he' | 'en';
   /** Event type label for event catering orders (e.g. 'חתונה', 'אירוע עסקי'). */
   eventType?: string;
   /** Number of guests for event catering orders. */
@@ -706,6 +713,33 @@ export class OrderService {
       );
   }
 
+  /** Admin: update catering quote (price per portion / food subtotal / catalog recalc). */
+  updateCateringPricing(
+    orderId: string,
+    payload: {
+      pricePerPortion?: number;
+      foodSubtotal?: number;
+      recalculateFromCatalog?: boolean;
+    }
+  ): Observable<Order> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/admin/${id}/catering-pricing`,
+        payload
+      )
+      .pipe(
+        map((response) => ({
+          ...response.data,
+          id: response.data._id || response.data.id
+        })),
+        catchError((error: any) => {
+          console.error('Error updating catering pricing:', error);
+          throw error;
+        })
+      );
+  }
+
   /** Admin: explicitly resolve failed/abandoned payment exception without rewriting paymentStatus. */
   resolvePaymentException(
     orderId: string,
@@ -750,6 +784,7 @@ export class OrderService {
       category?: string;
       price?: number;
       description?: string;
+      kitchenRemark?: string;
       selectedOption?: {
         label: string;
         amount?: string;

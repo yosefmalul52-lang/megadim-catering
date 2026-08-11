@@ -54,10 +54,24 @@ export class AdminMarketingComponent implements OnInit {
   leadsChartOptions: ChartOptions<'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#ffffff',
+        titleColor: '#1F2D3D',
+        bodyColor: '#1F2D3D',
+        borderColor: '#E2E8F0',
+        borderWidth: 1,
+        titleFont: { size: 13, weight: 600 },
+        bodyFont: { size: 14 }
+      }
+    },
     scales: {
-      x: { grid: { display: false }, ticks: { color: '#64748b' } },
-      y: { ticks: { color: '#64748b' } }
+      x: { grid: { display: false }, ticks: { color: '#526273', font: { size: 13 } } },
+      y: {
+        grid: { color: 'rgba(226, 232, 240, 0.95)' },
+        ticks: { color: '#526273', font: { size: 13 } }
+      }
     }
   };
 
@@ -68,9 +82,16 @@ export class AdminMarketingComponent implements OnInit {
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { usePointStyle: true, color: '#334155' }
+        labels: { usePointStyle: true, color: '#1F2D3D', font: { size: 13 } }
       },
       tooltip: {
+        backgroundColor: '#ffffff',
+        titleColor: '#1F2D3D',
+        bodyColor: '#1F2D3D',
+        borderColor: '#E2E8F0',
+        borderWidth: 1,
+        titleFont: { size: 13, weight: 600 },
+        bodyFont: { size: 14 },
         callbacks: {
           label: (ctx) => {
             const value = Number(ctx.parsed || 0);
@@ -378,7 +399,7 @@ export class AdminMarketingComponent implements OnInit {
         {
           label: 'לידים',
           data: values,
-          backgroundColor: '#3b82f6',
+          backgroundColor: '#77A9D8',
           borderRadius: 6,
           maxBarThickness: 44
         }
@@ -403,7 +424,7 @@ export class AdminMarketingComponent implements OnInit {
   }
 
   private palette(index: number): string {
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#ec4899'];
+    const colors = ['#77A9D8', '#65B69D', '#C6AA4D', '#A38BD4', '#E49A6A', '#77A9D8', '#77A9D8'];
     return colors[index % colors.length];
   }
 }

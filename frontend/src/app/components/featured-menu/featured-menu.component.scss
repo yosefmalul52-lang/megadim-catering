@@ -27,7 +27,7 @@ $category-viewport-width: calc(
 
 .featured-title {
   font-family: 'Heebo', sans-serif;
-  font-size: clamp(1.6rem, 3.5vw, 2rem);
+  font-size: clamp(1.9rem, 1.75rem + 1.1vw, 2.45rem);
   font-weight: 700;
   color: $navy;
   margin: 0 0 2.25rem;
@@ -263,7 +263,7 @@ $category-viewport-width: calc(
 
   &__portion {
     font-family: 'Heebo', sans-serif;
-    font-size: 0.78rem;
+    font-size: 0.875rem;
     color: $text-muted;
     margin: 0 0 0.45rem;
   }
@@ -294,7 +294,7 @@ $category-viewport-width: calc(
   top: 8px;
   right: 8px;
   font-family: 'Heebo', sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   padding: 0.25rem 0.55rem;
   z-index: 1;

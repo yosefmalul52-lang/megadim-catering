@@ -5,6 +5,8 @@ export type HolidayProductWeightUnit = 'unit' | '100g';
 
 export interface IHolidayPricingOption {
   label: string;
+  /** Optional English label for public EN UI */
+  labelEn?: string;
   amount: string;
   price: number;
 }
@@ -13,8 +15,12 @@ export interface IHolidayPricingOption {
 export interface IHolidayEventProduct {
   _id: Types.ObjectId;
   title: string;
+  /** Optional English title for public EN UI */
+  titleEn?: string;
   price: number;
   description: string;
+  /** Optional English description for public EN UI */
+  descriptionEn?: string;
   imageUrl: string;
   isAvailable: boolean;
   pricingType: HolidayProductPricingType;
@@ -36,6 +42,7 @@ export interface IHolidayEvent extends Document {
 const HolidayPricingOptionSchema = new Schema<IHolidayPricingOption>(
   {
     label: { type: String, required: true, trim: true },
+    labelEn: { type: String, required: false, trim: true, default: '' },
     amount: { type: String, required: true, trim: true },
     price: { type: Number, required: true, min: 0 }
   },
@@ -45,8 +52,10 @@ const HolidayPricingOptionSchema = new Schema<IHolidayPricingOption>(
 const HolidayEventProductSchema = new Schema<IHolidayEventProduct>(
   {
     title: { type: String, required: true, trim: true },
+    titleEn: { type: String, required: false, trim: true, default: '' },
     price: { type: Number, default: 0, min: 0 },
     description: { type: String, default: '', trim: true },
+    descriptionEn: { type: String, required: false, trim: true, default: '' },
     imageUrl: { type: String, default: '', trim: true },
     isAvailable: { type: Boolean, default: true },
     pricingType: {

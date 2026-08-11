@@ -93,6 +93,7 @@ export class SeoService {
       const pageUrl = this.normalizePublicSiteUrl(rawPageUrl);
       this.meta.updateTag({ property: 'og:url', content: pageUrl });
       this.setCanonical(pageUrl);
+      this.setHreflangAlternates(pageUrl);
     }
   }
 
@@ -107,6 +108,38 @@ export class SeoService {
       head.appendChild(link);
     }
     link.setAttribute('href', this.normalizePublicSiteUrl(url));
+  }
+
+  /** he / en-US / x-default hreflang pair for the current public page. */
+  setHreflangAlternates(canonicalUrl: string): void {
+    const head = this.doc.getElementsByTagName('head')[0];
+    if (!head) return;
+    head.querySelectorAll('link[data-hreflang="megadim"]').forEach((n) => n.remove());
+
+    const absolute = this.normalizePublicSiteUrl(canonicalUrl);
+    let path = '/';
+    try {
+      path = new URL(absolute).pathname || '/';
+    } catch {
+      path = '/';
+    }
+    const isEn = path === '/en' || path.startsWith('/en/');
+    const hePath = isEn ? (path === '/en' ? '/' : path.slice(3) || '/') : path;
+    const enPath = hePath === '/' ? '/en' : `/en${hePath}`;
+
+    const pairs: Array<{ lang: string; href: string }> = [
+      { lang: 'he', href: `${SITE_PUBLIC_ORIGIN}${hePath === '/' ? '/' : hePath}` },
+      { lang: 'en-US', href: `${SITE_PUBLIC_ORIGIN}${enPath}` },
+      { lang: 'x-default', href: `${SITE_PUBLIC_ORIGIN}${hePath === '/' ? '/' : hePath}` }
+    ];
+    for (const p of pairs) {
+      const link = this.doc.createElement('link');
+      link.setAttribute('rel', 'alternate');
+      link.setAttribute('hreflang', p.lang);
+      link.setAttribute('href', p.href);
+      link.setAttribute('data-hreflang', 'megadim');
+      head.appendChild(link);
+    }
   }
 
   /**

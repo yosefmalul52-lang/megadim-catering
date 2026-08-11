@@ -70,10 +70,14 @@ export function resolveMenuItemPrice(item: Pick<IMenuItem, 'price' | 'pricingVar
 }
 
 function mapMenuItemToHolidayProduct(item: IMenuItem): Partial<IHolidayEventProduct> {
+  const titleEn = String((item as any).nameEn || '').trim();
+  const descriptionEn = String((item as any).descriptionEn || '').trim();
   return {
     title: item.name.trim(),
+    ...(titleEn ? { titleEn } : {}),
     price: resolveMenuItemPrice(item),
     description: (item.description || '').trim(),
+    ...(descriptionEn ? { descriptionEn } : {}),
     imageUrl: (item.imageUrl || '').trim(),
     isAvailable: true
   };

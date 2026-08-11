@@ -323,16 +323,25 @@
               </div>
               @if (isOrderExpanded(o.orderId)) {
                 <div class="kr-items-wrap">
-                  <div class="kr-items-head" aria-hidden="true">
+                  <div
+                    class="kr-items-head"
+                    aria-hidden="true"
+                    [class.kr-items--events]="o.orderKind === 'events'"
+                    [class.kr-items--shabbat]="o.orderKind === 'catering_shabbat'"
+                  >
                     <span>מנה</span>
-                    @if (o.orderKind !== 'events') {
+                    @if (o.orderKind !== 'events' && o.orderKind !== 'catering_shabbat') {
                       <span>גודל / אפשרות</span>
                     }
                     <span>כמות</span>
                     <span>הערות מטבח</span>
                     <span class="no-print">פעולה</span>
                   </div>
-                  <ul class="kr-items" [class.kr-items--events]="o.orderKind === 'events'">
+                  <ul
+                    class="kr-items"
+                    [class.kr-items--events]="o.orderKind === 'events'"
+                    [class.kr-items--shabbat]="o.orderKind === 'catering_shabbat'"
+                  >
                     @for (it of o.items || []; track it.name + '-' + (it.optionLabel || '') + '-' + (it.sizeLabel || '') + '-' + it.quantity + '-' + $index) {
                       <li [class.kr-item-missing]="!!$any(it).missingChoice">
                         <span class="kr-item-name">
@@ -341,11 +350,11 @@
                             <small class="kr-missing-flag">בחירה חסרה</small>
                           }
                         </span>
-                        @if (o.orderKind !== 'events') {
+                        @if (o.orderKind !== 'events' && o.orderKind !== 'catering_shabbat') {
                           <span class="kr-item-size">{{ formatItemSize(it) }}</span>
                         }
                         <span class="kr-item-qty">
-                          @if (o.orderKind === 'events') {
+                          @if (o.orderKind === 'events' || o.orderKind === 'catering_shabbat') {
                             <strong>{{ $any(it).notes || it.quantity || '—' }}</strong>
                           } @else {
                             <strong>{{ it.quantity }}</strong>
@@ -353,7 +362,11 @@
                           }
                         </span>
                         <span class="kr-item-notes">
-                          <span class="kr-notes-blank" title="למילוי ידני בהדפסה">—</span>
+                          @if ($any(it).kitchenRemark) {
+                            <span class="kr-notes-text">{{ $any(it).kitchenRemark }}</span>
+                          } @else {
+                            <span class="kr-notes-blank" title="למילוי ידני בהדפסה">—</span>
+                          }
                         </span>
                         <span class="kr-item-action no-print">
                           <button type="button" class="kr-btn sm" (click)="openAssignFromOrderItem(o, it)">הקצאה</button>

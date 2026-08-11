@@ -1,10 +1,10 @@
-<div class="cart-page" dir="rtl">
+<div class="cart-page" [attr.dir]="localeService.locale === 'en' ? 'ltr' : 'rtl'">
   <div class="container">
     <!-- Centered page header with decorative lines -->
     <header class="page-header">
       <div class="page-title-wrapper">
         <span class="decorative-line right-line" aria-hidden="true"></span>
-        <h1 class="page-title">עגלת קניות</h1>
+        <h1 class="page-title">{{ 'CART.TITLE' | translate }}</h1>
         <span class="decorative-line left-line" aria-hidden="true"></span>
       </div>
     </header>
@@ -14,9 +14,9 @@
       <div class="empty-icon" aria-hidden="true">
         <i class="fas fa-shopping-bag"></i>
       </div>
-      <p class="empty-message">העגלה שלך ריקה</p>
-      <p class="empty-sub">הוסף מנות מהתפריט כדי להתחיל הזמנה</p>
-      <a routerLink="/ready-for-shabbat" class="btn-back">חזרה לתפריט והוספת מנות</a>
+      <p class="empty-message">{{ 'CART.EMPTY' | translate }}</p>
+      <p class="empty-sub">{{ 'CART.EMPTY_SUB' | translate }}</p>
+      <a [routerLink]="localeService.localizePath('/ready-for-shabbat')" class="btn-back">{{ 'CART.BACK_TO_MENU' | translate }}</a>
     </div>
 
     <!-- Main content: grid 1fr 350px -->
@@ -30,13 +30,13 @@
             <div class="item-image">
               <img
                 [src]="item.imageUrl || 'assets/images/placeholder-dish.jpg'"
-                [alt]="item.name"
+                [alt]="displayName(item)"
                 loading="lazy"
               >
             </div>
             <div class="item-info">
-              <h3 class="item-name">{{ cleanItemName(item.name) }}</h3>
-              <p class="item-unit-price"><bdi>{{ item.price.toFixed(2) }} ש"ח</bdi> ליחידה</p>
+              <h3 class="item-name">{{ displayName(item) }}</h3>
+              <p class="item-unit-price"><bdi>{{ item.price.toFixed(2) }} {{ 'CART.SHEKEL' | translate }}</bdi> {{ 'CART.PER_UNIT' | translate }}</p>
             </div>
             <div class="quantity-pill">
               <button
@@ -44,24 +44,24 @@
                 class="qty-btn minus"
                 (click)="decreaseQuantity(item.id)"
                 [disabled]="item.quantity <= 1"
-                [attr.aria-label]="'הפחת ' + item.name"
+                [attr.aria-label]="('CART.QUANTITY' | translate) + ' − ' + displayName(item)"
               >−</button>
               <span class="qty-value">{{ item.quantity }}</span>
               <button
                 type="button"
                 class="qty-btn plus"
                 (click)="increaseQuantity(item.id)"
-                [attr.aria-label]="'הוסף ' + item.name"
+                [attr.aria-label]="('CART.QUANTITY' | translate) + ' + ' + displayName(item)"
               >+</button>
             </div>
             <div class="item-row-total">
-              <bdi>{{ (item.price * item.quantity).toFixed(2) }} ש"ח</bdi>
+              <bdi>{{ (item.price * item.quantity).toFixed(2) }} {{ 'CART.SHEKEL' | translate }}</bdi>
             </div>
             <button
               type="button"
               class="btn-remove"
               (click)="removeItem(item.id)"
-              [attr.aria-label]="'הסר ' + item.name + ' מהעגלה'"
+              [attr.aria-label]="('CART.REMOVE' | translate) + ' ' + displayName(item)"
             >
               <i class="fas fa-trash-alt" aria-hidden="true"></i>
             </button>
@@ -71,28 +71,28 @@
 
       <aside class="sidebar">
         <div class="summary-card">
-          <div class="summary-header">סיכום הזמנה</div>
+          <div class="summary-header">{{ 'CART.SUMMARY' | translate }}</div>
           <div class="summary-body">
             <div class="summary-row">
-              <span class="summary-label">סה"כ פריטים</span>
+              <span class="summary-label">{{ 'CART.TOTAL_ITEMS' | translate }}</span>
               <span class="summary-value">{{ cartSummary.totalItems }}</span>
             </div>
             <div class="summary-row">
-              <span class="summary-label">סכום ביניים</span>
-              <span class="summary-value"><bdi>{{ cartSummary.totalPrice.toFixed(2) }} ש"ח</bdi></span>
+              <span class="summary-label">{{ 'CART.SUBTOTAL' | translate }}</span>
+              <span class="summary-value"><bdi>{{ cartSummary.totalPrice.toFixed(2) }} {{ 'CART.SHEKEL' | translate }}</bdi></span>
             </div>
             <div class="summary-row total-row">
-              <span class="summary-label">סה"כ לתשלום</span>
-              <span class="summary-total"><bdi>{{ cartSummary.totalPrice.toFixed(2) }} ש"ח</bdi></span>
+              <span class="summary-label">{{ 'CART.TOTAL_DUE' | translate }}</span>
+              <span class="summary-total"><bdi>{{ cartSummary.totalPrice.toFixed(2) }} {{ 'CART.SHEKEL' | translate }}</bdi></span>
             </div>
             <div class="summary-confidence">
-              <span class="confidence-item"><i class="fas fa-lock"></i> הזמנה מאובטחת</span>
-              <span class="confidence-item"><i class="fas fa-leaf"></i> קייטרינג טרי יום-יום</span>
-              <span class="confidence-item"><i class="fas fa-truck"></i> משלוח מבוקר טמפרטורה</span>
+              <span class="confidence-item"><i class="fas fa-lock"></i> {{ 'CART.SECURE' | translate }}</span>
+              <span class="confidence-item"><i class="fas fa-leaf"></i> {{ 'CART.FRESH' | translate }}</span>
+              <span class="confidence-item"><i class="fas fa-truck"></i> {{ 'CART.COLD_CHAIN' | translate }}</span>
             </div>
             <div class="summary-actions">
-              <a routerLink="/checkout" class="btn-checkout">המשך לסיום הזמנה</a>
-              <button type="button" class="btn-clear" (click)="clearCart()">ניקוי עגלה</button>
+              <a [routerLink]="localeService.localizePath('/checkout')" class="btn-checkout">{{ 'CART.CHECKOUT' | translate }}</a>
+              <button type="button" class="btn-clear" (click)="clearCart()">{{ 'CART.CLEAR' | translate }}</button>
             </div>
           </div>
         </div>

@@ -53,11 +53,16 @@ export function mapHolidayProductToMenuItem(
   const pricingType = resolveHolidayPricingType(product);
   const rate = Number(product.price) || 0;
 
+  const titleEn = String(product.titleEn || '').trim();
+  const descriptionEn = String(product.descriptionEn || '').trim();
+
   const base: MenuItem = {
     id,
     _id: id,
     name: product.title,
+    ...(titleEn ? { nameEn: titleEn } : {}),
     description: product.description || '',
+    ...(descriptionEn ? { descriptionEn } : {}),
     imageUrl: product.imageUrl?.trim() || PLACEHOLDER_IMAGE,
     category: HOLIDAY_CART_CATEGORY,
     tags: ['holiday'],
@@ -67,11 +72,15 @@ export function mapHolidayProductToMenuItem(
   if (pricingType === 'variants') {
     const pricingOptions: PricingOption[] = (product.pricingOptions || [])
       .filter((o) => (o.label || '').trim())
-      .map((o) => ({
-        label: String(o.label).trim(),
-        amount: String(o.amount ?? '').trim(),
-        price: Number(o.price) || 0
-      }));
+      .map((o) => {
+        const labelEn = String(o.labelEn || '').trim();
+        return {
+          label: String(o.label).trim(),
+          ...(labelEn ? { labelEn } : {}),
+          amount: String(o.amount ?? '').trim(),
+          price: Number(o.price) || 0
+        };
+      });
     return {
       ...base,
       pricingOptions,

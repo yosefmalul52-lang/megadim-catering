@@ -1455,11 +1455,80 @@
                   <span class="detail-value">{{ selectedOrder.customerDetails.deliveryType === 'delivery' ? 'משלוח לכתובת' : 'איסוף עצמי' }}</span>
                 </div>
               }
-              @if (selectedOrder.cateringKind === 'events' && (selectedOrder.subtotal ?? selectedOrder.customerDetails?.pricePerPortion)) {
+              @if (canEditCateringPricing(selectedOrder)) {
                 <div class="detail-row">
-                  <span class="detail-label">מחיר למנה (משוער):</span>
-                  <span class="detail-value">₪{{ (selectedOrder.subtotal ?? selectedOrder.customerDetails?.pricePerPortion) | number:'1.0-0' }}</span>
+                  <span class="detail-label">מחיר למנה:</span>
+                  @if (!isEditingPricePerPortion) {
+                    <span class="detail-value shipping-cost-display">
+                      <span>₪{{ getPricePerPortion(selectedOrder) | number:'1.0-2' }}</span>
+                      <button
+                        type="button"
+                        class="btn-inline-edit"
+                        (click)="startEditingPricePerPortion()"
+                        title="ערוך מחיר למנה"
+                        aria-label="ערוך מחיר למנה"
+                      >
+                        <i class="fas fa-pencil-alt"></i>
+                      </button>
+                    </span>
+                  } @else {
+                    <span class="detail-value shipping-cost-edit">
+                      <input
+                        type="number"
+                        class="shipping-cost-input"
+                        [(ngModel)]="editingPricePerPortionValue"
+                        name="editingPricePerPortion"
+                        min="0"
+                        step="0.01"
+                      />
+                      <button
+                        type="button"
+                        class="btn-inline-action btn-inline-save"
+                        (click)="savePricePerPortion()"
+                        [disabled]="isSavingCateringPricing"
+                        title="שמור"
+                        aria-label="שמור מחיר למנה"
+                      >
+                        @if (isSavingCateringPricing) {
+                          <i class="fas fa-spinner fa-spin"></i>
+                        } @else {
+                          <i class="fas fa-check"></i>
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-inline-action btn-inline-cancel"
+                        (click)="cancelEditingPricePerPortion()"
+                        [disabled]="isSavingCateringPricing"
+                        title="ביטול"
+                        aria-label="ביטול עריכת מחיר למנה"
+                      >
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </span>
+                  }
                 </div>
+                @if (isShabbatCateringOrder(selectedOrder)) {
+                  <div class="detail-row">
+                    <span class="detail-label">חישוב מקטלוג:</span>
+                    <span class="detail-value">
+                      <button
+                        type="button"
+                        class="btn-save-date"
+                        (click)="recalculateShabbatPricingFromCatalog()"
+                        [disabled]="isSavingCateringPricing"
+                        title="חשב מחדש לפי מחירון שבת בקטלוג"
+                      >
+                        @if (isSavingCateringPricing) {
+                          <i class="fas fa-spinner fa-spin"></i>
+                        } @else {
+                          <i class="fas fa-calculator"></i>
+                        }
+                        חשב מחדש מהקטלוג
+                      </button>
+                    </span>
+                  </div>
+                }
               }
               @if (selectedOrder.cateringKind === 'events' && (selectedOrder.venue || selectedOrder.customerDetails?.address)) {
                 <div class="detail-row">
@@ -1528,6 +1597,7 @@
                             class="editable-item-row"
                             [class.editable-item-row--with-size]="getEditableItemSizeChoices(item).length > 0"
                             [class.editable-item-row--events]="isEventCateringOrder(selectedOrder)"
+                            [class.editable-item-row--shabbat-qty]="isShabbatCateringOrder(selectedOrder)"
                           >
                             <span class="editable-item-name" [title]="item.name">{{ item.baseName || item.name }}</span>
                             @if (getEditableItemSizeChoices(item).length > 0) {
@@ -1554,7 +1624,7 @@
                               [attr.aria-label]="'מחיר יחידה עבור ' + (item.baseName || item.name)"
                               title="מחיר ליחידה (0 = חינם)"
                             />
-                            @if (!isEventCateringOrder(selectedOrder)) {
+                            @if (!usesManagerKitchenQty(selectedOrder)) {
                               <input
                                 type="number"
                                 min="1"
@@ -1568,10 +1638,20 @@
                               type="text"
                               class="input-item-kitchen-notes"
                               [(ngModel)]="item.kitchenNotes"
-                              [attr.aria-label]="(isEventCateringOrder(selectedOrder) ? 'כמויות עבור ' : 'הערות מטבח עבור ') + (item.baseName || item.name)"
-                              [placeholder]="isEventCateringOrder(selectedOrder) ? 'כמויות להכנה...' : 'הערות מטבח'"
-                              [title]="isEventCateringOrder(selectedOrder) ? 'כמויות להכנה (יופיעו בעמודת כמות בדוח)' : 'הערות מטבח'"
+                              [attr.aria-label]="(usesManagerKitchenQty(selectedOrder) ? 'כמויות עבור ' : 'הערות מטבח עבור ') + (item.baseName || item.name)"
+                              [placeholder]="usesManagerKitchenQty(selectedOrder) ? 'כמויות להכנה...' : 'הערות מטבח'"
+                              [title]="usesManagerKitchenQty(selectedOrder) ? 'כמויות להכנה (יופיעו בעמודת כמות בדוח)' : 'הערות מטבח'"
                             />
+                            @if (isShabbatCateringOrder(selectedOrder)) {
+                              <input
+                                type="text"
+                                class="input-item-kitchen-remark"
+                                [(ngModel)]="item.kitchenRemark"
+                                [attr.aria-label]="'הערות מטבח עבור ' + (item.baseName || item.name)"
+                                placeholder="הערות מטבח..."
+                                title="הערות חופשיות למטבח (בנוסף לכמויות)"
+                              />
+                            }
                             <button
                               type="button"
                               class="btn-remove-item"
@@ -1737,10 +1817,14 @@
                                   <i class="fas fa-check catering-check-icon"></i>
                                   <div class="catering-view-item-text">
                                     <span>{{ item.name }}@if (item.sizeLabel) { <span class="catering-item-size">({{ item.sizeLabel }})</span> }
-                                      <span class="item-quantity">×{{ effectiveItemQuantity(selectedOrder, item) }}</span>
+                                      @if (item.kitchenNotes) {
+                                        <span class="item-quantity"> · {{ item.kitchenNotes }}</span>
+                                      } @else {
+                                        <span class="item-quantity">×{{ effectiveItemQuantity(selectedOrder, item) }}</span>
+                                      }
                                     </span>
-                                    @if (item.kitchenNotes) {
-                                      <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
+                                    @if (item.kitchenRemark) {
+                                      <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenRemark }}</span>
                                     }
                                   </div>
                                 </div>
@@ -1810,6 +1894,10 @@
                     <p class="kitchen-prep-hint">
                       מלאו כמויות להכנה לכל מנה — יופיעו בעמודת הכמות בדוח המטבח ובדוח ההזמנה. עמודת הערות מטבח בהדפסה ריקה לכתיבה ידנית.
                     </p>
+                  } @else if (isShabbatCateringOrder(selectedOrder)) {
+                    <p class="kitchen-prep-hint">
+                      מלאו כמויות להכנה לכל מנה — יופיעו בעמודת הכמות בדוח. ניתן גם להוסיף הערות מטבח נפרדות.
+                    </p>
                   } @else {
                     <p class="kitchen-prep-hint">הערות להכנה — לא נשלחות ללקוח. מלאו לפני הדפסה לצוות המטבח.</p>
                   }
@@ -1823,8 +1911,11 @@
                         <tr>
                           <th>קטגוריה</th>
                           <th>פריט</th>
-                          @if (isEventCateringOrder(selectedOrder)) {
+                          @if (usesManagerKitchenQty(selectedOrder)) {
                             <th>כמויות</th>
+                            @if (isShabbatCateringOrder(selectedOrder)) {
+                              <th>הערות למטבח</th>
+                            }
                           } @else {
                             <th>כמות</th>
                             <th>הערות למטבח</th>
@@ -1836,7 +1927,7 @@
                           <tr>
                             <td>{{ line.category }}</td>
                             <td>{{ line.name }}</td>
-                            @if (isEventCateringOrder(selectedOrder)) {
+                            @if (usesManagerKitchenQty(selectedOrder)) {
                               <td>
                                 <input
                                   type="text"
@@ -1846,6 +1937,17 @@
                                   placeholder="למשל: 8 מגשים / 3 ק״ג..."
                                 />
                               </td>
+                              @if (isShabbatCateringOrder(selectedOrder)) {
+                                <td>
+                                  <input
+                                    type="text"
+                                    class="kitchen-prep-input"
+                                    [(ngModel)]="kitchenPrepLines[$index].kitchenRemark"
+                                    [name]="'kitchenPrepRemark' + $index"
+                                    placeholder="הערות חופשיות..."
+                                  />
+                                </td>
+                              }
                             } @else {
                               <td>{{ line.quantity }}</td>
                               <td>
@@ -1872,7 +1974,7 @@
                     >
                       @if (isSavingKitchenPrep) {
                         <i class="fas fa-spinner fa-spin"></i> שומר...
-                      } @else if (isEventCateringOrder(selectedOrder)) {
+                      } @else if (usesManagerKitchenQty(selectedOrder)) {
                         שמור כמויות
                       } @else {
                         שמור הערות מטבח
@@ -1888,10 +1990,65 @@
 
             <div class="details-section">
               <div class="order-summary">
-                <div class="summary-row" *ngIf="(selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) != null">
-                  <span class="summary-label">סכום ביניים:</span>
-                  <span class="summary-value">₪{{ (selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) | number:'1.2-2' }}</span>
-                </div>
+                @if (canEditCateringPricing(selectedOrder)) {
+                  <div class="summary-row">
+                    <span class="summary-label">סכום ביניים (מזון):</span>
+                    @if (!isEditingFoodSubtotal) {
+                      <span class="summary-value shipping-cost-display">
+                        <span>₪{{ getFoodSubtotal(selectedOrder) | number:'1.2-2' }}</span>
+                        <button
+                          type="button"
+                          class="btn-inline-edit"
+                          (click)="startEditingFoodSubtotal()"
+                          title="ערוך סכום ביניים"
+                          aria-label="ערוך סכום ביניים"
+                        >
+                          <i class="fas fa-pencil-alt"></i>
+                        </button>
+                      </span>
+                    } @else {
+                      <span class="summary-value shipping-cost-edit">
+                        <input
+                          type="number"
+                          class="shipping-cost-input"
+                          [(ngModel)]="editingFoodSubtotalValue"
+                          name="editingFoodSubtotal"
+                          min="0"
+                          step="0.01"
+                        />
+                        <button
+                          type="button"
+                          class="btn-inline-action btn-inline-save"
+                          (click)="saveFoodSubtotal()"
+                          [disabled]="isSavingCateringPricing"
+                          title="שמור"
+                          aria-label="שמור סכום ביניים"
+                        >
+                          @if (isSavingCateringPricing) {
+                            <i class="fas fa-spinner fa-spin"></i>
+                          } @else {
+                            <i class="fas fa-check"></i>
+                          }
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-inline-action btn-inline-cancel"
+                          (click)="cancelEditingFoodSubtotal()"
+                          [disabled]="isSavingCateringPricing"
+                          title="ביטול"
+                          aria-label="ביטול עריכת סכום ביניים"
+                        >
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </span>
+                    }
+                  </div>
+                } @else if ((selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) != null) {
+                  <div class="summary-row">
+                    <span class="summary-label">סכום ביניים:</span>
+                    <span class="summary-value">₪{{ (selectedOrder.subtotal ?? selectedOrder.customerDetails?.subtotal) | number:'1.2-2' }}</span>
+                  </div>
+                }
                 @if (canEditShippingCost(selectedOrder)) {
                   <div class="summary-row shipping-cost-row">
                     <span class="summary-label">דמי משלוח:</span>

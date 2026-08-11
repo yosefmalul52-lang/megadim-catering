@@ -18,8 +18,10 @@ import {
 export interface HolidayProductFormValue {
   _id?: string;
   name: string;
+  nameEn?: string;
   price: number;
   description: string;
+  descriptionEn?: string;
   imageUrl: string;
   pricingType: HolidayProductPricingType;
   weightUnit: HolidayProductWeightUnit;
@@ -73,13 +75,15 @@ export class HolidayProductDialogComponent implements OnChanges {
     return this.fb.group({
       _id: [value?._id || ''],
       name: [(value?.name || '').trim(), Validators.required],
+      nameEn: [(value?.nameEn || '').trim()],
       price: [value?.price ?? 0, [Validators.min(0)]],
       description: [value?.description || ''],
+      descriptionEn: [value?.descriptionEn || ''],
       imageUrl: [value?.imageUrl || ''],
       pricingType: [pricingType],
       weightUnit: [value?.weightUnit === '100g' ? '100g' : 'unit'],
       pricingOptions: this.fb.array(
-        (value?.pricingOptions?.length ? value.pricingOptions : [{ label: '', amount: '', price: 0 }]).map(
+        (value?.pricingOptions?.length ? value.pricingOptions : [{ label: '', labelEn: '', amount: '', price: 0 }]).map(
           (o) => this.createPricingOptionGroup(o)
         )
       ),
@@ -92,6 +96,7 @@ export class HolidayProductDialogComponent implements OnChanges {
   ): FormGroup {
     return this.fb.group({
       label: [(option?.label || '').trim()],
+      labelEn: [(option?.labelEn || '').trim()],
       amount: [String(option?.amount ?? '').trim()],
       price: [option?.price ?? 0, [Validators.min(0)]]
     });
@@ -188,11 +193,15 @@ export class HolidayProductDialogComponent implements OnChanges {
     let pricingOptions: HolidayPricingOption[] = [];
     if (pricingType === 'variants') {
       pricingOptions = (raw.pricingOptions || [])
-        .map((o: HolidayPricingOption) => ({
-          label: String(o.label || '').trim(),
-          amount: String(o.amount ?? '').trim(),
-          price: Number(o.price) || 0
-        }))
+        .map((o: HolidayPricingOption) => {
+          const labelEn = String(o.labelEn || '').trim();
+          return {
+            label: String(o.label || '').trim(),
+            ...(labelEn ? { labelEn } : {}),
+            amount: String(o.amount ?? '').trim(),
+            price: Number(o.price) || 0
+          };
+        })
         .filter((o: HolidayPricingOption) => o.label && o.amount && o.price >= 0);
       if (!pricingOptions.length) {
         this.toastr.warning('הוסף לפחות אפשרות מחיר אחת', 'תמחור', {
@@ -205,8 +214,10 @@ export class HolidayProductDialogComponent implements OnChanges {
     this.saved.emit({
       _id: raw._id || undefined,
       name: String(raw.name).trim(),
+      nameEn: String(raw.nameEn || '').trim() || undefined,
       price: Number(raw.price) || 0,
       description: (raw.description || '').trim(),
+      descriptionEn: String(raw.descriptionEn || '').trim() || undefined,
       imageUrl: (raw.imageUrl || '').trim(),
       pricingType,
       weightUnit: raw.weightUnit === '100g' ? '100g' : 'unit',

@@ -20,7 +20,7 @@ $font-hebrew: 'Segoe UI', 'Heebo', 'Arial Hebrew', 'David', 'Guttman Yad', Arial
   background: radial-gradient(circle at top left, rgba(224, 192, 117, 0.12), transparent 55%),
               radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.06), transparent 55%),
               $color-bg;
-  direction: rtl;
+  direction: inherit;
 
   .container {
     max-width: 1200px;

@@ -1,20 +1,27 @@
 import { Component, Input, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 import { MenuItem } from '../../../services/menu.service';
 import { CartService, CartItem } from '../../../services/cart.service';
 import { QuantitySelectorComponent } from '../quantity-selector/quantity-selector.component';
+import { LocaleService } from '../../../i18n/locale.service';
+import {
+  localizedOptionLabel,
+  localizedProductName
+} from '../../../i18n/localized-content';
 
 /** Pricing, quantity, and add-to-cart block for unified product cards (sides, holiday, etc.). */
 @Component({
   selector: 'app-product-card-actions',
   standalone: true,
-  imports: [CommonModule, MatIconModule, QuantitySelectorComponent],
+  imports: [CommonModule, MatIconModule, QuantitySelectorComponent, TranslateModule],
   templateUrl: './product-card-actions.component.html',
   styleUrls: ['./product-card-actions.component.scss']
 })
 export class ProductCardActionsComponent {
   private cartService = inject(CartService);
+  readonly localeService = inject(LocaleService);
 
   @Input({ required: true }) item!: MenuItem;
   @Input() cartCategory = '';
@@ -28,6 +35,14 @@ export class ProductCardActionsComponent {
 
   get itemId(): string {
     return (this.item?.id || this.item?._id || '').toString();
+  }
+
+  displayName(item: MenuItem = this.item): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  optionLabel(opt: { label?: string; labelEn?: string } | null | undefined): string {
+    return localizedOptionLabel(opt, this.localeService.locale);
   }
 
   hasPricingOptions(item: MenuItem = this.item): boolean {
@@ -147,7 +162,9 @@ export class ProductCardActionsComponent {
     }
     this.validationErrors[itemId] = false;
 
+    const baseEn = item.nameEn || item.name;
     let itemName = item.name;
+    let itemNameEn = baseEn;
     let price = this.getSelectedPrice(item);
     let cartLineId = itemId;
     let quantity = 1;
@@ -158,15 +175,19 @@ export class ProductCardActionsComponent {
       const options = item.pricingOptions || [];
       if (optionIndex >= 0 && options[optionIndex]) {
         const opt = options[optionIndex];
-        itemName = `${item.name} (${opt.label} - ${opt.amount})`;
+        const label = String(opt.label || '').trim();
+        const labelEn = String(opt.labelEn || opt.label || '').trim();
+        itemName = `${item.name} (${label} - ${opt.amount})`;
+        itemNameEn = `${baseEn} (${labelEn || label} - ${opt.amount})`;
         price = opt.price;
         cartLineId = `${itemId}-size-${optionIndex}`;
         selectedOption = {
-          label: String(opt.label || '').trim(),
+          label,
+          labelEn: opt.labelEn || undefined,
           amount: String(opt.amount || '').trim() || undefined,
           price: Number(opt.price) || 0,
           optionId: String(optionIndex),
-          optionName: String(opt.label || '').trim() || undefined,
+          optionName: label || undefined,
           valueName: String(opt.amount || opt.label || '').trim() || undefined
         };
       }
@@ -175,15 +196,19 @@ export class ProductCardActionsComponent {
       const variants = item.pricingVariants || [];
       if (variantIndex >= 0 && variants[variantIndex]) {
         const v = variants[variantIndex];
-        itemName = `${item.name} (${v.label})`;
+        const label = String(v.label || '').trim();
+        const labelEn = String((v as { labelEn?: string }).labelEn || v.label || '').trim();
+        itemName = `${item.name} (${label})`;
+        itemNameEn = `${baseEn} (${labelEn || label})`;
         price = v.price;
         cartLineId = `${itemId}-size-${variantIndex}`;
         selectedOption = {
-          label: String(v.label || '').trim(),
+          label,
+          labelEn: (v as { labelEn?: string }).labelEn || undefined,
           amount: String((v as { size?: string }).size || v.label || '').trim() || undefined,
           price: Number(v.price) || 0,
           optionId: String(variantIndex),
-          optionName: String(v.label || '').trim() || undefined,
+          optionName: label || undefined,
           valueName: String((v as { size?: string }).size || v.label || '').trim() || undefined
         };
       }
@@ -191,7 +216,9 @@ export class ProductCardActionsComponent {
       quantity = this.getQuantity(item);
       price = this.getUnitRate(item);
       if (this.isWeightFixed(item)) {
-        itemName = `${item.name} (${quantity * 100} גרם)`;
+        const grams = quantity * 100;
+        itemName = `${item.name} (${grams} גרם)`;
+        itemNameEn = `${baseEn} (${grams} g)`;
       }
     }
 
@@ -201,9 +228,11 @@ export class ProductCardActionsComponent {
       {
         id: cartLineId,
         name: itemName,
+        nameEn: itemNameEn,
         price,
         imageUrl: item.imageUrl ?? '',
         description: item.description,
+        descriptionEn: item.descriptionEn,
         category: this.cartCategory || item.category,
         selectedOption
       },

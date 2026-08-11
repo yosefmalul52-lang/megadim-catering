@@ -155,6 +155,11 @@ export interface IOrder extends Document {
    */
   isTestOrder?: boolean;
   /**
+   * Locale of the public storefront that created this order.
+   * Missing on legacy orders — treat as 'he'. Manual/admin orders are always 'he'.
+   */
+  sourceLocale?: 'he' | 'en';
+  /**
    * Optional kitchen preparation datetime (Asia/Jerusalem business use).
    * When unset, kitchen report falls back to delivery/pickup timing.
    * Does not replace customerDetails.eventDate / preferredDeliveryTime.
@@ -206,6 +211,8 @@ const OrderSchema: Schema<IOrder> = new Schema({
   items: [{
     productId: String,
     name: String,
+    /** English display name for customer-facing emails when sourceLocale is en. */
+    nameEn: { type: String, required: false },
     price: Number,
     quantity: Number,
     category: String,
@@ -213,6 +220,7 @@ const OrderSchema: Schema<IOrder> = new Schema({
     priceSource: { type: String, enum: ['catalog', 'admin'], required: false },
     selectedOption: {
       label: String,
+      labelEn: { type: String, required: false },
       amount: String,
       price: Number,
       optionId: String,
@@ -224,7 +232,10 @@ const OrderSchema: Schema<IOrder> = new Schema({
       missingForReview: Boolean
     },
     imageUrl: String,
-    description: String
+    /** Manager prep quantities text (events + Shabbat catering kitchen sheet qty column). */
+    description: String,
+    /** Free-text kitchen notes (Shabbat catering); separate from description quantities. */
+    kitchenRemark: String
   }],
   totalPrice: {
     type: Number,
@@ -350,6 +361,12 @@ const OrderSchema: Schema<IOrder> = new Schema({
   isTestOrder: {
     type: Boolean,
     default: false,
+    index: true
+  },
+  sourceLocale: {
+    type: String,
+    enum: ['he', 'en'],
+    required: false,
     index: true
   },
   /** Local kitchen-report demo seed only — never set on real customer orders. */

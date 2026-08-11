@@ -96,14 +96,10 @@ test('fixture matrix: each order matches exactly one tab; list counts agree', as
   assert.equal(shabbat.cancelled, 1);
   assert.equal(shabbat.completed, 1);
   assert.equal(shabbat.archive, 0);
+  // Source badge excludes completed / cancelled / archive (active work only).
   assert.equal(
     shabbat.total,
-    shabbat.pending +
-      shabbat.processing +
-      shabbat.ready +
-      shabbat.failed +
-      shabbat.cancelled +
-      shabbat.completed
+    shabbat.pending + shabbat.processing + shabbat.ready + shabbat.failed
   );
 
   for (const tab of [

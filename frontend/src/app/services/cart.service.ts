@@ -7,14 +7,19 @@ import { environment } from '../../environments/environment';
 
 export interface CartItem {
   id: string;
+  /** Hebrew catalog name — source of truth for kitchen / dashboard. */
   name: string;
+  /** Optional English display name for the public EN storefront. */
+  nameEn?: string;
   price: number;
   quantity: number;
   imageUrl: string;
   category?: string;
   description?: string;
+  descriptionEn?: string;
   selectedOption?: {
     label: string;
+    labelEn?: string;
     amount?: string;
     price: number;
     optionId?: string;

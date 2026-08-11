@@ -3,23 +3,26 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../../services/auth.service';
+import { TranslateModule } from '@ngx-translate/core';
+import { LocaleService } from '../../../../i18n/locale.service';
+import { inject } from '@angular/core';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslateModule],
   template: `
     <div class="auth-page">
       <div class="auth-container">
         <div class="auth-card">
-          <a routerLink="/" class="back-home-link"><i class="fa-solid fa-arrow-right"></i> חזרה לדף הבית</a>
-          <h1 class="auth-title">הרשמה</h1>
-          <p class="auth-subtitle">צור חשבון והזמן בקלות</p>
+          <a [routerLink]="localeService.localizePath('/')" class="back-home-link"><i class="fa-solid fa-arrow-right"></i> {{ 'AUTH.BACK_HOME' | translate }}</a>
+          <h1 class="auth-title">{{ 'AUTH.REGISTER_TITLE' | translate }}</h1>
+          <p class="auth-subtitle">{{ 'AUTH.REGISTER_SUB' | translate }}</p>
           <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
             <div class="form-group">
               <label for="fullName" class="form-label">
                 <i class="fas fa-user" aria-hidden="true"></i>
-                שם מלא
+                {{ 'AUTH.FULL_NAME' | translate }}
               </label>
               <div class="input-wrapper">
                 <i class="fas fa-user input-icon" aria-hidden="true"></i>
@@ -28,17 +31,17 @@ import { AuthService } from '../../../../services/auth.service';
                   id="fullName"
                   formControlName="fullName"
                   class="form-control"
-                  placeholder="הזן שם מלא"
+                  [placeholder]="'AUTH.FULL_NAME_PLACEHOLDER' | translate"
                 >
               </div>
               <div *ngIf="registerForm.get('fullName')?.invalid && registerForm.get('fullName')?.touched" class="error-message">
-                שם מלא נדרש
+                {{ 'AUTH.FULL_NAME_REQUIRED' | translate }}
               </div>
             </div>
             <div class="form-group">
               <label for="username" class="form-label">
                 <i class="fas fa-envelope" aria-hidden="true"></i>
-                אימייל
+                {{ 'AUTH.EMAIL' | translate }}
               </label>
               <div class="input-wrapper">
                 <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
@@ -51,13 +54,13 @@ import { AuthService } from '../../../../services/auth.service';
                 >
               </div>
               <div *ngIf="registerForm.get('username')?.invalid && registerForm.get('username')?.touched" class="error-message">
-                אימייל תקין נדרש
+                {{ 'AUTH.EMAIL_REQUIRED' | translate }}
               </div>
             </div>
             <div class="form-group">
               <label for="password" class="form-label">
                 <i class="fas fa-lock" aria-hidden="true"></i>
-                סיסמה
+                {{ 'AUTH.PASSWORD' | translate }}
               </label>
               <div class="input-wrapper">
                 <i class="fas fa-lock input-icon" aria-hidden="true"></i>
@@ -66,21 +69,21 @@ import { AuthService } from '../../../../services/auth.service';
                   id="password"
                   formControlName="password"
                   class="form-control"
-                  placeholder="הזן סיסמה (לפחות 6 תווים)"
+                  [placeholder]="'AUTH.PASSWORD_PLACEHOLDER_MIN' | translate"
                 >
               </div>
               <div *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched" class="error-message">
-                סיסמה נדרשת (לפחות 6 תווים)
+                {{ 'AUTH.PASSWORD_MIN' | translate }}
               </div>
             </div>
             <button type="submit" class="btn-primary" [disabled]="registerForm.invalid || isLoading">
-              <span *ngIf="isLoading">נרשם...</span>
-              <span *ngIf="!isLoading">הירשם</span>
+              <span *ngIf="isLoading">{{ 'AUTH.REGISTERING' | translate }}</span>
+              <span *ngIf="!isLoading">{{ 'AUTH.SUBMIT_REGISTER' | translate }}</span>
             </button>
             <div *ngIf="errorMessage" class="error-message error-block">{{ errorMessage }}</div>
           </form>
           <p class="auth-footer">
-            יש לך חשבון? <a routerLink="/login" class="auth-footer-link">התחבר</a>
+            {{ 'AUTH.HAS_ACCOUNT_CTA' | translate }} <a [routerLink]="localeService.localizePath('/login')" class="auth-footer-link">{{ 'AUTH.LOGIN_LINK' | translate }}</a>
           </p>
         </div>
       </div>
@@ -93,7 +96,7 @@ import { AuthService } from '../../../../services/auth.service';
       align-items: center;
       justify-content: center;
       padding: 2rem;
-      direction: rtl;
+      /* direction from document html via LocaleService */
       background: #f4f5f7;
       box-sizing: border-box;
     }
@@ -167,7 +170,8 @@ import { AuthService } from '../../../../services/auth.service';
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      right: 15px;
+      inset-inline-end: 15px;
+      inset-inline-start: auto;
       color: #888;
       font-size: 1rem;
       pointer-events: none;
@@ -179,7 +183,8 @@ import { AuthService } from '../../../../services/auth.service';
     }
     .form-control {
       width: 100%;
-      padding: 12px 40px 12px 12px;
+      padding: 12px;
+      padding-inline-end: 40px;
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       font-size: 1rem;
@@ -188,7 +193,7 @@ import { AuthService } from '../../../../services/auth.service';
       background: #ffffff;
       -webkit-appearance: none;
       appearance: none;
-      text-align: right;
+      text-align: start;
     }
     .form-control:hover:not(:disabled) {
       border-color: #d0d6db;
@@ -258,6 +263,7 @@ import { AuthService } from '../../../../services/auth.service';
   `]
 })
 export class RegisterComponent {
+  readonly localeService = inject(LocaleService);
   registerForm: FormGroup;
   isLoading = false;
   errorMessage = '';

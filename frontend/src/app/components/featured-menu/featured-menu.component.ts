@@ -3,13 +3,17 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { TranslateModule } from '@ngx-translate/core';
 import { CartService } from '../../services/cart.service';
 import { MenuService, MenuItem } from '../../services/menu.service';
 import { QuantitySelectorComponent } from '../shared/quantity-selector/quantity-selector.component';
+import { LocaleService } from '../../i18n/locale.service';
+import { localizedProductDescription, localizedProductName } from '../../i18n/localized-content';
 
 interface Category {
   id: string;
   name: string;
+  nameKey?: string;
   image: string;
 }
 
@@ -21,6 +25,7 @@ interface Category {
     RouterModule,
     MatIconModule,
     MatSnackBarModule,
+    TranslateModule,
     QuantitySelectorComponent,
   ],
   templateUrl: './featured-menu.component.html',
@@ -30,6 +35,7 @@ export class FeaturedMenuComponent implements OnInit {
   private readonly cartService = inject(CartService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly menuService = inject(MenuService);
+  readonly localeService = inject(LocaleService);
 
   @ViewChild('categoryTrack') categoryTrack?: ElementRef<HTMLElement>;
 
@@ -37,26 +43,31 @@ export class FeaturedMenuComponent implements OnInit {
     {
       id: 'salads',
       name: 'סלטים',
+      nameKey: 'CATEGORIES.SALADS',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/da7e9eee1eeac5e2/original.png',
     },
     {
       id: 'fish',
       name: 'דגים',
+      nameKey: 'CATEGORIES.FISH',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/47e00b409d8842db/original.jpg',
     },
     {
       id: 'main',
       name: 'מנות עיקריות',
+      nameKey: 'CATEGORIES.MAIN',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/370fefc6263ad915/original.jpg',
     },
     {
       id: 'sides',
       name: 'תוספות',
+      nameKey: 'CATEGORIES.SIDES',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/8b229cb94fc3112c/original.jpg',
     },
     {
       id: 'stuffed',
       name: 'ממולאים',
+      nameKey: 'CATEGORIES.STUFFED',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/bc6bab3016ae6a30/original.jpg',
     },
   ];
@@ -69,8 +80,20 @@ export class FeaturedMenuComponent implements OnInit {
     this.loadFeaturedProducts();
   }
 
-  getCategoryRoute(category: Category): string[] {
-    return ['/ready-for-shabbat', category.id];
+  getCategoryRoute(category: Category): string {
+    return this.localeService.localizePath(`/ready-for-shabbat/${category.id}`);
+  }
+
+  productRoute(item: MenuItem): string {
+    return this.localeService.localizePath(`/ready-for-shabbat/product/${this.getItemId(item)}`);
+  }
+
+  displayName(item: MenuItem): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem): string {
+    return localizedProductDescription(item, this.localeService.locale);
   }
 
   scrollCategories(direction: -1 | 1): void {
@@ -163,6 +186,8 @@ export class FeaturedMenuComponent implements OnInit {
         imageUrl: item.imageUrl,
         description: item.description,
         category: item.category,
+        nameEn: item.nameEn,
+        descriptionEn: item.descriptionEn,
       },
       quantity
     );

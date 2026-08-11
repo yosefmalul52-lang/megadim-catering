@@ -195,6 +195,10 @@ export class AdminCouponsComponent implements OnInit {
     this.selectedCouponIds.clear();
   }
 
+  get activeCouponsCount(): number {
+    return this.coupons.filter((c) => c.isActive).length;
+  }
+
   get selectedCount(): number {
     return this.selectedCouponIds.size;
   }

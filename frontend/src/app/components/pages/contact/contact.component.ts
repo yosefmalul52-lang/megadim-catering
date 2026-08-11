@@ -1,15 +1,17 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ContactService } from '../../../services/contact.service';
 import { SeoService } from '../../../services/seo.service';
 import { MarketingService } from '../../../services/marketing.service';
 import { buildWhatsAppHref, WHATSAPP_DEFAULT_MESSAGE } from '../../../constants/contact.constants';
+import { LocaleService } from '../../../i18n/locale.service';
 
 @Component({
   selector: 'app-contact',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './contact.component.html',
   styleUrls: ['./contact.component.scss'],
 })
@@ -17,6 +19,8 @@ export class ContactComponent implements OnInit {
   private contactService = inject(ContactService);
   private seoService = inject(SeoService);
   private marketingService = inject(MarketingService);
+  private translate = inject(TranslateService);
+  readonly localeService = inject(LocaleService);
 
   form = {
     name: '',
@@ -72,12 +76,14 @@ export class ContactComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.isSubmitting = false;
-          this.successMessage = res.message || 'הודעתך נשלחה בהצלחה, נחזור אליך בהקדם.';
+          this.successMessage =
+            res.message || this.translate.instant('CONTACT_PAGE.SUCCESS_DEFAULT');
           this.form = { name: '', phone: '', email: '', message: '' };
         },
         error: (err) => {
           this.isSubmitting = false;
-          this.errorMessage = err?.error?.message || 'שליחת ההודעה נכשלה. נסו שוב או צרו קשר בטלפון.';
+          this.errorMessage =
+            err?.error?.message || this.translate.instant('CONTACT_PAGE.ERROR_DEFAULT');
         },
       });
   }

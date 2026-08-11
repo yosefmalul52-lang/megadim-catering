@@ -31,6 +31,11 @@ const PricingOptionSchema = new Schema({
     required: true,
     trim: true
   },
+  labelEn: {
+    type: String,
+    required: false,
+    trim: true
+  },
   price: {
     type: Number,
     required: true,
@@ -70,8 +75,10 @@ const RecipeIngredientSchema = new Schema({
 // MenuItem Interface
 export interface IMenuItem extends Document {
   name: string;
+  nameEn?: string;
   category: string;
   description?: string;
+  descriptionEn?: string;
   price?: number;
   pricePer100g?: number;
   pricingVariants?: Array<{
@@ -110,6 +117,11 @@ const MenuItemSchema = new Schema<IMenuItem>({
     trim: true,
     index: true
   },
+  nameEn: {
+    type: String,
+    required: false,
+    trim: true
+  },
   category: {
     type: String,
     required: true,
@@ -117,6 +129,11 @@ const MenuItemSchema = new Schema<IMenuItem>({
   },
   description: {
     type: String,
+    trim: true
+  },
+  descriptionEn: {
+    type: String,
+    required: false,
     trim: true
   },
   // Optional single price for backward compatibility or fixed-price items

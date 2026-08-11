@@ -3,13 +3,13 @@
     <!-- Top Greeting Section -->
     <section class="profile-header">
       <div class="profile-greeting">
-        <h1 class="greeting-title">שלום, {{ customerName }}</h1>
+        <h1 class="greeting-title">{{ 'ACCOUNT.HELLO' | translate:{ name: customerName } }}</h1>
         <p class="greeting-subtitle" *ngIf="!isLoading">
           <ng-container *ngIf="hasOrders; else noOrdersSummary">
-            יש לך {{ orders.length }} הזמנות קודמות
+            {{ 'ACCOUNT.COUNT_ORDERS' | translate:{ count: orders.length } }}
           </ng-container>
           <ng-template #noOrdersSummary>
-            עדיין לא ביצעת הזמנות באתר – זה הזמן לנסות אותנו.
+            {{ 'ACCOUNT.NO_ORDERS_SUMMARY' | translate }}
           </ng-template>
         </p>
       </div>
@@ -21,7 +21,7 @@
         <div class="spinner">
           <i class="fas fa-spinner fa-spin"></i>
         </div>
-        <p>טוען את האזור האישי שלך...</p>
+        <p>{{ 'ACCOUNT.LOADING' | translate }}</p>
       </div>
     </section>
 
@@ -39,18 +39,18 @@
         <div class="empty-icon">
           <i class="fas fa-box-open" aria-hidden="true"></i>
         </div>
-        <h2>עדיין אין הזמנות</h2>
-        <p>כשתזמין פעם ראשונה, כל ההיסטוריה שלך תופיע כאן – ותוכל להזמין שוב בלחיצה אחת.</p>
-        <a routerLink="/" class="btn-gold">
+        <h2>{{ 'ACCOUNT.EMPTY_TITLE' | translate }}</h2>
+        <p>{{ 'ACCOUNT.EMPTY_TEXT' | translate }}</p>
+        <a [routerLink]="localeService.localizePath('/')" class="btn-gold">
           <i class="fas fa-utensils" aria-hidden="true"></i>
-          להתחלת הזמנה
+          {{ 'ACCOUNT.START_ORDER' | translate }}
         </a>
       </div>
     </section>
 
     <!-- Order History -->
     <section *ngIf="!isLoading && !errorMessage && hasOrders" class="orders-section">
-      <h2 class="section-title">היסטוריית הזמנות</h2>
+      <h2 class="section-title">{{ 'ACCOUNT.HISTORY' | translate }}</h2>
 
       <div class="orders-grid">
         <article
@@ -66,11 +66,11 @@
               </div>
               <div class="event-date" *ngIf="order.customerDetails?.eventDate">
                 <i class="fas fa-calendar-check" aria-hidden="true"></i>
-                <span>תאריך אירוע: {{ formatDate(order.customerDetails.eventDate) }}</span>
+                <span>{{ 'ACCOUNT.EVENT_DATE' | translate:{ date: formatDate(order.customerDetails.eventDate) } }}</span>
               </div>
             </div>
             <div class="order-total">
-              <span class="label">סה"כ</span>
+              <span class="label">{{ 'ACCOUNT.TOTAL' | translate }}</span>
               <span class="amount">₪{{ order.totalPrice | number: '1.2-2' }}</span>
             </div>
           </header>

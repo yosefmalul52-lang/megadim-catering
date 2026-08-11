@@ -1,16 +1,22 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MenuService, MenuItem } from '../../../services/menu.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { SeoService } from '../../../services/seo.service';
 import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
+import { LocaleService } from '../../../i18n/locale.service';
+import {
+  localizedProductDescription,
+  localizedProductName
+} from '../../../i18n/localized-content';
 
 @Component({
   selector: 'app-cholent-bar',
   standalone: true,
-  imports: [CommonModule, RouterModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, RouterModule, TranslateModule, PageBannerComponent, PagePopupComponent],
   templateUrl: './cholent-bar.component.html',
   styleUrls: ['./cholent-bar.component.scss']
 })
@@ -19,30 +25,42 @@ export class CholentBarComponent implements OnInit {
   router = inject(Router);
   settingsService = inject(SiteSettingsService);
   seoService = inject(SeoService);
+  readonly localeService = inject(LocaleService);
+  private translate = inject(TranslateService);
 
   settings: SiteSettings | null = null;
   showPopup = false;
 
   /** All items for the Cholent Bar page (from API), grouped by category for display. */
-  itemsGroupedByCategory: { category: string; categoryLabel: string; items: MenuItem[] }[] = [];
+  itemsGroupedByCategory: { category: string; categoryLabelKey: string; items: MenuItem[] }[] = [];
   isLoading: boolean = true;
 
   cholentForceOpen: boolean = false;
   cholentCustomMessage: string = '';
   cholentClosedMessage: string = '';
 
+  displayName(item: MenuItem): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem): string {
+    return localizedProductDescription(item, this.localeService.locale);
+  }
+
   ngOnInit(): void {
-    this.seoService.updateTags({
-      title: 'צ\'ולנט בר - קייטרינג מגדים | צ\'ולנט ומשקאות לשבת',
-      description: 'הצ\'ולנט הביתי שלנו, משקאות וקינוחי צ\'ולנט. הזמנות בימי חמישי. קייטרינג מגדים.',
-      image: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
-      keywords: 'צ\'ולנט, צ\'ולנט בר, קייטרינג מגדים, אוכל לשבת'
+    this.translate.get(['CHOLENT.SEO_TITLE', 'CHOLENT.SEO_DESC']).subscribe((t) => {
+      this.seoService.updateTags({
+        title: t['CHOLENT.SEO_TITLE'],
+        description: t['CHOLENT.SEO_DESC'],
+        image: 'https://megadim-media.megadim.workers.dev/frontend/static/250389c505980022/original.jpg',
+        keywords: "צ'ולנט, צ'ולנט בר, קייטרינג מגדים, אוכל לשבת"
+      });
     });
-    this.settingsService.getSettings(true).subscribe(settings => {
+    this.settingsService.getSettings(true).subscribe((settings) => {
       this.settings = settings ?? null;
       this.cholentForceOpen = !!settings?.cholentForceOpen;
       this.cholentCustomMessage = (settings?.cholentCustomMessage || '').trim();
-      this.cholentClosedMessage = (settings?.cholentClosedMessage || '').trim() || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00';
+      this.cholentClosedMessage = (settings?.cholentClosedMessage || '').trim();
       const chol = settings?.pageAnnouncements?.['cholent'];
       if ((chol?.popupTitle?.trim() ?? '') !== '' || (chol?.popupText?.trim() ?? '') !== '') {
         this.showPopup = true;
@@ -73,15 +91,15 @@ export class CholentBarComponent implements OnInit {
     return isThursday && withinHours;
   }
 
-  /** Categories shown on the Cholent Bar page (DB category name -> section label). */
-  private static readonly CHOLENT_BAR_CATEGORIES: { id: string; label: string }[] = [
-    { id: 'צ\'ולנט', label: 'הצ\'ולנט שלנו' },
-    { id: 'משקאות', label: 'משקאות' },
-    { id: 'קינוחים צ\'ולנט', label: 'קינוחים' }
+  /** Categories shown on the Cholent Bar page (DB category name -> section label key). */
+  private static readonly CHOLENT_BAR_CATEGORIES: { id: string; labelKey: string }[] = [
+    { id: "צ'ולנט", labelKey: 'CHOLENT.SECTION_CHOLENT' },
+    { id: 'משקאות', labelKey: 'CHOLENT.SECTION_DRINKS' },
+    { id: "קינוחים צ'ולנט", labelKey: 'CHOLENT.SECTION_DESSERTS' }
   ];
 
   private loadCholentItems(): void {
-    const allowed = new Set(CholentBarComponent.CHOLENT_BAR_CATEGORIES.map(c => c.id));
+    const allowed = new Set(CholentBarComponent.CHOLENT_BAR_CATEGORIES.map((c) => c.id));
     this.menuService.getAllItems('cholent').subscribe({
       next: (items) => {
         const filtered = (items || []).filter((i) => i.category && allowed.has(i.category));
@@ -99,7 +117,9 @@ export class CholentBarComponent implements OnInit {
     });
   }
 
-  private groupByCategory(items: MenuItem[]): { category: string; categoryLabel: string; items: MenuItem[] }[] {
+  private groupByCategory(
+    items: MenuItem[]
+  ): { category: string; categoryLabelKey: string; items: MenuItem[] }[] {
     const order = CholentBarComponent.CHOLENT_BAR_CATEGORIES;
     const map = new Map<string, MenuItem[]>();
     items.forEach((item) => {
@@ -109,7 +129,11 @@ export class CholentBarComponent implements OnInit {
     });
     return order
       .filter((c) => map.has(c.id))
-      .map((c) => ({ category: c.id, categoryLabel: c.label, items: map.get(c.id)! }));
+      .map((c) => ({
+        category: c.id,
+        categoryLabelKey: c.labelKey,
+        items: map.get(c.id)!
+      }));
   }
 
   getPrice(item: MenuItem): number {

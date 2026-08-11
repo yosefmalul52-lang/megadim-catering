@@ -4,7 +4,7 @@ $white: #FFFFFF;
 $gray-bg: #f8f9fa;
 
 .shabbat-page {
-  direction: rtl;
+  direction: inherit;
   font-family: 'Segoe UI', sans-serif;
   background-color: $white; // Unified white background for seamless flow
 }

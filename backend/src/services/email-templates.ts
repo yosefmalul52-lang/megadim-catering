@@ -627,6 +627,179 @@ export function generateCustomerEmailHtml(orderData: OrderTemplateData): string 
 }
 
 /**
+ * English LTR customer order-received email (public EN storefront).
+ * Prices remain in ₪. Admin emails stay Hebrew via generateCustomerEmailHtml / admin templates.
+ */
+export function generateCustomerEmailHtmlEn(orderData: OrderTemplateData): string {
+  const orderTypeLabel = orderData.orderType === 'delivery' ? 'Delivery' : 'Pickup';
+  const aggregatedItems = aggregateCartItems(orderData.cartItems);
+  const subtotal = toValidMoney(orderData.subtotal);
+  const deliveryFee = toValidMoney(orderData.deliveryFee);
+
+  const cartRows = aggregatedItems
+    .map(
+      (item) =>
+        '<tr>' +
+        `<td style="padding:15px 12px;border-bottom:1px solid #eee;color:#1f3540;font-weight:bold;font-family:${FONT};font-size:16px;text-align:left;">${escapeHtml(item.name)}</td>` +
+        `<td style="padding:15px 12px;text-align:center;border-bottom:1px solid #eee;color:#1f3540;font-family:${FONT};font-size:16px;">${item.quantity}</td>` +
+        `<td style="padding:15px 12px;text-align:center;border-bottom:1px solid #eee;color:#1f3540;font-family:${FONT};font-size:16px;">₪${item.price.toFixed(2)}</td>` +
+        `<td style="padding:15px 12px;text-align:right;border-bottom:1px solid #eee;color:#1f3540;font-family:${FONT};font-size:16px;">₪${(item.price * item.quantity).toFixed(2)}</td>` +
+        '</tr>'
+    )
+    .join('');
+
+  const deliveryBlock =
+    orderData.orderType === 'delivery' && orderData.address
+      ? `<p style="margin:8px 0;font-size:16px;color:${DARK};font-family:${FONT};"><strong>Delivery address:</strong> ${escapeHtml(orderData.address)}</p>`
+      : '';
+  const dateBlock = orderData.eventDate
+    ? `<p style="margin:8px 0;font-size:16px;color:${DARK};font-family:${FONT};"><strong>Delivery date:</strong> ${escapeHtml(formatToIsraeliDate(orderData.eventDate))}</p>`
+    : '';
+  const phoneBlock = orderData.customerPhone
+    ? `<p style="margin:8px 0;font-size:16px;color:${DARK};font-family:${FONT};"><strong>Phone:</strong> ${escapeHtml(orderData.customerPhone)}</p>`
+    : '';
+  const notesBlock = orderData.notes
+    ? `<p style="margin:8px 0;font-size:16px;color:${DARK};font-family:${FONT};"><strong>Notes:</strong> ${escapeHtml(orderData.notes)}</p>`
+    : '';
+
+  return (
+    '<!DOCTYPE html>' +
+    '<html dir="ltr" lang="en">' +
+    '<head><meta charset="utf-8"></head>' +
+    '<body style="margin:0;padding:0;font-family:' +
+    FONT +
+    ';">' +
+    '<div style="font-family:' +
+    FONT +
+    ';background-color:#f7f8f9;padding:30px 10px;direction:ltr;text-align:left;">' +
+    '<table width="100%" style="max-width:650px;margin:0 auto;background:' +
+    WHITE +
+    ';border-radius:12px;overflow:hidden;border:1px solid ' +
+    GOLD +
+    ';border-collapse:collapse;box-shadow:0 4px 15px rgba(0,0,0,0.05);">' +
+    '<tr>' +
+    '<td style="background-color:' +
+    DARK +
+    ';padding:30px;text-align:center;border-bottom:4px solid ' +
+    GOLD +
+    ';">' +
+    '<h2 style="margin:0;color:' +
+    GOLD +
+    ';font-size:26px;font-weight:bold;font-family:' +
+    FONT +
+    ';">Thank you for your order!' +
+    (orderData.orderNumber
+      ? `<br/><span style="font-size:16px;font-weight:normal;">Order ${escapeHtml(orderData.orderNumber)}</span>`
+      : '') +
+    '</h2>' +
+    '</td>' +
+    '</tr>' +
+    '<tr>' +
+    '<td style="padding:30px;">' +
+    '<p style="font-size:16px;line-height:1.6;margin:0 0 20px;color:' +
+    DARK +
+    ';font-family:' +
+    FONT +
+    ';">Hello ' +
+    escapeHtml(orderData.customerName) +
+    ', we received your order successfully. Details below:</p>' +
+    '<h3 style="color:' +
+    DARK +
+    ';border-bottom:2px solid ' +
+    GOLD +
+    ';padding-bottom:8px;font-size:20px;font-family:' +
+    FONT +
+    ';">Order details</h3>' +
+    '<table width="100%" style="border-collapse:collapse;font-size:16px;margin-top:15px;">' +
+    '<tr style="background-color:#1f3540;color:#ffffff;">' +
+    '<th style="padding:12px;text-align:left;font-family:' +
+    FONT +
+    ';">Item</th>' +
+    '<th style="padding:12px;text-align:center;font-family:' +
+    FONT +
+    ';">Qty</th>' +
+    '<th style="padding:12px;text-align:center;font-family:' +
+    FONT +
+    ';">Unit price</th>' +
+    '<th style="padding:12px;text-align:right;font-family:' +
+    FONT +
+    ';">Total</th>' +
+    '</tr>' +
+    cartRows +
+    '</table>' +
+    (subtotal !== null || (orderData.orderType === 'delivery' && deliveryFee !== null)
+      ? '<div style="margin:14px 0 0;padding:12px 14px;background:#f7f8f9;border:1px solid #e7e7e7;">' +
+        (subtotal !== null
+          ? '<p style="margin:0 0 6px;font-size:15px;color:' +
+            DARK +
+            ';font-family:' +
+            FONT +
+            ';">Subtotal: ₪' +
+            subtotal.toFixed(2) +
+            '</p>'
+          : '') +
+        (orderData.orderType === 'delivery' && deliveryFee !== null
+          ? '<p style="margin:0;font-size:15px;color:' +
+            DARK +
+            ';font-family:' +
+            FONT +
+            ';">Delivery fee: ₪' +
+            deliveryFee.toFixed(2) +
+            '</p>'
+          : '') +
+        '</div>'
+      : '') +
+    '<p style="margin:16px 0 0;font-size:18px;font-weight:bold;color:' +
+    DARK +
+    ';text-align:left;font-family:' +
+    FONT +
+    ';">Amount due: <span style="color:' +
+    GOLD +
+    ';">₪' +
+    orderData.totalPrice.toFixed(2) +
+    '</span></p>' +
+    '</td>' +
+    '</tr>' +
+    '<tr>' +
+    '<td style="padding:20px 30px;border-top:1px solid #eee;">' +
+    '<h3 style="color:' +
+    DARK +
+    ';border-bottom:2px solid ' +
+    GOLD +
+    ';padding-bottom:8px;font-size:18px;font-family:' +
+    FONT +
+    ';">Fulfillment</h3>' +
+    '<p style="margin:8px 0;font-size:16px;color:' +
+    DARK +
+    ';font-family:' +
+    FONT +
+    ';"><strong>Type:</strong> ' +
+    orderTypeLabel +
+    '</p>' +
+    phoneBlock +
+    deliveryBlock +
+    dateBlock +
+    notesBlock +
+    '</td>' +
+    '</tr>' +
+    '<tr>' +
+    '<td style="padding:25px 30px;background-color:' +
+    DARK +
+    ';text-align:center;">' +
+    '<p style="margin:0;font-size:15px;line-height:1.6;color:' +
+    WHITE +
+    ';font-family:' +
+    FONT +
+    ';">For any question, reply to this email. Bon appetit!</p>' +
+    '</td>' +
+    '</tr>' +
+    '</table>' +
+    '</div>' +
+    '</body></html>'
+  );
+}
+
+/**
  * Admin catering template — grouped menu details for Shabbat/events forms.
  */
 export function generateCateringAdminEmailHtml(orderData: OrderTemplateData): string {

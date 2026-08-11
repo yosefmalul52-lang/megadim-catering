@@ -206,8 +206,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   alertSeverityFilter: AlertSeverityFilter = 'all';
 
   trendMetric: TrendMetric = 'revenue';
-  trendChartData: ChartData<'line'> = { labels: [], datasets: [] };
-  trendChartOptions: ChartOptions<'line'> = this.buildChartOptions('revenue');
+  trendChartData: ChartData<'bar'> = { labels: [], datasets: [] };
+  trendChartOptions: ChartOptions<'bar'> = this.buildChartOptions('revenue');
 
   private loadTrigger$ = new Subject<void>();
   private subs = new Subscription();
@@ -820,8 +820,53 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Pastel tone token for KPI icon wells (presentational). */
+  kpiIconTone(key: string): string {
+    switch (key) {
+      case 'ordersCreated':
+        return 'mint';
+      case 'averagePaidOrder':
+        return 'blue';
+      case 'upcomingOrders':
+        return 'peach';
+      case 'returningCustomers':
+        return 'purple';
+      case 'paidRevenue':
+        return 'yellow';
+      case 'needsAttention':
+        return 'pink';
+      default:
+        return 'blue';
+    }
+  }
+
+  /** Compact range tabs for portfolio card (excludes custom). */
+  get portfolioRangeTabs(): Array<{ key: PrimaryDatePreset; label: string }> {
+    return this.primaryPresetOptions.filter((p) => p.key !== 'custom');
+  }
+
+  /** Stat grid: 4 operational KPIs (revenue lives in portfolio card). */
+  get statGridCards(): PrimaryKpiCard[] {
+    const order = ['ordersCreated', 'averagePaidOrder', 'upcomingOrders', 'returningCustomers'];
+    const map = new Map(this.primaryKpiCards.map((c) => [c.key, c]));
+    return order.map((k) => map.get(k)).filter((c): c is PrimaryKpiCard => !!c);
+  }
+
   formatMoney(v: number): string {
     return formatIls(v);
+  }
+
+  get greetingName(): string {
+    const u = this.authService.currentUser;
+    return (u?.fullName || u?.username || '').trim();
+  }
+
+  /** Visual scale for status bars — max count in current overview = 100%. */
+  statusBarPercent(count: number): number {
+    const rows = this.overview?.ordersByStatus || [];
+    const max = Math.max(0, ...rows.map((r) => Number(r.count) || 0));
+    if (max <= 0) return 0;
+    return Math.round(((Number(count) || 0) / max) * 100);
   }
 
   formatCount(v: number): string {
@@ -981,34 +1026,25 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
           ? 'הזמנות ששולמו'
           : 'ממוצע להזמנה';
 
+    const pastelPalette = ['#77A9D8', '#65B69D', '#C6AA4D', '#A38BD4', '#E49A6A'];
     this.trendChartData = {
       labels,
       datasets: [
         {
           label,
           data: values,
-          borderColor: '#3a5f7d',
-          backgroundColor: (context: any) => {
-            const chart = context.chart;
-            const { ctx, chartArea } = chart || {};
-            if (!chartArea) return 'rgba(58, 95, 125, 0.12)';
-            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-            gradient.addColorStop(0, 'rgba(58, 95, 125, 0.2)');
-            gradient.addColorStop(1, 'rgba(58, 95, 125, 0)');
-            return gradient;
-          },
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          pointHoverBackgroundColor: '#1f3540',
-          tension: 0.28,
-          fill: true,
-          borderWidth: 2
+          backgroundColor: values.map((_, i) => pastelPalette[i % pastelPalette.length]),
+          hoverBackgroundColor: values.map((_, i) => pastelPalette[i % pastelPalette.length]),
+          borderWidth: 0,
+          borderRadius: 6,
+          borderSkipped: false,
+          maxBarThickness: 36
         }
       ]
     };
   }
 
-  private buildChartOptions(metric: TrendMetric): ChartOptions<'line'> {
+  private buildChartOptions(metric: TrendMetric): ChartOptions<'bar'> {
     const isMoney = metric === 'revenue' || metric === 'averageOrderValue';
     return {
       responsive: true,
@@ -1016,25 +1052,19 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: {
-          display: true,
-          position: 'top',
-          align: 'end',
-          rtl: true,
-          labels: {
-            boxWidth: 10,
-            boxHeight: 10,
-            color: '#6b6560',
-            font: { size: 11, weight: 600 },
-            padding: 8
-          }
+          display: false
         },
         tooltip: {
-          backgroundColor: 'rgba(31, 53, 64, 0.94)',
-          padding: 10,
+          backgroundColor: '#ffffff',
+          titleColor: '#1F2D3D',
+          bodyColor: '#1F2D3D',
+          borderColor: '#E2E8F0',
+          borderWidth: 1,
+          padding: 12,
           displayColors: false,
-          titleFont: { size: 12, weight: 600 },
-          bodyFont: { size: 12 },
-          cornerRadius: 4,
+          titleFont: { size: 13, weight: 600 },
+          bodyFont: { size: 14 },
+          cornerRadius: 6,
           callbacks: {
             label: (context) => {
               const value = context.parsed.y;
@@ -1047,14 +1077,15 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: '#6b6560', maxTicksLimit: 7, maxRotation: 0 },
+          ticks: { color: '#526273', maxTicksLimit: 7, maxRotation: 0, font: { size: 13 } },
           border: { display: false }
         },
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(228, 221, 211, 0.9)' },
+          grid: { color: 'rgba(227, 232, 239, 0.95)' },
           ticks: {
-            color: '#6b6560',
+            color: '#526273',
+            font: { size: 13 },
             callback: (value) => {
               const n = Number(value);
               return isMoney ? formatIls(n) : formatHeNumber(n);

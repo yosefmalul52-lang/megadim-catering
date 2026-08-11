@@ -1,15 +1,17 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { CONTACT_WHATSAPP_HREF } from '../../../constants/contact.constants';
 import { SiteSettingsService } from '../../../services/site-settings.service';
 import { Order } from '../../../services/order.service';
 import { CartService } from '../../../services/cart.service';
+import { LocaleService } from '../../../i18n/locale.service';
 
 @Component({
   selector: 'app-order-confirmation',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TranslateModule],
   templateUrl: './order-confirmation.component.html',
   styleUrls: ['./order-confirmation.component.scss']
 })
@@ -18,6 +20,8 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private siteSettings = inject(SiteSettingsService);
   private cartService = inject(CartService);
+  private translate = inject(TranslateService);
+  readonly localeService = inject(LocaleService);
 
   order: Order | null = null;
   orderId: string | null = null;
@@ -37,8 +41,8 @@ export class OrderConfirmationComponent implements OnInit, OnDestroy {
     const base = this.siteSettings.getCurrentSettings()?.whatsappLink || CONTACT_WHATSAPP_HREF;
     const code = this.displayOrderNumber || this.orderId;
     const message = code
-      ? `שלום, יש לי שאלה לגבי ההזמנה שלי #${code}`
-      : 'שלום, יש לי שאלה';
+      ? this.translate.instant('ORDER.WA_MSG_ORDER', { code })
+      : this.translate.instant('ORDER.WA_MSG_GENERIC');
     return `${base}?text=${encodeURIComponent(message)}`;
   }
 

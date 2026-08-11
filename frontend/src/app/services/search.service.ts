@@ -9,6 +9,7 @@ export interface SearchResult {
   type: 'dish' | 'page' | 'category';
   id: string;
   name: string;
+  nameEn?: string;
   description?: string;
   category?: string;
   route?: string;
@@ -205,6 +206,7 @@ export class SearchService {
             type: 'dish' as const,
             id: item.id || item._id || '',
             name: item.name,
+            nameEn: item.nameEn,
             description: item.description,
             category: item.category,
             imageUrl: item.imageUrl,

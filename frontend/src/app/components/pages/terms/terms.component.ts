@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { LocaleService } from '../../../i18n/locale.service';
 
 @Component({
   selector: 'app-terms',
@@ -9,4 +10,6 @@ import { RouterModule } from '@angular/router';
   templateUrl: './terms.component.html',
   styleUrls: ['./terms.component.scss']
 })
-export class TermsComponent {}
+export class TermsComponent {
+  readonly localeService = inject(LocaleService);
+}

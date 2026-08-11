@@ -17,8 +17,8 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   min-height: 70vh;
   background-color: $brand-bg;
   padding: 2rem 0 4rem;
-  direction: rtl;
-  text-align: right;
+  direction: inherit;
+  text-align: start;
 }
 
 .container {
@@ -258,7 +258,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   margin: 0 0 1.25rem;
   padding-bottom: 0.5rem;
   border-bottom: 3px solid $brand-gold;
-  text-align: right;
+  text-align: start;
 }
 
 .section-subtitle {
@@ -270,7 +270,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   margin: 1.25rem 0 0.75rem;
   padding-bottom: 0.35rem;
   border-bottom: 2px solid $brand-gold;
-  text-align: right;
+  text-align: start;
 }
 
 // ========== Grid: Name + Phone side-by-side, Email full width ==========
@@ -299,7 +299,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   font-weight: 600;
   color: #1f3540;
   margin-bottom: 8px;
-  text-align: right;
+  text-align: start;
   letter-spacing: 0.02em;
 }
 
@@ -325,8 +325,8 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   width: 100%;
   box-sizing: border-box;
   font-family: inherit;
-  text-align: right;
-  direction: rtl;
+  text-align: start;
+  direction: inherit;
 
   &::placeholder {
     color: #aaa;
@@ -349,8 +349,8 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
 
 .datepicker-full-width {
   width: 100%;
-  text-align: right;
-  direction: rtl;
+  text-align: start;
+  direction: inherit;
 }
 
 ::ng-deep .datepicker-full-width .mat-mdc-form-field-subscript-wrapper {
@@ -362,7 +362,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   color: #b08d48;
   margin-top: 4px;
   display: block;
-  text-align: right;
+  text-align: start;
 
   i {
     margin-left: 4px;
@@ -378,6 +378,13 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   padding-right: 40px;
 }
 
+:host-context(html[dir='ltr']) .select-premium {
+  background-position: right 16px center; /* chevron stays trailing in LTR */
+  padding-inline-end: 40px;
+  padding-inline-start: 16px;
+  padding-right: unset;
+}
+
 .textarea-premium {
   min-height: 120px;
   resize: vertical;
@@ -388,7 +395,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   color: #888;
   margin-top: 5px;
   display: block;
-  text-align: right;
+  text-align: start;
 }
 
 .field-error {
@@ -396,7 +403,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   font-size: 0.8rem;
   color: #d32f2f;
   margin-top: 0.35rem;
-  text-align: right;
+  text-align: start;
 }
 
 .delivery-fee-loading {
@@ -406,7 +413,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   font-size: 0.85rem;
   color: $elegant-dark;
   margin-top: 0.35rem;
-  text-align: right;
+  text-align: start;
 
   i {
     color: $brand-gold;
@@ -423,7 +430,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   border-radius: 8px;
   padding: 0.6rem 0.75rem;
   margin: 0.5rem 0 0;
-  text-align: right;
+  text-align: start;
   line-height: 1.4;
 }
 
@@ -438,7 +445,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  text-align: right;
+  text-align: start;
   line-height: 1.5;
 
   i {
@@ -458,7 +465,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   border-radius: 6px;
   padding: 0.65rem 0.85rem;
   margin-bottom: 0.75rem;
-  text-align: right;
+  text-align: start;
   line-height: 1.5;
 
   i {
@@ -503,7 +510,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
     cursor: pointer;
     color: #1f3540;
     transition: background 0.2s;
-    text-align: right;
+    text-align: start;
 
     &:hover {
       background: rgba(224, 192, 117, 0.15);
@@ -517,7 +524,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   font-size: 0.8rem;
   color: $label-gray;
   margin-top: 0.35rem;
-  text-align: right;
+  text-align: start;
 }
 
 .full-width {
@@ -692,7 +699,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   padding: 0.6rem 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   font-size: 0.95rem;
-  text-align: right;
+  text-align: start;
   color: $elegant-dark;
 
   &:last-child {
@@ -719,7 +726,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   justify-content: space-between;
   align-items: center;
   font-size: 0.95rem;
-  text-align: right;
+  text-align: start;
   padding: 0.5rem 0;
 
   .summary-label {
@@ -868,7 +875,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   padding: 1rem 0 0;
   margin-top: 0.5rem;
   border-top: 2px solid $brand-gold;
-  text-align: right;
+  text-align: start;
 }
 
 .summary-total-label {
@@ -899,7 +906,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  text-align: right;
+  text-align: start;
 
   i {
     color: $brand-gold;
@@ -913,7 +920,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   color: #555;
   margin-bottom: 1rem;
   line-height: 1.5;
-  text-align: right;
+  text-align: start;
 
   a {
     text-decoration: underline;
@@ -929,7 +936,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   align-items: flex-start;
   gap: 0.5rem;
   margin-top: 0.5rem;
-  text-align: right;
+  text-align: start;
 
   input[type="checkbox"] {
     margin-top: 0.25rem;
@@ -953,7 +960,7 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
   color: #c62828;
   font-size: 0.85rem;
   margin-top: 0.25rem;
-  text-align: right;
+  text-align: start;
 }
 
 // ========== Checkout actions – premium buttons ==========
@@ -1028,13 +1035,13 @@ $shadow-boutique: 0 10px 30px rgba(0, 0, 0, 0.06);
 // ========== RTL ==========
 .checkout-page [dir='rtl'],
 .checkout-page {
-  text-align: right;
+  text-align: start;
 }
 
 .form-card input,
 .form-card textarea,
 .summary-body {
-  text-align: right;
+  text-align: start;
 }
 
 @media (max-width: 991px) {

@@ -7,6 +7,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { LanguageService } from '../../../../services/language.service';
+import { LocaleService } from '../../../../i18n/locale.service';
+import {
+  localizedProductDescription,
+  localizedProductName
+} from '../../../../i18n/localized-content';
 
 @Component({
   selector: 'app-main-dishes',
@@ -15,15 +20,15 @@ import { LanguageService } from '../../../../services/language.service';
   template: `
     <div class="main-dishes-page">
       <div class="category-header-actions">
-        <button class="btn-gold-back" routerLink="/ready-for-shabbat">
-          <i class="fas fa-arrow-right"></i> חזרה לתפריט
+        <button class="btn-gold-back" [routerLink]="localeService.localizePath('/ready-for-shabbat')">
+          <i class="fas fa-arrow-right"></i> {{ 'PRODUCT.BACK_TO_MENU' | translate }}
         </button>
       </div>
 
       <header class="luxury-category-header">
         <span class="decorative-line"></span>
         <span class="decorative-diamond"></span>
-        <h1>מנות עיקריות</h1>
+        <h1>{{ 'CATEGORIES.MAIN' | translate }}</h1>
         <span class="decorative-diamond"></span>
         <span class="decorative-line"></span>
       </header>
@@ -33,7 +38,7 @@ import { LanguageService } from '../../../../services/language.service';
         <!-- Loading State -->
         <div *ngIf="isLoading" class="loading">
           <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-          <span>טוען מנות...</span>
+          <span>{{ 'PRODUCT.LOADING' | translate }}</span>
         </div>
 
         <!-- Dishes Grid (unified card design) -->
@@ -45,16 +50,16 @@ import { LanguageService } from '../../../../services/language.service';
             <div class="card-image-wrapper">
               <img 
                 [src]="dish.imageUrl || '/assets/images/placeholder-dish.jpg'" 
-                [alt]="dish.name"
+                [alt]="displayName(dish)"
                 loading="lazy"
               >
-              <div class="badge" *ngIf="dish.isPopular === true">מומלץ</div>
-              <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">לא זמין כרגע</span>
+              <div class="badge" *ngIf="dish.isPopular === true">{{ 'PRODUCT.RECOMMENDED' | translate }}</div>
+              <span class="badge-out-of-stock" *ngIf="!isAvailable(dish)">{{ 'PRODUCT.OOS' | translate }}</span>
             </div>
             
             <div class="card-content">
-              <h4 class="card-title">{{ dish.name }}</h4>
-              <p class="card-desc">{{ dish.description }}</p>
+              <h4 class="card-title">{{ displayName(dish) }}</h4>
+              <p class="card-desc">{{ displayDescription(dish) }}</p>
               <div class="card-price">
                 <span class="currency">₪</span>{{ getPrice(dish) }}
               </div>
@@ -63,18 +68,18 @@ import { LanguageService } from '../../../../services/language.service';
                 <button 
                   (click)="viewDetails(dish)" 
                   class="btn-details"
-                  [attr.aria-label]="'פרטים על ' + dish.name"
+                  [attr.aria-label]="('PRODUCT.DETAILS' | translate) + ' ' + displayName(dish)"
                 >
-                  פרטים
+                  {{ 'PRODUCT.DETAILS' | translate }}
                 </button>
                 <button 
                   (click)="addToCart(dish)" 
                   class="btn-add"
-                  [attr.aria-label]="'הוסף לסל ' + dish.name"
+                  [attr.aria-label]="('PRODUCT.ADD_TO_CART' | translate) + ' ' + displayName(dish)"
                   [disabled]="!isAvailable(dish)"
                 >
                   <mat-icon>shopping_cart</mat-icon>
-                  הוספה לסל
+                  {{ 'PRODUCT.ADDING' | translate }}
                 </button>
               </div>
             </div>
@@ -84,20 +89,7 @@ import { LanguageService } from '../../../../services/language.service';
         <!-- Empty State -->
         <div *ngIf="!isLoading && mainDishes.length === 0" class="empty-state">
           <i class="fas fa-utensils" aria-hidden="true"></i>
-          <h3>אין מנות עיקריות זמינות כרגע</h3>
-          <p>אנחנו עובדים על הוספת מנות חדשות. חזור בקרוב!</p>
-        </div>
-
-        <!-- Featured Section -->
-        <div class="featured-section" *ngIf="mainDishes.length > 0">
-          <h2>המומלצים שלנו</h2>
-          <div class="featured-grid">
-            <div class="featured-card">
-              <h4>צ'ולנט לשישי בלילה</h4>
-              <p>צ'ולנט חם ומוכן לשישי בלילה, מוגש עם לחם טרי</p>
-              <span class="featured-price">החל מ-₪{{ getMinPrice() }}</span>
-            </div>
-          </div>
+          <h3>{{ 'PRODUCT.EMPTY' | translate }}</h3>
         </div>
       </div>
     </div>
@@ -125,6 +117,7 @@ import { LanguageService } from '../../../../services/language.service';
       justify-content: center;
       width: 100%;
       margin: 60px 0 40px 0; // Generous spacing
+      direction: ltr;
       
       // The Title Text
       h2 {
@@ -135,6 +128,7 @@ import { LanguageService } from '../../../../services/language.service';
         margin: 0;
         white-space: nowrap;
         position: relative;
+        unicode-bidi: isolate;
         
         // Optional: Small Diamond dots next to text
         &::before,
@@ -166,14 +160,18 @@ import { LanguageService } from '../../../../services/language.service';
       
       // Left Line: Transparent -> Gold
       &::before {
-        background: linear-gradient(to left, #E0C075, transparent);
-        margin-left: 20px;
+        background: linear-gradient(to right, transparent, #E0C075);
+        margin-inline-end: 20px;
+        margin-left: 0;
+        margin-right: 0;
       }
       
       // Right Line: Gold -> Transparent
       &::after {
-        background: linear-gradient(to right, #E0C075, transparent);
-        margin-right: 20px;
+        background: linear-gradient(to left, transparent, #E0C075);
+        margin-inline-start: 20px;
+        margin-left: 0;
+        margin-right: 0;
       }
     }
 
@@ -210,50 +208,6 @@ import { LanguageService } from '../../../../services/language.service';
       font-size: 4rem;
       color: #cbb69e;
       margin-bottom: 1rem;
-    }
-
-    .featured-section {
-      margin-top: 4rem;
-      padding-top: 3rem;
-      border-top: 2px solid #f8f9fa;
-    }
-
-    .featured-section h2 {
-      text-align: center;
-      color: #0E1A24;
-      margin-bottom: 2rem;
-    }
-
-    .featured-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-    }
-
-    .featured-card {
-      background: linear-gradient(135deg, #0E1A24 0%, #1A2B37 100%);
-      color: white;
-      padding: 2rem;
-      border-radius: 1rem;
-      text-align: center;
-    }
-
-    .featured-card h4 {
-      color: #cbb69e;
-      margin-bottom: 1rem;
-      font-size: 1.25rem;
-    }
-
-    .featured-card p {
-      margin-bottom: 1rem;
-      opacity: 0.9;
-      line-height: 1.6;
-    }
-
-    .featured-price {
-      font-weight: bold;
-      color: #cbb69e;
-      font-size: 1.2rem;
     }
 
     // Responsive adjustments
@@ -332,6 +286,7 @@ export class MainDishesComponent implements OnInit {
   cartService = inject(CartService);
   languageService = inject(LanguageService);
   router = inject(Router);
+  readonly localeService = inject(LocaleService);
 
   mainDishes: MenuItem[] = [];
   isLoading = true;
@@ -340,6 +295,14 @@ export class MainDishesComponent implements OnInit {
   // All data now comes from MenuService (Single Source of Truth)
   // This ensures consistency and prevents "Product not found" errors
   featuredMainDishes: any[] = []; // Deprecated - kept for backward compatibility only
+
+  displayName(item: MenuItem): string {
+    return localizedProductName(item, this.localeService.locale);
+  }
+
+  displayDescription(item: MenuItem): string {
+    return localizedProductDescription(item, this.localeService.locale);
+  }
 
   ngOnInit(): void {
     this.loadMainDishes();
@@ -384,9 +347,11 @@ export class MainDishesComponent implements OnInit {
     this.cartService.addItem({
       id: item.id || item._id || '',
       name: item.name,
+      nameEn: item.nameEn,
       price: price,
       imageUrl: item.imageUrl,
       description: item.description,
+      descriptionEn: item.descriptionEn,
       category: item.category
     });
 
@@ -426,32 +391,6 @@ export class MainDishesComponent implements OnInit {
     return 0;
   }
 
-  getMinPrice(): number {
-    // Calculate minimum price from all main dishes
-    if (this.mainDishes.length === 0) return 38; // Fallback
-    
-    const prices = this.mainDishes
-      .map(dish => this.getPrice(dish))
-      .filter(price => price > 0);
-    
-    return prices.length > 0 ? Math.min(...prices) : 38;
-  }
-
-  getFeaturedPrice(): number {
-    // Return a featured price (could be average or specific dish price)
-    if (this.mainDishes.length === 0) return 65; // Fallback
-    
-    const prices = this.mainDishes
-      .map(dish => this.getPrice(dish))
-      .filter(price => price > 0);
-    
-    if (prices.length === 0) return 65;
-    
-    // Return average price rounded
-    const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-    return Math.round(avg);
-  }
-
   getAriaLabel(dish: MenuItem): string {
     return 'בחרו פרטי אספקה עבור ' + dish.name;
   }
@@ -463,8 +402,7 @@ export class MainDishesComponent implements OnInit {
   viewDetails(dish: MenuItem): void {
     const dishId = dish.id || dish._id || '';
     if (dishId) {
-      // Use SHORT route path: 'main' instead of 'main-dishes'
-      this.router.navigate(['/ready-for-shabbat/main', dishId]);
+      this.router.navigateByUrl(this.localeService.localizePath(`/ready-for-shabbat/main/${dishId}`));
     }
   }
 }

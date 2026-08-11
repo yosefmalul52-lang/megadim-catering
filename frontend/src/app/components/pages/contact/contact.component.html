@@ -1,15 +1,15 @@
-<div class="contact-page" dir="rtl">
+<div class="contact-page">
   <header class="contact-hero">
     <div class="contact-hero__inner">
-      <h1 class="contact-hero__title">בואו נבנה תפריט שמתאים בדיוק לאירוע שלכם!</h1>
+      <h1 class="contact-hero__title">{{ 'CONTACT_PAGE.HERO_TITLE' | translate }}</h1>
       <p class="contact-hero__lead">
-        השאירו פרטים או שלחו הודעה, ונחזור אליכם עם התאמה אישית לפי כמות האורחים, סוג האירוע ורמת הכשרות.
+        {{ 'CONTACT_PAGE.HERO_LEAD' | translate }}
       </p>
-      <p class="contact-hero__trust" aria-label="יתרונות מגדים">
-        <span class="contact-hero__trust-item">כשר למהדרין</span>
-        <span class="contact-hero__trust-item">בהנהלת השף ינון אנקרי</span>
-        <span class="contact-hero__trust-item">משלוחים עד הבית</span>
-        <span class="contact-hero__trust-item">התאמה אישית לאירועים</span>
+      <p class="contact-hero__trust" [attr.aria-label]="'CONTACT_PAGE.SUBTITLE' | translate">
+        <span class="contact-hero__trust-item">{{ 'CONTACT_PAGE.TRUST_KOSHER' | translate }}</span>
+        <span class="contact-hero__trust-item">{{ 'CONTACT_PAGE.TRUST_CHEF' | translate }}</span>
+        <span class="contact-hero__trust-item">{{ 'CONTACT_PAGE.TRUST_DELIVERY' | translate }}</span>
+        <span class="contact-hero__trust-item">{{ 'CONTACT_PAGE.TRUST_CUSTOM' | translate }}</span>
       </p>
     </div>
   </header>
@@ -21,40 +21,39 @@
     rel="noopener noreferrer"
   >
     <i class="fab fa-whatsapp" aria-hidden="true"></i>
-    שלחו הודעה בוואטסאפ
+    {{ 'CONTACT_PAGE.WA_SEND' | translate }}
   </a>
 
   <div class="contact-wrapper">
     <div class="contact-card">
       <div class="contact-grid">
-        <!-- Right in RTL: Contact details -->
         <aside class="contact-info-panel">
           <div class="contact-panel-column">
-            <h2 class="contact-panel-title">דברו איתנו ישירות!</h2>
+            <h2 class="contact-panel-title">{{ 'CONTACT_PAGE.DIRECT_TITLE' | translate }}</h2>
             <div class="contact-panel-body contact-info-body">
               <p class="contact-panel-intro">
-                נשמח לעמוד לרשותכם, להבין את הצורך ולחזור אליכם בהקדם.
+                {{ 'CONTACT_PAGE.DIRECT_INTRO' | translate }}
               </p>
 
               <ul class="contact-info-list">
                 <li>
                   <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-phone"></i></span>
                   <div class="contact-info-text">
-                    <span class="contact-info-label">טלפון</span>
+                    <span class="contact-info-label">{{ 'CONTACT_PAGE.PHONE' | translate }}</span>
                     <a [href]="'tel:' + contactInfo.phone">{{ displayPhone }}</a>
                   </div>
                 </li>
                 <li class="contact-info-list__wa">
                   <span class="contact-info-icon" aria-hidden="true"><i class="fab fa-whatsapp"></i></span>
                   <div class="contact-info-text">
-                    <span class="contact-info-label">וואטסאפ</span>
-                    <a [href]="whatsappHref" target="_blank" rel="noopener noreferrer">שלחו הודעה בוואטסאפ</a>
+                    <span class="contact-info-label">{{ 'CONTACT_PAGE.WHATSAPP' | translate }}</span>
+                    <a [href]="whatsappHref" target="_blank" rel="noopener noreferrer">{{ 'CONTACT_PAGE.WA_SEND' | translate }}</a>
                   </div>
                 </li>
                 <li>
                   <span class="contact-info-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
                   <div class="contact-info-text">
-                    <span class="contact-info-label">אימייל</span>
+                    <span class="contact-info-label">{{ 'CONTACT_PAGE.EMAIL' | translate }}</span>
                     <a [href]="'mailto:' + contactInfo.email">{{ contactInfo.email }}</a>
                   </div>
                 </li>
@@ -62,16 +61,15 @@
 
               <a class="contact-wa-btn" [href]="whatsappHref" target="_blank" rel="noopener noreferrer">
                 <i class="fab fa-whatsapp" aria-hidden="true"></i>
-                שלחו הודעה בוואטסאפ
+                {{ 'CONTACT_PAGE.WA_SEND' | translate }}
               </a>
             </div>
           </div>
         </aside>
 
-        <!-- Left in RTL: Form -->
         <div class="contact-form-panel">
           <div class="contact-panel-column">
-            <h2 class="contact-panel-title">נשמח לשמוע מכם!</h2>
+            <h2 class="contact-panel-title">{{ 'CONTACT_PAGE.FORM_TITLE' | translate }}</h2>
             <form (ngSubmit)="onSubmit(contactForm)" #contactForm="ngForm" class="contact-panel-body contact-form">
             <div class="form-group">
               <input
@@ -84,9 +82,9 @@
                 required
                 placeholder=" "
               />
-              <label for="contact-name" class="form-label-float">שם מלא</label>
+              <label for="contact-name" class="form-label-float">{{ 'CONTACT_PAGE.FULL_NAME' | translate }}</label>
               @if (nameField.invalid && nameField.touched) {
-                <span class="form-error">שדה חובה</span>
+                <span class="form-error">{{ 'CONTACT_PAGE.REQUIRED' | translate }}</span>
               }
             </div>
             <div class="form-group">
@@ -100,9 +98,9 @@
                 required
                 placeholder=" "
               />
-              <label for="contact-phone" class="form-label-float">טלפון</label>
+              <label for="contact-phone" class="form-label-float">{{ 'CONTACT_PAGE.PHONE' | translate }}</label>
               @if (phoneField.invalid && phoneField.touched) {
-                <span class="form-error">שדה חובה</span>
+                <span class="form-error">{{ 'CONTACT_PAGE.REQUIRED' | translate }}</span>
               }
             </div>
             <div class="form-group">
@@ -117,9 +115,9 @@
                 email
                 placeholder=" "
               />
-              <label for="contact-email" class="form-label-float">אימייל</label>
+              <label for="contact-email" class="form-label-float">{{ 'CONTACT_PAGE.EMAIL' | translate }}</label>
               @if (emailField.invalid && emailField.touched) {
-                <span class="form-error">{{ emailField.errors?.['email'] ? 'כתובת אימייל לא תקינה' : 'שדה חובה' }}</span>
+                <span class="form-error">{{ emailField.errors?.['email'] ? ('CONTACT_PAGE.EMAIL_INVALID' | translate) : ('CONTACT_PAGE.REQUIRED' | translate) }}</span>
               }
             </div>
             <div class="form-group">
@@ -133,9 +131,9 @@
                 rows="4"
                 placeholder=" "
               ></textarea>
-              <label for="contact-message" class="form-label-float">הודעה</label>
+              <label for="contact-message" class="form-label-float">{{ 'CONTACT_PAGE.MESSAGE' | translate }}</label>
               @if (messageField.invalid && messageField.touched) {
-                <span class="form-error">שדה חובה</span>
+                <span class="form-error">{{ 'CONTACT_PAGE.REQUIRED' | translate }}</span>
               }
             </div>
 
@@ -155,12 +153,12 @@
             <button type="submit" class="submit-btn" [disabled]="contactForm.invalid || isSubmitting">
               @if (isSubmitting) {
                 <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
-                <span>שולח...</span>
+                <span>{{ 'CONTACT_PAGE.SENDING' | translate }}</span>
               } @else {
-                <span>שליחת הודעה</span>
+                <span>{{ 'CONTACT_PAGE.SEND_BTN' | translate }}</span>
               }
             </button>
-            <p class="form-footer-note">נחזור אליכם בהקדם לתיאום תפריט והצעת מחיר.</p>
+            <p class="form-footer-note">{{ 'CONTACT_PAGE.FOOTER_NOTE' | translate }}</p>
             </form>
           </div>
         </div>

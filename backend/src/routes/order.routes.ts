@@ -184,6 +184,7 @@ router.patch(
   orderController.resolvePaymentException
 );
 router.patch('/admin/:id/price-override', authenticate, requireAdmin, orderController.setAdminPriceOverride);
+router.patch('/admin/:id/catering-pricing', authenticate, requireAdmin, orderController.updateCateringPricing);
 router.patch('/admin/:id/admin-notes', authenticate, requireAdmin, orderController.updateOrderAdminNotes);
 router.patch('/:id/shipping-cost', authenticate, requireAdmin, orderController.updateOrderShippingCost);
 router.delete('/:id', authenticate, requireAdmin, orderController.deleteOrder);

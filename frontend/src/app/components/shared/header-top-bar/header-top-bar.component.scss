@@ -337,7 +337,7 @@
   border: none;
   background: none;
   width: 100%;
-  text-align: right;
+  text-align: start;
   cursor: pointer;
   
   [dir="ltr"] & {
@@ -483,7 +483,7 @@ hr {
   
   @media (max-width: $breakpoint-sm - 1px) {
     padding: 2px 6px;
-    font-size: 10px;
+    font-size: 0.8125rem;
   }
 }
 
@@ -625,13 +625,13 @@ hr {
   .icon-btn {
     width: 28px;
     height: 28px;
-    font-size: 12px;
+    font-size: 0.8125rem;
   }
   
   .social-icon {
     width: 28px;
     height: 28px;
-    font-size: 12px;
+    font-size: 0.8125rem;
   }
   
   .language-toggle {

@@ -2,7 +2,7 @@
 <header class="luxury-page-header">
   <span class="decorative-line"></span>
   <span class="decorative-diamond"></span>
-  <h1>אוכל מוכן לשבת וחג</h1>
+  <h1>{{ 'SHABBAT.TITLE' | translate }}</h1>
   <span class="decorative-diamond"></span>
   <span class="decorative-line"></span>
 </header>
@@ -19,9 +19,9 @@
         [routerLink]="[category.id]"
         routerLinkActive="active"
       >
-        <img [ngSrc]="category.image" [alt]="category.title" width="400" height="300" class="category-image">
+        <img [ngSrc]="category.image" [alt]="(category.nameKey | translate) || category.title" width="400" height="300" class="category-image">
         <div class="category-info">
-          <h3>{{ category.title }}</h3>
+          <h3>{{ (category.nameKey | translate) || category.title }}</h3>
         </div>
       </div>
     </div>

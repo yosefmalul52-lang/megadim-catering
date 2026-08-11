@@ -2,19 +2,21 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild, inj
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { SeoService } from '../../../services/seo.service';
 import { FeaturedMenuComponent } from '../../featured-menu/featured-menu.component';
 import { VideoSectionComponent } from '../../video-section/video-section.component';
 import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
+import { LocaleService } from '../../../i18n/locale.service';
+import { localizeNavPath } from '../../../i18n/locale.util';
 
 interface HomeServicePath {
   route: string;
   image: string;
-  alt: string;
-  title: string;
-  text: string;
-  cta: string;
+  titleKey: string;
+  altKey: string;
   imagePosition: string;
   featured?: boolean;
 }
@@ -33,6 +35,7 @@ interface HomeTestimonial {
     RouterLink,
     MatIconModule,
     NgOptimizedImage,
+    TranslateModule,
     FeaturedMenuComponent,
     VideoSectionComponent,
     PagePopupComponent,
@@ -43,6 +46,8 @@ interface HomeTestimonial {
 export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly settingsService = inject(SiteSettingsService);
   private readonly seoService = inject(SeoService);
+  private readonly translate = inject(TranslateService);
+  readonly localeService = inject(LocaleService);
 
   @ViewChild('heroTitleMeasure') heroTitleMeasure?: ElementRef<HTMLElement>;
 
@@ -52,46 +57,41 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   featuredReviewIndex = 0;
   private featuredReviewTimer?: ReturnType<typeof setInterval>;
   private heroTypingTimer?: ReturnType<typeof setTimeout>;
+  private langChangeSub?: Subscription;
 
-  readonly heroTitleFull = 'קייטרינג בשרי כשר למהדרין לאירועים, שבתות וחגים.';
-  heroTitleLines: string[] = [this.heroTitleFull];
+  heroTitleFull = '';
+  heroTitleLines: string[] = [''];
   heroTitleTypedLines: string[] = [''];
   heroTitleDone = false;
 
-  readonly heroTrustItems = [
-    '5.0 בגוגל',
-    'מאות לקוחות מרוצים',
-    'כשרות מהדרין',
-    'משלוחים עד הבית',
+  readonly heroTrustKeys = [
+    'HOME.TRUST_1',
+    'HOME.TRUST_2',
+    'HOME.TRUST_3',
+    'HOME.TRUST_4',
   ];
 
   readonly servicePaths: HomeServicePath[] = [
     {
       route: '/ready-for-shabbat',
       image: 'assets/images/shabbat-holiday-catering.png',
-      alt: 'אוכל מוכן לשבת וחג – מנות ביתיות ובשר כשר למהדרין | קייטרינג מגדים',
-      title: 'אוכל מוכן לשבת וחג',
-      text: 'מנות עשירות ומוכנות להגשה לשולחן שבת, חג או אירוח משפחתי.',
-      cta: 'לתפריט שבת וחג',
+      titleKey: 'HOME.PATH_READY_TITLE',
+      altKey: 'HOME.PATH_READY_ALT',
       imagePosition: 'center',
     },
     {
       route: '/catering',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/c3bad83038c1d880/original.jpg',
-      alt: 'קייטרינג לאירועים – תפריט בשרי כשר למהדרין | קייטרינג מגדים',
-      title: 'קייטרינג לאירועים',
-      text: 'תפריט בשרי מלא לאירועים משפחתיים, עסקיים ומוסדיים.',
-      cta: 'לקבלת הצעה לאירוע',
+      titleKey: 'HOME.PATH_EVENTS_TITLE',
+      altKey: 'HOME.PATH_EVENTS_ALT',
       imagePosition: 'top center',
       featured: true,
     },
     {
       route: '/shabbat-events',
       image: 'assets/images/ready-for-shabbat-home.png',
-      alt: 'קייטרינג לשבת וחג – כשר למהדרין | קייטרינג מגדים',
-      title: 'קייטרינג לשבת וחג',
-      text: 'קייטרינג מלא לשבתות, חגים ואירועי שבת וחג עם תפריט מותאם.',
-      cta: 'לקבלת הצעה לשבת וחג',
+      titleKey: 'HOME.PATH_HOLIDAY_TITLE',
+      altKey: 'HOME.PATH_HOLIDAY_ALT',
       imagePosition: 'center',
     },
   ];
@@ -131,6 +131,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.seoService.updatePage('home');
+    this.refreshHeroTitle();
+    this.langChangeSub = this.translate.onLangChange.subscribe(() => {
+      this.resetHeroTyping();
+    });
+
     this.settingsService.getSettings(true).subscribe((s) => {
       this.settings = s;
       const home = this.settings?.pageAnnouncements?.['home'];
@@ -147,22 +152,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    requestAnimationFrame(() => {
-      this.heroTitleLines = this.splitTitleIntoLines();
-
-      if (
-        typeof window === 'undefined' ||
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      ) {
-        this.heroTitleTypedLines = [...this.heroTitleLines];
-        this.heroTitleDone = true;
-        return;
-      }
-
-      this.heroTitleTypedLines = [''];
-      this.heroTitleDone = false;
-      this.startHeroTyping();
-    });
+    requestAnimationFrame(() => this.beginHeroTyping());
   }
 
   ngOnDestroy(): void {
@@ -173,6 +163,12 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.featuredReviewTimer) {
       clearInterval(this.featuredReviewTimer);
     }
+
+    this.langChangeSub?.unsubscribe();
+  }
+
+  navPath(path: string): string {
+    return localizeNavPath(path, this.localeService.locale);
   }
 
   setFeaturedReview(index: number): void {
@@ -197,6 +193,36 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     return [trimmed, ''];
+  }
+
+  private refreshHeroTitle(): void {
+    this.heroTitleFull = this.translate.instant('HOME.HERO_TITLE');
+  }
+
+  private resetHeroTyping(): void {
+    this.refreshHeroTitle();
+    if (this.heroTypingTimer) {
+      clearTimeout(this.heroTypingTimer);
+      this.heroTypingTimer = undefined;
+    }
+    requestAnimationFrame(() => this.beginHeroTyping());
+  }
+
+  private beginHeroTyping(): void {
+    this.heroTitleLines = this.splitTitleIntoLines();
+
+    if (
+      typeof window === 'undefined' ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      this.heroTitleTypedLines = [...this.heroTitleLines];
+      this.heroTitleDone = true;
+      return;
+    }
+
+    this.heroTitleTypedLines = [''];
+    this.heroTitleDone = false;
+    this.startHeroTyping();
   }
 
   private splitTitleIntoLines(): string[] {
