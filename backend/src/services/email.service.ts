@@ -904,6 +904,75 @@ export class EmailService {
     };
     await this.sendOrderEmails(orderData, ownerEmail, customerEmail ?? data.email);
   }
+
+  /**
+   * Post-completion Google review request (Hebrew).
+   * Caller is responsible for eligibility / idempotency stamps on the order.
+   */
+  async sendReviewRequestEmail(
+    order: IOrder,
+    googleReviewUrl: string
+  ): Promise<{ sent: boolean; skipped?: string; suppressed?: boolean }> {
+    const gate = assertOrderCustomerEmailsAllowedOrSuppress('review_request');
+    if (!('ok' in gate)) return gate;
+
+    const toEmail = (order.customerDetails?.email || '').toString().trim().toLowerCase();
+    if (!toEmail) {
+      return { sent: false, skipped: 'no_recipient' };
+    }
+    const reviewUrl = String(googleReviewUrl || '').trim();
+    if (!reviewUrl) {
+      return { sent: false, skipped: 'no_review_url' };
+    }
+
+    if (!EMAIL_USER || !EMAIL_PASS) {
+      throw new Error('Email not configured');
+    }
+
+    const businessName = process.env.BUSINESS_NAME || 'מגדים';
+    const ownerEmail = (process.env.OWNER_EMAIL || '').trim();
+    const customerName = order.customerDetails?.fullName || 'לקוח/ה';
+    const orderLabel = order.orderNumber || order._id?.toString().slice(-8) || '';
+    const safeUrl = escapeHtml(reviewUrl);
+
+    const html = `
+      <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: linear-gradient(180deg, #fefaf2 0%, #f7ecd3 100%); border: 1px solid #e2cfa4;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #0E1A24; margin: 0 0 8px;">איך הייתה ההזמנה?</h1>
+          <p style="color: #1f3540; font-size: 1.1em; margin: 0;">קייטרינג מגדים</p>
+          <div style="height: 3px; background: linear-gradient(90deg, transparent, #e0c075, transparent); margin: 16px auto; max-width: 200px;"></div>
+        </div>
+        <p style="color: #333; font-size: 1.05em; line-height: 1.6;">שלום ${escapeHtml(customerName)},</p>
+        <p style="color: #333; font-size: 1.05em; line-height: 1.6;">
+          תודה שבחרתם במגדים${orderLabel ? ` (הזמנה ${escapeHtml(String(orderLabel))})` : ''}.
+          מקווים שנהניתם מהאוכל ומהשירות.
+        </p>
+        <p style="color: #333; font-size: 1.05em; line-height: 1.6;">
+          אם חוויתם חוויה טובה — נשמח מאוד אם תשאירו לנו ביקורת קצרה בגוגל.
+          זה עוזר מאוד ללקוחות חדשים לבחור בנו בביטחון.
+        </p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${safeUrl}"
+             style="display: inline-block; background: #0E1A24; color: #f7ecd3; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 700;">
+            להשארת ביקורת בגוגל
+          </a>
+        </div>
+        <p style="color: #666; font-size: 0.9em; word-break: break-all;">
+          או העתיקו את הקישור:<br/>
+          <a href="${safeUrl}" style="color: #0E1A24;">${safeUrl}</a>
+        </p>
+        <p style="color: #0E1A24; font-weight: 600; margin-top: 24px;">תודה רבה,<br/>צוות מגדים</p>
+      </div>`;
+
+    await this.sendMailWithLogging('order:review-request', {
+      from: getWebsiteFromHeader(),
+      replyTo: ownerEmail || undefined,
+      to: toEmail,
+      subject: `היי מאת ${businessName} — איך הייתה ההזמנה?`,
+      html
+    });
+    return { sent: true };
+  }
 }
 
 /** Singleton for use in controllers and server startup. */

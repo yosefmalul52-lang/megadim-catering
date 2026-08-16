@@ -129,6 +129,7 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   isLoading = true;
   isRefreshing = false;
   statusUpdatingId: string | null = null;
+  reviewRequestSendingId: string | null = null;
   selectedOrder: Order | null = null;
   orderToEditStatus: Order | null = null;
   successMessage = '';
@@ -367,6 +368,76 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
         this.errorMessage = err?.error?.message || 'שגיאה בעדכון סימון הזמנת בדיקה';
         setTimeout(() => (this.errorMessage = ''), 3000);
         this.statusUpdatingId = null;
+      }
+    });
+  }
+
+  /** True when admin can offer "send review email" for this order. */
+  canSendReviewRequest(order: Order | null | undefined): boolean {
+    if (!order || !this.isAdminUser) return false;
+    if (!this.isCompleted(String(order.status || ''))) return false;
+    if (order.reviewRequestEmailSentAt || order.reviewRequestEmailStatus === 'sent') return false;
+    if (order.reviewRequestEmailStatus === 'sending') return false;
+    return true;
+  }
+
+  /** Admin: manually send Google review-request email for a completed order. */
+  sendReviewRequestEmail(order: Order): void {
+    if (!this.canSendReviewRequest(order)) {
+      this.errorMessage = 'לא ניתן לשלוח מייל ביקורת להזמנה זו';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+
+    const email = String(order.customerDetails?.email || '').trim();
+    const confirmMsg = email
+      ? `לשלוח ללקוח (${email}) מייל עם בקשה להשאיר ביקורת בגוגל?`
+      : 'ללקוח אין אימייל בהזמנה. בכל זאת לנסות לשלוח?';
+    if (!confirm(confirmMsg)) return;
+
+    this.reviewRequestSendingId = orderId;
+    this.orderService.sendReviewRequestEmail(orderId).subscribe({
+      next: (res) => {
+        const updated = res?.data
+          ? {
+              ...res.data,
+              id: res.data._id || res.data.id,
+              reviewRequestEmailStatus: res.data.reviewRequestEmailStatus || 'sent',
+              reviewRequestEmailSentAt:
+                res.data.reviewRequestEmailSentAt || new Date().toISOString()
+            }
+          : {
+              reviewRequestEmailStatus: 'sent' as const,
+              reviewRequestEmailSentAt: new Date().toISOString()
+            };
+        this._patchOrderInLists(orderId, updated);
+        if (this.selectedOrder && (this.selectedOrder._id || this.selectedOrder.id)?.toString() === orderId) {
+          this.selectedOrder = { ...this.selectedOrder, ...updated };
+        }
+        this.successMessage = 'מייל בקשת הביקורת נשלח ללקוח';
+        setTimeout(() => (this.successMessage = ''), 3000);
+        this.reviewRequestSendingId = null;
+        this.closeOrderMenu();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || '';
+        const he =
+          /already sent/i.test(msg)
+            ? 'מייל הביקורת כבר נשלח להזמנה זו'
+            : /no email/i.test(msg)
+              ? 'ללקוח אין כתובת אימייל בהזמנה'
+              : /review URL/i.test(msg)
+                ? 'חסר קישור לביקורות גוגל בהגדרות האתר'
+                : /disabled/i.test(msg)
+                  ? 'שליחת מיילים ללקוחות כבויה כרגע'
+                  : /completed/i.test(msg)
+                    ? 'אפשר לשלוח רק להזמנות בסטטוס הושלם'
+                    : msg || 'שגיאה בשליחת מייל הביקורת';
+        this.errorMessage = he;
+        setTimeout(() => (this.errorMessage = ''), 4000);
+        this.reviewRequestSendingId = null;
       }
     });
   }
@@ -3710,6 +3781,19 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
       failed: 'תשלום נכשל בסליקה'
     };
     return labels[status ?? 'pending'] ?? status ?? '—';
+  }
+
+  /** Compact label for Google review email status (manual send). */
+  getReviewRequestLabel(order: Order | null | undefined): string | null {
+    if (!order) return null;
+    const status = String(order.reviewRequestEmailStatus || '').trim();
+    if (status === 'sent' || order.reviewRequestEmailSentAt) return 'נשלח';
+    if (status === 'skipped_no_email') return 'דולג — אין אימייל ללקוח';
+    if (status === 'skipped_no_review_url') return 'דולג — חסר קישור גוגל בהגדרות';
+    if (status === 'cancelled') return 'בוטל';
+    if (status === 'failed') return 'נכשל — ניתן לנסות שוב';
+    if (status === 'sending') return 'בשליחה…';
+    return null;
   }
 
   /** True when transactionId looks like a real gateway reference (not ORD-/MOCK- placeholder). */

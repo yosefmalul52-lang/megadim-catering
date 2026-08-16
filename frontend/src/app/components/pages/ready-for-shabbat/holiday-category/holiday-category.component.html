@@ -1,10 +1,4 @@
-<app-page-banner [message]="pageBannerMessage"></app-page-banner>
-<app-page-popup
-  [show]="showPopup"
-  [title]="(settings?.pageAnnouncements?.['holiday']?.popupTitle) ?? ''"
-  [text]="(settings?.pageAnnouncements?.['holiday']?.popupText) ?? ''"
-  (close)="closePopup()"
-></app-page-popup>
+
 <div class="category-header-actions">
   <button class="btn-gold-back" [routerLink]="localeService.localizePath('/ready-for-shabbat')">
     <i class="fas fa-arrow-right"></i> {{ 'PRODUCT.BACK_TO_MENU' | translate }}

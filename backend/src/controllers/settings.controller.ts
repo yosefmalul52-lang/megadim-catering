@@ -78,6 +78,7 @@ export class SettingsController {
           contactPhone: '073-367-8399',
           orderEmail: 'yosefmalul52@gmail.com',
           whatsappLink: '',
+          googleReviewUrl: '',
           cholentForceOpen: false,
           cholentCustomMessage: '',
           cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
@@ -98,6 +99,7 @@ export class SettingsController {
           contactPhone: settings.contactPhone || '073-367-8399',
           orderEmail: settings.orderEmail || 'yosefmalul52@gmail.com',
           whatsappLink: settings.whatsappLink || '',
+          googleReviewUrl: settings.googleReviewUrl || '',
           cholentForceOpen: !!settings.cholentForceOpen,
           cholentCustomMessage: settings.cholentCustomMessage || '',
           cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
@@ -140,6 +142,9 @@ export class SettingsController {
       }
       if (updateData.whatsappLink !== undefined && typeof updateData.whatsappLink !== 'string') {
         throw createValidationError('whatsappLink must be a string');
+      }
+      if (updateData.googleReviewUrl !== undefined && typeof updateData.googleReviewUrl !== 'string') {
+        throw createValidationError('googleReviewUrl must be a string');
       }
       if (updateData.cholentForceOpen !== undefined && typeof updateData.cholentForceOpen !== 'boolean') {
         throw createValidationError('cholentForceOpen must be a boolean');
@@ -216,6 +221,13 @@ export class SettingsController {
           throw createValidationError('whatsappLink must be a valid URL');
         }
       }
+      if (updateData.googleReviewUrl && updateData.googleReviewUrl.trim() !== '') {
+        try {
+          new URL(updateData.googleReviewUrl);
+        } catch {
+          throw createValidationError('googleReviewUrl must be a valid URL');
+        }
+      }
 
       console.log('SERVER RECEIVED DATA:', JSON.stringify(updateData.pageAnnouncements?.home, null, 2));
 
@@ -253,6 +265,7 @@ export class SettingsController {
           contactPhone: result.contactPhone || '073-367-8399',
           orderEmail: result.orderEmail || 'yosefmalul52@gmail.com',
           whatsappLink: result.whatsappLink || '',
+          googleReviewUrl: result.googleReviewUrl || '',
           cholentForceOpen: !!result.cholentForceOpen,
           cholentCustomMessage: result.cholentCustomMessage || '',
           cholentClosedMessage: result.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',

@@ -77,6 +77,7 @@ import attendanceRoutes from './routes/attendance.routes';
 import galleryRoutes from './routes/gallery.routes';
 import videoRoutes from './routes/video.routes';
 import settingsRoutes from './routes/settings.routes';
+import sitePopupRoutes from './routes/site-popup.routes';
 import deliveryRoutes from './routes/delivery.routes';
 import couponRoutes from './routes/coupon.routes';
 import userRoutes from './routes/user.routes';
@@ -92,6 +93,7 @@ import b2bDictionaryRoutes from './routes/b2b-dictionary.routes';
 import portalRoutes       from './routes/portal.routes';
 import kitchenRoutes      from './routes/kitchen.routes';
 import quotesRoutes       from './routes/quotes.routes';
+import jobsRoutes         from './routes/jobs.routes';
 
 // Import 404 handler
 import { notFoundHandler } from './middleware/notFoundHandler';
@@ -239,6 +241,7 @@ connectDatabase().catch((err) => {
 // API routes – ALL must be registered BEFORE the wildcard 404 handler below.
 // CRITICAL: /api/settings and /api/delivery are registered FIRST so checkout never gets 404.
 app.use('/api/settings', settingsRoutes);
+app.use('/api/popups', sitePopupRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/contact', contactRoutes);
@@ -270,6 +273,7 @@ app.use('/api/admin/b2b-dictionary', b2bDictionaryRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/kitchen', kitchenRoutes);
 app.use('/api/quotes', quotesRoutes);
+app.use('/api/jobs', jobsRoutes);
 
 // 404 handler – MUST come AFTER all app.use('/api/...') above. If placed before, /api/settings and /api/delivery would always 404.
 app.use('*', notFoundHandler);

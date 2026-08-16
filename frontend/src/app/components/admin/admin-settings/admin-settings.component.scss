@@ -134,6 +134,24 @@ $border-color: #e2e8f0;
 }
 
 // Announcements accordion – premium card-style panels (scoped to this section only)
+.announcements-accordion-card {
+  .btn-primary-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.55rem 1rem;
+    background: #c5a059;
+    color: #0e1a24;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 4px;
+    font-size: 0.95rem;
+
+    &:hover {
+      filter: brightness(0.97);
+    }
+  }
+}
+
 .announcements-accordion-card .page-announcements-accordion {
   display: block;
   margin-top: 0.5rem;

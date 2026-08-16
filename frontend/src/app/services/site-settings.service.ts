@@ -52,6 +52,8 @@ export interface SiteSettings {
   contactPhone?: string;
   orderEmail?: string;
   whatsappLink?: string;
+  /** Google Business review URL used in post-order review emails. */
+  googleReviewUrl?: string;
   cholentForceOpen?: boolean;
   cholentCustomMessage?: string;
   cholentClosedMessage?: string;
@@ -110,6 +112,7 @@ export class SiteSettingsService {
             contactPhone: '',
             orderEmail: '',
             whatsappLink: '',
+            googleReviewUrl: '',
             cholentForceOpen: false,
             cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
             cholentCustomMessage: '',
@@ -132,6 +135,7 @@ export class SiteSettingsService {
             contactPhone: '',
             orderEmail: '',
             whatsappLink: '',
+            googleReviewUrl: '',
             cholentForceOpen: false,
             cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
             cholentCustomMessage: '',
@@ -145,6 +149,7 @@ export class SiteSettingsService {
           contactPhone: settings.contactPhone || '',
           orderEmail: settings.orderEmail || '',
           whatsappLink: settings.whatsappLink || '',
+          googleReviewUrl: settings.googleReviewUrl || '',
           cholentForceOpen: !!settings.cholentForceOpen,
           cholentCustomMessage: settings.cholentCustomMessage || '',
           cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
@@ -169,6 +174,7 @@ export class SiteSettingsService {
           contactPhone: '073-367-8399',
           orderEmail: '',
           whatsappLink: '',
+          googleReviewUrl: '',
           cholentForceOpen: false,
           cholentCustomMessage: '',
           cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
@@ -193,6 +199,7 @@ export class SiteSettingsService {
             contactPhone: settings.contactPhone || '',
             orderEmail: settings.orderEmail || '',
             whatsappLink: settings.whatsappLink || '',
+            googleReviewUrl: settings.googleReviewUrl || '',
             cholentForceOpen: !!settings.cholentForceOpen,
             cholentCustomMessage: settings.cholentCustomMessage || '',
             cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
@@ -212,6 +219,7 @@ export class SiteSettingsService {
             contactPhone: settings.contactPhone || '',
             orderEmail: settings.orderEmail || '',
             whatsappLink: settings.whatsappLink || '',
+            googleReviewUrl: settings.googleReviewUrl || '',
             cholentForceOpen: !!settings.cholentForceOpen,
             cholentCustomMessage: settings.cholentCustomMessage || '',
             cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',

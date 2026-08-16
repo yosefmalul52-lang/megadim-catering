@@ -171,6 +171,20 @@
           />
           <small class="form-hint">קישור ישיר לוואטסאפ (אופציונלי - אם לא מוגדר, ייווצר אוטומטית מהטלפון)</small>
         </div>
+
+        <div class="form-group">
+          <label for="googleReviewUrl" class="form-label">
+            קישור לביקורות בגוגל
+          </label>
+          <input
+            type="url"
+            id="googleReviewUrl"
+            formControlName="googleReviewUrl"
+            class="form-input"
+            placeholder="https://share.google/..."
+          />
+          <small class="form-hint">קישור לדף העסק בגוגל. המנהל שולח ידנית מייל בקשת ביקורת מהדשבורד להזמנות שהושלמו</small>
+        </div>
       </div>
 
       <div class="settings-card">
@@ -242,82 +256,19 @@
         </div>
       </div>
 
-      <div class="settings-card announcements-accordion-card" formGroupName="pageAnnouncements">
+      <div class="settings-card announcements-accordion-card">
         <div class="card-header">
           <h3 class="card-title">
             <i class="fas fa-bell"></i>
-            הודעות באנר ופופ-אפ לדפי האתר
+            הודעות באנר ופופ-אפ
           </h3>
-          <p class="card-description">באנר עליון, כותרת ותוכן לפופ-אפ לכל דף (רק אם יש טקסט)</p>
+          <p class="card-description">
+            ניהול הודעות, באנרים ופופ־אפים עבר למסך ייעודי עם תזמון, תדירות, HE/EN ועיצוב לפי מותג.
+          </p>
         </div>
-
-        <mat-accordion class="page-announcements-accordion">
-          <mat-expansion-panel *ngFor="let pageId of PAGE_IDS" [formGroupName]="pageId" class="page-panel">
-            <mat-expansion-panel-header>
-              <mat-panel-title class="panel-title-with-icon">
-                <i class="fas fa-file-alt panel-title-icon"></i>
-                <span class="panel-title-text">{{ PAGE_LABELS[pageId] }}</span>
-              </mat-panel-title>
-            </mat-expansion-panel-header>
-            <div class="panel-fields">
-              <div class="form-group">
-                <label [attr.for]="'banner-' + pageId" class="form-label">טקסט לבאנר עליון</label>
-                <input
-                  type="text"
-                  [id]="'banner-' + pageId"
-                  formControlName="bannerText"
-                  class="form-input"
-                  placeholder="טקסט לבאנר בראש הדף"
-                />
-              </div>
-              <div class="form-group">
-                <label [attr.for]="'popupTitle-' + pageId" class="form-label">כותרת לפופ-אפ</label>
-                <input
-                  type="text"
-                  [id]="'popupTitle-' + pageId"
-                  formControlName="popupTitle"
-                  class="form-input"
-                  placeholder="כותרת להודעה קופצת"
-                />
-              </div>
-              <div class="form-group">
-                <label [attr.for]="'popupText-' + pageId" class="form-label">תוכן לפופ-אפ</label>
-                <input
-                  type="text"
-                  [id]="'popupText-' + pageId"
-                  formControlName="popupText"
-                  class="form-input"
-                  placeholder="תוכן ההודעה הקופצת"
-                />
-              </div>
-              <div class="form-group">
-                <label [attr.for]="'popupLinkText-' + pageId" class="form-label">טקסט לכפתור</label>
-                <input
-                  type="text"
-                  [id]="'popupLinkText-' + pageId"
-                  formControlName="popupLinkText"
-                  class="form-input"
-                  placeholder="למשל: למעבר לתפריט"
-                />
-                <small class="form-hint">טקסט לכפתור CTA בפופ-אפ (אופציונלי)</small>
-              </div>
-              <div class="form-group">
-                <label [attr.for]="'popupLinkUrl-' + pageId" class="form-label">קישור לכפתור</label>
-                <select
-                  [id]="'popupLinkUrl-' + pageId"
-                  formControlName="popupLinkUrl"
-                  class="form-control form-input"
-                >
-                  <option value="">ללא קישור</option>
-                  <option *ngFor="let page of availablePages" [value]="page.route">
-                    {{ page.name }}
-                  </option>
-                </select>
-                <small class="form-hint">בחר עמוד לקישור מכפתור ה-CTA בפופ-אפ</small>
-              </div>
-            </div>
-          </mat-expansion-panel>
-        </mat-accordion>
+        <a routerLink="/admin/popups" class="btn-primary-link">
+          מעבר לניהול הודעות ופופ־אפים
+        </a>
       </div>
 
       <div class="settings-card">

@@ -12,6 +12,7 @@ import { CartModalComponent } from './components/shared/cart-modal/cart-modal.co
 import { FooterComponent } from './components/shared/footer/footer.component';
 import { ToastComponent } from './components/shared/toast/toast.component';
 import { WhatsappCtaComponent } from './components/shared/whatsapp-cta/whatsapp-cta.component';
+import { SitePopupsComponent } from './components/shared/site-popups/site-popups.component';
 
 import { LanguageService } from './services/language.service';
 import { LocaleService } from './i18n/locale.service';
@@ -38,7 +39,8 @@ import { isInstitutionAllowedPath } from './utils/auth-redirect';
     CartModalComponent,
     FooterComponent,
     ToastComponent,
-    WhatsappCtaComponent
+    WhatsappCtaComponent,
+    SitePopupsComponent
   ],
   template: `
     <div class="app-container" [dir]="textDir">
@@ -67,6 +69,7 @@ import { isInstitutionAllowedPath } from './utils/auth-redirect';
       
       <!-- Header (hidden on admin, portal, kiosk, employee) -->
       <app-header *ngIf="!isLoginOrAdminPage && !isPortalRoute" [sidenav]="sidenav"></app-header><!--
+      --><app-site-popups *ngIf="!isLoginOrAdminPage && !isPortalRoute"></app-site-popups><!--
       --><main class="main-content" [class.full-screen]="isLoginOrAdminPage || isPortalRoute">
         <router-outlet></router-outlet>
       </main><!--

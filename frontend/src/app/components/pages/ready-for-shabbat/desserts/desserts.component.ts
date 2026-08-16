@@ -5,10 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
-import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
 import { SeoService } from '../../../../services/seo.service';
-import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
-import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 import { LocaleService } from '../../../../i18n/locale.service';
 import {
   localizedProductDescription,
@@ -23,9 +20,7 @@ import {
     NgOptimizedImage,
     RouterModule,
     MatIconModule,
-    TranslateModule,
-    PageBannerComponent,
-    PagePopupComponent
+    TranslateModule
   ],
   templateUrl: './desserts.component.html',
   styleUrls: ['./desserts.component.scss']
@@ -33,13 +28,10 @@ import {
 export class DessertsComponent implements OnInit {
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
-  private settingsService = inject(SiteSettingsService);
   private seoService = inject(SeoService);
   private router = inject(Router);
   readonly localeService = inject(LocaleService);
 
-  settings: SiteSettings | null = null;
-  showPopup = false;
   desserts: MenuItem[] = [];
   isLoading: boolean = true;
 
@@ -49,13 +41,6 @@ export class DessertsComponent implements OnInit {
       description: 'קינוחים ביתיים לשבת: עוגות, עוגיות ומתוקים בעבודת יד. הזמינו קינוחים כשרים למהדרין.',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/6209b50fb092c8b5/original.jpg',
       keywords: 'קינוחים לשבת, עוגות, קייטרינג מגדים, אוכל כשר'
-    });
-    this.settingsService.getSettings(true).subscribe(s => {
-      this.settings = s ?? null;
-      const pa = s?.pageAnnouncements?.['desserts'];
-      if ((pa?.popupTitle?.trim() ?? '') !== '' || (pa?.popupText?.trim() ?? '') !== '') {
-        this.showPopup = true;
-      }
     });
     this.menuService.getProductsByCategory('desserts', 'shabbat').subscribe({
       next: (items) => {
@@ -67,10 +52,6 @@ export class DessertsComponent implements OnInit {
         this.isLoading = false;
       }
     });
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 
   displayName(item: MenuItem): string {

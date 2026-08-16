@@ -32,6 +32,7 @@ import {
   createForbiddenError
 } from '../middleware/errorHandler';
 import { applyCaptureTimestamps, applyOpsStatusTimestamps } from '../utils/order-lifecycle-timestamps.util';
+import { applyReviewRequestOnStatusChange } from '../utils/review-request-email.util';
 import { getEffectiveOrderAmount } from '../utils/order-admin-pricing.util';
 
 const tranzilaService = new TranzilaService();
@@ -632,7 +633,7 @@ export class PaymentController {
     if (!orderId) throw createValidationError('orderId is required');
 
     const order = await Order.findById(orderId).select(
-      `${ORDER_PAYMENT_OPERATION_SELECT} paymentStatus transactionId status cancelledAt`
+      `${ORDER_PAYMENT_OPERATION_SELECT} paymentStatus transactionId status cancelledAt reviewRequestEmailSentAt reviewRequestEmailStatus`
     );
     if (!order) throw createNotFoundError('Order');
 
@@ -658,6 +659,16 @@ export class PaymentController {
       previousStatus: String((order as any).status || ''),
       nextStatus: 'cancelled',
       prior: { cancelledAt: (order as any).cancelledAt },
+      now
+    });
+    applyReviewRequestOnStatusChange({
+      $set: voidSet,
+      previousStatus: String((order as any).status || ''),
+      nextStatus: 'cancelled',
+      prior: {
+        reviewRequestEmailSentAt: (order as any).reviewRequestEmailSentAt,
+        reviewRequestEmailStatus: (order as any).reviewRequestEmailStatus
+      },
       now
     });
 

@@ -11,8 +11,6 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { TranslateModule } from '@ngx-translate/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { EventsCatalogService, ShabbatCatalogDto } from '../../../services/events-catalog.service';
-import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
-import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { environment } from '../../../../environments/environment';
 import { toYYYYMMDD } from '../../../utils/date.utils';
 import {
@@ -64,8 +62,8 @@ const DEFAULT_SIDE_DISH_OPTIONS = [
     MatInputModule,
     MatDatepickerModule,
     MatNativeDateModule,
-    PageBannerComponent,
-    PagePopupComponent,
+    
+    
     TranslateModule
   ],
   templateUrl: './holiday-food.component.html',
@@ -78,7 +76,6 @@ export class HolidayFoodComponent implements OnInit {
   readonly localeService = inject(LocaleService);
   settings: SiteSettings | null = null;
   eventsMenuUrl: string = '';
-  showPopup = false;
   isSubmitting = false;
   submitSuccess = false;
   submitError = '';
@@ -534,10 +531,6 @@ export class HolidayFoodComponent implements OnInit {
 
     this.settingsService.getSettings(true).subscribe(s => {
       this.settings = s || null;
-      const hol = s?.pageAnnouncements?.['holiday'];
-      if ((hol?.popupTitle?.trim() ?? '') !== '' || (hol?.popupText?.trim() ?? '') !== '') {
-        this.showPopup = true;
-      }
       this.eventsMenuUrl = '/assets/docs/shabbat-menu.pdf';
     });
   }
@@ -621,9 +614,5 @@ export class HolidayFoodComponent implements OnInit {
 
   hasMenuUrl(): boolean {
     return !!this.eventsMenuUrl && this.eventsMenuUrl.trim() !== '';
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 }

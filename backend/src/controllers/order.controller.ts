@@ -6,7 +6,7 @@ import { OrderService } from '../services/order.service';
 import { emailService, OrderEmailData } from '../services/email.service';
 import { shouldSendOrderApprovedEmail, isTranzilaCheckoutOrder, resolveAdminStatusTab } from '../utils/order-admin-status.util';
 import { validateAndApplyCoupon, incrementCouponUsage, updateCouponRevenue } from '../services/coupon.service';
-import { asyncHandler, createValidationError, createNotFoundError } from '../middleware/errorHandler';
+import { asyncHandler, createValidationError, createNotFoundError, createError } from '../middleware/errorHandler';
 import { CreateOrderRequest, CreateCheckoutOrderRequest } from '../models/order.model';
 import { fireWebhook } from '../utils/webhook.util';
 import { calculateDeliveryFee } from '../services/delivery.service';
@@ -15,6 +15,7 @@ import {
   getDashboardOverview as buildDashboardOverview,
   setOrderTestFlag as updateOrderTestFlag
 } from '../services/dashboard-overview.service';
+import { sendReviewRequestEmailForOrder } from '../services/review-request-email.worker';
 
 const COUPON_VAGUE_ERROR = 'Invalid or expired coupon';
 const FORBIDDEN_ORDER_FIELDS = 'FORBIDDEN_ORDER_FIELDS';
@@ -1181,6 +1182,41 @@ export class OrderController {
       timestamp: new Date().toISOString()
     });
   });
+
+  /** POST /api/order/:id/send-review-request – admin manually sends Google review email. */
+  sendReviewRequestEmail = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw createValidationError('Invalid order id');
+    }
+
+    const result = await sendReviewRequestEmailForOrder(id);
+    if (result.ok === false) {
+      const statusByCode: Record<string, number> = {
+        not_found: 404,
+        not_completed: 400,
+        already_sent: 409,
+        no_email: 400,
+        no_review_url: 400,
+        emails_disabled: 503,
+        send_failed: 502,
+        busy: 409
+      };
+      const status = statusByCode[result.code] || 400;
+      throw createError(result.message, status);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.order,
+      message: 'Review request email sent',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   /** GET /api/order/admin/tab-counts – per-source status counts for admin orders dashboard. */
   getAdminTabCounts = asyncHandler(async (req: Request, res: Response) => {
     const counts = await this.orderService.getAdminTabCounts();

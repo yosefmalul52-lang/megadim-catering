@@ -28,6 +28,8 @@ export interface ISiteSettings extends Document {
   contactPhone?: string;
   orderEmail?: string;
   whatsappLink?: string;
+  /** Public Google Business review URL for post-order review request emails. */
+  googleReviewUrl?: string;
   cholentForceOpen?: boolean;
   cholentCustomMessage?: string;
   cholentClosedMessage?: string;
@@ -70,6 +72,12 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
     whatsappLink: {
       type: String,
       trim: true,
+      required: false
+    },
+    googleReviewUrl: {
+      type: String,
+      trim: true,
+      default: '',
       required: false
     },
     cholentForceOpen: {

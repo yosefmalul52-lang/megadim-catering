@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -43,7 +44,7 @@ const PAGE_LABELS: Record<PageId, string> = {
 @Component({
   selector: 'app-admin-settings',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatSlideToggleModule, MatExpansionModule, MatDatepickerModule, MatNativeDateModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule, MatSlideToggleModule, MatExpansionModule, MatDatepickerModule, MatNativeDateModule],
   templateUrl: './admin-settings.component.html',
   styleUrls: ['./admin-settings.component.scss']
 })
@@ -100,6 +101,7 @@ export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy 
       contactPhone: [''],
       orderEmail: [''],
       whatsappLink: [''],
+      googleReviewUrl: [''],
       cholentForceOpen: [false],
       cholentCustomMessage: [''],
       cholentClosedMessage: [''],
@@ -339,6 +341,7 @@ export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy 
             contactPhone: settings.contactPhone || '',
             orderEmail: settings.orderEmail || '',
             whatsappLink: settings.whatsappLink || '',
+            googleReviewUrl: settings.googleReviewUrl || '',
             cholentForceOpen: !!settings.cholentForceOpen,
             cholentCustomMessage: settings.cholentCustomMessage || '',
             cholentClosedMessage: settings.cholentClosedMessage || 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',
@@ -383,6 +386,7 @@ export class AdminSettingsComponent implements OnInit, AfterViewInit, OnDestroy 
       contactPhone: '',
       orderEmail: '',
       whatsappLink: '',
+      googleReviewUrl: '',
       cholentForceOpen: false,
       cholentCustomMessage: '',
       cholentClosedMessage: 'ההזמנות נפתחות ביום חמישי בין השעות 09:00 ל-17:00',

@@ -11,8 +11,6 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { EventsCatalogService, EventsCatalogDto } from '../../../services/events-catalog.service';
-import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
-import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { environment } from '../../../../environments/environment';
 import { LocaleService } from '../../../i18n/locale.service';
 import { eventsDisplayLabel } from './events-catering-labels';
@@ -39,7 +37,7 @@ import {
 @Component({
   selector: 'app-events-catering',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatNativeDateModule, PageBannerComponent, PagePopupComponent, TranslateModule],
+  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatNativeDateModule, TranslateModule],
   templateUrl: './events-catering.component.html',
   styleUrls: ['./events-catering.component.scss']
 })
@@ -92,7 +90,6 @@ export class EventsCateringComponent implements OnInit {
   ];
 
   settings: SiteSettings | null = null;
-  showPopup = false;
   showOrderForm = false;
   isSubmitting = false;
   submitSuccess = false;
@@ -122,10 +119,6 @@ export class EventsCateringComponent implements OnInit {
 
     this.settingsService.getSettings(true).subscribe(settings => {
       this.settings = settings;
-      const ev = settings?.pageAnnouncements?.['events'];
-      if ((ev?.popupTitle?.trim() ?? '') !== '' || (ev?.popupText?.trim() ?? '') !== '') {
-        this.showPopup = true;
-      }
     });
 
     this.eventsCatalogService.getPublicCatalog().subscribe({
@@ -310,10 +303,6 @@ export class EventsCateringComponent implements OnInit {
   onKosherToggle(checked: boolean): void {
     this.isKosherUpgradeSelected = checked;
     this.syncPrice();
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 
   openOrderForm(): void {

@@ -5,8 +5,6 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MenuService, MenuItem } from '../../../services/menu.service';
 import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { SeoService } from '../../../services/seo.service';
-import { PageBannerComponent } from '../../shared/page-banner/page-banner.component';
-import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { LocaleService } from '../../../i18n/locale.service';
 import {
   localizedProductDescription,
@@ -16,7 +14,7 @@ import {
 @Component({
   selector: 'app-cholent-bar',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslateModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, RouterModule, TranslateModule],
   templateUrl: './cholent-bar.component.html',
   styleUrls: ['./cholent-bar.component.scss']
 })
@@ -29,7 +27,6 @@ export class CholentBarComponent implements OnInit {
   private translate = inject(TranslateService);
 
   settings: SiteSettings | null = null;
-  showPopup = false;
 
   /** All items for the Cholent Bar page (from API), grouped by category for display. */
   itemsGroupedByCategory: { category: string; categoryLabelKey: string; items: MenuItem[] }[] = [];
@@ -61,16 +58,8 @@ export class CholentBarComponent implements OnInit {
       this.cholentForceOpen = !!settings?.cholentForceOpen;
       this.cholentCustomMessage = (settings?.cholentCustomMessage || '').trim();
       this.cholentClosedMessage = (settings?.cholentClosedMessage || '').trim();
-      const chol = settings?.pageAnnouncements?.['cholent'];
-      if ((chol?.popupTitle?.trim() ?? '') !== '' || (chol?.popupText?.trim() ?? '') !== '') {
-        this.showPopup = true;
-      }
     });
     this.loadCholentItems();
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 
   /**

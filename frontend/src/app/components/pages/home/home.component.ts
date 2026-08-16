@@ -4,11 +4,9 @@ import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
-import { SiteSettingsService, SiteSettings } from '../../../services/site-settings.service';
 import { SeoService } from '../../../services/seo.service';
 import { FeaturedMenuComponent } from '../../featured-menu/featured-menu.component';
 import { VideoSectionComponent } from '../../video-section/video-section.component';
-import { PagePopupComponent } from '../../shared/page-popup/page-popup.component';
 import { LocaleService } from '../../../i18n/locale.service';
 import { localizeNavPath } from '../../../i18n/locale.util';
 
@@ -38,21 +36,16 @@ interface HomeTestimonial {
     TranslateModule,
     FeaturedMenuComponent,
     VideoSectionComponent,
-    PagePopupComponent,
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
-  private readonly settingsService = inject(SiteSettingsService);
   private readonly seoService = inject(SeoService);
   private readonly translate = inject(TranslateService);
   readonly localeService = inject(LocaleService);
 
   @ViewChild('heroTitleMeasure') heroTitleMeasure?: ElementRef<HTMLElement>;
-
-  settings: SiteSettings | null = null;
-  showPopup = false;
 
   featuredReviewIndex = 0;
   private featuredReviewTimer?: ReturnType<typeof setInterval>;
@@ -134,16 +127,6 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.refreshHeroTitle();
     this.langChangeSub = this.translate.onLangChange.subscribe(() => {
       this.resetHeroTyping();
-    });
-
-    this.settingsService.getSettings(true).subscribe((s) => {
-      this.settings = s;
-      const home = this.settings?.pageAnnouncements?.['home'];
-      const hasTitle = (home?.popupTitle?.trim() ?? '') !== '';
-      const hasText = (home?.popupText?.trim() ?? '') !== '';
-      if (hasTitle || hasText) {
-        this.showPopup = true;
-      }
     });
 
     this.featuredReviewTimer = setInterval(() => {
@@ -308,9 +291,5 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     };
 
     this.heroTypingTimer = setTimeout(typeNext, 450);
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 }

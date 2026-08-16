@@ -163,6 +163,12 @@ router.get(
 router.get('/driver/my', authenticate, requireCapability(CAP.DELIVERIES_MY_LIST), orderController.getDriverMyOrders);
 router.patch('/:id/assign-driver', authenticate, requireAdmin, orderController.assignOrderToDriver);
 router.patch('/:id/test-order', authenticate, requireAdmin, orderController.setOrderTestFlag);
+router.post(
+  '/:id/send-review-request',
+  authenticate,
+  requireAdmin,
+  orderController.sendReviewRequestEmail
+);
 router.post('/bulk', authenticate, requireAdmin, orderController.bulkUpdateOrders);
 
 // Get order by ID (authenticate only; controller restricts to own order for non-admin)

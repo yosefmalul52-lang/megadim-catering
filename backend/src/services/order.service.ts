@@ -36,6 +36,7 @@ import {
   canArchiveOrderByStatus,
   parseServiceDateFromEventDate
 } from '../utils/order-lifecycle-timestamps.util';
+import { applyReviewRequestOnStatusChange } from '../utils/review-request-email.util';
 import OrderNotificationClaim from '../models/OrderNotificationClaim';
 import {
   extractBaseProductId,
@@ -863,7 +864,7 @@ export class OrderService {
       const now = meta?.now || new Date();
       const prior = await Order.findById(orderId)
         .select(
-          'status paymentStatus paymentExceptionResolvedAt paymentExceptionResolution paymentAwaitingStartedAt paymentFailedAt readyAt completedAt cancelledAt paidAt capturedAt serviceDate createdAt updatedAt transactionId paymentInitTokenHash isManual isDeleted'
+          'status paymentStatus paymentExceptionResolvedAt paymentExceptionResolution paymentAwaitingStartedAt paymentFailedAt readyAt completedAt cancelledAt paidAt capturedAt serviceDate createdAt updatedAt transactionId paymentInitTokenHash isManual isDeleted reviewRequestEmailDueAt reviewRequestEmailSentAt reviewRequestEmailStatus'
         )
         .lean();
       if (!prior) {
@@ -934,7 +935,10 @@ export class OrderService {
             cancelledAt: (prior as any).cancelledAt,
             paidAt: (prior as any).paidAt,
             capturedAt: (prior as any).capturedAt,
-            serviceDate: (prior as any).serviceDate
+            serviceDate: (prior as any).serviceDate,
+            reviewRequestEmailDueAt: (prior as any).reviewRequestEmailDueAt,
+            reviewRequestEmailSentAt: (prior as any).reviewRequestEmailSentAt,
+            reviewRequestEmailStatus: (prior as any).reviewRequestEmailStatus
           }
         });
         updateOps = { $set: { ...built.$set } };
@@ -1133,7 +1137,9 @@ export class OrderService {
       assignedDriverId: driverUserId,
       isDeleted: { $ne: true }
     })
-      .select('status paymentStatus readyAt completedAt cancelledAt paidAt capturedAt')
+      .select(
+        'status paymentStatus readyAt completedAt cancelledAt paidAt capturedAt reviewRequestEmailDueAt reviewRequestEmailSentAt reviewRequestEmailStatus'
+      )
       .lean();
     if (!prior) return null;
 
@@ -1150,6 +1156,18 @@ export class OrderService {
         cancelledAt: (prior as any).cancelledAt,
         paidAt: (prior as any).paidAt,
         capturedAt: (prior as any).capturedAt
+      },
+      now
+    });
+    applyReviewRequestOnStatusChange({
+      $set,
+      previousStatus,
+      nextStatus,
+      prior: {
+        completedAt: (prior as any).completedAt,
+        reviewRequestEmailDueAt: (prior as any).reviewRequestEmailDueAt,
+        reviewRequestEmailSentAt: (prior as any).reviewRequestEmailSentAt,
+        reviewRequestEmailStatus: (prior as any).reviewRequestEmailStatus
       },
       now
     });

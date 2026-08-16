@@ -1,0 +1,112 @@
+<!-- Top banner -->
+<div
+  class="site-popup-banner"
+  *ngIf="banner as b"
+  [attr.data-template]="b.template"
+  role="region"
+  aria-live="polite"
+>
+  <div class="site-popup-banner__inner">
+    <div class="site-popup-banner__text">
+      <strong *ngIf="b.title">{{ b.title }}</strong>
+      <span *ngIf="b.body">{{ b.body }}</span>
+    </div>
+    <div class="site-popup-banner__actions">
+      <ng-container *ngIf="b.ctaLabel && b.ctaUrl">
+        <a
+          *ngIf="isExternal(b.ctaUrl); else bannerInternal"
+          class="site-popup-cta site-popup-cta--sm"
+          [href]="b.ctaUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          (click)="dismiss(b, 'banner')"
+        >{{ b.ctaLabel }}</a>
+        <ng-template #bannerInternal>
+          <a
+            class="site-popup-cta site-popup-cta--sm"
+            [routerLink]="b.ctaUrl"
+            (click)="dismiss(b, 'banner')"
+          >{{ b.ctaLabel }}</a>
+        </ng-template>
+      </ng-container>
+      <button type="button" class="site-popup-dismiss" (click)="dismiss(b, 'banner')" aria-label="סגור">
+        &times;
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Center modal -->
+<div
+  class="site-popup-overlay"
+  *ngIf="modal as m"
+  (click)="onOverlayClick(m)"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="m.title || 'הודעה'"
+>
+  <div
+    class="site-popup-modal"
+    [attr.data-template]="m.template"
+    (click)="onCardClick($event)"
+  >
+    <button type="button" class="site-popup-dismiss site-popup-dismiss--modal" (click)="dismiss(m, 'modal')" aria-label="סגור">
+      &times;
+    </button>
+    <img *ngIf="m.imageUrl" class="site-popup-modal__image" [src]="m.imageUrl" alt="" />
+    <div class="site-popup-modal__body">
+      <h2 *ngIf="m.title" class="site-popup-modal__title">{{ m.title }}</h2>
+      <p *ngIf="m.body" class="site-popup-modal__text">{{ m.body }}</p>
+      <ng-container *ngIf="m.ctaLabel && m.ctaUrl">
+        <a
+          *ngIf="isExternal(m.ctaUrl); else modalInternal"
+          class="site-popup-cta"
+          [href]="m.ctaUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          (click)="dismiss(m, 'modal')"
+        >{{ m.ctaLabel }}</a>
+        <ng-template #modalInternal>
+          <a class="site-popup-cta" [routerLink]="m.ctaUrl" (click)="dismiss(m, 'modal')">{{ m.ctaLabel }}</a>
+        </ng-template>
+      </ng-container>
+    </div>
+  </div>
+</div>
+
+<!-- Sticky bottom -->
+<div
+  class="site-popup-sticky"
+  *ngIf="sticky as s"
+  [attr.data-template]="s.template"
+  role="region"
+>
+  <div class="site-popup-sticky__inner">
+    <div class="site-popup-sticky__text">
+      <strong *ngIf="s.title">{{ s.title }}</strong>
+      <span *ngIf="s.body">{{ s.body }}</span>
+    </div>
+    <div class="site-popup-sticky__actions">
+      <ng-container *ngIf="s.ctaLabel && s.ctaUrl">
+        <a
+          *ngIf="isExternal(s.ctaUrl); else stickyInternal"
+          class="site-popup-cta site-popup-cta--sm"
+          [href]="s.ctaUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          (click)="dismiss(s, 'sticky')"
+        >{{ s.ctaLabel }}</a>
+        <ng-template #stickyInternal>
+          <a
+            class="site-popup-cta site-popup-cta--sm"
+            [routerLink]="s.ctaUrl"
+            (click)="dismiss(s, 'sticky')"
+          >{{ s.ctaLabel }}</a>
+        </ng-template>
+      </ng-container>
+      <button type="button" class="site-popup-dismiss" (click)="dismiss(s, 'sticky')" aria-label="סגור">
+        &times;
+      </button>
+    </div>
+  </div>
+</div>

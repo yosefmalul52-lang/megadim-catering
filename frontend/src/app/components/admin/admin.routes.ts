@@ -76,6 +76,12 @@ export const adminRoutes: Routes = [
         loadComponent: () => import('./admin-marketing/admin-marketing.component').then(m => m.AdminMarketingComponent)
       },
       {
+        path: 'popups',
+        canActivate: [adminRouteRolesGuard],
+        data: { adminRoles: [...AD] },
+        loadComponent: () => import('./admin-popups/admin-popups.component').then(m => m.AdminPopupsComponent)
+      },
+      {
         path: 'customers',
         canActivate: [adminRouteRolesGuard],
         data: { adminRoles: [...AD] },

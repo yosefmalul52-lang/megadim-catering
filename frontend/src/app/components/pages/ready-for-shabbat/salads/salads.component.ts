@@ -7,10 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
 import { LanguageService } from '../../../../services/language.service';
-import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
 import { SeoService } from '../../../../services/seo.service';
-import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
-import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 import { LocaleService } from '../../../../i18n/locale.service';
 import {
   localizedOptionLabel,
@@ -21,16 +18,9 @@ import {
 @Component({
   selector: 'app-salads',
   standalone: true,
-  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule, PageBannerComponent, PagePopupComponent],
+  imports: [CommonModule, TranslateModule, RouterModule, MatIconModule],
   template: `
     <div class="salads-page">
-      <app-page-banner [message]="settings?.pageAnnouncements?.['salads']?.bannerText"></app-page-banner>
-      <app-page-popup
-        [show]="showPopup"
-        [title]="(settings?.pageAnnouncements?.['salads']?.popupTitle) ?? ''"
-        [text]="(settings?.pageAnnouncements?.['salads']?.popupText) ?? ''"
-        (close)="closePopup()"
-      ></app-page-popup>
       <div class="category-header-actions">
         <button class="btn-gold-back" [routerLink]="localeService.localizePath('/ready-for-shabbat')">
           <i class="fas fa-arrow-right"></i> {{ 'PRODUCT.BACK_TO_MENU' | translate }}
@@ -334,13 +324,9 @@ export class SaladsComponent implements OnInit {
   menuService = inject(MenuService);
   cartService = inject(CartService);
   languageService = inject(LanguageService);
-  settingsService = inject(SiteSettingsService);
   seoService = inject(SeoService);
   router = inject(Router);
   readonly localeService = inject(LocaleService);
-
-  settings: SiteSettings | null = null;
-  showPopup = false;
 
   salads: MenuItem[] = [];
   isLoading = true;
@@ -368,18 +354,7 @@ export class SaladsComponent implements OnInit {
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/a9c861c5232b469b/original.jpg',
       keywords: 'סלטים לשבת, חומוס, טחינה, קייטרינג מגדים, אוכל כשר'
     });
-    this.settingsService.getSettings(true).subscribe(s => {
-      this.settings = s ?? null;
-      const pa = s?.pageAnnouncements?.['salads'];
-      if ((pa?.popupTitle?.trim() ?? '') !== '' || (pa?.popupText?.trim() ?? '') !== '') {
-        this.showPopup = true;
-      }
-    });
     this.loadSalads();
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 
   /**

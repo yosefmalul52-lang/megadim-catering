@@ -149,6 +149,14 @@ export interface IOrder extends Document {
   paymentInitTokenExpiresAt?: Date;
   /** Set when checkout confirmation emails (admin + customer) were sent after successful payment. */
   confirmationEmailSentAt?: Date;
+  /** When the post-completion Google review request email is due. */
+  reviewRequestEmailDueAt?: Date | null;
+  /** When the review request email was successfully sent. */
+  reviewRequestEmailSentAt?: Date | null;
+  /**
+   * pending | sending | sent | failed | skipped_no_email | skipped_no_review_url | cancelled
+   */
+  reviewRequestEmailStatus?: string | null;
   /**
    * Admin-only flag for sandbox / QA orders.
    * Never set from public checkout or payment flows; excluded from dashboard revenue metrics.
@@ -357,6 +365,22 @@ const OrderSchema: Schema<IOrder> = new Schema({
   paymentInitTokenHash: { type: String, required: false, select: false },
   paymentInitTokenExpiresAt: { type: Date, required: false, select: false },
   confirmationEmailSentAt: { type: Date, required: false, default: null },
+  reviewRequestEmailDueAt: { type: Date, required: false, default: null, index: true },
+  reviewRequestEmailSentAt: { type: Date, required: false, default: null },
+  reviewRequestEmailStatus: {
+    type: String,
+    required: false,
+    default: null,
+    enum: [
+      'pending',
+      'sending',
+      'sent',
+      'failed',
+      'skipped_no_email',
+      'skipped_no_review_url',
+      'cancelled'
+    ]
+  },
   /** Admin-marked test/QA order — never controllable via public create/payment. */
   isTestOrder: {
     type: Boolean,

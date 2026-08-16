@@ -57,7 +57,12 @@ export function applyOpsStatusTimestamps(input: {
   if (next === 'ready' && prev !== 'ready') {
     setTimestampIfAbsent(input.$set, 'readyAt', input.prior.readyAt, now);
   }
-  if (next === 'delivered' && prev !== 'delivered') {
+  // Admin "completed" tab: delivered OR completed — stamp once.
+  if (
+    (next === 'delivered' || next === 'completed') &&
+    prev !== 'delivered' &&
+    prev !== 'completed'
+  ) {
     setTimestampIfAbsent(input.$set, 'completedAt', input.prior.completedAt, now);
   }
   if (next === 'cancelled' && prev !== 'cancelled') {

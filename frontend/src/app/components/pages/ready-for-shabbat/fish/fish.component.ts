@@ -5,10 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { MenuService, MenuItem } from '../../../../services/menu.service';
 import { CartService } from '../../../../services/cart.service';
-import { SiteSettingsService, SiteSettings } from '../../../../services/site-settings.service';
 import { SeoService } from '../../../../services/seo.service';
-import { PageBannerComponent } from '../../../shared/page-banner/page-banner.component';
-import { PagePopupComponent } from '../../../shared/page-popup/page-popup.component';
 import { LocaleService } from '../../../../i18n/locale.service';
 import {
   localizedProductDescription,
@@ -23,9 +20,7 @@ import {
     NgOptimizedImage,
     RouterModule,
     MatIconModule,
-    TranslateModule,
-    PageBannerComponent,
-    PagePopupComponent
+    TranslateModule
   ],
   templateUrl: './fish.component.html',
   styleUrls: ['./fish.component.scss']
@@ -33,13 +28,10 @@ import {
 export class FishComponent implements OnInit {
   private menuService = inject(MenuService);
   private cartService = inject(CartService);
-  private settingsService = inject(SiteSettingsService);
   private seoService = inject(SeoService);
   private router = inject(Router);
   readonly localeService = inject(LocaleService);
 
-  settings: SiteSettings | null = null;
-  showPopup = false;
   fishDishes: MenuItem[] = [];
   isLoading: boolean = true;
 
@@ -49,13 +41,6 @@ export class FishComponent implements OnInit {
       description: 'מנות דגים טריות לשבת: גפילטה פיש, סלמון, דגים אפויים ומבושלים. קייטרינג כשר למהדרין.',
       image: 'https://megadim-media.megadim.workers.dev/frontend/static/66b9922b9c941dc1/original.jpg',
       keywords: 'דגים לשבת, גפילטה פיש, קייטרינג מגדים, אוכל כשר'
-    });
-    this.settingsService.getSettings(true).subscribe(s => {
-      this.settings = s ?? null;
-      const pa = s?.pageAnnouncements?.['fish'];
-      if ((pa?.popupTitle?.trim() ?? '') !== '' || (pa?.popupText?.trim() ?? '') !== '') {
-        this.showPopup = true;
-      }
     });
     this.menuService.getProductsByCategory('fish').subscribe({
       next: (items) => {
@@ -67,10 +52,6 @@ export class FishComponent implements OnInit {
         this.isLoading = false;
       }
     });
-  }
-
-  closePopup(): void {
-    this.showPopup = false;
   }
 
   displayName(item: MenuItem): string {

@@ -8,6 +8,7 @@ import {
   applyOpsStatusTimestamps,
   type LifecycleTimestampFields
 } from './order-lifecycle-timestamps.util';
+import { applyReviewRequestOnStatusChange } from './review-request-email.util';
 
 export const ADMIN_STATUS_TABS = [
   'pending',
@@ -390,7 +391,11 @@ export function buildAdminStatusChangeUpdate(input: {
   manualPaymentNote?: string;
   exceptionNote?: string;
   /** Prior lifecycle timestamps — first-write wins. */
-  priorTimestamps?: LifecycleTimestampFields;
+  priorTimestamps?: LifecycleTimestampFields & {
+    reviewRequestEmailDueAt?: Date | null;
+    reviewRequestEmailSentAt?: Date | null;
+    reviewRequestEmailStatus?: string | null;
+  };
 }): {
   $set: Record<string, unknown>;
   $unset?: Record<string, unknown>;
@@ -474,6 +479,19 @@ export function buildAdminStatusChangeUpdate(input: {
     previousStatus: input.previousStatus,
     nextStatus,
     prior: priorTs,
+    now
+  });
+
+  applyReviewRequestOnStatusChange({
+    $set,
+    previousStatus: input.previousStatus,
+    nextStatus,
+    prior: {
+      completedAt: priorTs.completedAt,
+      reviewRequestEmailDueAt: input.priorTimestamps?.reviewRequestEmailDueAt,
+      reviewRequestEmailSentAt: input.priorTimestamps?.reviewRequestEmailSentAt,
+      reviewRequestEmailStatus: input.priorTimestamps?.reviewRequestEmailStatus
+    },
     now
   });
 

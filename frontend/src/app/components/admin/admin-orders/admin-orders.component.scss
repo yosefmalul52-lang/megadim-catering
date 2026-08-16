@@ -2533,6 +2533,34 @@ $border: #e2e8f0;
   cursor: not-allowed;
 }
 
+.btn-review-request {
+  appearance: none;
+  border: 1px solid #1f4e79;
+  background: #f3f7fb;
+  color: #1f4e79;
+  border-radius: 4px;
+  padding: 0.4rem 0.75rem;
+  min-height: 36px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-review-request:hover:not(:disabled) {
+  background: #e7eef6;
+}
+
+.btn-review-request:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-review-request-compact {
+  min-height: 30px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+}
+
 .test-order-action-row {
   margin-top: 0.35rem;
 }

@@ -185,7 +185,7 @@ export class LanguageService {
     home: 'Home',
     about: 'About',
     eventsCatering: 'Event Catering',
-    readyForShabbat: 'Ready for Shabbat',
+    readyForShabbat: 'Ready-made food for Shabbat',
     mainDishes: 'Main Dishes',
     sides: 'Sides',
     salads: 'Salads',

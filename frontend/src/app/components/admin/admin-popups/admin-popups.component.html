@@ -1,0 +1,272 @@
+<div class="admin-popups-page">
+  <div class="container">
+    <header class="page-header">
+      <div class="header-content">
+        <h1 class="page-title">הודעות ופופ־אפים</h1>
+        <p class="page-description">ניהול קמפיינים, באנרים ומודאלים באתר הציבורי</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn-secondary" (click)="migrate()" [disabled]="isMigrating">
+          {{ isMigrating ? 'מייבא…' : 'ייבוא מהגדרות ישנות' }}
+        </button>
+        <button type="button" class="btn-primary" (click)="openCreate()">הודעה חדשה</button>
+      </div>
+    </header>
+
+    <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
+    <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <div class="loading" *ngIf="isLoading">טוען…</div>
+
+    <div class="table-card" *ngIf="!isLoading && !showForm">
+      <table *ngIf="popups.length; else empty">
+        <thead>
+          <tr>
+            <th>שם פנימי</th>
+            <th>סוג</th>
+            <th>מיקום</th>
+            <th>דפים</th>
+            <th>סטטוס</th>
+            <th>תאריכים</th>
+            <th>פעולות</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of popups">
+            <td class="name-cell">{{ p.internalName }}</td>
+            <td>{{ templateLabel(p.template) }}</td>
+            <td>{{ placementLabel(p.placement) }}</td>
+            <td class="pages-cell">{{ pagesLabel(p) }}</td>
+            <td>
+              <span class="status-pill" [attr.data-status]="p.status">{{ statusLabel(p.status) }}</span>
+            </td>
+            <td class="dates-cell">
+              <ng-container *ngIf="p.startAt || p.endAt; else always">
+                <span *ngIf="p.startAt">מ־{{ p.startAt | date: 'dd/MM/yy HH:mm' }}</span>
+                <span *ngIf="p.endAt">עד {{ p.endAt | date: 'dd/MM/yy HH:mm' }}</span>
+              </ng-container>
+              <ng-template #always>תמיד (כשפעיל)</ng-template>
+            </td>
+            <td class="actions-cell">
+              <button type="button" class="link-btn" (click)="openEdit(p)">עריכה</button>
+              <button
+                type="button"
+                class="link-btn"
+                *ngIf="p.status !== 'active'"
+                (click)="setStatus(p, 'active')"
+              >הפעל</button>
+              <button
+                type="button"
+                class="link-btn"
+                *ngIf="p.status === 'active'"
+                (click)="setStatus(p, 'disabled')"
+              >כבה</button>
+              <button type="button" class="link-btn danger" (click)="deletePopup(p)">מחק</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #empty>
+        <p class="empty">אין הודעות עדיין. צרו הודעה חדשה או ייבאו מההגדרות הישנות.</p>
+      </ng-template>
+    </div>
+
+    <form class="form-card" *ngIf="showForm" [formGroup]="form" (ngSubmit)="save()">
+      <div class="form-header">
+        <h2>{{ editingId ? 'עריכת הודעה' : 'הודעה חדשה' }}</h2>
+        <button type="button" class="link-btn" (click)="cancelForm()">ביטול</button>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>שם פנימי (לאדמין)</span>
+          <input formControlName="internalName" type="text" placeholder="לדוגמה: מבצע שבת מרץ" />
+        </label>
+        <label>
+          <span>סטטוס</span>
+          <select formControlName="status">
+            <option *ngFor="let o of statusOptions" [value]="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+        <label>
+          <span>תבנית עיצוב</span>
+          <select formControlName="template">
+            <option *ngFor="let o of templateOptions" [value]="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+        <label>
+          <span>מיקום תצוגה</span>
+          <select formControlName="placement">
+            <option *ngFor="let o of placementOptions" [value]="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+        <label>
+          <span>עדיפות</span>
+          <input formControlName="priority" type="number" />
+        </label>
+        <label>
+          <span>תדירות הצגה</span>
+          <select formControlName="frequency">
+            <option *ngFor="let o of frequencyOptions" [value]="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+        <label *ngIf="form.get('frequency')?.value === 'max'">
+          <span>מקסימום הצגות</span>
+          <input formControlName="maxViews" type="number" min="1" />
+        </label>
+      </div>
+
+      <div class="section">
+        <label class="check-row">
+          <input type="checkbox" formControlName="targetAllPages" />
+          <span>אתר שלם</span>
+        </label>
+        <div class="pages-grid" *ngIf="!form.get('targetAllPages')?.value">
+          <label class="check-row" *ngFor="let o of pageOptions">
+            <input type="checkbox" [checked]="isPageSelected(o.id)" (change)="togglePage(o.id)" />
+            <span>{{ o.label }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="check-row">
+          <input type="checkbox" formControlName="useSchedule" />
+          <span>תזמון לפי תאריכים</span>
+        </label>
+        <div class="form-grid" *ngIf="form.get('useSchedule')?.value">
+          <label>
+            <span>מתאריך</span>
+            <input formControlName="startAt" type="datetime-local" />
+          </label>
+          <label>
+            <span>עד תאריך</span>
+            <input formControlName="endAt" type="datetime-local" />
+          </label>
+        </div>
+      </div>
+
+      <div class="section content-section">
+        <div class="tabs">
+          <button type="button" [class.active]="contentTab === 'he'" (click)="contentTab = 'he'">עברית</button>
+          <button type="button" [class.active]="contentTab === 'en'" (click)="contentTab = 'en'">English</button>
+        </div>
+
+        <div class="locale-fields" *ngIf="contentTab === 'he'">
+          <label>
+            <span>כותרת</span>
+            <input formControlName="heTitle" type="text" />
+          </label>
+          <label>
+            <span>תוכן</span>
+            <textarea formControlName="heBody" rows="4"></textarea>
+          </label>
+          <label>
+            <span>טקסט כפתור</span>
+            <input formControlName="heCtaLabel" type="text" />
+          </label>
+          <label>
+            <span>קישור</span>
+            <input formControlName="heCtaUrl" type="text" placeholder="/events-catering או https://…" />
+          </label>
+          <div class="image-row">
+            <label>
+              <span>תמונה (אופציונלי)</span>
+              <input type="file" accept="image/*" (change)="onImageSelected($event, 'he')" />
+            </label>
+            <div class="image-preview" *ngIf="form.get('heImageUrl')?.value">
+              <img [src]="form.get('heImageUrl')?.value" alt="" />
+              <button type="button" class="link-btn danger" (click)="clearImage('he')">הסר</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="locale-fields" *ngIf="contentTab === 'en'">
+          <label>
+            <span>Title</span>
+            <input formControlName="enTitle" type="text" />
+          </label>
+          <label>
+            <span>Body</span>
+            <textarea formControlName="enBody" rows="4"></textarea>
+          </label>
+          <label>
+            <span>Button label</span>
+            <input formControlName="enCtaLabel" type="text" />
+          </label>
+          <label>
+            <span>Link</span>
+            <input formControlName="enCtaUrl" type="text" placeholder="/en/events-catering or https://…" />
+          </label>
+          <div class="image-row">
+            <label>
+              <span>Image (optional)</span>
+              <input type="file" accept="image/*" (change)="onImageSelected($event, 'en')" />
+            </label>
+            <div class="image-preview" *ngIf="form.get('enImageUrl')?.value">
+              <img [src]="form.get('enImageUrl')?.value" alt="" />
+              <button type="button" class="link-btn danger" (click)="clearImage('en')">Remove</button>
+            </div>
+          </div>
+        </div>
+        <p class="upload-hint" *ngIf="isUploading">מעלה תמונה…</p>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" (click)="openPreview()">תצוגה מקדימה</button>
+        <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'שומר…' : 'שמירה' }}
+        </button>
+      </div>
+    </form>
+
+    <!-- Preview overlay -->
+    <div class="preview-overlay" *ngIf="showPreview" (click)="showPreview = false">
+      <div class="preview-panel" [class.mobile]="previewMobile" (click)="$event.stopPropagation()">
+        <div class="preview-toolbar">
+          <div class="tabs">
+            <button type="button" [class.active]="previewLocale === 'he'" (click)="previewLocale = 'he'">HE</button>
+            <button type="button" [class.active]="previewLocale === 'en'" (click)="previewLocale = 'en'">EN</button>
+          </div>
+          <div class="tabs">
+            <button type="button" [class.active]="!previewMobile" (click)="previewMobile = false">דסקטופ</button>
+            <button type="button" [class.active]="previewMobile" (click)="previewMobile = true">מובייל</button>
+          </div>
+          <button type="button" class="link-btn" (click)="showPreview = false">סגור</button>
+        </div>
+
+        <ng-container *ngIf="form.get('placement')?.value === 'modal'; else barPreview">
+          <div class="site-popup-modal preview-modal" [attr.data-template]="form.get('template')?.value">
+            <div class="site-popup-modal__card">
+              <img
+                *ngIf="getPreviewContent().imageUrl"
+                class="site-popup-modal__image"
+                [src]="getPreviewContent().imageUrl"
+                alt=""
+              />
+              <div class="site-popup-modal__body">
+                <h3 *ngIf="getPreviewContent().title">{{ getPreviewContent().title }}</h3>
+                <p *ngIf="getPreviewContent().body">{{ getPreviewContent().body }}</p>
+                <span class="site-popup-cta" *ngIf="getPreviewContent().ctaLabel">
+                  {{ getPreviewContent().ctaLabel }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #barPreview>
+          <div
+            class="site-popup-bar"
+            [class.sticky]="form.get('placement')?.value === 'sticky_bottom'"
+            [attr.data-template]="form.get('template')?.value"
+          >
+            <p>{{ getPreviewContent().title || getPreviewContent().body }}</p>
+            <span class="site-popup-cta" *ngIf="getPreviewContent().ctaLabel">
+              {{ getPreviewContent().ctaLabel }}
+            </span>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</div>

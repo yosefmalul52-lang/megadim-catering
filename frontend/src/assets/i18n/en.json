@@ -9,14 +9,14 @@
     "ABOUT": "About",
     "CATERING": "Event Catering",
     "HOLIDAY_CATERING": "Shabbat & Holiday Catering",
-    "READY_FOOD": "Ready for Shabbat & Holidays",
+    "READY_FOOD": "Ready-made food for Shabbat",
     "CHOLENT": "Cholent Bar",
     "KOSHER": "Kosher Certificate",
     "CONTACT": "Contact Us",
     "ORDER_TEL": "For orders call: 073-367-8399"
   },
   "HEADER": {
-    "TITLE": "Ready Food for Shabbat & Holidays",
+    "TITLE": "Ready-made food for Shabbat",
     "SUBTITLE": "Homemade dishes, fresh and ready to serve",
     "CALL_US": "Call us",
     "LOGO_ALT": "Megadim Catering",
@@ -67,7 +67,7 @@
     "OOS": "Out of stock",
     "RECOMMENDED": "Recommended",
     "DESCRIPTION": "Description",
-    "BREADCRUMB_MENU": "Ready for Shabbat"
+    "BREADCRUMB_MENU": "Ready-made food for Shabbat"
   },
   "COOKIE": {
     "ARIA": "Cookie preferences",
@@ -215,7 +215,7 @@
   "HOME": {
     "HERO_TITLE": "Premium kosher meat catering for events, Shabbat and holidays.",
     "HERO_SUBTITLE": "Home-style taste at chef level — for events, Shabbat and holidays",
-    "CTA": "Ready-for-Shabbat menu",
+    "CTA": "Ready-made food for Shabbat",
     "CTA_CONTACT": "Contact us",
     "BRAND": "Megadim",
     "HERO_ARIA": "Welcome to Megadim Catering",
@@ -228,8 +228,8 @@
     "TRUST_3": "Mehadrin kashrut",
     "TRUST_4": "Home delivery",
     "PATHS_TITLE": "What would you like to order?",
-    "PATH_READY_TITLE": "Ready for Shabbat & holidays",
-    "PATH_READY_ALT": "Ready meals for Shabbat and holidays | Megadim Catering",
+    "PATH_READY_TITLE": "Ready-made food for Shabbat",
+    "PATH_READY_ALT": "Ready-made food for Shabbat | Megadim Catering",
     "PATH_EVENTS_TITLE": "Event catering",
     "PATH_EVENTS_ALT": "Event catering – mehadrin kosher meat menu | Megadim Catering",
     "PATH_HOLIDAY_TITLE": "Shabbat & holiday catering",
@@ -353,7 +353,7 @@
   "SEO": {
     "HOME_TITLE": "Megadim Catering – Premium kosher catering for events | Meat catering",
     "HOME_DESC": "Quality mehadrin kosher catering for all event types – Shabbat celebrations, brits, and corporate events.",
-    "MENU_TITLE": "Ready-for-Shabbat menu – Megadim Catering",
+    "MENU_TITLE": "Ready-made food for Shabbat – Megadim Catering",
     "MENU_DESC": "A variety of ready Shabbat dishes: salads, fish, mains, sides and desserts.",
     "ABOUT_TITLE": "About Megadim Catering",
     "ABOUT_DESC": "Meet Megadim: mehadrin kosher meat catering with tradition and uncompromising quality.",
@@ -372,7 +372,7 @@
     "CATS_ARIA": "Menu categories"
   },
   "SHABBAT": {
-    "TITLE": "Ready for Shabbat & holidays"
+    "TITLE": "Ready-made food for Shabbat"
   },
   "SEARCH": {
     "CLEAR": "Clear search",
@@ -634,7 +634,7 @@
   },
   "HOLIDAY": {
     "ORDER_UNTIL": "Order until {{date}}",
-    "SEO_TITLE": "{{name}} - Megadim Catering | Ready for Shabbat & holidays",
+    "SEO_TITLE": "{{name}} - Megadim Catering | Ready-made food for Shabbat",
     "SEO_DESC": "Special dishes for {{name}}. Order until {{date}}."
   },
   "GALLERY": {

@@ -169,6 +169,18 @@ export interface Order {
   paidAt?: string | Date | null;
   capturedAt?: string | Date | null;
   serviceDate?: string | Date | null;
+  /** Scheduled Google review-request email after completion. */
+  reviewRequestEmailDueAt?: string | Date | null;
+  reviewRequestEmailSentAt?: string | Date | null;
+  reviewRequestEmailStatus?:
+    | 'pending'
+    | 'sending'
+    | 'sent'
+    | 'failed'
+    | 'skipped_no_email'
+    | 'skipped_no_review_url'
+    | 'cancelled'
+    | null;
   /** Provider-issued auth code from the pre-auth response. */
   authCode?: string;
   /** Provider's transaction ID — used to capture or void. */
@@ -403,6 +415,26 @@ export class OrderService {
       .pipe(
         catchError((err: unknown) => {
           console.error('Error updating test-order flag:', err);
+          return throwError(() => err);
+        })
+      );
+  }
+
+  /**
+   * Admin-only: manually send Google review-request email for a completed order.
+   * POST /api/order/:id/send-review-request
+   */
+  sendReviewRequestEmail(
+    orderId: string
+  ): Observable<{ success: boolean; data: Order; message?: string }> {
+    return this.http
+      .post<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/${orderId}/send-review-request`,
+        {}
+      )
+      .pipe(
+        catchError((err: unknown) => {
+          console.error('Error sending review-request email:', err);
           return throwError(() => err);
         })
       );

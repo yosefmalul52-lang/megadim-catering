@@ -521,6 +521,15 @@
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
                           }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (canSendReviewRequest(order)) {
+                            <button
+                              type="button"
+                              [disabled]="reviewRequestSendingId === (order._id || order.id)"
+                              (click)="sendReviewRequestEmail(order)"
+                            >
+                              {{ reviewRequestSendingId === (order._id || order.id) ? 'שולח מייל ביקורת…' : 'שלח מייל ביקורת בגוגל' }}
+                            </button>
+                          }
                           @if (isAdminUser) {
                             <button type="button" (click)="toggleTestOrder(order)">
                               {{ order.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
@@ -570,6 +579,16 @@
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                @if (canSendReviewRequest(order)) {
+                  <button
+                    type="button"
+                    class="btn-review-request btn-review-request-compact"
+                    [disabled]="reviewRequestSendingId === (order._id || order.id)"
+                    (click)="sendReviewRequestEmail(order); $event.stopPropagation()"
+                  >
+                    {{ reviewRequestSendingId === (order._id || order.id) ? 'שולח…' : 'מייל ביקורת' }}
+                  </button>
+                }
                 @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
                   <button
                     type="button"
@@ -824,6 +843,15 @@
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
                           }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (canSendReviewRequest(order)) {
+                            <button
+                              type="button"
+                              [disabled]="reviewRequestSendingId === (order._id || order.id)"
+                              (click)="sendReviewRequestEmail(order)"
+                            >
+                              {{ reviewRequestSendingId === (order._id || order.id) ? 'שולח מייל ביקורת…' : 'שלח מייל ביקורת בגוגל' }}
+                            </button>
+                          }
                           @if (isAdminUser) {
                             <button type="button" (click)="toggleTestOrder(order)">
                               {{ order.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
@@ -876,6 +904,16 @@
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                @if (canSendReviewRequest(order)) {
+                  <button
+                    type="button"
+                    class="btn-review-request btn-review-request-compact"
+                    [disabled]="reviewRequestSendingId === (order._id || order.id)"
+                    (click)="sendReviewRequestEmail(order); $event.stopPropagation()"
+                  >
+                    {{ reviewRequestSendingId === (order._id || order.id) ? 'שולח…' : 'מייל ביקורת' }}
+                  </button>
+                }
                 @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
                   <button
                     type="button"
@@ -1132,6 +1170,15 @@
                             <button type="button" (click)="printKitchenSheet(order)">הדפס למטבח</button>
                           }
                           <a [href]="getWhatsAppLink(order)" target="_blank" rel="noopener noreferrer">שלח וואטסאפ</a>
+                          @if (canSendReviewRequest(order)) {
+                            <button
+                              type="button"
+                              [disabled]="reviewRequestSendingId === (order._id || order.id)"
+                              (click)="sendReviewRequestEmail(order)"
+                            >
+                              {{ reviewRequestSendingId === (order._id || order.id) ? 'שולח מייל ביקורת…' : 'שלח מייל ביקורת בגוגל' }}
+                            </button>
+                          }
                           @if (isAdminUser) {
                             <button type="button" (click)="toggleTestOrder(order)">
                               {{ order.isTestOrder ? 'הסר סימון בדיקה' : 'סמן כהזמנת בדיקה' }}
@@ -1182,6 +1229,16 @@
               </div>
               <div class="status-action-wrapper order-card-status-actions">
                 <span class="status-badge" [ngClass]="'status-' + order.status">{{ getStatusLabel(order.status) }}</span>
+                @if (canSendReviewRequest(order)) {
+                  <button
+                    type="button"
+                    class="btn-review-request btn-review-request-compact"
+                    [disabled]="reviewRequestSendingId === (order._id || order.id)"
+                    (click)="sendReviewRequestEmail(order); $event.stopPropagation()"
+                  >
+                    {{ reviewRequestSendingId === (order._id || order.id) ? 'שולח…' : 'מייל ביקורת' }}
+                  </button>
+                }
                 @if (currentTab === 'failed' && getPaymentAttentionDetails(order); as details) {
                   <button
                     type="button"
@@ -2161,6 +2218,28 @@
                         <span> · נרשם ידנית</span>
                       }
                     </span>
+                  </div>
+                }
+                @if (getReviewRequestLabel(selectedOrder); as reviewLabel) {
+                  <div class="summary-row">
+                    <span class="summary-label">מייל ביקורת:</span>
+                    <span class="summary-value">{{ reviewLabel }}</span>
+                  </div>
+                }
+                @if (canSendReviewRequest(selectedOrder)) {
+                  <div class="summary-row test-order-action-row">
+                    <button
+                      type="button"
+                      class="btn-review-request"
+                      [disabled]="reviewRequestSendingId === (selectedOrder._id || selectedOrder.id)"
+                      (click)="sendReviewRequestEmail(selectedOrder)"
+                    >
+                      {{
+                        reviewRequestSendingId === (selectedOrder._id || selectedOrder.id)
+                          ? 'שולח מייל ביקורת…'
+                          : 'שלח מייל ביקורת בגוגל'
+                      }}
+                    </button>
                   </div>
                 }
                 @if (getPaymentAttentionDetails(selectedOrder); as details) {
