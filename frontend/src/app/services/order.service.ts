@@ -722,6 +722,26 @@ export class OrderService {
       );
   }
 
+  /** Admin: update events catering guest count. */
+  updateOrderGuestCount(orderId: string, guestCount: number): Observable<Order> {
+    const id = String(orderId).trim();
+    return this.http
+      .patch<{ success: boolean; data: Order; message?: string }>(
+        `${environment.apiUrl}/order/admin/${id}/guest-count`,
+        { guestCount }
+      )
+      .pipe(
+        map((response) => ({
+          ...response.data,
+          id: response.data._id || response.data.id
+        })),
+        catchError((error: any) => {
+          console.error('Error updating guest count:', error);
+          throw error;
+        })
+      );
+  }
+
   /** Admin: set explicit special price (adminPriceOverride*). */
   setAdminPriceOverride(
     orderId: string,

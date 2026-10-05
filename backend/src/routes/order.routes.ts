@@ -184,6 +184,12 @@ router.put('/:id/date', authenticate, requireCapability(CAP.ORDERS_DATE_WRITE), 
 router.put('/admin/:id/items', authenticate, requireAdmin, orderController.updateOrderItems);
 router.patch('/admin/:id/portions', authenticate, requireAdmin, orderController.updateOrderPortions);
 router.patch(
+  '/admin/:id/guest-count',
+  authenticate,
+  requireAdmin,
+  orderController.updateOrderGuestCount
+);
+router.patch(
   '/admin/:id/resolve-payment-exception',
   authenticate,
   requireAdmin,

@@ -36,6 +36,12 @@ function validateCourseGroup(items: string[], count: number, label: string): voi
   assertExactCount(items, count, label);
 }
 
+/** Empty is allowed; if any item is chosen, require the exact slot count. */
+function validateCourseGroupOrEmpty(items: string[], count: number, label: string): void {
+  if (items.length === 0) return;
+  validateCourseGroup(items, count, label);
+}
+
 function validateSidesGroup(items: string[], count: number, label: string): void {
   assertNoDuplicates(items, label);
   assertExactCount(items, count, label);
@@ -134,17 +140,17 @@ export function validateShabbatCateringSelection(
         'להזמנת שתי ארוחות יש לבחור מנות ראשונות ועיקריות נפרדות לערב ולבוקר'
       );
     }
+    const eveningFirst = firstCourses.evening.map((l) => l.name);
+    const morningFirst = firstCourses.morning.map((l) => l.name);
     if (requireFirstCourses) {
-      validateCourseGroup(
-        firstCourses.evening.map((l) => l.name),
-        firstSlots,
-        'מנות ראשונות לערב'
-      );
-      validateCourseGroup(
-        firstCourses.morning.map((l) => l.name),
-        firstSlots,
-        'מנות ראשונות לבוקר'
-      );
+      // First courses may be skipped on one meal; any filled meal must be exact.
+      validateCourseGroupOrEmpty(eveningFirst, firstSlots, 'מנות ראשונות לערב');
+      validateCourseGroupOrEmpty(morningFirst, firstSlots, 'מנות ראשונות לבוקר');
+      if (eveningFirst.length === 0 && morningFirst.length === 0) {
+        throw createValidationError(
+          'תוספת מנות ראשונות: יש לבחור מנות ראשונות לפחות בארוחה אחת, או לבטל את התוספת'
+        );
+      }
     }
     validateCourseGroup(
       mainCourses.evening.map((l) => l.name),

@@ -74,3 +74,39 @@ test('validateShabbatCateringSelection: both meals skip first courses when upgra
     )
   );
 });
+
+test('validateShabbatCateringSelection: both meals allow first courses on only one meal', () => {
+  assert.doesNotThrow(() =>
+    validateShabbatCateringSelection(
+      {
+        salads,
+        firstCourseUpgrade: true,
+        firstCoursesEvening: ['כבד קצוץ', 'פילה סלמון בחרדל ודבש'],
+        firstCoursesMorning: [],
+        mainCoursesEvening: ['שניצל', 'כרעיים עוף בסילאן'],
+        mainCoursesMorning: ['פרגית בטריאקי', 'צלי בקר ברוטב'],
+        sidesEvening: ['אורז לבן', 'ירקות מוקפצים', 'קוסקוס עם ירקות בסגנון טריפולטאי'],
+        sidesMorning: ['אורז בקארי וירקות', 'סירות תפו"א ובטטה', 'שעועית ירוקה מוקפצת בסגנון סיני']
+      },
+      'both'
+    )
+  );
+
+  assert.throws(
+    () =>
+      validateShabbatCateringSelection(
+        {
+          salads,
+          firstCourseUpgrade: true,
+          firstCoursesEvening: [],
+          firstCoursesMorning: [],
+          mainCoursesEvening: ['שניצל', 'כרעיים עוף בסילאן'],
+          mainCoursesMorning: ['פרגית בטריאקי', 'צלי בקר ברוטב'],
+          sidesEvening: ['אורז לבן', 'ירקות מוקפצים', 'קוסקוס עם ירקות בסגנון טריפולטאי'],
+          sidesMorning: ['אורז בקארי וירקות', 'סירות תפו"א ובטטה', 'שעועית ירוקה מוקפצת בסגנון סיני']
+        },
+        'both'
+      ),
+    /לפחות בארוחה אחת/
+  );
+});

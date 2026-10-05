@@ -451,7 +451,7 @@
     "MORNING_BLOCK": "Saturday morning dishes",
     "FIRST_COURSE_SUB": "First course — {{count}} types",
     "FIRST_COURSE_UPGRADE": "First-course upgrade — {{count}} types (+{{price}} ₪ per portion)",
-    "FIRST_COURSE_UPGRADE_HINT": "Optional. Check only if you want paid first courses.",
+    "FIRST_COURSE_UPGRADE_HINT": "Optional. Check only if you want paid first courses. For both meals, you may add first courses to just one meal.",
     "MAIN_COURSE_SUB": "Main course — {{count}} types",
     "SIDES_SUB": "Sides — {{count}} types",
     "FIRST_EVENING": "Evening first course – choice {{n}}",

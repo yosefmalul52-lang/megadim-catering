@@ -144,6 +144,9 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   editPortionsEvening = 0;
   editPortionsMorning = 0;
   portionsUpdatingId: string | null = null;
+  isEditingGuestCount = false;
+  editGuestCountValue = 0;
+  guestCountUpdatingId: string | null = null;
   editAdminNotesValue = '';
   isSavingAdminNotes = false;
   isEditingItems = false;
@@ -3653,6 +3656,60 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     return order.orderType === 'catering'
       && order.cateringKind !== 'events'
       && (order.numberOfPortions != null || !!order.mealTime);
+  }
+
+  /** Events catering: admin can edit guest count. */
+  canEditGuestCount(order: Order | null): boolean {
+    if (!order) return false;
+    return order.orderType === 'catering' && order.cateringKind === 'events';
+  }
+
+  startEditingGuestCount(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.canEditGuestCount(order)) return;
+    this.editGuestCountValue = Math.max(
+      0,
+      Math.trunc(Number(order.guestCount) || Number(order.numberOfPortions) || 0)
+    );
+    this.isEditingGuestCount = true;
+  }
+
+  cancelEditingGuestCount(): void {
+    this.isEditingGuestCount = false;
+    this.guestCountUpdatingId = null;
+  }
+
+  saveGuestCount(): void {
+    const order = this.selectedOrder;
+    if (!order || !this.canEditGuestCount(order)) return;
+    const orderId = (order._id || order.id)?.toString();
+    if (!orderId) return;
+
+    const guestCount = Number(this.editGuestCountValue);
+    if (!Number.isFinite(guestCount) || !Number.isInteger(guestCount) || guestCount <= 0) {
+      this.errorMessage = 'מספר אורחים חייב להיות מספר שלם גדול מ-0';
+      setTimeout(() => (this.errorMessage = ''), 3000);
+      return;
+    }
+
+    this.guestCountUpdatingId = orderId;
+    this.orderService.updateOrderGuestCount(orderId, guestCount).subscribe({
+      next: (updated) => {
+        this.guestCountUpdatingId = null;
+        this.isEditingGuestCount = false;
+        const normalized = { ...updated, id: (updated._id || updated.id)?.toString() };
+        this.selectedOrder = normalized;
+        const idx = this.orders.findIndex((o) => (o._id || o.id)?.toString() === orderId);
+        if (idx > -1) this.orders[idx] = normalized;
+        this.successMessage = 'מספר האורחים עודכן';
+        setTimeout(() => (this.successMessage = ''), 3000);
+      },
+      error: (err) => {
+        this.guestCountUpdatingId = null;
+        this.errorMessage = err?.error?.message || 'שגיאה בעדכון מספר אורחים';
+        setTimeout(() => (this.errorMessage = ''), 3000);
+      }
+    });
   }
 
   showEveningPortionField(order: Order | null): boolean {

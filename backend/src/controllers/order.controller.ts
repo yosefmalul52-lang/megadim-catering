@@ -979,6 +979,31 @@ export class OrderController {
     });
   });
 
+  /** PATCH /api/order/admin/:id/guest-count – update events catering guest count (Admin). */
+  updateOrderGuestCount = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+      throw createValidationError('Order ID is required');
+    }
+
+    let updatedOrder: any;
+    try {
+      updatedOrder = await this.orderService.updateOrderGuestCount(id, req.body?.guestCount);
+    } catch (err: any) {
+      throw createValidationError(err?.message || 'Failed to update guest count');
+    }
+    if (!updatedOrder) {
+      throw createNotFoundError('Order');
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder,
+      message: 'Guest count updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  });
+
   /** PATCH /api/order/admin/:id/resolve-payment-exception – explicit payment exception handling. */
   resolvePaymentException = asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;

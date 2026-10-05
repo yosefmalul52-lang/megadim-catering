@@ -311,6 +311,13 @@ export class HolidayFoodComponent implements OnInit {
     return null;
   }
 
+  /** Empty is allowed; if any item is chosen, require the exact slot count. */
+  private assertExactCountOrEmpty(arr: string[], count: number, label: string): string | null {
+    const n = this.nonEmptySelections(arr).length;
+    if (n === 0) return null;
+    return this.assertExactCount(arr, count, label);
+  }
+
   private assertCountRange(arr: string[], min: number, max: number, label: string): string | null {
     const n = this.nonEmptySelections(arr).length;
     if (n < min || n > max) {
@@ -365,11 +372,23 @@ export class HolidayFoodComponent implements OnInit {
     const mainSlots = this.mainCourseSlotIndexes.length;
     const sideSlots = this.sidesSlotIndexes.length;
 
+    const bothMeals = mealTime === 'both';
+
     if (this.showEveningMealBlock) {
       if (this.isFirstCourseUpgrade) {
         err =
           this.assertNoDuplicates(this.orderForm.firstCoursesEvening, 'מנות ראשונות לערב') ||
-          this.assertExactCount(this.orderForm.firstCoursesEvening, firstSlots, 'מנות ראשונות לערב');
+          (bothMeals
+            ? this.assertExactCountOrEmpty(
+                this.orderForm.firstCoursesEvening,
+                firstSlots,
+                'מנות ראשונות לערב'
+              )
+            : this.assertExactCount(
+                this.orderForm.firstCoursesEvening,
+                firstSlots,
+                'מנות ראשונות לערב'
+              ));
         if (err) return err;
       }
       err =
@@ -384,7 +403,17 @@ export class HolidayFoodComponent implements OnInit {
       if (this.isFirstCourseUpgrade) {
         err =
           this.assertNoDuplicates(this.orderForm.firstCoursesMorning, 'מנות ראשונות לבוקר') ||
-          this.assertExactCount(this.orderForm.firstCoursesMorning, firstSlots, 'מנות ראשונות לבוקר');
+          (bothMeals
+            ? this.assertExactCountOrEmpty(
+                this.orderForm.firstCoursesMorning,
+                firstSlots,
+                'מנות ראשונות לבוקר'
+              )
+            : this.assertExactCount(
+                this.orderForm.firstCoursesMorning,
+                firstSlots,
+                'מנות ראשונות לבוקר'
+              ));
         if (err) return err;
       }
       err =
@@ -393,6 +422,15 @@ export class HolidayFoodComponent implements OnInit {
         this.assertNoDuplicates(this.orderForm.sidesMorning, 'תוספות לבוקר') ||
         this.assertExactCount(this.orderForm.sidesMorning, sideSlots, 'תוספות לבוקר');
       if (err) return err;
+    }
+
+    if (
+      this.isFirstCourseUpgrade &&
+      bothMeals &&
+      this.nonEmptySelections(this.orderForm.firstCoursesEvening).length === 0 &&
+      this.nonEmptySelections(this.orderForm.firstCoursesMorning).length === 0
+    ) {
+      return 'תוספת מנות ראשונות: יש לבחור מנות ראשונות לפחות בארוחה אחת, או לבטל את התוספת';
     }
 
     return null;

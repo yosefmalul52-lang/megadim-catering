@@ -1500,10 +1500,58 @@
                   <span class="detail-value">{{ selectedOrder.eventType }}</span>
                 </div>
               }
-              @if (selectedOrder.cateringKind === 'events' && selectedOrder.guestCount != null) {
-                <div class="detail-row">
+              @if (canEditGuestCount(selectedOrder)) {
+                <div class="detail-row detail-row-portions">
                   <span class="detail-label">מספר אורחים:</span>
-                  <span class="detail-value">{{ selectedOrder.guestCount }}</span>
+                  @if (!isEditingGuestCount) {
+                    <span class="detail-value">{{ selectedOrder.guestCount ?? '—' }}</span>
+                    <button
+                      type="button"
+                      class="btn-edit-date"
+                      (click)="startEditingGuestCount()"
+                      title="ערוך מספר אורחים"
+                      aria-label="ערוך מספר אורחים"
+                    >
+                      <i class="fa-solid fa-pen"></i>
+                    </button>
+                  } @else {
+                    <div class="portions-edit-inline">
+                      <label class="portions-edit-field">
+                        <span>אורחים</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          class="input-portions"
+                          [(ngModel)]="editGuestCountValue"
+                          name="editGuestCountValue"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        class="btn-save-date"
+                        (click)="saveGuestCount()"
+                        [disabled]="guestCountUpdatingId !== null"
+                        title="שמור"
+                      >
+                        @if (guestCountUpdatingId) {
+                          <i class="fas fa-spinner fa-spin"></i>
+                        } @else {
+                          <i class="fas fa-check"></i>
+                        }
+                        שמור
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-cancel-date"
+                        (click)="cancelEditingGuestCount()"
+                        [disabled]="guestCountUpdatingId !== null"
+                        title="ביטול"
+                      >
+                        <i class="fas fa-times"></i> ביטול
+                      </button>
+                    </div>
+                  }
                 </div>
               }
               @if (selectedOrder.cateringKind === 'events' && selectedOrder.customerDetails?.deliveryType) {
@@ -1699,7 +1747,7 @@
                               [placeholder]="usesManagerKitchenQty(selectedOrder) ? 'כמויות להכנה...' : 'הערות מטבח'"
                               [title]="usesManagerKitchenQty(selectedOrder) ? 'כמויות להכנה (יופיעו בעמודת כמות בדוח)' : 'הערות מטבח'"
                             />
-                            @if (isShabbatCateringOrder(selectedOrder)) {
+                            @if (usesManagerKitchenQty(selectedOrder)) {
                               <input
                                 type="text"
                                 class="input-item-kitchen-remark"
@@ -1910,7 +1958,9 @@
                                     <span class="item-quantity">×{{ effectiveItemQuantity(selectedOrder, item) }}</span>
                                   }
                                 </span>
-                                @if (item.kitchenNotes && !isEventCateringOrder(selectedOrder)) {
+                                @if (item.kitchenRemark) {
+                                  <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenRemark }}</span>
+                                } @else if (item.kitchenNotes && !isEventCateringOrder(selectedOrder)) {
                                   <span class="catering-kitchen-note">הערות מטבח: {{ item.kitchenNotes }}</span>
                                 }
                               </div>
@@ -1947,13 +1997,9 @@
               <div class="details-section kitchen-prep-section">
                 <div class="kitchen-prep-header">
                   <h3>דף הכנה למטבח</h3>
-                  @if (isEventCateringOrder(selectedOrder)) {
+                  @if (usesManagerKitchenQty(selectedOrder)) {
                     <p class="kitchen-prep-hint">
-                      מלאו כמויות להכנה לכל מנה — יופיעו בעמודת הכמות בדוח המטבח ובדוח ההזמנה. עמודת הערות מטבח בהדפסה ריקה לכתיבה ידנית.
-                    </p>
-                  } @else if (isShabbatCateringOrder(selectedOrder)) {
-                    <p class="kitchen-prep-hint">
-                      מלאו כמויות להכנה לכל מנה — יופיעו בעמודת הכמות בדוח. ניתן גם להוסיף הערות מטבח נפרדות.
+                      מלאו כמויות להכנה לכל מנה — יופיעו בעמודת הכמות בדוח. ניתן גם להוסיף הערות מטבח לפי שורה.
                     </p>
                   } @else {
                     <p class="kitchen-prep-hint">הערות להכנה — לא נשלחות ללקוח. מלאו לפני הדפסה לצוות המטבח.</p>
@@ -1970,9 +2016,7 @@
                           <th>פריט</th>
                           @if (usesManagerKitchenQty(selectedOrder)) {
                             <th>כמויות</th>
-                            @if (isShabbatCateringOrder(selectedOrder)) {
-                              <th>הערות למטבח</th>
-                            }
+                            <th>הערות למטבח</th>
                           } @else {
                             <th>כמות</th>
                             <th>הערות למטבח</th>
@@ -1994,17 +2038,15 @@
                                   placeholder="למשל: 8 מגשים / 3 ק״ג..."
                                 />
                               </td>
-                              @if (isShabbatCateringOrder(selectedOrder)) {
-                                <td>
-                                  <input
-                                    type="text"
-                                    class="kitchen-prep-input"
-                                    [(ngModel)]="kitchenPrepLines[$index].kitchenRemark"
-                                    [name]="'kitchenPrepRemark' + $index"
-                                    placeholder="הערות חופשיות..."
-                                  />
-                                </td>
-                              }
+                              <td>
+                                <input
+                                  type="text"
+                                  class="kitchen-prep-input"
+                                  [(ngModel)]="kitchenPrepLines[$index].kitchenRemark"
+                                  [name]="'kitchenPrepRemark' + $index"
+                                  placeholder="הערות חופשיות..."
+                                />
+                              </td>
                             } @else {
                               <td>{{ line.quantity }}</td>
                               <td>
@@ -2032,7 +2074,7 @@
                       @if (isSavingKitchenPrep) {
                         <i class="fas fa-spinner fa-spin"></i> שומר...
                       } @else if (usesManagerKitchenQty(selectedOrder)) {
-                        שמור כמויות
+                        שמור כמויות והערות
                       } @else {
                         שמור הערות מטבח
                       }

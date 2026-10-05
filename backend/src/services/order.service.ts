@@ -1771,6 +1771,64 @@ export class OrderService {
     return order as IOrder | null;
   }
 
+  /** Admin: update guest count on events catering orders. */
+  async updateOrderGuestCount(orderId: string, guestCountRaw: unknown): Promise<IOrder | null> {
+    const order = await Order.findById(orderId).lean();
+    if (!order) return null;
+
+    const row = order as any;
+    if (row.orderType !== 'catering' || row.cateringKind !== 'events') {
+      throw new Error('ניתן לעדכן מספר אורחים רק להזמנות קייטרינג אירועים');
+    }
+
+    if (guestCountRaw === undefined || guestCountRaw === null || guestCountRaw === '') {
+      throw new Error('מספר אורחים חייב להיות מספר שלם');
+    }
+    const guestCount =
+      typeof guestCountRaw === 'number'
+        ? guestCountRaw
+        : parseInt(String(guestCountRaw).trim(), 10);
+    if (!Number.isFinite(guestCount) || !Number.isInteger(guestCount) || guestCount <= 0) {
+      throw new Error('מספר אורחים חייב להיות מספר שלם גדול מ-0');
+    }
+
+    const prev = Number(row.guestCount) || Number(row.numberOfPortions) || 0;
+    const totals = computeAdminRecalculatedTotals(order as unknown as Record<string, unknown>, {
+      numberOfPortions: guestCount
+    });
+
+    const $set: Record<string, unknown> = {
+      guestCount,
+      numberOfPortions: guestCount
+    };
+    if (!totals.locked) {
+      $set.subtotal = totals.subtotal;
+      $set.totalPrice = totals.totalPrice;
+    }
+
+    const updateResult = await Order.updateOne({ _id: orderId }, { $set });
+    if (updateResult.matchedCount === 0) return null;
+
+    try {
+      const { appendKitchenChange } = await import('./kitchen-report.service');
+      await appendKitchenChange(orderId, 'quantity', 'עודכן מספר אורחים', undefined, {
+        previousValue: String(prev),
+        newValue: String(guestCount)
+      });
+      const { onOrderKitchenRelevantChange } = await import('./kitchen-ops.service');
+      await onOrderKitchenRelevantChange(orderId, {
+        type: 'quantity',
+        summary: 'עודכן מספר אורחים',
+        previousValue: String(prev),
+        newValue: String(guestCount)
+      });
+    } catch {
+      /* non-fatal */
+    }
+
+    return (await Order.findById(orderId).select(ORDER_API_DETAIL_SELECT).lean()) as IOrder | null;
+  }
+
   /** Admin: update Shabbat/holiday catering portion counts. */
   async updateOrderPortions(
     orderId: string,
