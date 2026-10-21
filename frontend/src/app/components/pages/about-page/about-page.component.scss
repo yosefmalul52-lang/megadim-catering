@@ -31,18 +31,6 @@ $border-gold: rgba($gold, 0.35);
 }
 
 // ─── Shared typography ───────────────────────────────────────────
-.about-label {
-  margin: 0 0 1rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: color.adjust($gold, $lightness: -10%);
-
-  &--light {
-    color: rgba($gold, 0.9);
-  }
-}
-
 .about-heading {
   font-family: 'Secular One', sans-serif;
   font-size: clamp(1.75rem, 3.8vw, 2.5rem);
@@ -209,70 +197,47 @@ $border-gold: rgba($gold, 0.35);
 
 // ─── 2. Chef ───────────────────────────────────────────────────
 .about-chef {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   background: $navy;
+  padding-block: clamp(2.75rem, 5vw, 3.75rem);
+
+  &__bg {
+    z-index: 0;
+    object-fit: cover;
+    object-position: center 38%;
+  }
+
+  &__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba($navy, 0.86);
+    pointer-events: none;
+  }
+
+  .about-wrap {
+    position: relative;
+    z-index: 2;
+  }
 
   .about-heading--light {
-    @include divider.home-title-divider($gold, start, 8rem, 4px, 0.75rem);
-  }
-
-  &__figure {
-    @extend %about-figure;
-    border-color: rgba($gold, 0.4);
-
-    img {
-      aspect-ratio: 4 / 5;
-      object-position: center 12%;
-    }
-  }
-
-  &__list {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba($gold, 0.2);
-  }
-
-  &__list-label {
-    margin: 0 0 1.15rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: rgba($gold, 0.88);
-  }
-
-  &__grid {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: clamp(0.75rem, 1.5vw, 1.25rem);
-  }
-
-  &__item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    @include divider.home-title-divider($gold, center, 8rem, 4px, 0.75rem);
+    max-width: 22ch;
+    margin-inline: auto;
     text-align: center;
-    gap: 0.5rem;
-    padding-inline: clamp(0.25rem, 1vw, 0.5rem);
-    border-inline-start: 1px solid rgba($gold, 0.18);
-
-    &:first-child {
-      border-inline-start: none;
-    }
   }
 
-  &__num {
-    font-family: 'Secular One', sans-serif;
-    font-size: clamp(1.1rem, 2vw, 1.35rem);
-    line-height: 1;
-    color: $gold;
-    letter-spacing: 0.06em;
+  .about-body--light {
+    margin-inline: auto;
+    text-align: center;
   }
 
-  &__item-text {
-    font-size: clamp(0.9rem, 1.4vw, 1rem);
-    line-height: 1.45;
-    color: rgba($cream-text, 0.9);
+  &__copy {
+    max-width: 46rem;
+    margin-inline: auto;
+    text-align: center;
   }
 }
 
@@ -398,19 +363,6 @@ $border-gold: rgba($gold, 0.35);
     }
   }
 
-  .about-chef__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .about-chef__item {
-    &:nth-child(odd) {
-      border-inline-start: none;
-    }
-
-    &:nth-child(even) {
-      border-inline-start: 1px solid rgba($gold, 0.18);
-    }
-  }
 }
 
 @media (max-width: 640px) {
@@ -435,26 +387,6 @@ $border-gold: rgba($gold, 0.35);
     border-inline-start: none;
     border-bottom: 1px solid $border-light;
     padding-bottom: 1.75rem;
-
-    &:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-  }
-
-  .about-chef__grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-
-  .about-chef__item {
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: flex-start;
-    text-align: start;
-    border-inline-start: none;
-    border-bottom: 1px solid rgba($gold, 0.12);
-    padding-bottom: 1rem;
 
     &:last-child {
       border-bottom: none;

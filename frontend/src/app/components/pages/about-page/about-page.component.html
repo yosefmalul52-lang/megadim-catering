@@ -4,7 +4,6 @@
   <section class="about-intro about-section" [attr.aria-label]="'ABOUT.ARIA_ABOUT' | translate">
     <div class="about-wrap about-split">
       <div class="about-intro__copy">
-        <p class="about-label">{{ 'ABOUT.LABEL' | translate }}</p>
         <h1 class="about-intro__title">
           {{ 'ABOUT.HERO_TITLE' | translate }}
         </h1>
@@ -28,35 +27,23 @@
     </div>
   </section>
 
-  <!-- 2. Chef -->
+  <!-- 2. Kitchen, over the event table -->
   <section class="about-chef about-section" aria-labelledby="about-chef-title">
-    <div class="about-wrap about-split">
-      <figure class="about-chef__figure">
-        <img
-          ngSrc="https://megadim-media.megadim.workers.dev/frontend/static/554c85bbcb2fefbc/original.jpg"
-          [attr.alt]="'ABOUT.CHEF_ALT' | translate"
-          width="560"
-          height="700"
-          loading="lazy"
-        />
-      </figure>
+    <img
+      class="about-chef__bg"
+      ngSrc="https://megadim-media.megadim.workers.dev/frontend/static/c3bad83038c1d880/original.jpg"
+      alt=""
+      fill
+      sizes="100vw"
+      loading="lazy"
+    />
+    <div class="about-chef__scrim" aria-hidden="true"></div>
+    <div class="about-wrap">
       <div class="about-chef__copy">
-        <p class="about-label about-label--light">{{ 'ABOUT.CHEF_LABEL' | translate }}</p>
         <h2 id="about-chef-title" class="about-heading about-heading--light">{{ 'ABOUT.CHEF_TITLE' | translate }}</h2>
         <p class="about-body about-body--light">
           {{ 'ABOUT.CHEF_TEXT' | translate }}
         </p>
-        <div class="about-chef__list">
-          <p class="about-chef__list-label">{{ 'ABOUT.CHEF_LIST_LABEL' | translate }}</p>
-          <ul class="about-chef__grid">
-            @for (item of menuFitKeys; track item; let i = $index) {
-              <li class="about-chef__item">
-                <span class="about-chef__num" aria-hidden="true">{{ (i + 1).toString().padStart(2, '0') }}</span>
-                <span class="about-chef__item-text">{{ item | translate }}</span>
-              </li>
-            }
-          </ul>
-        </div>
       </div>
     </div>
   </section>

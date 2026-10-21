@@ -92,90 +92,60 @@
 
   <app-featured-menu></app-featured-menu>
 
-  <!-- Chef (replaces story section) -->
+  <!-- Kitchen copy over the existing event-table photo -->
   <section class="home-chef" aria-labelledby="chef-heading">
-    <div class="home-chef__fade-top" aria-hidden="true"></div>
-
-    <div class="home-chef__atmosphere" aria-hidden="true">
-      <span class="home-chef__texture"></span>
-      <span class="home-chef__glow home-chef__glow--copy"></span>
-      <span class="home-chef__glow home-chef__glow--portrait"></span>
-    </div>
+    <img
+      class="home-chef__bg"
+      ngSrc="https://megadim-media.megadim.workers.dev/frontend/static/c3bad83038c1d880/original.jpg"
+      alt=""
+      fill
+      sizes="100vw"
+      loading="lazy"
+    />
+    <div class="home-chef__scrim" aria-hidden="true"></div>
 
     <div class="home-chef__inner">
-      <div class="home-chef__layout">
-        <div class="home-chef__media-col">
-          <div class="home-chef__media-backdrop" aria-hidden="true"></div>
-          <div class="home-chef__frame">
-            <div class="home-chef__photo-wrap">
-              <img
-                ngSrc="https://megadim-media.megadim.workers.dev/frontend/static/554c85bbcb2fefbc/original.jpg"
-                [alt]="'HOME.CHEF_ALT' | translate"
-                width="576"
-                height="1024"
-                sizes="(max-width: 640px) 90vw, (max-width: 960px) 50vw, 35vw"
-                loading="lazy"
-                class="home-chef__photo"
-              />
-              <div class="home-chef__badge">
-                <p class="home-chef__badge-name">{{ 'HOME.CHEF_BADGE_NAME' | translate }}</p>
-                <p class="home-chef__badge-role">{{ 'HOME.CHEF_BADGE_ROLE' | translate }}</p>
-              </div>
-            </div>
-          </div>
+      <header class="home-chef__head">
+        <h2 id="chef-heading" class="home-chef__title">{{ 'HOME.CHEF_TITLE' | translate }}</h2>
+      </header>
+
+      <p class="home-chef__text">
+        {{ 'HOME.CHEF_P1' | translate }}
+      </p>
+      <p class="home-chef__text">
+        {{ 'HOME.CHEF_P2' | translate }}
+      </p>
+
+      <div class="home-chef__menu-card">
+        <div class="home-chef__menu-card-intro">
+          <p class="home-chef__menu-card-eyebrow">{{ 'HOME.CHEF_MENU_EYEBROW' | translate }}</p>
+          <h3 class="home-chef__menu-card-title">{{ 'HOME.CHEF_MENU_TITLE' | translate }}</h3>
         </div>
 
-        <div class="home-chef__connector" aria-hidden="true">
-          <span class="home-chef__connector-line"></span>
-        </div>
+        <ul class="home-chef__menu-list">
+          <li class="home-chef__menu-item">
+            <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+            <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_1' | translate }}</span>
+          </li>
+          <li class="home-chef__menu-item">
+            <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+            <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_2' | translate }}</span>
+          </li>
+          <li class="home-chef__menu-item">
+            <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+            <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_3' | translate }}</span>
+          </li>
+          <li class="home-chef__menu-item">
+            <span class="home-chef__menu-check" aria-hidden="true">✓</span>
+            <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_4' | translate }}</span>
+          </li>
+        </ul>
 
-        <div class="home-chef__content-panel">
-          <header class="home-chef__head">
-            <p class="home-chef__eyebrow">{{ 'HOME.CHEF_EYEBROW' | translate }}</p>
-            <h2 id="chef-heading" class="home-chef__title">{{ 'HOME.CHEF_TITLE' | translate }}</h2>
-          </header>
-
-          <p class="home-chef__text">
-            {{ 'HOME.CHEF_P1' | translate }}
-          </p>
-          <p class="home-chef__text">
-            {{ 'HOME.CHEF_P2' | translate }}
-          </p>
-
-          <div class="home-chef__menu-card">
-            <div class="home-chef__menu-card-intro">
-              <p class="home-chef__menu-card-eyebrow">{{ 'HOME.CHEF_MENU_EYEBROW' | translate }}</p>
-              <h3 class="home-chef__menu-card-title">{{ 'HOME.CHEF_MENU_TITLE' | translate }}</h3>
-            </div>
-
-            <ul class="home-chef__menu-list">
-              <li class="home-chef__menu-item">
-                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_1' | translate }}</span>
-              </li>
-              <li class="home-chef__menu-item">
-                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_2' | translate }}</span>
-              </li>
-              <li class="home-chef__menu-item">
-                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_3' | translate }}</span>
-              </li>
-              <li class="home-chef__menu-item">
-                <span class="home-chef__menu-check" aria-hidden="true">✓</span>
-                <span class="home-chef__menu-label">{{ 'HOME.CHEF_ITEM_4' | translate }}</span>
-              </li>
-            </ul>
-
-            <p class="home-chef__menu-card-footer">
-              {{ 'HOME.CHEF_MENU_FOOTER' | translate }}
-            </p>
-          </div>
-        </div>
+        <p class="home-chef__menu-card-footer">
+          {{ 'HOME.CHEF_MENU_FOOTER' | translate }}
+        </p>
       </div>
     </div>
-
-    <div class="home-chef__fade-bottom" aria-hidden="true"></div>
   </section>
 
   <app-video-section></app-video-section>

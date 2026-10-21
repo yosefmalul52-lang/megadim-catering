@@ -35,13 +35,6 @@ export class AboutPageComponent implements OnInit {
     { index: '04', titleKey: 'ABOUT.V4_TITLE', textKey: 'ABOUT.V4_TEXT' },
   ];
 
-  readonly menuFitKeys = [
-    'ABOUT.FIT_GUESTS',
-    'ABOUT.FIT_STYLE',
-    'ABOUT.FIT_KOSHER',
-    'ABOUT.FIT_SERVE',
-  ];
-
   ngOnInit(): void {
     this.seoService.updatePage('about');
   }
